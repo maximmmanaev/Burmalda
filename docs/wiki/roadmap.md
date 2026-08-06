@@ -1,0 +1,34 @@
+# Roadmap — от HTML-прототипа до релиза
+
+План разбит на 12 спринтов по 2 недели: от текущего состояния (HTML-прототип,
+[PRD раздел 16](../raw/BURMALDA_PRD_v4.md)) до публикации в сторах.
+
+Порядок продиктован зависимостями: сначала переименование терминологии
+(PRD раздел 17), затем системы, не зависящие от других (core-движение,
+валюты), затем системы, которые на них ссылаются (артефакты → Алтарь → Зал
+Реликвии/d20 → возврат/Лагерь). Баланс и монетизация вынесены в отдельные
+поздние спринты; баланс требует плейтеста и не автоматизируется. Финальный
+спринт — сборка и подготовка к публикации.
+
+Каждый спринт — отдельный [GitHub Milestone](https://github.com/maximmmanaev/Burmalda/milestones)
+со своими issues.
+
+| № | Спринт | Дедлайн | Фокус |
+|---|--------|---------|-------|
+| 1 | [Терминология v4 и подготовка Unity-проекта](https://github.com/maximmmanaev/Burmalda/milestone/1) | 2026-08-22 | Переименование сущностей под v4, старт Unity-проекта |
+| 2 | [Core — тоннель, движение, decay](https://github.com/maximmmanaev/Burmalda/milestone/2) | 2026-09-05 | Перенос базового core loop с HTML-прототипа |
+| 3 | [Ловушки и множитель](https://github.com/maximmmanaev/Burmalda/milestone/3) | 2026-09-19 | Статичные/динамические ловушки, кривая множителя |
+| 4 | [Валюты](https://github.com/maximmmanaev/Burmalda/milestone/4) | 2026-10-03 | Кристаллы Маны, Монеты, Кристаллы |
+| 5 | [Система артефактов](https://github.com/maximmmanaev/Burmalda/milestone/5) | 2026-10-17 | Идолы, Тотем, Амулеты, Талисманы, Руны, Коллекция |
+| 6 | [Алтарь и Ритуал](https://github.com/maximmmanaev/Burmalda/milestone/6) | 2026-10-31 | Клетка-Алтарь, витрина Ритуала, Сундук Рун |
+| 7 | [Зал Реликвии и d20](https://github.com/maximmmanaev/Burmalda/milestone/7) | 2026-11-14 | Зал Реликвии, «Второе дыхание», d20-испытание |
+| 8 | [Возврат, кэш-аут и Лагерь](https://github.com/maximmmanaev/Burmalda/milestone/8) | 2026-11-28 | Кэш-аут, возврат в лагерь, перманентный шоп |
+| 9 | [Активные способности и интеграция core loop](https://github.com/maximmmanaev/Burmalda/milestone/9) | 2026-12-12 | Способности Тотема, e2e-интеграция, сверка терминологии |
+| 10 | [Баланс (плейтест)](https://github.com/maximmmanaev/Burmalda/milestone/10) | 2026-12-26 | Частота Алтарей/Залов Реликвии, стоимость реролла, кривые улучшений и d20 — требует плейтеста |
+| 11 | [Монетизация](https://github.com/maximmmanaev/Burmalda/milestone/11) | 2027-01-09 | Ad mediation SDK, IAP SDK, near-miss revive-оффер, метрики (PRD раздел 14) |
+| 12 | [Сборка и публикация](https://github.com/maximmmanaev/Burmalda/milestone/12) | 2027-01-23 | iOS TestFlight, Google Play internal testing, сторовые материалы |
+
+## Источники
+
+- Полный список правил переноса и приоритизации — [docs/rules/index.md](../rules/index.md).
+- Источник истины по фичам — [BURMALDA_PRD_v4.md](../raw/BURMALDA_PRD_v4.md) (неизменяемый).
