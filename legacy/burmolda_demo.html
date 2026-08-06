@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>BURMOLDA — Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;touch-action:none;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0704;font-family:'Courier New',monospace}
+canvas{display:block;position:absolute;top:0;left:0}
+#hud{position:fixed;top:8px;left:0;width:100%;display:flex;justify-content:space-between;padding:0 10px;pointer-events:none;z-index:10;flex-wrap:wrap;gap:4px}
+.hi{font-size:13px;font-weight:bold;text-shadow:0 0 6px currentColor}
+#hCoins{color:#ffd700}#hCryst{color:#7fd8ff}#hKeys{color:#ff9d3d}#hMulti{color:#ff5c5c}#hDepth{color:#9c9}
+#totemBtn{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:76px;height:76px;border-radius:50%;
+  background:radial-gradient(circle,#3a2a10,#160f06);border:3px solid #ffb347;color:#ffb347;font-size:11px;font-weight:bold;
+  z-index:20;display:flex;align-items:center;justify-content:center;text-align:center;opacity:.4;transition:opacity .2s}
+#totemBtn.ready{opacity:1;box-shadow:0 0 20px #ffb347}
+#totemBar{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);width:90px;height:6px;background:#221a10;border:1px solid #664;border-radius:3px;z-index:20;overflow:hidden}
+#totemFill{height:100%;width:0%;background:linear-gradient(90deg,#ff9d3d,#ffe08a)}
+#hint{position:fixed;top:34px;left:50%;transform:translateX(-50%);color:#fff6;font-size:11px;text-align:center;z-index:10;pointer-events:none}
+.overlay{position:fixed;inset:0;background:rgba(4,2,0,.94);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:200;padding:20px;text-align:center}
+.overlay.show{display:flex}
+.overlay h2{font-size:26px;margin-bottom:6px}
+.overlay .sub{color:#c99;font-size:13px;margin-bottom:14px;max-width:320px}
+.rowBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px 0}
+.btn{padding:12px 18px;border:none;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;font-family:inherit}
+.bGold{background:#ffd700;color:#000}.bBlue{background:#4aa8ff;color:#000}.bPurple{background:#b06fff;color:#fff}
+.bRed{background:#c94848;color:#fff}.bGray{background:#333;color:#999}.bGreen{background:#4ade80;color:#000}
+.chest{background:#1c1408;border:1px solid #55420f;border-radius:10px;padding:12px;width:130px;cursor:pointer}
+.chest:hover{border-color:#ffd700}
+.chest .name{color:#fff;font-size:12px;margin-bottom:6px;min-height:28px}
+.chest .cost{color:#ff9d3d;font-size:12px;font-weight:bold}
+.chest.disabled{opacity:.35;cursor:not-allowed}
+#campPanel{margin-top:10px;font-size:12px;color:#998}
+#coinAnim{position:fixed;top:44%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:150;
+  font-size:46px;font-weight:bold;color:#ffd700;text-shadow:0 0 24px #ffd700;opacity:0}
+#coinAnim.show{opacity:1;animation:pop .6s ease-out}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(0)}60%{transform:translate(-50%,-50%) scale(1.3)}100%{transform:translate(-50%,-50%) scale(1)}}
+#effects{position:fixed;top:56px;left:8px;z-index:10;display:flex;flex-direction:column;gap:2px;pointer-events:none}
+.eff{font-size:11px;color:#8f8;background:#0008;padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <span class="hi" id="hDepth">⛏ 0м</span>
+  <span class="hi" id="hCoins">🪙 0</span>
+  <span class="hi" id="hCryst">💎 0</span>
+  <span class="hi" id="hKeys">🗝 0</span>
+  <span class="hi" id="hMulti">x1</span>
+</div>
+<div id="hint">иди снизу вверх • вернись в 🏕 у подножья, чтобы закрепить добычу</div>
+<div id="effects"></div>
+<div id="totemBar"><div id="totemFill"></div></div>
+<button id="totemBtn">⚡<br>ТОТЕМ</button>
+<div id="coinAnim"></div>
+
+<!-- Checkpoint shop -->
+<div class="overlay" id="checkpointModal">
+  <h2 style="color:#ffd700">🎁 Зал Сундуков</h2>
+  <div class="sub">Трать 🗝 ключи на сундуки. Можно разобрать текущие артефакты обратно в ключи.</div>
+  <div class="rowBtns" id="chestRow"></div>
+  <div class="rowBtns" id="dismantleRow"></div>
+  <button class="btn bGreen" id="checkpointContinue" style="margin-top:14px">Идти дальше →</button>
+</div>
+
+<!-- Relic hall -->
+<div class="overlay" id="relicModal">
+  <h2 style="color:#ff6bd6">💠 Зал Реликвии</h2>
+  <div class="sub" id="relicText"></div>
+  <div class="rowBtns">
+    <button class="btn bBlue" id="relicReturn">Вернуться сейчас</button>
+    <button class="btn bRed" id="relicDeeper">Идти глубже (×2 награда, ×2 риск)</button>
+  </div>
+</div>
+
+<!-- d20 death roll -->
+<div class="overlay" id="d20Modal" style="z-index:260">
+  <h2 id="d20Roll" style="font-size:52px;margin-bottom:8px"></h2>
+  <div class="sub" id="d20Result" style="font-size:15px"></div>
+</div>
+
+<!-- End of run -->
+<div class="overlay" id="endModal">
+  <h2 id="eTitle"></h2>
+  <div class="sub" id="eSub"></div>
+  <div id="eReward" style="margin:10px 0"></div>
+  <div class="rowBtns">
+    <button class="btn bGold" id="eRestart">Новая экспедиция</button>
+  </div>
+  <div id="campPanel"></div>
+</div>
+
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d');
+const ac=new(window.AudioContext||window.webkitAudioContext)();
+function tone(f,d,v=.08){try{const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);
+  o.frequency.value=f;o.type='sine';g.gain.setValueAtTime(v,ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.start();o.stop(ac.currentTime+d);}catch(e){}}
+
+const COLS=5;
+let dpr,ts,cw,ch;
+function resize(){dpr=devicePixelRatio||1;cw=innerWidth;ch=innerHeight;C.width=cw*dpr;C.height=ch*dpr;
+  C.style.width=cw+'px';C.style.height=ch+'px';ts=(cw*dpr)/COLS;}
+resize();onresize=resize;
+
+// ---------- PERMANENT (camp) STATE ----------
+let coins=0,crystals=0;
+let totemLevel=1; // permanent upgrade, affects ability charge speed
+const ARTIFACT_POOL={
+  talismans:[
+    {id:'t1',name:'Жадный Глаз',desc:'+1 к базовому счёту тайла'},
+    {id:'t2',name:'Быстрые Пальцы',desc:'Множитель растёт на 20% быстрее'},
+    {id:'t3',name:'Нюх на Золото',desc:'+15% шанс редких тайлов'},
+  ],
+  amulets:[
+    {id:'a1',name:'Каменная Кожа',desc:'Распад плит на 20% медленнее'},
+    {id:'a2',name:'Верёвка Спасения',desc:'Последние 2 плиты трейла держатся +2 сек'},
+    {id:'a3',name:'Лёгкий Шаг',desc:'Ловушки предупреждают за 1 клетку'},
+  ],
+};
+
+// ---------- RUN STATE ----------
+let tiles,trail,trailSet,dragging,alive,started,lastDir;
+let runCoins,runKeys,runCrystals,multi,shake,particles,decayAcc,turnCount;
+let cameraRow,cameraTargetRow;
+let activeTalismans,activeAmulets,tempTotemBoost;
+let totemCharge,totemReady,invulnUntil;
+let deeperRiskMult;
+let lastCheckpointPos;
+let genRow=0; // highest generated row
+
+const MCURVE=[1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,4,4,4,4,4,4,4,4,7,7,7,7,7,7,7,12,12,12,12,12,20];
+function getM(n){return n>=MCURVE.length?20:(MCURVE[n]||1);}
+
+function key(r,c){return r+'_'+c;}
+
+function genTileType(r){
+  if(r===0)return 'safe';
+  const rnd=Math.random();
+  if(r%7===0 && r>3) return Math.random()<0.5?'checkpoint':'std'; // guarantee occasional checkpoint chance
+  if(r%23===0 && r>10) return 'relic';
+  if(rnd<0.05) return 'block';
+  if(rnd<0.08) return 'pit';
+  if(rnd<0.11) return 'spike';
+  if(rnd<0.16) return 'key';
+  if(rnd<0.20) return 'legendary';
+  if(rnd<0.27) return 'epic';
+  if(rnd<0.36) return 'rare';
+  if(rnd<0.42) return 'fragile';
+  return 'std';
+}
+
+function ensureRow(r){
+  if(r<=genRow && tiles[r])return;
+  for(let rr=genRow+1;rr<=r;rr++){
+    const row=[];
+    for(let c=0;c<COLS;c++){
+      row.push({type: rr===0?'safe':genTileType(rr), state:'inactive', dt:0, maxD:0});
+    }
+    tiles[rr]=row;
+  }
+  genRow=Math.max(genRow,r);
+}
+
+function init(fresh){
+  if(fresh){tiles={};genRow=-1;ensureRow(0);}
+  trail=[];trailSet=new Set();
+  dragging=false;alive=true;started=false;lastDir=null;
+  runCoins=0;runKeys=0;runCrystals=0;multi=1;turnCount=0;
+  shake=0;particles=[];decayAcc=1;
+  activeTalismans=[];activeAmulets=[];tempTotemBoost=null;
+  totemCharge=0;totemReady=false;invulnUntil=0;deeperRiskMult=1;
+  const startC=(COLS/2)|0;
+  const st=tiles[0][startC];
+  st.state='active';st.maxD=999999;st.dt=0;
+  trail=[key(0,startC)];trailSet=new Set(trail);
+  lastCheckpointPos={r:0,c:startC};
+  cameraRow=0;cameraTargetRow=0;
+  document.getElementById('endModal').classList.remove('show');
+  document.getElementById('checkpointModal').classList.remove('show');
+  document.getElementById('relicModal').classList.remove('show');
+  renderEffects();
+  hud();
+}
+init(true);
+
+function p2rc(px,py){
+  const c=Math.floor((px)/(cw/COLS));
+  const rowFromBottom=Math.floor((ch-py)/(cw/COLS));
+  const r=Math.floor(cameraRow)+rowFromBottom;
+  return (c>=0&&c<COLS)?{r,c}:null;
+}
+function tileAt(r,c){ensureRow(r+2);return tiles[r]?tiles[r][c]:null;}
+function adjKey(k1,k2){
+  const[r1,c1]=k1.split('_').map(Number),[r2,c2]=k2.split('_').map(Number);
+  return Math.abs(r1-r2)<=1&&Math.abs(c1-c2)<=1&&k1!==k2;
+}
+
+function applyTalismanBonus(){let b=0;if(activeTalismans.some(t=>t.id==='t1'))b+=1;return b;}
+function decaySpeedMult(){let m=1;if(activeAmulets.some(a=>a.id==='a1'))m*=0.8;if(tempTotemBoost==='slow')m*=0.7;return m;}
+function multiplierSpeedBonus(){return activeTalismans.some(t=>t.id==='t2')?1.2:1;}
+
+function tryAct(pos){
+  if(!pos||!alive)return;
+  const {r,c}=pos;
+  if(r<0)return;
+  const t=tileAt(r,c);
+  if(!t)return;
+  const k=key(r,c);
+
+  if(t.type==='safe'){
+    if(trail.length>2 && r===0){cashOut();return;}
+  }
+  if(t.type==='checkpoint' && t.state==='inactive'){ activateAndOpenCheckpoint(k,t,r,c); return; }
+  if(t.type==='relic' && t.state==='inactive'){ activateAndOpenRelic(k,t,r,c); return; }
+  if(t.type==='block')return;
+  if(t.state!=='inactive' && t.type!=='safe')return;
+  if(t.type==='pit'||t.type==='spike'){
+    attemptDeath(t.type==='pit'?'Провалился в яму':'Сработала ловушка',{r,c});return;
+  }
+
+  if(trail.length>0){
+    const last=trail[trail.length-1];
+    if(!adjKey(last,k))return;
+    const [lr,lc]=last.split('_').map(Number);
+    const dir=(r-lr)*100+(c-lc);
+    if(trail.length>1 && dir===-lastDir)return;
+    if(dir!==lastDir && lastDir!==null)turnCount++;
+    lastDir=dir;
+  }
+  if(!started)started=true;
+
+  t.state='active';t.maxD=(6+trail.length*0.18)/decaySpeedMult();t.dt=0;
+  trail.push(k);trailSet.add(k);
+
+  let base=1+applyTalismanBonus();
+  if(t.type==='legendary'){base+=8;tone(800,.1,.12);}
+  else if(t.type==='epic'){base+=4;tone(700,.08,.1);}
+  else if(t.type==='rare'){base+=2;tone(500,.06,.08);}
+  else if(t.type==='key'){runKeys++;tone(950,.06,.08);}
+
+  const effLen=trail.length+Math.floor(turnCount*multiplierSpeedBonus());
+  multi=getM(effLen);
+  runCoins+=base*multi*deeperRiskMult;
+  totemCharge=Math.min(100,totemCharge+2.5*totemLevel);
+  if(totemCharge>=100)setTotemReady(true);
+  shake=Math.min(shake+.25,5);
+  tone(220+trail.length*4,.03,.05);
+
+  cameraTargetRow=Math.max(0,r-5);
+  hud();
+}
+
+C.addEventListener('pointerdown',e=>{dragging=true;tryAct(p2rc(e.clientX,e.clientY));});
+C.addEventListener('pointermove',e=>{if(dragging)tryAct(p2rc(e.clientX,e.clientY));});
+C.addEventListener('pointerup',()=>dragging=false);
+C.addEventListener('pointerleave',()=>dragging=false);
+
+// ---------- CHECKPOINT ----------
+let pendingCheckpoint=null;
+function activateAndOpenCheckpoint(k,t,r,c){
+  t.state='active';t.maxD=999999;t.dt=0;trail.push(k);trailSet.add(k);started=true;
+  pendingCheckpoint={r,c};
+  lastCheckpointPos={r,c};
+  alive=true;dragging=false;
+  openCheckpointModal();
+}
+function openCheckpointModal(){
+  const m=document.getElementById('checkpointModal');
+  const row=document.getElementById('chestRow');
+  const chestDefs=[
+    {label:'💜 Талисман',cost:3,pool:ARTIFACT_POOL.talismans,onGet:(item)=>{activeTalismans.push(item);}},
+    {label:'💙 Амулет',cost:3,pool:ARTIFACT_POOL.amulets,onGet:(item)=>{activeAmulets.push(item);}},
+    {label:'⚡ Буст Тотема',cost:4,pool:[{id:'slow',name:'Замедление распада',desc:'До конца забега'},{id:'charge',name:'Быстрый заряд',desc:'До конца забега'}],onGet:(item)=>{tempTotemBoost=item.id;}},
+  ];
+  row.innerHTML='';
+  chestDefs.forEach(cd=>{
+    const div=document.createElement('div');
+    div.className='chest'+(runKeys<cd.cost?' disabled':'');
+    div.innerHTML=`<div class="name">${cd.label}</div><div class="cost">${cd.cost} 🗝</div>`;
+    div.onclick=()=>{
+      if(runKeys<cd.cost)return;
+      runKeys-=cd.cost;
+      const item=cd.pool[Math.floor(Math.random()*cd.pool.length)];
+      cd.onGet(item);
+      tone(700,.1,.1);
+      hud();renderEffects();openCheckpointModal();
+    };
+    row.appendChild(div);
+  });
+  const dRow=document.getElementById('dismantleRow');
+  dRow.innerHTML='';
+  [...activeTalismans,...activeAmulets].forEach((a,idx)=>{
+    const div=document.createElement('div');
+    div.className='chest';
+    div.innerHTML=`<div class="name">♻ ${a.name}</div><div class="cost">+2 🗝</div>`;
+    div.onclick=()=>{
+      runKeys+=2;
+      const ti=activeTalismans.indexOf(a); if(ti>=0)activeTalismans.splice(ti,1);
+      const ai=activeAmulets.indexOf(a); if(ai>=0)activeAmulets.splice(ai,1);
+      tone(400,.08,.08);hud();renderEffects();openCheckpointModal();
+    };
+    dRow.appendChild(div);
+  });
+  m.classList.add('show');
+}
+document.getElementById('checkpointContinue').onclick=()=>{
+  document.getElementById('checkpointModal').classList.remove('show');
+};
+
+// ---------- RELIC HALL ----------
+function activateAndOpenRelic(k,t,r,c){
+  t.state='active';t.maxD=999999;t.dt=0;trail.push(k);trailSet.add(k);started=true;
+  const names=['Осколок Забытого Царя','Слеза Древнего Идола','Печать Утонувшего Храма'];
+  const name=names[Math.floor(Math.random()*names.length)];
+  document.getElementById('relicText').textContent=
+    `Найдена реликвия «${name}». Разбить сейчас и вернуться — гарантированно получишь новый артефакт в общий пул. Или иди глубже: монеты и шанс на вторую реликвию удваиваются, но путь назад станет опаснее.`;
+  document.getElementById('relicModal').classList.add('show');
+  window._relicResolve=(deeper)=>{
+    document.getElementById('relicModal').classList.remove('show');
+    crystals+=3;
+    tone(600,.12,.1);tone(800,.1,.1);
+    if(deeper){deeperRiskMult=2;decayAcc*=1.3;}
+  };
+}
+document.getElementById('relicReturn').onclick=()=>window._relicResolve(false);
+document.getElementById('relicDeeper').onclick=()=>window._relicResolve(true);
+
+// ---------- TOTEM ABILITY ----------
+function setTotemReady(v){totemReady=v;document.getElementById('totemBtn').classList.toggle('ready',v);}
+document.getElementById('totemBtn').onclick=()=>{
+  if(!totemReady)return;
+  invulnUntil=performance.now()+3000;
+  totemCharge=0;setTotemReady(false);
+  tone(1000,.15,.12);tone(1300,.12,.1);
+  shake=8;
+};
+
+// ---------- D20 DEATH ROLL ----------
+function attemptDeath(reason,pos){
+  if(!alive)return;
+  alive=false;
+  const roll=1+Math.floor(Math.random()*20);
+  showD20(roll,()=>resolveDeath(roll,reason,pos));
+}
+function showD20(roll,cb){
+  const m=document.getElementById('d20Modal');
+  const rEl=document.getElementById('d20Roll');
+  const resEl=document.getElementById('d20Result');
+  let color,text,snd;
+  if(roll>=15){color='#4ade80';text='Пронесло! Экспедиция продолжается';snd=700;}
+  else if(roll>=10){color='#ffb347';text='Отбросило к последнему чекпоинту';snd=380;}
+  else{color='#f44';text='Шахта забирает своё...';snd=140;}
+  rEl.textContent='🎲 '+roll;
+  rEl.style.color=color;
+  resEl.textContent=text;
+  m.classList.add('show');
+  tone(snd,.22,.12);
+  setTimeout(()=>{m.classList.remove('show');cb();},1300);
+}
+function resolveDeath(roll,reason,pos){
+  if(roll>=15)reviveInPlace(pos);
+  else if(roll>=10)returnToCheckpoint();
+  else die(reason);
+}
+function reviveInPlace(pos){
+  if(pos){
+    const t=tileAt(pos.r,pos.c);
+    if(t && t.type!=='pit' && t.type!=='spike'){
+      t.state='active';t.maxD=999999;t.dt=0;
+      const k=key(pos.r,pos.c);
+      if(!trailSet.has(k)){trail.push(k);trailSet.add(k);}
+    }
+  }
+  alive=true;shake=4;tone(900,.1,.1);
+}
+function returnToCheckpoint(){
+  const cp=lastCheckpointPos;
+  const t=tileAt(cp.r,cp.c);
+  if(t){t.state='active';t.maxD=999999;t.dt=0;}
+  trail=[key(cp.r,cp.c)];trailSet=new Set(trail);
+  cameraTargetRow=Math.max(0,cp.r-5);
+  lastDir=null;alive=true;shake=6;tone(300,.15,.1);
+}
+
+// ---------- CASH OUT / DEATH ----------
+function showCoinAnim(n){const el=document.getElementById('coinAnim');el.textContent='+'+n+' 🪙';el.classList.remove('show');void el.offsetWidth;el.classList.add('show');}
+function cashOut(){
+  alive=false;
+  coins+=Math.floor(runCoins);
+  crystals+=runCrystals;
+  showCoinAnim(Math.floor(runCoins));
+  shake=14;
+  for(let i=0;i<40;i++)spawnP(trail[trail.length-1],'#ffd700');
+  tone(500,.1,.12);setTimeout(()=>tone(700,.1,.12),60);setTimeout(()=>tone(1000,.14,.12),140);
+  setTimeout(()=>endScreen(true),500);
+}
+function die(reason){
+  alive=false;shake=16;
+  for(let i=0;i<24;i++)spawnP(trail[trail.length-1],'#f33');
+  tone(90,.25,.12);setTimeout(()=>tone(60,.22,.1),80);
+  endScreen(false,reason);
+}
+function endScreen(win,reason){
+  const m=document.getElementById('endModal');m.classList.add('show');
+  document.getElementById('eTitle').textContent=win?'🏕 ВЕРНУЛСЯ В ЛАГЕРЬ':'💀 ПОГИБ В ШАХТЕ';
+  document.getElementById('eTitle').style.color=win?'#ffd700':'#f44';
+  document.getElementById('eSub').textContent=win?'':(reason||'Экспедиция окончена');
+  document.getElementById('eReward').innerHTML=win?
+    `<div style="font-size:32px;color:#ffd700">+${Math.floor(runCoins)} 🪙</div>`:
+    `<div style="color:#f66">Ключи и артефакты забега потеряны</div>`;
+  document.getElementById('campPanel').textContent=`Лагерь: ${coins} 🪙 | ${crystals} 💎`;
+}
+document.getElementById('eRestart').onclick=()=>init(false);
+
+// ---------- DECAY / PARTICLES ----------
+function updateDecay(dt){
+  if(!alive||!started)return;
+  decayAcc+=dt*0.025;
+  const invuln=performance.now()<invulnUntil;
+  for(const k of trail){
+    const [r,c]=k.split('_').map(Number);
+    if(r===0)continue; // safe row never decays
+    const t=tiles[r][c];
+    if(t.state!=='active'||t.maxD>99999)continue; // checkpoints/relics don't decay
+    if(invuln)continue;
+    const fm=t.type==='fragile'?2.0:1;
+    t.dt+=dt*decayAcc*fm;
+    if(t.dt>=t.maxD){t.state='destroyed';trailSet.delete(k);spawnP(k,'#f80');shake+=.3;}
+  }
+  const lastK=trail[trail.length-1];
+  if(lastK){
+    const [lr,lc]=lastK.split('_').map(Number);
+    if(lr!==0 && tiles[lr][lc].state==='destroyed')attemptDeath('Плита под ногами обрушилась',{r:lr,c:lc});
+  }
+}
+function spawnP(k,color){
+  if(!k)return;const[r,c]=k.split('_').map(Number);
+  const cellSize=cw/COLS;
+  const cx=(c+.5)*cellSize,cy=ch-(r-cameraRow+0.5)*cellSize;
+  const a=Math.random()*Math.PI*2,sp=Math.random()*220+80;
+  particles.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,color,s:Math.random()*4+2});
+}
+function updP(dt){for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt*2;p.vx*=.92;p.vy*=.92;if(p.life<=0)particles.splice(i,1);}}
+
+function renderEffects(){
+  const el=document.getElementById('effects');
+  let items=[...activeTalismans.map(a=>'💜 '+a.name),...activeAmulets.map(a=>'💙 '+a.name)];
+  if(tempTotemBoost)items.push('⚡ '+(tempTotemBoost==='slow'?'Замедление распада':'Быстрый заряд'));
+  el.innerHTML=items.map(t=>`<div class="eff">${t}</div>`).join('');
+}
+
+function hud(){
+  document.getElementById('hCoins').textContent='🪙 '+(coins+Math.floor(runCoins));
+  document.getElementById('hCryst').textContent='💎 '+(crystals+runCrystals);
+  document.getElementById('hKeys').textContent='🗝 '+runKeys;
+  document.getElementById('hMulti').textContent='x'+multi.toFixed(0)+(deeperRiskMult>1?' (глубже!)':'');
+  const depth=trail.length?Math.max(...trail.map(k=>+k.split('_')[0])):0;
+  document.getElementById('hDepth').textContent='⛏ '+depth+'м';
+  document.getElementById('totemFill').style.width=totemCharge+'%';
+}
+
+// ---------- DRAW ----------
+function draw(now){
+  X.save();
+  shake*=.88;if(shake<.05)shake=0;
+  X.translate((Math.random()-.5)*shake*2*dpr,(Math.random()-.5)*shake*2*dpr);
+  X.clearRect(-20,-20,C.width+40,C.height+40);
+  cameraRow+=(cameraTargetRow-cameraRow)*0.045;
+
+  const cellSize=(cw/COLS)*dpr;
+  const rowStart=Math.floor(cameraRow)-1;
+  const rowEnd=rowStart+Math.ceil(ch/(cw/COLS))+3;
+  ensureRow(rowEnd+2);
+
+  for(let r=Math.max(0,rowStart);r<=rowEnd;r++){
+    if(!tiles[r])continue;
+    for(let c=0;c<COLS;c++){
+      const t=tiles[r][c];
+      const x=c*cellSize+1,y=C.height-(r-cameraRow+1)*cellSize+1,s=cellSize-2;
+      if(y<-cellSize*2||y>C.height+cellSize*2)continue;
+      const k=key(r,c);
+
+      if(t.type==='safe'){
+        const pulse=.5+Math.sin(now/250+c)*.3;
+        X.fillStyle=`rgba(80,200,120,${pulse*.5})`;X.fillRect(x,y,s,s);
+        if(r===0){X.font=`${s*.4}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText('🏕',x+s/2,y+s/2);}
+        continue;
+      }
+      if(t.type==='block'){X.fillStyle='#140a06';X.fillRect(x,y,s,s);X.strokeStyle='#5a2a10';X.strokeRect(x,y,s,s);continue;}
+      if(t.type==='pit'){X.fillStyle='#000';X.fillRect(x,y,s,s);X.fillStyle='#300';X.beginPath();X.arc(x+s/2,y+s/2,s*.32,0,7);X.fill();continue;}
+      if(t.type==='spike'){X.fillStyle='#1a0505';X.fillRect(x,y,s,s);X.fillStyle='#c33';X.font=`${s*.4}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText('▲',x+s/2,y+s/2);continue;}
+      if(t.state==='destroyed'){X.fillStyle='#0a0a0e';X.fillRect(x,y,s,s);continue;}
+
+      if(t.type==='checkpoint'){
+        const b=.6+Math.sin(now/200)*.3;
+        X.fillStyle=`rgba(255,180,60,${t.state==='active'?0.25:b})`;X.fillRect(x,y,s,s);
+        X.font=`${s*.4}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText('🎁',x+s/2,y+s/2);
+        continue;
+      }
+      if(t.type==='relic'){
+        const b=.6+Math.sin(now/150)*.3;
+        X.fillStyle=`rgba(255,110,214,${t.state==='active'?0.25:b})`;X.fillRect(x,y,s,s);
+        X.font=`${s*.4}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText('💠',x+s/2,y+s/2);
+        continue;
+      }
+
+      if(t.state==='active'){
+        const pct=t.dt/Math.min(t.maxD,999);
+        if(pct<.5){const b=.7+Math.sin(now/300)*.15;
+          if(t.type==='legendary')X.fillStyle=`rgba(255,215,0,${b})`;
+          else if(t.type==='epic')X.fillStyle=`rgba(180,80,255,${b})`;
+          else if(t.type==='rare')X.fillStyle=`rgba(60,140,255,${b})`;
+          else if(t.type==='key')X.fillStyle=`rgba(255,157,61,${b})`;
+          else X.fillStyle=`rgba(0,220,160,${b})`;
+        }else if(pct<.8){X.fillStyle=`rgba(255,160,0,${Math.sin(now/100)>0?.6:.2})`;}
+        else{X.fillStyle=`rgba(255,40,40,${Math.sin(now/40)>0?.7:.1})`;}
+        X.fillRect(x,y,s,s);
+        if(trailSet.has(k)&&trail[trail.length-1]===k){X.fillStyle='#fff';X.beginPath();X.arc(x+s/2,y+s/2,s*.28,0,7);X.fill();}
+        continue;
+      }
+      if(t.type==='legendary'){X.fillStyle='#2a2200';X.fillRect(x,y,s,s);X.fillStyle='#ffd70055';X.fillRect(x+s*.2,y+s*.2,s*.6,s*.6);}
+      else if(t.type==='epic'){X.fillStyle='#1a0a2a';X.fillRect(x,y,s,s);X.fillStyle='#b050ff44';X.fillRect(x+s*.25,y+s*.25,s*.5,s*.5);}
+      else if(t.type==='rare'){X.fillStyle='#0a1a2a';X.fillRect(x,y,s,s);X.fillStyle='#4090ff44';X.fillRect(x+s*.25,y+s*.25,s*.5,s*.5);}
+      else if(t.type==='key'){X.fillStyle='#2a1a06';X.fillRect(x,y,s,s);X.font=`${s*.35}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText('🗝',x+s/2,y+s/2);}
+      else if(t.type==='fragile'){X.fillStyle='#1a0a0a';X.fillRect(x,y,s,s);}
+      else{X.fillStyle='#14100a';X.fillRect(x,y,s,s);}
+    }
+  }
+  for(const p of particles){X.globalAlpha=Math.max(0,p.life);X.fillStyle=p.color;X.fillRect(p.x*dpr-p.s/2,p.y*dpr-p.s/2,p.s,p.s);}
+  X.globalAlpha=1;X.restore();
+}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min((now-last)/1000,.05);last=now;
+  updateDecay(dt);updP(dt);draw(now);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
