@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
-<title>BURMOLDA — Demo</title>
+<title>BURMALDA — Demo</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;touch-action:none;user-select:none}
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0704;font-family:'Courier New',monospace}
 canvas{display:block;position:absolute;top:0;left:0}
 #hud{position:fixed;top:8px;left:0;width:100%;display:flex;justify-content:space-between;padding:0 10px;pointer-events:none;z-index:10;flex-wrap:wrap;gap:4px}
 .hi{font-size:13px;font-weight:bold;text-shadow:0 0 6px currentColor}
-#hCoins{color:#ffd700}#hCryst{color:#7fd8ff}#hKeys{color:#ff9d3d}#hMulti{color:#ff5c5c}#hDepth{color:#9c9}
+#hCoins{color:#ffd700}#hCryst{color:#7fd8ff}#hManaCrystals{color:#ff9d3d}#hMulti{color:#ff5c5c}#hDepth{color:#9c9}
 #totemBtn{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);width:76px;height:76px;border-radius:50%;
   background:radial-gradient(circle,#3a2a10,#160f06);border:3px solid #ffb347;color:#ffb347;font-size:11px;font-weight:bold;
   z-index:20;display:flex;align-items:center;justify-content:center;text-align:center;opacity:.4;transition:opacity .2s}
@@ -46,7 +46,7 @@ canvas{display:block;position:absolute;top:0;left:0}
   <span class="hi" id="hDepth">⛏ 0м</span>
   <span class="hi" id="hCoins">🪙 0</span>
   <span class="hi" id="hCryst">💎 0</span>
-  <span class="hi" id="hKeys">🗝 0</span>
+  <span class="hi" id="hManaCrystals">🔷 0</span>
   <span class="hi" id="hMulti">x1</span>
 </div>
 <div id="hint">иди снизу вверх • вернись в 🏕 у подножья, чтобы закрепить добычу</div>
@@ -55,13 +55,13 @@ canvas{display:block;position:absolute;top:0;left:0}
 <button id="totemBtn">⚡<br>ТОТЕМ</button>
 <div id="coinAnim"></div>
 
-<!-- Checkpoint shop -->
-<div class="overlay" id="checkpointModal">
-  <h2 style="color:#ffd700">🎁 Зал Сундуков</h2>
-  <div class="sub">Трать 🗝 ключи на сундуки. Можно разобрать текущие артефакты обратно в ключи.</div>
+<!-- Altar: Ritual shop -->
+<div class="overlay" id="ritualModal">
+  <h2 style="color:#ffd700">🎁 Ритуал</h2>
+  <div class="sub">Трать 🔷 Кристаллы Маны на сундуки. Можно разобрать текущие артефакты обратно в Кристаллы Маны.</div>
   <div class="rowBtns" id="chestRow"></div>
   <div class="rowBtns" id="dismantleRow"></div>
-  <button class="btn bGreen" id="checkpointContinue" style="margin-top:14px">Идти дальше →</button>
+  <button class="btn bGreen" id="ritualContinue" style="margin-top:14px">Идти дальше →</button>
 </div>
 
 <!-- Relic hall -->
@@ -122,12 +122,12 @@ const ARTIFACT_POOL={
 
 // ---------- RUN STATE ----------
 let tiles,trail,trailSet,dragging,alive,started,lastDir;
-let runCoins,runKeys,runCrystals,multi,shake,particles,decayAcc,turnCount;
+let runCoins,runManaCrystals,runCrystals,multi,shake,particles,decayAcc,turnCount;
 let cameraRow,cameraTargetRow;
 let activeTalismans,activeAmulets,tempTotemBoost;
 let totemCharge,totemReady,invulnUntil;
 let deeperRiskMult;
-let lastCheckpointPos;
+let lastAltarPos;
 let genRow=0; // highest generated row
 
 const MCURVE=[1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,4,4,4,4,4,4,4,4,7,7,7,7,7,7,7,12,12,12,12,12,20];
@@ -138,12 +138,12 @@ function key(r,c){return r+'_'+c;}
 function genTileType(r){
   if(r===0)return 'safe';
   const rnd=Math.random();
-  if(r%7===0 && r>3) return Math.random()<0.5?'checkpoint':'std'; // guarantee occasional checkpoint chance
+  if(r%7===0 && r>3) return Math.random()<0.5?'altar':'std'; // guarantee occasional altar chance
   if(r%23===0 && r>10) return 'relic';
   if(rnd<0.05) return 'block';
   if(rnd<0.08) return 'pit';
   if(rnd<0.11) return 'spike';
-  if(rnd<0.16) return 'key';
+  if(rnd<0.16) return 'mana';
   if(rnd<0.20) return 'legendary';
   if(rnd<0.27) return 'epic';
   if(rnd<0.36) return 'rare';
@@ -167,7 +167,7 @@ function init(fresh){
   if(fresh){tiles={};genRow=-1;ensureRow(0);}
   trail=[];trailSet=new Set();
   dragging=false;alive=true;started=false;lastDir=null;
-  runCoins=0;runKeys=0;runCrystals=0;multi=1;turnCount=0;
+  runCoins=0;runManaCrystals=0;runCrystals=0;multi=1;turnCount=0;
   shake=0;particles=[];decayAcc=1;
   activeTalismans=[];activeAmulets=[];tempTotemBoost=null;
   totemCharge=0;totemReady=false;invulnUntil=0;deeperRiskMult=1;
@@ -175,10 +175,10 @@ function init(fresh){
   const st=tiles[0][startC];
   st.state='active';st.maxD=999999;st.dt=0;
   trail=[key(0,startC)];trailSet=new Set(trail);
-  lastCheckpointPos={r:0,c:startC};
+  lastAltarPos={r:0,c:startC};
   cameraRow=0;cameraTargetRow=0;
   document.getElementById('endModal').classList.remove('show');
-  document.getElementById('checkpointModal').classList.remove('show');
+  document.getElementById('ritualModal').classList.remove('show');
   document.getElementById('relicModal').classList.remove('show');
   renderEffects();
   hud();
@@ -212,7 +212,7 @@ function tryAct(pos){
   if(t.type==='safe'){
     if(trail.length>2 && r===0){cashOut();return;}
   }
-  if(t.type==='checkpoint' && t.state==='inactive'){ activateAndOpenCheckpoint(k,t,r,c); return; }
+  if(t.type==='altar' && t.state==='inactive'){ activateAndOpenAltar(k,t,r,c); return; }
   if(t.type==='relic' && t.state==='inactive'){ activateAndOpenRelic(k,t,r,c); return; }
   if(t.type==='block')return;
   if(t.state!=='inactive' && t.type!=='safe')return;
@@ -238,7 +238,7 @@ function tryAct(pos){
   if(t.type==='legendary'){base+=8;tone(800,.1,.12);}
   else if(t.type==='epic'){base+=4;tone(700,.08,.1);}
   else if(t.type==='rare'){base+=2;tone(500,.06,.08);}
-  else if(t.type==='key'){runKeys++;tone(950,.06,.08);}
+  else if(t.type==='mana'){runManaCrystals++;tone(950,.06,.08);}
 
   const effLen=trail.length+Math.floor(turnCount*multiplierSpeedBonus());
   multi=getM(effLen);
@@ -257,17 +257,17 @@ C.addEventListener('pointermove',e=>{if(dragging)tryAct(p2rc(e.clientX,e.clientY
 C.addEventListener('pointerup',()=>dragging=false);
 C.addEventListener('pointerleave',()=>dragging=false);
 
-// ---------- CHECKPOINT ----------
-let pendingCheckpoint=null;
-function activateAndOpenCheckpoint(k,t,r,c){
+// ---------- ALTAR / RITUAL ----------
+let pendingAltar=null;
+function activateAndOpenAltar(k,t,r,c){
   t.state='active';t.maxD=999999;t.dt=0;trail.push(k);trailSet.add(k);started=true;
-  pendingCheckpoint={r,c};
-  lastCheckpointPos={r,c};
+  pendingAltar={r,c};
+  lastAltarPos={r,c};
   alive=true;dragging=false;
-  openCheckpointModal();
+  openRitualModal();
 }
-function openCheckpointModal(){
-  const m=document.getElementById('checkpointModal');
+function openRitualModal(){
+  const m=document.getElementById('ritualModal');
   const row=document.getElementById('chestRow');
   const chestDefs=[
     {label:'💜 Талисман',cost:3,pool:ARTIFACT_POOL.talismans,onGet:(item)=>{activeTalismans.push(item);}},
@@ -277,15 +277,15 @@ function openCheckpointModal(){
   row.innerHTML='';
   chestDefs.forEach(cd=>{
     const div=document.createElement('div');
-    div.className='chest'+(runKeys<cd.cost?' disabled':'');
-    div.innerHTML=`<div class="name">${cd.label}</div><div class="cost">${cd.cost} 🗝</div>`;
+    div.className='chest'+(runManaCrystals<cd.cost?' disabled':'');
+    div.innerHTML=`<div class="name">${cd.label}</div><div class="cost">${cd.cost} 🔷</div>`;
     div.onclick=()=>{
-      if(runKeys<cd.cost)return;
-      runKeys-=cd.cost;
+      if(runManaCrystals<cd.cost)return;
+      runManaCrystals-=cd.cost;
       const item=cd.pool[Math.floor(Math.random()*cd.pool.length)];
       cd.onGet(item);
       tone(700,.1,.1);
-      hud();renderEffects();openCheckpointModal();
+      hud();renderEffects();openRitualModal();
     };
     row.appendChild(div);
   });
@@ -294,19 +294,19 @@ function openCheckpointModal(){
   [...activeTalismans,...activeAmulets].forEach((a,idx)=>{
     const div=document.createElement('div');
     div.className='chest';
-    div.innerHTML=`<div class="name">♻ ${a.name}</div><div class="cost">+2 🗝</div>`;
+    div.innerHTML=`<div class="name">♻ ${a.name}</div><div class="cost">+2 🔷</div>`;
     div.onclick=()=>{
-      runKeys+=2;
+      runManaCrystals+=2;
       const ti=activeTalismans.indexOf(a); if(ti>=0)activeTalismans.splice(ti,1);
       const ai=activeAmulets.indexOf(a); if(ai>=0)activeAmulets.splice(ai,1);
-      tone(400,.08,.08);hud();renderEffects();openCheckpointModal();
+      tone(400,.08,.08);hud();renderEffects();openRitualModal();
     };
     dRow.appendChild(div);
   });
   m.classList.add('show');
 }
-document.getElementById('checkpointContinue').onclick=()=>{
-  document.getElementById('checkpointModal').classList.remove('show');
+document.getElementById('ritualContinue').onclick=()=>{
+  document.getElementById('ritualModal').classList.remove('show');
 };
 
 // ---------- RELIC HALL ----------
@@ -350,7 +350,7 @@ function showD20(roll,cb){
   const resEl=document.getElementById('d20Result');
   let color,text,snd;
   if(roll>=15){color='#4ade80';text='Пронесло! Экспедиция продолжается';snd=700;}
-  else if(roll>=10){color='#ffb347';text='Отбросило к последнему чекпоинту';snd=380;}
+  else if(roll>=10){color='#ffb347';text='Отбросило к последнему Алтарю';snd=380;}
   else{color='#f44';text='Шахта забирает своё...';snd=140;}
   rEl.textContent='🎲 '+roll;
   rEl.style.color=color;
@@ -361,7 +361,7 @@ function showD20(roll,cb){
 }
 function resolveDeath(roll,reason,pos){
   if(roll>=15)reviveInPlace(pos);
-  else if(roll>=10)returnToCheckpoint();
+  else if(roll>=10)returnToAltar();
   else die(reason);
 }
 function reviveInPlace(pos){
@@ -375,8 +375,8 @@ function reviveInPlace(pos){
   }
   alive=true;shake=4;tone(900,.1,.1);
 }
-function returnToCheckpoint(){
-  const cp=lastCheckpointPos;
+function returnToAltar(){
+  const cp=lastAltarPos;
   const t=tileAt(cp.r,cp.c);
   if(t){t.state='active';t.maxD=999999;t.dt=0;}
   trail=[key(cp.r,cp.c)];trailSet=new Set(trail);
@@ -409,7 +409,7 @@ function endScreen(win,reason){
   document.getElementById('eSub').textContent=win?'':(reason||'Экспедиция окончена');
   document.getElementById('eReward').innerHTML=win?
     `<div style="font-size:32px;color:#ffd700">+${Math.floor(runCoins)} 🪙</div>`:
-    `<div style="color:#f66">Ключи и артефакты забега потеряны</div>`;
+    `<div style="color:#f66">Кристаллы Маны и артефакты забега потеряны</div>`;
   document.getElementById('campPanel').textContent=`Лагерь: ${coins} 🪙 | ${crystals} 💎`;
 }
 document.getElementById('eRestart').onclick=()=>init(false);
@@ -423,7 +423,7 @@ function updateDecay(dt){
     const [r,c]=k.split('_').map(Number);
     if(r===0)continue; // safe row never decays
     const t=tiles[r][c];
-    if(t.state!=='active'||t.maxD>99999)continue; // checkpoints/relics don't decay
+    if(t.state!=='active'||t.maxD>99999)continue; // altars/relics don't decay
     if(invuln)continue;
     const fm=t.type==='fragile'?2.0:1;
     t.dt+=dt*decayAcc*fm;
@@ -454,7 +454,7 @@ function renderEffects(){
 function hud(){
   document.getElementById('hCoins').textContent='🪙 '+(coins+Math.floor(runCoins));
   document.getElementById('hCryst').textContent='💎 '+(crystals+runCrystals);
-  document.getElementById('hKeys').textContent='🗝 '+runKeys;
+  document.getElementById('hManaCrystals').textContent='🔷 '+runManaCrystals;
   document.getElementById('hMulti').textContent='x'+multi.toFixed(0)+(deeperRiskMult>1?' (глубже!)':'');
   const depth=trail.length?Math.max(...trail.map(k=>+k.split('_')[0])):0;
   document.getElementById('hDepth').textContent='⛏ '+depth+'м';
@@ -493,7 +493,7 @@ function draw(now){
       if(t.type==='spike'){X.fillStyle='#1a0505';X.fillRect(x,y,s,s);X.fillStyle='#c33';X.font=`${s*.4}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText('▲',x+s/2,y+s/2);continue;}
       if(t.state==='destroyed'){X.fillStyle='#0a0a0e';X.fillRect(x,y,s,s);continue;}
 
-      if(t.type==='checkpoint'){
+      if(t.type==='altar'){
         const b=.6+Math.sin(now/200)*.3;
         X.fillStyle=`rgba(255,180,60,${t.state==='active'?0.25:b})`;X.fillRect(x,y,s,s);
         X.font=`${s*.4}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText('🎁',x+s/2,y+s/2);
@@ -512,7 +512,7 @@ function draw(now){
           if(t.type==='legendary')X.fillStyle=`rgba(255,215,0,${b})`;
           else if(t.type==='epic')X.fillStyle=`rgba(180,80,255,${b})`;
           else if(t.type==='rare')X.fillStyle=`rgba(60,140,255,${b})`;
-          else if(t.type==='key')X.fillStyle=`rgba(255,157,61,${b})`;
+          else if(t.type==='mana')X.fillStyle=`rgba(255,157,61,${b})`;
           else X.fillStyle=`rgba(0,220,160,${b})`;
         }else if(pct<.8){X.fillStyle=`rgba(255,160,0,${Math.sin(now/100)>0?.6:.2})`;}
         else{X.fillStyle=`rgba(255,40,40,${Math.sin(now/40)>0?.7:.1})`;}
@@ -523,7 +523,7 @@ function draw(now){
       if(t.type==='legendary'){X.fillStyle='#2a2200';X.fillRect(x,y,s,s);X.fillStyle='#ffd70055';X.fillRect(x+s*.2,y+s*.2,s*.6,s*.6);}
       else if(t.type==='epic'){X.fillStyle='#1a0a2a';X.fillRect(x,y,s,s);X.fillStyle='#b050ff44';X.fillRect(x+s*.25,y+s*.25,s*.5,s*.5);}
       else if(t.type==='rare'){X.fillStyle='#0a1a2a';X.fillRect(x,y,s,s);X.fillStyle='#4090ff44';X.fillRect(x+s*.25,y+s*.25,s*.5,s*.5);}
-      else if(t.type==='key'){X.fillStyle='#2a1a06';X.fillRect(x,y,s,s);X.font=`${s*.35}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText('🗝',x+s/2,y+s/2);}
+      else if(t.type==='mana'){X.fillStyle='#2a1a06';X.fillRect(x,y,s,s);X.font=`${s*.35}px sans-serif`;X.textAlign='center';X.textBaseline='middle';X.fillText('🔷',x+s/2,y+s/2);}
       else if(t.type==='fragile'){X.fillStyle='#1a0a0a';X.fillRect(x,y,s,s);}
       else{X.fillStyle='#14100a';X.fillRect(x,y,s,s);}
     }
