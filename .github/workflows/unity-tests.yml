@@ -1,0 +1,33 @@
+name: Unity Tests
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    name: Unity Test Runner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Check for Unity project
+        id: check-unity-project
+        run: |
+          if [ -f "ProjectSettings/ProjectVersion.txt" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "ProjectSettings/ProjectVersion.txt найден — Unity-проект существует."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "ProjectSettings/ProjectVersion.txt не найден — Unity-проект ещё не создан, тесты пропускаются."
+          fi
+
+      - name: Run Unity tests
+        if: steps.check-unity-project.outputs.exists == 'true'
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          testMode: all
