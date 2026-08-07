@@ -23,6 +23,7 @@
 | `Camp/` | `Camp`, `CashOut`, `ReturnToCamp` | [Спринт 8](https://github.com/maximmmanaev/Burmalda/milestone/8) |
 | `Achievements/` | `Achievement` — условие → оповещение → разлок артефакта | [Спринт 9](https://github.com/maximmmanaev/Burmalda/milestone/9) |
 | `Monetization/` | `MonetizationOffer`, `ReviveOffer`, `ArtifactGachaPack` | [Спринт 11](https://github.com/maximmmanaev/Burmalda/milestone/11) |
+| `DebugVisuals/` | **Debug-инфраструктура, не система из PRD.** Минимальный визуал сетки тоннеля (примитивы в рантайме, без .prefab) для ручного тестирования Core/Movement/Decay глазами | вне очереди спринтов ([issue #58](https://github.com/maximmmanaev/Burmalda/issues/58)) |
 
 Активные способности Тотема (`TotemAbilityType`, раздел 12 PRD) и монетизационные
 метрики (раздел 14) не выделены в отдельную папку — они реализуются внутри

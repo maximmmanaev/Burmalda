@@ -21,6 +21,13 @@ namespace Burmalda.Core
         /// <summary>Ширина тоннеля в плитах (число столбцов).</summary>
         public int Width { get; }
 
+        /// <summary>
+        /// Срабатывает, когда <see cref="GetOrCreateTile"/> материализует новую
+        /// плиту (не срабатывает при повторном обращении к уже существующей).
+        /// Используется, например, debug-визуалом (#58) для создания геометрии.
+        /// </summary>
+        public event Action<Tile> TileMaterialized;
+
         /// <summary>Координата принадлежит сетке: столбец в пределах ширины, ряд не отрицательный.</summary>
         public bool Contains(GridCoordinate coordinate) =>
             coordinate.Row >= 0 && coordinate.Column >= 0 && coordinate.Column < Width;
@@ -35,6 +42,7 @@ namespace Burmalda.Core
             {
                 tile = new Tile(coordinate);
                 _tiles[coordinate] = tile;
+                TileMaterialized?.Invoke(tile);
             }
 
             return tile;
