@@ -34,6 +34,13 @@ namespace Burmalda.Movement
         public GridCoordinate CurrentPosition => _path[_path.Count - 1];
 
         /// <summary>
+        /// Срабатывает после успешного продвижения трейла на новую плиту
+        /// (см. <see cref="TryAdvanceTo"/>). Используется, например, Decay
+        /// для запуска распада только что пройденной плиты.
+        /// </summary>
+        public event Action<GridCoordinate> Advanced;
+
+        /// <summary>
         /// Ход на <paramref name="target"/> валиден, если плита в пределах
         /// сетки, соседняя текущей позиции и ещё не пройдена трейлом.
         /// </summary>
@@ -48,6 +55,7 @@ namespace Burmalda.Movement
             _grid.GetOrCreateTile(target);
             _path.Add(target);
             _visited.Add(target);
+            Advanced?.Invoke(target);
             return true;
         }
     }

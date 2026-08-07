@@ -25,6 +25,9 @@ namespace Burmalda.Movement
         /// <summary>Трейл текущего забега — для чтения смежными системами (визуал трейла, камера).</summary>
         public GridTraceTrail Trail => _trail;
 
+        /// <summary>Сетка тоннеля текущего забега — нужна смежным системам (напр. Decay) для доступа к плитам трейла.</summary>
+        public TunnelGrid Grid => _grid;
+
         private void Awake()
         {
             if (_camera == null) _camera = Camera.main;
