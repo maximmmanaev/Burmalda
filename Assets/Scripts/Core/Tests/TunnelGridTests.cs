@@ -74,6 +74,33 @@ namespace Burmalda.Core.Tests
         }
 
         [Test]
+        public void TryGetTile_NeverMaterialized_ReturnsFalseWithoutCreatingTile()
+        {
+            var grid = new TunnelGrid(5);
+            var fired = false;
+            grid.TileMaterialized += _ => fired = true;
+
+            var found = grid.TryGetTile(new GridCoordinate(2, 2), out var tile);
+
+            Assert.IsFalse(found);
+            Assert.IsNull(tile);
+            Assert.IsFalse(fired, "TryGetTile не должен материализовывать плиту как побочный эффект");
+        }
+
+        [Test]
+        public void TryGetTile_AlreadyMaterialized_ReturnsTrueWithSameInstance()
+        {
+            var grid = new TunnelGrid(5);
+            var coordinate = new GridCoordinate(2, 2);
+            var created = grid.GetOrCreateTile(coordinate);
+
+            var found = grid.TryGetTile(coordinate, out var tile);
+
+            Assert.IsTrue(found);
+            Assert.AreSame(created, tile);
+        }
+
+        [Test]
         public void TileMaterialized_FirstGetOrCreateTile_FiresWithNewTile()
         {
             var grid = new TunnelGrid(5);

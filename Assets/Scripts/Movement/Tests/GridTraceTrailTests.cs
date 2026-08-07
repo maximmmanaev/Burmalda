@@ -77,6 +77,44 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void CanAdvanceTo_UnvisitedNotYetMaterializedTile_ReturnsTrue()
+        {
+            // Регрессия: плита, до которой ещё никто не дотрагивался, не
+            // материализована и не может быть препятствием по определению.
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+
+            Assert.IsTrue(trail.CanAdvanceTo(new GridCoordinate(1, 2)));
+        }
+
+        [Test]
+        public void CanAdvanceTo_UnvisitedBlockedTile_ReturnsFalse()
+        {
+            // #9: статичное препятствие — видно заранее, обойти нельзя, наступить нельзя.
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var blocked = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(blocked).MarkBlocked();
+
+            Assert.IsFalse(trail.CanAdvanceTo(blocked));
+        }
+
+        [Test]
+        public void TryAdvanceTo_BlockedTile_DoesNotAdvanceAndDoesNotMutatePath()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var blocked = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(blocked).MarkBlocked();
+
+            var advanced = trail.TryAdvanceTo(blocked);
+
+            Assert.IsFalse(advanced);
+            Assert.AreEqual(new GridCoordinate(0, 2), trail.CurrentPosition);
+            Assert.AreEqual(1, trail.Path.Count);
+        }
+
+        [Test]
         public void TryAdvanceTo_ValidMove_AppendsToPathAndUpdatesCurrentPosition()
         {
             var trail = CreateTrail(new GridCoordinate(0, 2));
