@@ -116,7 +116,7 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void Tick_AppliesLiteralSmoothingFactorFromPrototypeOncePerCall()
+        public void Tick_AppliesSmoothingFactorOncePerCall()
         {
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
@@ -126,8 +126,11 @@ namespace Burmalda.Movement.Tests
 
             follow.Tick();
 
-            // legacy/burmolda_demo.html: cameraRow += (cameraTargetRow-cameraRow)*0.045 — не масштабируется на deltaTime.
-            var expectedZ = 0.5f + (1.5f - 0.5f) * 0.045f;
+            // Черновой тюнинг темпа по запросу владельца продукта (без issue,
+            // см. changelog) — камера ощущалась слишком резкой/дёрганой,
+            // константа замедлена относительно буквального значения из
+            // прототипа (0.045); не масштабируется на deltaTime.
+            var expectedZ = 0.5f + (1.5f - 0.5f) * 0.02f;
             Assert.AreEqual(new Vector3(0f, 0f, expectedZ), follow.CurrentPosition);
         }
 

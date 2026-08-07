@@ -9,15 +9,22 @@ namespace Burmalda.Movement
     /// камера идёт сверху-сзади за <see cref="GridTraceTrail.CurrentPosition"/>
     /// (через <see cref="WorldGridProjection.ToWorldPosition"/>), а не
     /// телепортируется на каждый ход. Портировано из camera-логики
-    /// legacy/burmolda_demo.html (cameraRow/cameraTargetRow, draw()) — константа
-    /// сглаживания и офсет отставания по ряду перенесены буквально. Высота
+    /// legacy/burmolda_demo.html (cameraRow/cameraTargetRow, draw()) — офсет
+    /// отставания по ряду перенесён буквально, константа сглаживания
+    /// отличается от прототипа (замедлена по запросу владельца продукта, см.
+    /// <see cref="SmoothingFactor"/>). Высота
     /// камеры (<paramref name="heightOffset"/> конструктора) — новое для 3D,
     /// в 2D-прототипе аналога нет (см. увеличение скоупа в issue #8).
     /// </summary>
     public sealed class TunnelCameraFollow : IDisposable
     {
-        // legacy/burmolda_demo.html, draw(): cameraRow += (cameraTargetRow-cameraRow)*0.045
-        private const float SmoothingFactor = 0.045f;
+        // Было буквально из legacy/burmolda_demo.html, draw(): 0.045 (cameraRow
+        // += (cameraTargetRow-cameraRow)*0.045). Замедлено по прямому запросу
+        // владельца продукта — камера ощущалась слишком резкой/дёрганой, не
+        // давала игроку спокойно обдумать маршрут (черновой тюнинг «на глазок»,
+        // без формального issue — финальное значение задаст плейтест баланса,
+        // Спринт 10).
+        private const float SmoothingFactor = 0.02f;
         // legacy/burmolda_demo.html, tryAct()/returnToAltar(): cameraTargetRow = Math.max(0, r-5)
         private const int TrailingRowsBehindPlayer = 5;
 
