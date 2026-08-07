@@ -48,13 +48,32 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void CanAdvanceTo_AlreadyVisitedTile_ReturnsFalse()
+        public void CanAdvanceTo_AlreadyVisitedNotDestroyedTile_ReturnsTrue()
         {
+            // #61: повторный шаг на пройденную, но целую плиту — разрешён
+            // (правило из прототипа/старой версии #6 отменено явным запросом).
             var trail = CreateTrail(new GridCoordinate(0, 2));
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
 
-            // Прямой возврат назад — попытка снова встать на уже пройденную плиту.
-            Assert.IsFalse(trail.CanAdvanceTo(new GridCoordinate(0, 2)));
+            Assert.IsTrue(trail.CanAdvanceTo(new GridCoordinate(0, 2)));
+        }
+
+        [Test]
+        public void CanAdvanceTo_AlreadyVisitedDestroyedTile_ReturnsFalse()
+        {
+            // #61: блокируется только реально разрушенная распадом плита.
+            var grid = new TunnelGrid(5);
+            var start = new GridCoordinate(0, 2);
+            var trail = new GridTraceTrail(grid, start);
+            var previous = new GridCoordinate(1, 2);
+            trail.TryAdvanceTo(previous);
+
+            var previousTile = grid.GetOrCreateTile(previous);
+            previousTile.BeginDecay(1f);
+            previousTile.AdvanceDecay(2f); // порог 1с превышен — плита разрушена
+            Assert.IsTrue(previousTile.IsDestroyed, "тест некорректен, если плита не разрушилась");
+
+            Assert.IsFalse(trail.CanAdvanceTo(previous));
         }
 
         [Test]
@@ -90,6 +109,89 @@ namespace Burmalda.Movement.Tests
             Assert.IsTrue(trail.TryAdvanceTo(new GridCoordinate(2, 2)));
             Assert.IsTrue(trail.TryAdvanceTo(new GridCoordinate(3, 3)));
             Assert.AreEqual(4, trail.Path.Count);
+        }
+
+        // #61: повторный проход по не разрушенной плите — CurrentPosition
+        // двигается, но Path остаётся списком уникальных плит без дублей
+        // (см. обсуждение issue #61 — Decay/DebugVisuals рассчитывают на то,
+        // что Path не содержит повторов).
+
+        [Test]
+        public void TryAdvanceTo_RevisitNotDestroyedTile_MovesCurrentPositionWithoutDuplicatingPath()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            var pathCountBeforeRevisit = trail.Path.Count;
+
+            var revisited = trail.TryAdvanceTo(start);
+
+            Assert.IsTrue(revisited);
+            Assert.AreEqual(start, trail.CurrentPosition);
+            Assert.AreEqual(pathCountBeforeRevisit, trail.Path.Count);
+        }
+
+        [Test]
+        public void TryAdvanceTo_RevisitDestroyedTile_ReturnsFalseAndDoesNotMoveCurrentPosition()
+        {
+            var grid = new TunnelGrid(5);
+            var start = new GridCoordinate(0, 2);
+            var trail = new GridTraceTrail(grid, start);
+            var previous = new GridCoordinate(1, 2);
+            trail.TryAdvanceTo(previous);
+            trail.TryAdvanceTo(new GridCoordinate(2, 2)); // текущая позиция теперь не previous
+
+            var previousTile = grid.GetOrCreateTile(previous);
+            previousTile.BeginDecay(1f);
+            previousTile.AdvanceDecay(2f);
+
+            var revisited = trail.TryAdvanceTo(previous);
+
+            Assert.IsFalse(revisited);
+            Assert.AreEqual(new GridCoordinate(2, 2), trail.CurrentPosition);
+        }
+
+        [Test]
+        public void TryAdvanceTo_RevisitNotDestroyedTile_DoesNotFireAdvancedEvent()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+
+            var advancedCoordinates = new System.Collections.Generic.List<GridCoordinate>();
+            trail.Advanced += c => advancedCoordinates.Add(c);
+
+            trail.TryAdvanceTo(start);
+
+            Assert.IsEmpty(advancedCoordinates);
+        }
+
+        [Test]
+        public void TryAdvanceTo_NewTile_FiresAdvancedEventWithTargetCoordinate()
+        {
+            var trail = CreateTrail(new GridCoordinate(0, 2));
+            var target = new GridCoordinate(1, 2);
+            GridCoordinate? fired = null;
+            trail.Advanced += c => fired = c;
+
+            trail.TryAdvanceTo(target);
+
+            Assert.AreEqual(target, fired);
+        }
+
+        [Test]
+        public void TryAdvanceTo_AfterRevisit_CanContinueToNewAdjacentTile()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            trail.TryAdvanceTo(start); // возврат на старт
+
+            var advanced = trail.TryAdvanceTo(new GridCoordinate(1, 3)); // новая плита, соседняя старту
+
+            Assert.IsTrue(advanced);
+            Assert.AreEqual(new GridCoordinate(1, 3), trail.CurrentPosition);
+            Assert.AreEqual(3, trail.Path.Count); // start, (1,2), (1,3) — без дублей
         }
     }
 }
