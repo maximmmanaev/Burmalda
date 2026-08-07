@@ -49,6 +49,15 @@ namespace Burmalda.Core
         }
 
         /// <summary>
+        /// Возвращает уже материализованную плиту по координате без побочных
+        /// эффектов — в отличие от <see cref="GetOrCreateTile"/>, ничего не
+        /// создаёт и не поднимает <see cref="TileMaterialized"/>. Нужен
+        /// проверкам вроде препятствий (#9): плита, на которую ещё никто не
+        /// смотрел, по определению не может быть заблокирована.
+        /// </summary>
+        public bool TryGetTile(GridCoordinate coordinate, out Tile tile) => _tiles.TryGetValue(coordinate, out tile);
+
+        /// <summary>
         /// Соседние плиты для позиции — 8-направленно (PRD 4.1: "тянет палец
         /// по соседним плитам"), отфильтрованные по границам сетки.
         /// </summary>
