@@ -19,14 +19,19 @@ namespace Burmalda.Movement
     public sealed class TunnelCameraFollow : IDisposable
     {
         // Было буквально из legacy/burmolda_demo.html, draw(): 0.045 (cameraRow
-        // += (cameraTargetRow-cameraRow)*0.045). Замедлено по прямому запросу
-        // владельца продукта — камера ощущалась слишком резкой/дёрганой, не
-        // давала игроку спокойно обдумать маршрут (черновой тюнинг «на глазок»,
-        // без формального issue — финальное значение задаст плейтест баланса,
-        // Спринт 10).
-        private const float SmoothingFactor = 0.02f;
+        // += (cameraTargetRow-cameraRow)*0.045). Дважды замедлено по прямому
+        // запросу владельца продукта (0.045 -> 0.02 -> 0.01) — камера
+        // ощущалась слишком резкой/дёрганой, не давала игроку спокойно
+        // обдумать маршрут (черновой тюнинг «на глазок», без формального
+        // issue — финальное значение задаст плейтест баланса, Спринт 10).
+        private const float SmoothingFactor = 0.01f;
         // legacy/burmolda_demo.html, tryAct()/returnToAltar(): cameraTargetRow = Math.max(0, r-5)
         private const int TrailingRowsBehindPlayer = 5;
+        // По запросу владельца продукта: белая плитка (игрок) должна быть
+        // ближе к низу экрана, а не строго в центре — камера целится не в
+        // самого игрока, а в точку впереди него по глубине тоннеля. Так же
+        // «на глазок», без issue, значение — предмет плейтеста (Спринт 10).
+        private const int LookAheadRowsBeyondPlayer = 6;
 
         private readonly GridTraceTrail _trail;
         private readonly WorldGridProjection _projection;
@@ -105,7 +110,11 @@ namespace Burmalda.Movement
             // влево-вправо вслед за реальным столбцом игрока (аналогично #62
             // для позиции) — точка взгляда берётся по центру тоннеля, меняется
             // только по Z (глубина), боковой (X) составляющей у направления нет.
-            var lookAtCoordinate = new GridCoordinate(playerRow, _projection.Width / 2);
+            // Точка взгляда — не сам игрок, а плита впереди него на
+            // LookAheadRowsBeyondPlayer: угол получается более пологим, чем
+            // при взгляде ровно на игрока, и белая плитка визуально уходит
+            // ближе к низу экрана вместо центра.
+            var lookAtCoordinate = new GridCoordinate(playerRow + LookAheadRowsBeyondPlayer, _projection.Width / 2);
             var lookAtPoint = _projection.ToWorldPosition(lookAtCoordinate);
             var direction = lookAtPoint - cameraPosition;
             return direction.sqrMagnitude > 0f ? Quaternion.LookRotation(direction, Vector3.up) : Quaternion.identity;

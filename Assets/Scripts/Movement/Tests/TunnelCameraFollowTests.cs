@@ -128,9 +128,9 @@ namespace Burmalda.Movement.Tests
 
             // Черновой тюнинг темпа по запросу владельца продукта (без issue,
             // см. changelog) — камера ощущалась слишком резкой/дёрганой,
-            // константа замедлена относительно буквального значения из
-            // прототипа (0.045); не масштабируется на deltaTime.
-            var expectedZ = 0.5f + (1.5f - 0.5f) * 0.02f;
+            // константа дважды замедлена относительно буквального значения
+            // из прототипа (0.045 -> 0.02 -> 0.01); не масштабируется на deltaTime.
+            var expectedZ = 0.5f + (1.5f - 0.5f) * 0.01f;
             Assert.AreEqual(new Vector3(0f, 0f, expectedZ), follow.CurrentPosition);
         }
 
@@ -182,14 +182,42 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void TargetRotation_CameraAtSamePositionAsPlayer_FallsBackToIdentity()
+        public void TargetRotation_AtStart_NoHeightOffset_LooksStraightDownTunnelWithoutVerticalTilt()
         {
+            // Раньше (до взгляда «с запасом вперёд») трейлинг-ряд камеры на
+            // старте совпадал с точкой взгляда (row0=row0) — направление было
+            // нулевым, откуда fallback на identity. Теперь камера всегда
+            // целится дальше игрока по глубине (см. LookAheadRowsBeyondPlayer),
+            // поэтому направление ненулевое уже на старте.
             var (_, trail, projection) = CreateTrail();
 
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+            var forward = follow.TargetRotation * Vector3.forward;
 
-            // На старте трейлинг-ряд ещё клампится к позиции игрока (row0) — направление нулевое.
-            Assert.AreEqual(Quaternion.identity, follow.TargetRotation);
+            Assert.Greater(forward.z, 0f, "камера должна смотреть вперёд по тоннелю уже на старте");
+            Assert.AreEqual(0f, forward.y, 1e-5f, "без высоты камеры (heightOffset=0) наклона по Y быть не должно");
+            Assert.AreEqual(0f, forward.x, 1e-5f);
+        }
+
+        [Test]
+        public void TargetRotation_LooksAheadOfPlayer_ShallowerPitchThanLookingDirectlyAtPlayer()
+        {
+            // По запросу владельца продукта: белая плитка (игрок) должна быть
+            // ближе к низу экрана, а не в центре. Если бы камера целилась
+            // ровно в игрока (старое поведение), при heightOffset=(0,3,0) и
+            // трейлинг-ряде 1 (игрок на ряду 6) угол был бы y/z = -3/5 = -0.6.
+            // Взгляд «с запасом вперёд» должен давать более пологий угол —
+            // камера целится дальше по тоннелю, чем стоит игрок.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 3f, 0f));
+
+            for (var row = 1; row <= 6; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+
+            var forward = follow.TargetRotation * Vector3.forward;
+            var previousPitchRatio = Mathf.Abs(-3f / 5f);
+
+            Assert.Less(Mathf.Abs(forward.y / forward.z), previousPitchRatio);
         }
 
         [Test]
