@@ -7,14 +7,16 @@ namespace Burmalda.Movement
     /// <summary>
     /// Трейл grid-trace движения (PRD 4.1): игрок тянет палец по соседним
     /// плитам, продвигаясь вперёд по тоннелю. Ход валиден на плиту, соседнюю
-    /// текущей позиции и ещё не пройденную трейлом — повторный шаг на уже
-    /// пройденную плиту (в том числе прямой возврат назад) невалиден.
+    /// текущей позиции, если она ещё не пройдена трейлом, либо уже пройдена,
+    /// но не разрушена распадом (<see cref="Tile.IsDestroyed"/>) — явный
+    /// запрос владельца продукта, #61, отменяет прежний полный запрет повтора.
     /// </summary>
     public sealed class GridTraceTrail
     {
         private readonly TunnelGrid _grid;
         private readonly List<GridCoordinate> _path = new List<GridCoordinate>();
         private readonly HashSet<GridCoordinate> _visited = new HashSet<GridCoordinate>();
+        private GridCoordinate _currentPosition;
 
         public GridTraceTrail(TunnelGrid grid, GridCoordinate startCoordinate)
         {
@@ -25,37 +27,59 @@ namespace Burmalda.Movement
             grid.GetOrCreateTile(startCoordinate);
             _path.Add(startCoordinate);
             _visited.Add(startCoordinate);
+            _currentPosition = startCoordinate;
         }
 
-        /// <summary>Пройденные плиты трейла по порядку, от старта до текущей позиции.</summary>
+        /// <summary>
+        /// Уникальные плиты трейла в порядке первого посещения — без дублей,
+        /// даже если игрок повторно проходит уже пройденную плиту (#61).
+        /// Для текущей позиции игрока см. <see cref="CurrentPosition"/> —
+        /// она не обязательно совпадает с последним элементом этого списка.
+        /// </summary>
         public IReadOnlyList<GridCoordinate> Path => _path;
 
-        /// <summary>Текущая позиция игрока — последняя плита трейла.</summary>
-        public GridCoordinate CurrentPosition => _path[_path.Count - 1];
+        /// <summary>Текущая позиция игрока — двигается при любом успешном ходе, включая повтор (#61).</summary>
+        public GridCoordinate CurrentPosition => _currentPosition;
 
         /// <summary>
-        /// Срабатывает после успешного продвижения трейла на новую плиту
-        /// (см. <see cref="TryAdvanceTo"/>). Используется, например, Decay
-        /// для запуска распада только что пройденной плиты.
+        /// Срабатывает после продвижения трейла на плиту, которая ранее не
+        /// была пройдена (см. <see cref="TryAdvanceTo"/>). Не срабатывает
+        /// повторно при возврате на уже пройденную плиту (#61) — Decay и
+        /// прочие подписчики реагируют только на по-настоящему новые плиты.
         /// </summary>
         public event Action<GridCoordinate> Advanced;
 
         /// <summary>
         /// Ход на <paramref name="target"/> валиден, если плита в пределах
-        /// сетки, соседняя текущей позиции и ещё не пройдена трейлом.
+        /// сетки и соседняя текущей позиции, и при этом либо ещё не пройдена
+        /// трейлом, либо пройдена, но не разрушена распадом (#61).
         /// </summary>
-        public bool CanAdvanceTo(GridCoordinate target) =>
-            _grid.Contains(target) && CurrentPosition.IsAdjacentTo(target) && !_visited.Contains(target);
+        public bool CanAdvanceTo(GridCoordinate target)
+        {
+            if (!_grid.Contains(target)) return false;
+            if (!CurrentPosition.IsAdjacentTo(target)) return false;
+            if (!_visited.Contains(target)) return true;
+
+            // Уже пройдена трейлом — плита гарантированно материализована
+            // (материализация происходит только при прохождении), поэтому
+            // GetOrCreateTile здесь не создаёт ничего нового.
+            return !_grid.GetOrCreateTile(target).IsDestroyed;
+        }
 
         /// <summary>Продвигает трейл на <paramref name="target"/>, если ход валиден.</summary>
         public bool TryAdvanceTo(GridCoordinate target)
         {
             if (!CanAdvanceTo(target)) return false;
 
-            _grid.GetOrCreateTile(target);
-            _path.Add(target);
-            _visited.Add(target);
-            Advanced?.Invoke(target);
+            var isNewTile = _visited.Add(target);
+            if (isNewTile)
+            {
+                _grid.GetOrCreateTile(target);
+                _path.Add(target);
+            }
+
+            _currentPosition = target;
+            if (isNewTile) Advanced?.Invoke(target);
             return true;
         }
     }

@@ -57,7 +57,7 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void OnTrailAdvanced_LateralMove_TargetColumnFollowsImmediatelyWithoutLag()
+        public void OnTrailAdvanced_LateralMove_TargetColumnStaysFixedAtTunnelCenter()
         {
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
@@ -66,8 +66,34 @@ namespace Burmalda.Movement.Tests
                 trail.TryAdvanceTo(new GridCoordinate(row, 2));
             trail.TryAdvanceTo(new GridCoordinate(6, 3)); // шаг вбок, ряд не меняется
 
-            // Столбец не отстаёт (как в прототипе — только ряд): col3 -> x=(3-2.5+0.5)=1, ряд по-прежнему 1 -> z=1.5.
-            Assert.AreEqual(new Vector3(1f, 0f, 1.5f), follow.TargetPosition);
+            // #62: камера двигается только вперёд-назад (по Z) — X зафиксирован
+            // на центре ширины тоннеля (Width/2=2 -> x=0), не следует за
+            // столбцом игрока, даже когда игрок сместился в столбец 3.
+            Assert.AreEqual(new Vector3(0f, 0f, 1.5f), follow.TargetPosition);
+        }
+
+        [Test]
+        public void OnTrailAdvanced_DiagonalMovementAcrossColumns_TargetColumnNeverLeavesTunnelCenter()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            // Зигзаг через разные столбцы (0..4 при ширине 5) — камера не
+            // должна уезжать влево-вправо ни на одном шаге.
+            var path = new[]
+            {
+                new GridCoordinate(1, 1),
+                new GridCoordinate(2, 0),
+                new GridCoordinate(3, 1),
+                new GridCoordinate(4, 2),
+                new GridCoordinate(5, 3),
+                new GridCoordinate(6, 4),
+            };
+            foreach (var step in path)
+            {
+                Assert.IsTrue(trail.TryAdvanceTo(step), $"шаг {step} должен быть валиден для теста");
+                Assert.AreEqual(0f, follow.TargetPosition.x, 1e-5f, $"X цели камеры не должен меняться на шаге {step}");
+            }
         }
 
         [Test]
