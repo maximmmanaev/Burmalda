@@ -10,6 +10,8 @@ namespace Burmalda.Movement
     /// текущей позиции, если она ещё не пройдена трейлом, либо уже пройдена,
     /// но не разрушена распадом (<see cref="Tile.IsDestroyed"/>) — явный
     /// запрос владельца продукта, #61, отменяет прежний полный запрет повтора.
+    /// Плита-препятствие (<see cref="Tile.IsBlocked"/>, PRD 4.2, #9) непроходима
+    /// независимо от того, пройдена она трейлом или нет.
     /// </summary>
     public sealed class GridTraceTrail
     {
@@ -50,20 +52,37 @@ namespace Burmalda.Movement
         public event Action<GridCoordinate> Advanced;
 
         /// <summary>
+        /// Срабатывает при ЛЮБОМ успешном ходе — включая повторный шаг на
+        /// уже пройденную плиту (#61), в отличие от <see cref="Advanced"/>.
+        /// Нужен системам, которым важна именно текущая позиция игрока, а не
+        /// факт первого посещения плиты (например, камере — она должна
+        /// отступать назад при возврате по трейлу, а не только двигаться
+        /// вперёд на новых плитках).
+        /// </summary>
+        public event Action<GridCoordinate> PositionChanged;
+
+        /// <summary>
         /// Ход на <paramref name="target"/> валиден, если плита в пределах
-        /// сетки и соседняя текущей позиции, и при этом либо ещё не пройдена
-        /// трейлом, либо пройдена, но не разрушена распадом (#61).
+        /// сетки, соседняя текущей позиции, не является препятствием (#9), и
+        /// при этом либо ещё не пройдена трейлом, либо пройдена, но не
+        /// разрушена распадом (#61).
         /// </summary>
         public bool CanAdvanceTo(GridCoordinate target)
         {
             if (!_grid.Contains(target)) return false;
             if (!CurrentPosition.IsAdjacentTo(target)) return false;
-            if (!_visited.Contains(target)) return true;
 
-            // Уже пройдена трейлом — плита гарантированно материализована
-            // (материализация происходит только при прохождении), поэтому
-            // GetOrCreateTile здесь не создаёт ничего нового.
-            return !_grid.GetOrCreateTile(target).IsDestroyed;
+            // TryGetTile, а не GetOrCreateTile — плита, до которой ещё никто
+            // не дотрагивался, не материализована и не может быть ни
+            // препятствием (#9), ни разрушена распадом; материализовывать её
+            // здесь как побочный эффект проверки хода не нужно.
+            if (_grid.TryGetTile(target, out var tile))
+            {
+                if (tile.IsBlocked) return false;
+                if (_visited.Contains(target)) return !tile.IsDestroyed;
+            }
+
+            return true;
         }
 
         /// <summary>Продвигает трейл на <paramref name="target"/>, если ход валиден.</summary>
@@ -80,6 +99,7 @@ namespace Burmalda.Movement
 
             _currentPosition = target;
             if (isNewTile) Advanced?.Invoke(target);
+            PositionChanged?.Invoke(target);
             return true;
         }
     }

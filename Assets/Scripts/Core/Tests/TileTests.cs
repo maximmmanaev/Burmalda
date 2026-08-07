@@ -103,5 +103,34 @@ namespace Burmalda.Core.Tests
 
             Assert.AreEqual(1f, tile.DecayProgress01);
         }
+
+        [Test]
+        public void NewTile_IsNotBlocked()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsBlocked);
+        }
+
+        [Test]
+        public void MarkBlocked_SetsIsBlockedTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBlocked();
+
+            Assert.IsTrue(tile.IsBlocked);
+        }
+
+        [Test]
+        public void MarkBlocked_CalledTwice_StaysBlocked()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBlocked();
+            tile.MarkBlocked();
+
+            Assert.IsTrue(tile.IsBlocked);
+        }
     }
 }

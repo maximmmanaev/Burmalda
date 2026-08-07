@@ -30,15 +30,19 @@ namespace Burmalda.DebugVisuals
         // legacy/burmolda_demo.html, draw(): t.state==='destroyed' — #0a0a0e
         public static readonly Color DestroyedColor = new Color(10f / 255f, 10f / 255f, 14f / 255f);
 
+        // legacy/burmolda_demo.html, draw(): t.type==='block' — #140a06
+        public static readonly Color BlockedColor = new Color(20f / 255f, 10f / 255f, 6f / 255f);
+
         public static Color Resolve(TileVisualState state)
         {
             if (state.IsDestroyed) return DestroyedColor;
             if (state.IsCurrentPosition) return CurrentPositionColor;
             if (state.IsStart) return StartColor;
+            if (state.IsBlocked) return BlockedColor;
 
-            // Когда у плиты появится тип (ловушка/валюта/артефакт) из Traps
-            // (#9), здесь до градиента распада добавится ветвление по типу —
-            // сейчас плита без типа, единственный сигнал — прогресс распада.
+            // Остальной тип плиты (яма/лава/валюта/артефакт) из Traps (#9)
+            // добавит сюда же ветвление до градиента распада — препятствие
+            // уже не участвует в градиенте, т.к. никогда не начинает распад.
             return ResolveDecayGradient(state.DecayProgress01);
         }
 

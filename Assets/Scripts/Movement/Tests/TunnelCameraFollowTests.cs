@@ -97,6 +97,25 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void OnPositionChanged_RevisitOlderTileAfterGoingDeep_TargetMovesBackward()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            for (var row = 1; row <= 10; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+            var targetZAtDepth = follow.TargetPosition.z; // трейлинг-ряд max(0,10-5)=5 -> z=5.5
+
+            trail.TryAdvanceTo(new GridCoordinate(9, 2)); // шаг назад на уже пройденную плиту (#61)
+
+            // Без подписки на PositionChanged камера осталась бы на месте —
+            // трейлинг-ряд должен пересчитаться от новой CurrentPosition (9),
+            // а не только от последней НОВОЙ плитки.
+            Assert.Less(follow.TargetPosition.z, targetZAtDepth);
+            Assert.AreEqual(new Vector3(0f, 0f, 4.5f), follow.TargetPosition); // трейлинг-ряд max(0,9-5)=4 -> z=4.5
+        }
+
+        [Test]
         public void Tick_AppliesLiteralSmoothingFactorFromPrototypeOncePerCall()
         {
             var (_, trail, projection) = CreateTrail();
@@ -140,6 +159,23 @@ namespace Burmalda.Movement.Tests
             Assert.Less(forward.y, 0f, "камера выше игрока — должна смотреть вниз");
             Assert.Greater(forward.z, 0f, "игрок впереди по тоннелю — должна смотреть вперёд");
             Assert.AreEqual(0f, forward.x, 1e-5f, "нет бокового смещения между камерой и игроком");
+        }
+
+        [Test]
+        public void TargetRotation_LateralMove_NoLeftRightYaw()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 3f, 0f));
+
+            for (var row = 1; row <= 6; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+            trail.TryAdvanceTo(new GridCoordinate(6, 4)); // шаг вбок к краю тоннеля, ряд не меняется
+
+            var forward = follow.TargetRotation * Vector3.forward;
+
+            // Камера смотрит по центру тоннеля, а не на реальный столбец игрока —
+            // иначе она поворачивается влево-вправо при каждом боковом шаге.
+            Assert.AreEqual(0f, forward.x, 1e-5f, "камера не должна поворачиваться влево-вправо при боковом движении игрока");
         }
 
         [Test]
