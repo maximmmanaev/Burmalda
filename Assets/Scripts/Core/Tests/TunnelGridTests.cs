@@ -72,5 +72,32 @@ namespace Burmalda.Core.Tests
 
             Assert.AreEqual(8, neighbors.Count);
         }
+
+        [Test]
+        public void TileMaterialized_FirstGetOrCreateTile_FiresWithNewTile()
+        {
+            var grid = new TunnelGrid(5);
+            var coordinate = new GridCoordinate(2, 2);
+            Tile materialized = null;
+            grid.TileMaterialized += tile => materialized = tile;
+
+            var created = grid.GetOrCreateTile(coordinate);
+
+            Assert.AreSame(created, materialized);
+        }
+
+        [Test]
+        public void TileMaterialized_SameCoordinateTwice_FiresOnlyOnce()
+        {
+            var grid = new TunnelGrid(5);
+            var coordinate = new GridCoordinate(2, 2);
+            var firedCount = 0;
+            grid.TileMaterialized += _ => firedCount++;
+
+            grid.GetOrCreateTile(coordinate);
+            grid.GetOrCreateTile(coordinate);
+
+            Assert.AreEqual(1, firedCount);
+        }
     }
 }
