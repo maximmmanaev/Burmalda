@@ -76,14 +76,24 @@ namespace Burmalda.RunLifecycle.Tests
         [Test]
         public void TileDestroyed_NotUnderCurrentPosition_DoesNotDie()
         {
+            // Пороги распада соседних по трейлу плиток отличаются всего на
+            // DecayThresholdSecondsPerTrailIndex (доли секунды) — единственный
+            // способ разрушить именно `behind`, не задев текущую плиту: дать
+            // `behind` фору по времени распада ДО того, как игрок сместится
+            // на `current` (у которой отсчёт стартует с нуля), а не бить одним
+            // огромным Tick — он продвигает распад одинаково для всех активных
+            // плиток трейла и разрушил бы обе сразу.
             var (grid, trail, decay, runState) = CreateRun();
             var behind = new GridCoordinate(1, 2);
             trail.TryAdvanceTo(behind);
-            trail.TryAdvanceTo(new GridCoordinate(2, 2)); // текущая позиция теперь не behind
+            decay.Tick(2f); // фора для behind, но меньше её порога (3.09с)
 
-            decay.Tick(1000f); // разрушает behind, но не текущую плиту
+            var current = new GridCoordinate(2, 2);
+            trail.TryAdvanceTo(current); // текущая позиция теперь не behind, распад current стартует с нуля
+            decay.Tick(1.2f); // добивает behind (была фора), current остаётся далеко от своего порога
 
             Assert.IsTrue(grid.GetOrCreateTile(behind).IsDestroyed, "тест некорректен, если плита не разрушилась");
+            Assert.IsFalse(grid.GetOrCreateTile(current).IsDestroyed, "тест некорректен, если текущая плита тоже разрушилась");
             Assert.IsTrue(runState.IsAlive, "разрушение НЕ текущей плиты не должно убивать игрока");
         }
 
