@@ -110,12 +110,23 @@ namespace Burmalda.Movement
             // влево-вправо вслед за реальным столбцом игрока (аналогично #62
             // для позиции) — точка взгляда берётся по центру тоннеля, меняется
             // только по Z (глубина), боковой (X) составляющей у направления нет.
-            // Точка взгляда — не сам игрок, а плита впереди него на
-            // LookAheadRowsBeyondPlayer: угол получается более пологим, чем
-            // при взгляде ровно на игрока, и белая плитка визуально уходит
-            // ближе к низу экрана вместо центра.
-            var lookAtCoordinate = new GridCoordinate(playerRow + LookAheadRowsBeyondPlayer, _projection.Width / 2);
-            var lookAtPoint = _projection.ToWorldPosition(lookAtCoordinate);
+            var cameraRow = Math.Max(0, playerRow - TrailingRowsBehindPlayer);
+
+            // Баг-репорт владельца продукта: в начале забега камера ещё не
+            // отстала на штатные TrailingRowsBehindPlayer рядов (почти
+            // совпадает с игроком по глубине) — если в этот момент целиться
+            // на полный LookAheadRowsBeyondPlayer вперёд, угол получается
+            // настолько крутым, что игрок выпадает из кадра. Поэтому запас
+            // взгляда вперёд масштабируется по тому, насколько камера уже
+            // "отстала": 0 в самый первый момент (камера целится прямо в
+            // игрока — гарантированно виден), полный запас — как только
+            // отставание достигает штатных TrailingRowsBehindPlayer рядов.
+            var caughtUpDistance = playerRow - cameraRow;
+            var lookAheadScale = Mathf.Clamp01((float)caughtUpDistance / TrailingRowsBehindPlayer);
+            var lookAheadRow = playerRow + LookAheadRowsBeyondPlayer * lookAheadScale;
+
+            var centerColumnX = _projection.ToWorldPosition(new GridCoordinate(0, _projection.Width / 2)).x;
+            var lookAtPoint = new Vector3(centerColumnX, 0f, (lookAheadRow + 0.5f) * _projection.TileSize);
             var direction = lookAtPoint - cameraPosition;
             return direction.sqrMagnitude > 0f ? Quaternion.LookRotation(direction, Vector3.up) : Quaternion.identity;
         }

@@ -182,21 +182,59 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void TargetRotation_AtStart_NoHeightOffset_LooksStraightDownTunnelWithoutVerticalTilt()
+        public void TargetRotation_AtVeryStart_CameraAndLookAtCoincide_FallsBackToIdentity()
         {
-            // Раньше (до взгляда «с запасом вперёд») трейлинг-ряд камеры на
-            // старте совпадал с точкой взгляда (row0=row0) — направление было
-            // нулевым, откуда fallback на identity. Теперь камера всегда
-            // целится дальше игрока по глубине (см. LookAheadRowsBeyondPlayer),
-            // поэтому направление ненулевое уже на старте.
+            // На самом старте забега камера (трейлинг-ряд ещё клампится к 0)
+            // и запас взгляда вперёд (см. LookAheadScale ниже) оба совпадают
+            // с позицией игрока — без высоты камеры это ровно одна и та же
+            // точка, направление нулевое. Тот же degenerate-случай, что был
+            // до добавления взгляда с запасом вперёд.
             var (_, trail, projection) = CreateTrail();
 
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            Assert.AreEqual(Quaternion.identity, follow.TargetRotation);
+        }
+
+        [Test]
+        public void TargetRotation_AtVeryStart_WithHeightOffset_LooksDirectlyAtPlayer()
+        {
+            // Баг-репорт владельца продукта: на самом старте, пока камера ещё
+            // не отстала на штатные TrailingRowsBehindPlayer рядов, взгляд
+            // «с запасом вперёд» на полную глубину уводил прицел камеры так
+            // далеко от игрока (который почти рядом с камерой), что белая
+            // плитка выпадала из кадра. Запас должен масштабироваться до 0
+            // ровно в момент старта — камера целится прямо в игрока, он
+            // гарантированно виден, как и до появления запаса вперёд.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 3f, -1f));
+
             var forward = follow.TargetRotation * Vector3.forward;
 
-            Assert.Greater(forward.z, 0f, "камера должна смотреть вперёд по тоннелю уже на старте");
-            Assert.AreEqual(0f, forward.y, 1e-5f, "без высоты камеры (heightOffset=0) наклона по Y быть не должно");
-            Assert.AreEqual(0f, forward.x, 1e-5f);
+            // Камера и игрок на одном ряду (0), heightOffset=(0,3,-1) ->
+            // direction = playerPos-cameraPos = (0,-3,1), нормализовано.
+            var expected = new Vector3(0f, -3f, 1f).normalized;
+            Assert.AreEqual(expected.x, forward.x, 1e-4f);
+            Assert.AreEqual(expected.y, forward.y, 1e-4f);
+            Assert.AreEqual(expected.z, forward.z, 1e-4f);
+        }
+
+        [Test]
+        public void TargetRotation_PartiallyCaughtUp_NoHeightOffset_AlreadyLooksAheadDownTunnel()
+        {
+            // Даже до полного отставания камеры (штатные 5 рядов) запас
+            // взгляда вперёд должен уже частично включаться, а не резко
+            // появляться скачком — иначе на границе снова возможен провал кадра.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            for (var row = 1; row <= 3; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // трейлинг-ряд камеры всё ещё клампится к 0
+
+            var forward = follow.TargetRotation * Vector3.forward;
+
+            Assert.Greater(forward.z, 0f, "запас взгляда вперёд должен уже частично работать");
+            Assert.AreEqual(0f, forward.y, 1e-5f, "без высоты камеры наклона по Y быть не должно");
         }
 
         [Test]
@@ -206,8 +244,8 @@ namespace Burmalda.Movement.Tests
             // ближе к низу экрана, а не в центре. Если бы камера целилась
             // ровно в игрока (старое поведение), при heightOffset=(0,3,0) и
             // трейлинг-ряде 1 (игрок на ряду 6) угол был бы y/z = -3/5 = -0.6.
-            // Взгляд «с запасом вперёд» должен давать более пологий угол —
-            // камера целится дальше по тоннелю, чем стоит игрок.
+            // Камера уже полностью отстала на штатные 5 рядов (6-1=5) — запас
+            // взгляда вперёд включён на полную, угол должен быть более пологим.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 3f, 0f));
 
