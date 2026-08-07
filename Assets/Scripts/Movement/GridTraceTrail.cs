@@ -62,10 +62,20 @@ namespace Burmalda.Movement
         public event Action<GridCoordinate> PositionChanged;
 
         /// <summary>
+        /// Срабатывает, когда игрок пытается шагнуть на смертельную ловушку
+        /// (<see cref="Tile.LethalTrap"/>, PRD 4.2) — сам ход при этом НЕ
+        /// засчитывается (см. <see cref="TryAdvanceTo"/>), плита-ловушка не
+        /// становится текущей позицией. Потребитель этого события — система,
+        /// отвечающая за смерть/рестарт (Burmalda.RunLifecycle); сама
+        /// GridTraceTrail ничего не знает о смерти.
+        /// </summary>
+        public event Action<GridCoordinate, LethalTrapType> LethalTrapTriggered;
+
+        /// <summary>
         /// Ход на <paramref name="target"/> валиден, если плита в пределах
-        /// сетки, соседняя текущей позиции, не является препятствием (#9), и
-        /// при этом либо ещё не пройдена трейлом, либо пройдена, но не
-        /// разрушена распадом (#61).
+        /// сетки, соседняя текущей позиции, не является препятствием (#9) и
+        /// не смертельной ловушкой (PRD 4.2), и при этом либо ещё не
+        /// пройдена трейлом, либо пройдена, но не разрушена распадом (#61).
         /// </summary>
         public bool CanAdvanceTo(GridCoordinate target)
         {
@@ -74,20 +84,37 @@ namespace Burmalda.Movement
 
             // TryGetTile, а не GetOrCreateTile — плита, до которой ещё никто
             // не дотрагивался, не материализована и не может быть ни
-            // препятствием (#9), ни разрушена распадом; материализовывать её
-            // здесь как побочный эффект проверки хода не нужно.
+            // препятствием (#9), ни ловушкой, ни разрушена распадом;
+            // материализовывать её здесь как побочный эффект проверки хода
+            // не нужно.
             if (_grid.TryGetTile(target, out var tile))
             {
                 if (tile.IsBlocked) return false;
+                if (tile.LethalTrap.HasValue) return false;
                 if (_visited.Contains(target)) return !tile.IsDestroyed;
             }
 
             return true;
         }
 
-        /// <summary>Продвигает трейл на <paramref name="target"/>, если ход валиден.</summary>
+        /// <summary>
+        /// Продвигает трейл на <paramref name="target"/>, если ход валиден.
+        /// Если цель — смертельная ловушка, ход не засчитывается (как и для
+        /// любой другой невалидной цели), но дополнительно поднимается
+        /// <see cref="LethalTrapTriggered"/> — попытка шагнуть на ловушку
+        /// сама по себе является игровым событием, даже если позиция не
+        /// меняется (см. legacy/burmolda_demo.html, tryAct: attemptDeath
+        /// вызывается и делается return без продвижения).
+        /// </summary>
         public bool TryAdvanceTo(GridCoordinate target)
         {
+            if (_grid.Contains(target) && CurrentPosition.IsAdjacentTo(target) &&
+                _grid.TryGetTile(target, out var targetTile) && targetTile.LethalTrap.HasValue)
+            {
+                LethalTrapTriggered?.Invoke(target, targetTile.LethalTrap.Value);
+                return false;
+            }
+
             if (!CanAdvanceTo(target)) return false;
 
             var isNewTile = _visited.Add(target);

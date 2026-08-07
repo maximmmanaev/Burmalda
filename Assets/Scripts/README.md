@@ -24,9 +24,13 @@
 | `Achievements/` | `Achievement` — условие → оповещение → разлок артефакта | [Спринт 9](https://github.com/maximmmanaev/Burmalda/milestone/9) |
 | `Monetization/` | `MonetizationOffer`, `ReviveOffer`, `ArtifactGachaPack` | [Спринт 11](https://github.com/maximmmanaev/Burmalda/milestone/11) |
 | `DebugVisuals/` | **Debug-инфраструктура, не система из PRD.** Минимальный визуал сетки тоннеля (примитивы в рантайме, без .prefab) для ручного тестирования Core/Movement/Decay глазами | вне очереди спринтов ([issue #58](https://github.com/maximmmanaev/Burmalda/issues/58)) |
+| `RunLifecycle/` | **Временная инфраструктура, не финальная система из PRD.** `RunState`/`RunController` — упрощённая смерть (яма/лава/обрушение плиты под ногами) без d20-броска и рестарт забега (`GridTraceInputController.Restart()`), пока нет `D20Trial` (Спринт 7); ожидаемо будет переписана/поглощена при реализации D20 | вне очереди спринтов ([issue #9](https://github.com/maximmmanaev/Burmalda/issues/9)) |
 
 Активные способности Тотема (`TotemAbilityType`, раздел 12 PRD) и монетизационные
 метрики (раздел 14) не выделены в отдельную папку — они реализуются внутри
 `Artifacts/` (Тотем) и `Monetization/` соответственно. Рычаги (`Lever`, раздел 4.2
 PRD) реализуются внутри `Traps/` — это не ловушка, но логически часть механики
-навигации по опасным путям.
+навигации по опасным путям. Статичные смертельные ловушки (`Tile.LethalTrap`,
+`LethalTrapType.Pit`/`Lava`) реализованы не в `Traps/`, а прямо в `Core`/`Movement`
+(по аналогии с `Tile.IsBlocked`) — `Traps/` резервируется под будущие мгновенные/
+подвижные динамические ловушки раздела 4.2, которых пока нет.

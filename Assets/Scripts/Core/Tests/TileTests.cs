@@ -132,5 +132,34 @@ namespace Burmalda.Core.Tests
 
             Assert.IsTrue(tile.IsBlocked);
         }
+
+        [Test]
+        public void NewTile_HasNoLethalTrap()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.LethalTrap.HasValue);
+        }
+
+        [Test]
+        public void MarkLethalTrap_SetsLethalTrapType()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkLethalTrap(LethalTrapType.Lava);
+
+            Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap);
+        }
+
+        [Test]
+        public void MarkLethalTrap_CalledTwice_KeepsFirstType()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkLethalTrap(LethalTrapType.Pit);
+            tile.MarkLethalTrap(LethalTrapType.Lava);
+
+            Assert.AreEqual(LethalTrapType.Pit, tile.LethalTrap);
+        }
     }
 }
