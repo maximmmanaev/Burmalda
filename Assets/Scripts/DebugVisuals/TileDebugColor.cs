@@ -1,3 +1,4 @@
+using Burmalda.Core;
 using UnityEngine;
 
 namespace Burmalda.DebugVisuals
@@ -33,16 +34,25 @@ namespace Burmalda.DebugVisuals
         // legacy/burmolda_demo.html, draw(): t.type==='block' — #140a06
         public static readonly Color BlockedColor = new Color(20f / 255f, 10f / 255f, 6f / 255f);
 
+        // legacy/burmolda_demo.html, draw(): t.type==='pit' — #000 (+внутренний круг #300)
+        public static readonly Color PitColor = Color.black;
+
+        // Новый тип из PRD v5 (раздел 4.2) — аналога в прототипе нет (там только 'pit'/'spike').
+        // Яркий тревожный оранжево-красный, отличим от градиента распада на глаз.
+        public static readonly Color LavaColor = new Color(1f, 90f / 255f, 0f);
+
         public static Color Resolve(TileVisualState state)
         {
             if (state.IsDestroyed) return DestroyedColor;
             if (state.IsCurrentPosition) return CurrentPositionColor;
             if (state.IsStart) return StartColor;
             if (state.IsBlocked) return BlockedColor;
+            if (state.LethalTrap == LethalTrapType.Pit) return PitColor;
+            if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
 
-            // Остальной тип плиты (яма/лава/валюта/артефакт) из Traps (#9)
-            // добавит сюда же ветвление до градиента распада — препятствие
-            // уже не участвует в градиенте, т.к. никогда не начинает распад.
+            // Остальной тип плиты (валюта/артефакт) добавит сюда же
+            // ветвление до градиента распада — препятствие/ловушка уже не
+            // участвуют в градиенте, т.к. никогда не начинают распад.
             return ResolveDecayGradient(state.DecayProgress01);
         }
 

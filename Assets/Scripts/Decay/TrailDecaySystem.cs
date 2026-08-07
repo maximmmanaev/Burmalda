@@ -8,7 +8,11 @@ namespace Burmalda.Decay
     /// Распад плит трейла (PRD 4.1, 16): плиты позади игрока разрушаются со
     /// временем — источник постоянного давления вместо таймера на
     /// прохождение. Портировано из updateDecay()/tryAct() в
-    /// legacy/burmolda_demo.html; константы тайминга не менялись.
+    /// legacy/burmolda_demo.html. Пороги распада ускорены в 2 раза
+    /// относительно прототипа по прямому запросу владельца продукта (черновой
+    /// тюнинг «на глазок», без формального issue — финальное значение задаст
+    /// плейтест баланса, Спринт 10); ускорение распада во времени
+    /// (DecayAccelerationPerSecond) не менялось.
     /// Стартовая плита трейла (index 0, "safe" в прототипе) распаду не
     /// подвержена — как и в прототипе (updateDecay: "if(r===0)continue").
     /// </summary>
@@ -18,9 +22,11 @@ namespace Burmalda.Decay
         private const float InitialDecayAcceleration = 1f;
         // legacy/burmolda_demo.html, updateDecay(): decayAcc += dt * 0.025
         private const float DecayAccelerationPerSecond = 0.025f;
-        // legacy/burmolda_demo.html, tryAct(): t.maxD = 6 + trail.length * 0.18
-        private const float BaseDecayThresholdSeconds = 6f;
-        private const float DecayThresholdSecondsPerTrailIndex = 0.18f;
+        // Было буквально из прототипа: t.maxD = 6 + trail.length*0.18.
+        // Пороги вдвое уменьшены по запросу владельца продукта — плиты
+        // разрушаются в 2 раза быстрее.
+        private const float BaseDecayThresholdSeconds = 3f;
+        private const float DecayThresholdSecondsPerTrailIndex = 0.09f;
 
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;

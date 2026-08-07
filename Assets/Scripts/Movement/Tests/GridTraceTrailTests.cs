@@ -115,6 +115,80 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void CanAdvanceTo_UnvisitedLethalTrapTile_ReturnsFalse()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var pit = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+
+            Assert.IsFalse(trail.CanAdvanceTo(pit));
+        }
+
+        [Test]
+        public void TryAdvanceTo_LethalTrapTile_DoesNotAdvanceAndDoesNotMutatePath()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+
+            var advanced = trail.TryAdvanceTo(lava);
+
+            Assert.IsFalse(advanced);
+            Assert.AreEqual(new GridCoordinate(0, 2), trail.CurrentPosition);
+            Assert.AreEqual(1, trail.Path.Count);
+        }
+
+        [Test]
+        public void TryAdvanceTo_LethalTrapTile_FiresLethalTrapTriggeredWithCoordinateAndType()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var pit = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            GridCoordinate? firedCoordinate = null;
+            LethalTrapType? firedType = null;
+            trail.LethalTrapTriggered += (coordinate, type) =>
+            {
+                firedCoordinate = coordinate;
+                firedType = type;
+            };
+
+            trail.TryAdvanceTo(pit);
+
+            Assert.AreEqual(pit, firedCoordinate);
+            Assert.AreEqual(LethalTrapType.Pit, firedType);
+        }
+
+        [Test]
+        public void TryAdvanceTo_BlockedTile_DoesNotFireLethalTrapTriggered()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var blocked = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(blocked).MarkBlocked();
+            var fired = false;
+            trail.LethalTrapTriggered += (_, _) => fired = true;
+
+            trail.TryAdvanceTo(blocked);
+
+            Assert.IsFalse(fired, "заблокированная плита — не ловушка, событие смерти не при чём");
+        }
+
+        [Test]
+        public void TryAdvanceTo_ValidMove_DoesNotFireLethalTrapTriggered()
+        {
+            var trail = CreateTrail(new GridCoordinate(0, 2));
+            var fired = false;
+            trail.LethalTrapTriggered += (_, _) => fired = true;
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+
+            Assert.IsFalse(fired);
+        }
+
+        [Test]
         public void TryAdvanceTo_ValidMove_AppendsToPathAndUpdatesCurrentPosition()
         {
             var trail = CreateTrail(new GridCoordinate(0, 2));

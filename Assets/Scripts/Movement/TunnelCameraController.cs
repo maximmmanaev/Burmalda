@@ -24,25 +24,46 @@ namespace Burmalda.Movement
             if (_input == null) _input = GetComponent<GridTraceInputController>();
         }
 
+        private void OnEnable()
+        {
+            if (_input != null) _input.RunStarted += HandleRunStarted;
+        }
+
         private void OnDisable()
         {
-            _follow?.Dispose();
-            _follow = null;
+            if (_input != null) _input.RunStarted -= HandleRunStarted;
+            DisposeFollow();
         }
 
         private void Update()
         {
             // Ленивая инициализация вместо OnEnable: порядок Awake/OnEnable
             // между разными компонентами не гарантирован (см. TrailDecayController),
-            // а Trail появляется только в Awake() GridTraceInputController.
+            // а Trail появляется только в Awake() GridTraceInputController —
+            // покрывает первый запуск; рестарты приходят через HandleRunStarted.
             if (_follow == null)
             {
                 if (_input == null || _input.Trail == null) return;
-                _follow = new TunnelCameraFollow(_input.Trail, _input.Projection, _heightOffset);
+                RebuildFollow();
             }
 
             _follow.Tick();
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
+        }
+
+        private void HandleRunStarted() => RebuildFollow();
+
+        private void RebuildFollow()
+        {
+            DisposeFollow();
+            if (_input == null || _input.Trail == null) return;
+            _follow = new TunnelCameraFollow(_input.Trail, _input.Projection, _heightOffset);
+        }
+
+        private void DisposeFollow()
+        {
+            _follow?.Dispose();
+            _follow = null;
         }
     }
 }
