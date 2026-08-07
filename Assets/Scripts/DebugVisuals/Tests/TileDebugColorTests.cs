@@ -1,3 +1,4 @@
+using Burmalda.Core;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -8,7 +9,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Destroyed_ReturnsDestroyedColor_RegardlessOfOtherFlags()
         {
-            var state = new TileVisualState(isStart: true, isCurrentPosition: true, isDestroyed: true, isBlocked: false, decayProgress01: 0f);
+            var state = new TileVisualState(isStart: true, isCurrentPosition: true, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f);
 
             Assert.AreEqual(TileDebugColor.DestroyedColor, TileDebugColor.Resolve(state));
         }
@@ -16,7 +17,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_CurrentPosition_NotDestroyed_ReturnsCurrentPositionColor_EvenIfAlsoStart()
         {
-            var state = new TileVisualState(isStart: true, isCurrentPosition: true, isDestroyed: false, isBlocked: false, decayProgress01: 0f);
+            var state = new TileVisualState(isStart: true, isCurrentPosition: true, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f);
 
             Assert.AreEqual(TileDebugColor.CurrentPositionColor, TileDebugColor.Resolve(state));
         }
@@ -24,7 +25,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Start_NotCurrentNotDestroyed_ReturnsStartColor()
         {
-            var state = new TileVisualState(isStart: true, isCurrentPosition: false, isDestroyed: false, isBlocked: false, decayProgress01: 0f);
+            var state = new TileVisualState(isStart: true, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f);
 
             Assert.AreEqual(TileDebugColor.StartColor, TileDebugColor.Resolve(state));
         }
@@ -32,7 +33,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Blocked_NotStartNotCurrentNotDestroyed_ReturnsBlockedColor()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, decayProgress01: 0f);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f);
 
             Assert.AreEqual(TileDebugColor.BlockedColor, TileDebugColor.Resolve(state));
         }
@@ -42,15 +43,39 @@ namespace Burmalda.DebugVisuals.Tests
         {
             // Препятствие (#9) не подвержено распаду — градиент по decayProgress01
             // не должен влиять на его цвет, даже если значение передано ненулевым.
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, decayProgress01: 0.9f);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0.9f);
 
             Assert.AreEqual(TileDebugColor.BlockedColor, TileDebugColor.Resolve(state));
         }
 
         [Test]
+        public void Resolve_Pit_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsPitColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Pit, decayProgress01: 0f);
+
+            Assert.AreEqual(TileDebugColor.PitColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Lava_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsLavaColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Lava, decayProgress01: 0f);
+
+            Assert.AreEqual(TileDebugColor.LavaColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_LethalTrap_IgnoresDecayProgress()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Pit, decayProgress01: 0.9f);
+
+            Assert.AreEqual(TileDebugColor.PitColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
         public void Resolve_RegularTile_ZeroDecayProgress_ReturnsFreshColor()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, decayProgress01: 0f);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f);
 
             Assert.AreEqual(TileDebugColor.FreshColor, TileDebugColor.Resolve(state));
         }
@@ -58,7 +83,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_RegularTile_HalfDecayProgress_ReturnsHalfDecayedColor()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, decayProgress01: 0.5f);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.5f);
 
             Assert.AreEqual(TileDebugColor.HalfDecayedColor, TileDebugColor.Resolve(state));
         }
@@ -66,7 +91,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_RegularTile_FullDecayProgress_ReturnsAboutToDecayColor()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, decayProgress01: 1f);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 1f);
 
             Assert.AreEqual(TileDebugColor.AboutToDecayColor, TileDebugColor.Resolve(state));
         }
@@ -74,7 +99,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_RegularTile_QuarterProgress_IsBetweenFreshAndHalfDecayed()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, decayProgress01: 0.25f);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.25f);
 
             var color = TileDebugColor.Resolve(state);
 
@@ -85,7 +110,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_RegularTile_ThreeQuarterProgress_IsBetweenHalfDecayedAndAboutToDecay()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, decayProgress01: 0.75f);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.75f);
 
             var color = TileDebugColor.Resolve(state);
 
@@ -96,7 +121,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_ProgressAboveOne_ClampsToAboutToDecayColor()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, decayProgress01: 5f);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 5f);
 
             Assert.AreEqual(TileDebugColor.AboutToDecayColor, TileDebugColor.Resolve(state));
         }
@@ -104,7 +129,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_ProgressBelowZero_ClampsToFreshColor()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, decayProgress01: -1f);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: -1f);
 
             Assert.AreEqual(TileDebugColor.FreshColor, TileDebugColor.Resolve(state));
         }

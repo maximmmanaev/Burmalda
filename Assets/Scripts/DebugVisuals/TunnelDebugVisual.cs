@@ -61,6 +61,7 @@ namespace Burmalda.DebugVisuals
                     isCurrentPosition: coordinate == currentCoordinate,
                     isDestroyed: tile.IsDestroyed,
                     isBlocked: tile.IsBlocked,
+                    lethalTrap: tile.LethalTrap,
                     decayProgress01: tile.DecayProgress01);
 
                 ApplyColor(pair.Value, TileDebugColor.Resolve(state));

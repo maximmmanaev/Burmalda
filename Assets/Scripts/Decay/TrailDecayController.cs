@@ -8,6 +8,8 @@ namespace Burmalda.Decay
     /// трейл того же забега, что и <see cref="GridTraceInputController"/>.
     /// Визуализация распадающихся/разрушенных плит под камерой от третьего
     /// лица — отдельная работа с материалами/префабами, здесь не входит.
+    /// Пересобирает <see cref="Decay"/> по <see cref="GridTraceInputController.RunStarted"/>
+    /// (мир перегенерируется заново при рестарте, не только при первом запуске).
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TrailDecayController : MonoBehaviour
@@ -16,7 +18,7 @@ namespace Burmalda.Decay
 
         private TrailDecaySystem _decay;
 
-        /// <summary>Система распада текущего забега — для чтения смежными системами (визуал, d20/смерть).</summary>
+        /// <summary>Система распада текущего забега — для чтения смежными системами (визуал, RunLifecycle).</summary>
         public TrailDecaySystem Decay => _decay;
 
         private void Awake()
@@ -24,24 +26,47 @@ namespace Burmalda.Decay
             if (_input == null) _input = GetComponent<GridTraceInputController>();
         }
 
+        private void OnEnable()
+        {
+            if (_input != null) _input.RunStarted += HandleRunStarted;
+        }
+
         private void OnDisable()
         {
-            _decay?.Dispose();
-            _decay = null;
+            if (_input != null) _input.RunStarted -= HandleRunStarted;
+            DisposeDecay();
         }
 
         private void Update()
         {
             // Ленивая инициализация вместо OnEnable: порядок Awake/OnEnable
             // между разными компонентами одного GameObject не гарантирован,
-            // а Grid/Trail появляются только в Awake() GridTraceInputController.
+            // а Grid/Trail появляются только в Awake() GridTraceInputController —
+            // это покрывает первый запуск; последующие рестарты приходят
+            // через HandleRunStarted (RunStarted к тому моменту уже точно
+            // успел подписаться в OnEnable).
             if (_decay == null)
             {
                 if (_input == null || _input.Grid == null || _input.Trail == null) return;
-                _decay = new TrailDecaySystem(_input.Grid, _input.Trail);
+                RebuildDecay();
             }
 
             _decay.Tick(Time.deltaTime);
+        }
+
+        private void HandleRunStarted() => RebuildDecay();
+
+        private void RebuildDecay()
+        {
+            DisposeDecay();
+            if (_input == null || _input.Grid == null || _input.Trail == null) return;
+            _decay = new TrailDecaySystem(_input.Grid, _input.Trail);
+        }
+
+        private void DisposeDecay()
+        {
+            _decay?.Dispose();
+            _decay = null;
         }
     }
 }

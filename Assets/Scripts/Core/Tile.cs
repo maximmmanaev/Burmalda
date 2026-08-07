@@ -34,6 +34,19 @@ namespace Burmalda.Core
             IsBlocked = true;
         }
 
+        /// <summary>
+        /// Плита — смертельная статичная ловушка (яма/лава, PRD 4.2). Null —
+        /// плита не является такой ловушкой.
+        /// </summary>
+        public LethalTrapType? LethalTrap { get; private set; }
+
+        /// <summary>Помечает плиту как смертельную ловушку заданного типа. Повторные вызовы сохраняют первый тип.</summary>
+        public void MarkLethalTrap(LethalTrapType trapType)
+        {
+            if (LethalTrap.HasValue) return;
+            LethalTrap = trapType;
+        }
+
         /// <summary>Накопленное время распада плиты в секундах.</summary>
         public float DecayElapsedSeconds { get; private set; }
 

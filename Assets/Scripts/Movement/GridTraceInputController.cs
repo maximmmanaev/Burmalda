@@ -1,3 +1,4 @@
+using System;
 using Burmalda.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -13,6 +14,11 @@ namespace Burmalda.Movement
     /// обрабатывается только при реальном изменении с прошлого обработанного
     /// кадра (#60) — иначе статичный зажатый клик, опрашиваемый каждый кадр,
     /// мог засчитать несколько шагов подряд на одной и той же позиции.
+    /// Владеет жизненным циклом забега: <see cref="Grid"/>/<see cref="Trail"/>
+    /// пересоздаются в <see cref="Restart"/> (мир перегенерируется заново, по
+    /// прямому запросу владельца продукта) — зависимые системы (Decay,
+    /// камера, debug-визуал, Burmalda.RunLifecycle) подписываются на
+    /// <see cref="RunStarted"/>, чтобы пересобрать себя под новый забег.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class GridTraceInputController : MonoBehaviour
@@ -36,19 +42,67 @@ namespace Burmalda.Movement
         /// <summary>Проекция координата↔мир текущего забега — нужна смежным системам (напр. камере) для перевода позиции трейла в мировые координаты.</summary>
         public WorldGridProjection Projection => _projection;
 
+        /// <summary>
+        /// Жив ли игрок в текущем забеге. Пока в проекте нет d20-испытания
+        /// (Спринт 7, см. Burmalda.RunLifecycle) — false выставляется сразу
+        /// при смерти (без броска) и держится, пока не вызван <see cref="Restart"/>.
+        /// Ввод игнорируется, пока false (см. <see cref="Update"/>).
+        /// </summary>
+        public bool IsAlive { get; private set; } = true;
+
+        /// <summary>
+        /// Срабатывает сразу после того, как <see cref="Grid"/>/<see cref="Trail"/>
+        /// (пере)созданы — и при первом запуске (<see cref="Awake"/>), и при
+        /// каждом <see cref="Restart"/>. Зависимые контроллеры (Decay/камера/
+        /// debug-визуал/RunLifecycle) должны пересобрать свои системы по
+        /// этому событию, а не полагаться на разовую ленивую инициализацию.
+        /// </summary>
+        public event Action RunStarted;
+
         private void Awake()
         {
             if (_camera == null) _camera = Camera.main;
-
             _projection = new WorldGridProjection(_tileSize, _width);
-            _grid = new TunnelGrid(_width);
 
+            InitializeRun();
+        }
+
+        /// <summary>
+        /// Помечает игрока мёртвым — дальнейший ввод игнорируется (см.
+        /// <see cref="Update"/>) до вызова <see cref="Restart"/>. Вызывается
+        /// снаружи (Burmalda.RunLifecycle) — сам контроллер не решает, когда
+        /// наступает смерть, только подчиняется этому состоянию.
+        /// </summary>
+        public void MarkDead()
+        {
+            IsAlive = false;
+        }
+
+        /// <summary>
+        /// Начинает новый забег: пересоздаёт <see cref="Grid"/>/<see cref="Trail"/>
+        /// с нуля (мир перегенерируется заново, не переиспользуется — прямой
+        /// запрос владельца продукта) и поднимает <see cref="RunStarted"/>.
+        /// </summary>
+        public void Restart()
+        {
+            InitializeRun();
+        }
+
+        private void InitializeRun()
+        {
+            _grid = new TunnelGrid(_width);
             var start = new GridCoordinate(0, _width / 2);
             _trail = new GridTraceTrail(_grid, start);
+            _positionChangeFilter.Reset();
+            IsAlive = true;
+
+            RunStarted?.Invoke();
         }
 
         private void Update()
         {
+            if (!IsAlive) return;
+
             var pointer = Pointer.current;
             if (pointer == null || !pointer.press.isPressed)
             {
