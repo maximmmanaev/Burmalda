@@ -31,7 +31,15 @@ namespace Burmalda.Movement
         // ближе к низу экрана, а не строго в центре — камера целится не в
         // самого игрока, а в точку впереди него по глубине тоннеля. Так же
         // «на глазок», без issue, значение — предмет плейтеста (Спринт 10).
-        private const int LookAheadRowsBeyondPlayer = 6;
+        //
+        // Хотфикс: при высоте камеры 4 (Height Offset, задан на сцене, не
+        // трогается) исходное значение 6 давало установившийся угол наклона
+        // (Rotation X) ровно 18.435° = atan(4/12) — на портретном мобильном
+        // экране небо занимало ~40% кадра, тоннелю оставалось мало места.
+        // 1.2 даёт atan(4/7.2) = 29.05° — середина запрошенного диапазона
+        // 25–33°. Влияет только на точку взгляда (глубину), не на позицию
+        // камеры — Height Offset/FOV не затронуты.
+        private const float LookAheadRowsBeyondPlayer = 1.2f;
 
         private readonly GridTraceTrail _trail;
         private readonly WorldGridProjection _projection;

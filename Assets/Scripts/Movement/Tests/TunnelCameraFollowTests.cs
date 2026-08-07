@@ -259,6 +259,27 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void TargetRotation_SteadyStateWithProductionHeightOffset_PitchIsApproximately29Degrees()
+        {
+            // Хотфикс (18.4° -> 29°): с реальным Height Offset со сцены
+            // (0,4,-1) исходное значение LookAheadRowsBeyondPlayer=6 давало
+            // установившийся Rotation X ровно 18.435° = atan(4/12) — на
+            // портретном мобильном экране небо занимало ~40% кадра. После
+            // хотфикса — atan(4/7.2) ~= 29.05°, середина запрошенного
+            // диапазона 25-33°. Проверяет Rotation X ровно так, как его
+            // читают в инспекторе (Transform.eulerAngles.x).
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 4f, -1f));
+
+            for (var row = 1; row <= 10; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+
+            var pitch = follow.TargetRotation.eulerAngles.x;
+
+            Assert.AreEqual(29.05f, pitch, 0.1f);
+        }
+
+        [Test]
         public void Dispose_StopsUpdatingTargetOnFurtherTrailAdvances()
         {
             var (_, trail, projection) = CreateTrail();
