@@ -79,8 +79,13 @@ namespace Burmalda.Movement
 
         private Vector3 ComputeTargetPosition(GridCoordinate playerPosition)
         {
+            // #62: камера двигается только вперёд-назад (по Z) — столбец
+            // зафиксирован на центре ширины тоннеля, не следует за игроком
+            // по X (иначе камера уезжает влево-вправо при диагональном пути).
+            // Поворот камеры при этом всё ещё смотрит на игрока — см.
+            // ComputeTargetRotation, здесь меняется только позиция.
             var trailingRow = Math.Max(0, playerPosition.Row - TrailingRowsBehindPlayer);
-            var followCoordinate = new GridCoordinate(trailingRow, playerPosition.Column);
+            var followCoordinate = new GridCoordinate(trailingRow, _projection.Width / 2);
             return _projection.ToWorldPosition(followCoordinate) + _heightOffset;
         }
 
