@@ -33,3 +33,4 @@
   - `Assets/Scripts/Movement/GridTraceTrail.cs` дополнен событием `Advanced` (точка интеграции для Decay); `GridTraceInputController` дополнен свойством `Grid`. Публичный API #6 не менялся, существующие тесты остаются зелёными.
   - `Assets/Scripts/Decay/`: `TrailDecaySystem` (тиканье распада плит трейла, кроме стартовой) и `TrailDecayController` (MonoBehaviour, тикает каждый кадр) — asmdef `Burmalda.Decay` с EditMode Test-сборкой.
   - [C#-глоссарий](csharp-glossary.md) дополнен разделом «Decay — распад плит трейла» (PRD 4.1, 16).
+- Добавлено новое правило для агента: [`docs/rules/implementation-workflow.md`](../rules/implementation-workflow.md) — перед реализацией любой задачи агент обязан сначала изучить архитектуру вертикально (весь путь фичи от входа до данных) и горизонтально (соглашения соседних систем), и только потом писать тест под критерии приёмки и лишь затем код к нему. `docs/rules/index.md` дополнен ссылкой.
