@@ -23,3 +23,13 @@
 ## 2026-08-07 (продолжение)
 
 - Исправлены устаревшие ссылки на PRD v5 в живой документации (`docs/wiki/roadmap.md`, `docs/wiki/csharp-glossary.md`) — теперь единственный указанный источник истины по фичам это PRD v6. Файлы `docs/raw/*.md` (v4/v5/v6) не трогались — они неизменяемые.
+- Закрыт issue #6 (Спринт 2): портировано в Unity/C# базовое grid-trace движение из HTML-прототипа (`legacy/burmolda_demo.html`) — игрок тянет палец по соседним плитам сетки, продвигаясь вперёд по тоннелю (PRD 4.1). Персонаж не отображается, автоскролл камеры не реализуется (отдельная задача #8).
+  - `Assets/Scripts/Core/`: `GridCoordinate` (координата плиты, 8-направленное соседство), `Tile`, `TunnelGrid` (сетка плит с ленивой материализацией рядов) — общая инфраструктура для будущих Decay/Traps поверх той же координаты.
+  - `Assets/Scripts/Movement/`: `GridTraceTrail` (валидация и продвижение хода — соседняя, ещё не пройденная плита), `WorldGridProjection` (точка мира ↔ координата сетки; тоннель идёт вперёд по оси Z, поперёк — по оси X), `GridTraceInputController` (приём трейс-ввода пальцем через Input System, продвижение трейла).
+  - Оба модуля оформлены как asmdef (`Burmalda.Core`, `Burmalda.Movement`) с отдельными EditMode Test-сборками; логика, тестируемая без сцены (валидность хода, соседство, проекция координат), покрыта Unity Test Framework.
+  - [C#-глоссарий](csharp-glossary.md) дополнен новым разделом «Core-движение — тоннель, сетка, grid-trace» (раздел PRD 4.1).
+- Закрыт issue #7 (Спринт 2): портирована в Unity/C# decay-система из HTML-прототипа — плиты трейла позади игрока распадаются и разрушаются со временем, создавая постоянное давление вместо таймера на прохождение (PRD 4.1, 16). Константы тайминга перенесены один в один из `updateDecay()`/`tryAct()` (`legacy/burmolda_demo.html`): базовый порог распада 6с + 0.18с за каждую плиту вглубь трейла, глобальное ускорение распада +0.025/с начиная с 1.
+  - `Assets/Scripts/Core/Tile.cs` дополнен состоянием распада (`IsDestroyed`, `DecayElapsedSeconds`, `DecayThresholdSeconds`, `DecayProgress01`) и методами `BeginDecay`/`AdvanceDecay` — само тиканье реализует Decay, Tile только хранит и применяет результат.
+  - `Assets/Scripts/Movement/GridTraceTrail.cs` дополнен событием `Advanced` (точка интеграции для Decay); `GridTraceInputController` дополнен свойством `Grid`. Публичный API #6 не менялся, существующие тесты остаются зелёными.
+  - `Assets/Scripts/Decay/`: `TrailDecaySystem` (тиканье распада плит трейла, кроме стартовой) и `TrailDecayController` (MonoBehaviour, тикает каждый кадр) — asmdef `Burmalda.Decay` с EditMode Test-сборкой.
+  - [C#-глоссарий](csharp-glossary.md) дополнен разделом «Decay — распад плит трейла» (PRD 4.1, 16).

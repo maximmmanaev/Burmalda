@@ -1,0 +1,17 @@
+{
+    "name": "Burmalda.Movement",
+    "rootNamespace": "Burmalda.Movement",
+    "references": [
+        "Burmalda.Core",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
