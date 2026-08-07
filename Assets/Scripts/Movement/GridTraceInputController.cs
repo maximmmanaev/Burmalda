@@ -28,6 +28,9 @@ namespace Burmalda.Movement
         /// <summary>Сетка тоннеля текущего забега — нужна смежным системам (напр. Decay) для доступа к плитам трейла.</summary>
         public TunnelGrid Grid => _grid;
 
+        /// <summary>Проекция координата↔мир текущего забега — нужна смежным системам (напр. камере) для перевода позиции трейла в мировые координаты.</summary>
+        public WorldGridProjection Projection => _projection;
+
         private void Awake()
         {
             if (_camera == null) _camera = Camera.main;
