@@ -50,6 +50,16 @@ namespace Burmalda.Movement
         public event Action<GridCoordinate> Advanced;
 
         /// <summary>
+        /// Срабатывает при ЛЮБОМ успешном ходе — включая повторный шаг на
+        /// уже пройденную плиту (#61), в отличие от <see cref="Advanced"/>.
+        /// Нужен системам, которым важна именно текущая позиция игрока, а не
+        /// факт первого посещения плиты (например, камере — она должна
+        /// отступать назад при возврате по трейлу, а не только двигаться
+        /// вперёд на новых плитках).
+        /// </summary>
+        public event Action<GridCoordinate> PositionChanged;
+
+        /// <summary>
         /// Ход на <paramref name="target"/> валиден, если плита в пределах
         /// сетки и соседняя текущей позиции, и при этом либо ещё не пройдена
         /// трейлом, либо пройдена, но не разрушена распадом (#61).
@@ -80,6 +90,7 @@ namespace Burmalda.Movement
 
             _currentPosition = target;
             if (isNewTile) Advanced?.Invoke(target);
+            PositionChanged?.Invoke(target);
             return true;
         }
     }

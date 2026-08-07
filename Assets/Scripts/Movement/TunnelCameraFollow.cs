@@ -34,10 +34,13 @@ namespace Burmalda.Movement
 
             TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
             CurrentPosition = TargetPosition;
-            TargetRotation = ComputeTargetRotation(TargetPosition, _trail.CurrentPosition);
+            TargetRotation = ComputeTargetRotation(TargetPosition, _trail.CurrentPosition.Row);
             CurrentRotation = TargetRotation;
 
-            _trail.Advanced += OnTrailAdvanced;
+            // PositionChanged (а не Advanced) — камера должна следовать за
+            // игроком и назад, при возврате на уже пройденную плиту (#61),
+            // не только вперёд на новых плитках (иначе некуда отступить).
+            _trail.PositionChanged += OnPositionChanged;
         }
 
         /// <summary>Точка, к которой плавно движется камера — со смещением позади игрока (PRD 16).</summary>
@@ -67,14 +70,14 @@ namespace Burmalda.Movement
         public void Dispose()
         {
             if (_disposed) return;
-            _trail.Advanced -= OnTrailAdvanced;
+            _trail.PositionChanged -= OnPositionChanged;
             _disposed = true;
         }
 
-        private void OnTrailAdvanced(GridCoordinate coordinate)
+        private void OnPositionChanged(GridCoordinate coordinate)
         {
             TargetPosition = ComputeTargetPosition(coordinate);
-            TargetRotation = ComputeTargetRotation(TargetPosition, coordinate);
+            TargetRotation = ComputeTargetRotation(TargetPosition, coordinate.Row);
         }
 
         private Vector3 ComputeTargetPosition(GridCoordinate playerPosition)
@@ -82,16 +85,21 @@ namespace Burmalda.Movement
             // #62: камера двигается только вперёд-назад (по Z) — столбец
             // зафиксирован на центре ширины тоннеля, не следует за игроком
             // по X (иначе камера уезжает влево-вправо при диагональном пути).
-            // Поворот камеры при этом всё ещё смотрит на игрока — см.
+            // Поворот камеры также больше не заезжает за игроком по X — см.
             // ComputeTargetRotation, здесь меняется только позиция.
             var trailingRow = Math.Max(0, playerPosition.Row - TrailingRowsBehindPlayer);
             var followCoordinate = new GridCoordinate(trailingRow, _projection.Width / 2);
             return _projection.ToWorldPosition(followCoordinate) + _heightOffset;
         }
 
-        private Quaternion ComputeTargetRotation(Vector3 cameraPosition, GridCoordinate playerPosition)
+        private Quaternion ComputeTargetRotation(Vector3 cameraPosition, int playerRow)
         {
-            var lookAtPoint = _projection.ToWorldPosition(playerPosition);
+            // По просьбе владельца продукта камера больше не поворачивается
+            // влево-вправо вслед за реальным столбцом игрока (аналогично #62
+            // для позиции) — точка взгляда берётся по центру тоннеля, меняется
+            // только по Z (глубина), боковой (X) составляющей у направления нет.
+            var lookAtCoordinate = new GridCoordinate(playerRow, _projection.Width / 2);
+            var lookAtPoint = _projection.ToWorldPosition(lookAtCoordinate);
             var direction = lookAtPoint - cameraPosition;
             return direction.sqrMagnitude > 0f ? Quaternion.LookRotation(direction, Vector3.up) : Quaternion.identity;
         }
