@@ -40,10 +40,17 @@ namespace Burmalda.Movement
         // Новое смещение для 3D-камеры от третьего лица — в 2D-прототипе аналога
         // нет (см. issue #8: скоуп увеличен с 2D top-down до 3D третьего лица).
         [SerializeField] private Vector3 _heightOffset = new Vector3(0f, 4f, -1f);
-        // Хотфикс 18.4°/29° -> 35° (см. TunnelCameraFollow) — вынесено в
-        // инспектор, а не оставлено константой, чтобы угол можно было
-        // подстроить без правки кода/пересборки скриптов.
-        [SerializeField] private float _pitchDegrees = TunnelCameraFollow.DefaultPitchDegrees;
+        // Хотфикс 18.4°/29° -> 35° (см. TunnelCameraFollow) -> откат до 29°
+        // по прямому запросу владельца продукта: 35° делало плоскую сетку
+        // плит визуально похожей на лестницу (артефакт debug-визуала —
+        // между соседними кубиками-плитками есть зазор (TunnelDebugVisual.TileScale),
+        // и при более отвесном взгляде сверху видна вертикальная грань
+        // кубика в этом зазоре — сами плиты остаются плоскими,
+        // WorldGridProjection.ToWorldPosition всегда возвращает Y=0).
+        // Компромисс тот же, что и раньше: на 29° небо может быть немного
+        // видно (см. историю хотфиксов) — вынесено в инспектор именно
+        // поэтому, чтобы дальше подбирать угол вживую (Play Mode), не трогая код.
+        [SerializeField] private float _pitchDegrees = 29f;
 
         private TunnelCameraFollow _follow;
         private float _desiredHorizontalFovDeg;
