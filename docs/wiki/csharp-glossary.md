@@ -56,13 +56,29 @@
 Персонаж не отображается — камера следует за
 `GridTraceTrail.CurrentPosition` через `WorldGridProjection.ToWorldPosition`.
 
-`TunnelCameraFollow.HeightOffset`/`PitchDegrees` — публично изменяемые
-свойства (не только конструкторские параметры): двигать `Transform`
-`TunnelCameraController` напрямую в Scene view/инспекторе нельзя, он каждый
-кадр перезаписывается результатом Follow — вместо этого меняются поля
-`Height Offset`/`Pitch Degrees` в инспекторе `TunnelCameraController`,
-которые прокидываются в `Follow` каждый кадр и применяются вживую, без
-рестарта забега.
+`TunnelCameraFollow.HeightOffset`/`PitchDegrees`/`IntroPitchDegrees` —
+публично изменяемые свойства (не только конструкторские параметры):
+двигать `Transform` `TunnelCameraController` напрямую в Scene
+view/инспекторе нельзя, он каждый кадр перезаписывается результатом
+Follow — вместо этого меняются поля `Height Offset`/`Pitch Degrees`/`Intro
+Pitch Degrees` в инспекторе `TunnelCameraController`, которые прокидываются
+в `Follow` каждый кадр и применяются вживую, без рестарта забега.
+
+Top-down интро на старте забега: `TargetRotation`/`CurrentRotation`
+вычисляются живьём как `Lerp(IntroPitchDegrees, PitchDegrees, scale)`, где
+`scale` — тот же паттерн `caughtUpDistance/TrailingRowsBehindPlayer`, что
+был у старой убранной `LookAheadRowsBeyondPlayer`-логики точки взгляда
+(теперь для угла, не для точки взгляда). Решает: на фиксированном игровом
+`PitchDegrees` с первого кадра стартовая плитка физически оказывалась вне
+кадра (трейлинг-ряд камеры на старте совпадает с игроком).
+
+`TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees` берёт депт до
+опорного ряда ВДОЛЬ ОСИ ВЗГЛЯДА камеры (`cameraHeight*sin(pitch) +
+groundDistanceToRow*cos(pitch)`), не по прямой — обязательное условие
+того, чтобы `Pitch Degrees` был по-настоящему тюнящимся полем (см.
+`ComputeSteadyStateGroundDistanceToReferenceRow`/`FramingReferenceRowsBehindPlayer`
+ниже — калибровка ширины обзора от устоявшегося режима следования, не от
+вырожденного старта забега).
 
 | Термин (RU) | Раздел PRD | C#-идентификатор | Тип сущности |
 |---|---|---|---|
