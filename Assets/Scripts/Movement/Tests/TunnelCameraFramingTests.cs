@@ -86,7 +86,7 @@ namespace Burmalda.Movement.Tests
                 heightOffsetZ: -1f, tileSize: 1f, trailingRowsBehindPlayer: 5);
 
             Assert.AreEqual(4f, distance, 1e-5f);
-            Assert.AreNotEqual(1f, distance, 1e-5f, "не должно совпадать со старым вырожденным |heightOffsetZ|");
+            Assert.AreNotEqual(1f, distance, "не должно совпадать со старым вырожденным |heightOffsetZ|");
         }
 
         [Test]
