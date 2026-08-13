@@ -57,6 +57,27 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
+        public void LethalTrapTriggered_Explosion_SetsIsAliveFalseAndFiresDiedWithOwnReason()
+        {
+            // Issue #10: до этого при добавлении третьего LethalTrapType
+            // тернарный оператор в RunState свёл бы Explosion к сообщению
+            // "Сгорел в лаве" — явная проверка сообщения ловит такой регресс.
+            var (grid, trail, _, runState) = CreateRun();
+            var trigger = new GridCoordinate(1, 2);
+            var explosive = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkExplosiveTrapTrigger(explosive);
+            grid.GetOrCreateTile(explosive).MarkLethalTrap(LethalTrapType.Explosion);
+            trail.TryAdvanceTo(trigger);
+            string firedReason = null;
+            runState.Died += reason => firedReason = reason;
+
+            trail.TryAdvanceTo(explosive);
+
+            Assert.IsFalse(runState.IsAlive);
+            Assert.AreEqual("Подорвался на ловушке", firedReason);
+        }
+
+        [Test]
         public void TileDestroyed_UnderCurrentPosition_SetsIsAliveFalseAndFiresDied()
         {
             var (grid, trail, decay, runState) = CreateRun();

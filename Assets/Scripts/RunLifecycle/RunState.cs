@@ -53,8 +53,17 @@ namespace Burmalda.RunLifecycle
         private void OnLethalTrapTriggered(GridCoordinate coordinate, LethalTrapType trapType)
         {
             // legacy/burmolda_demo.html, tryAct(): attemptDeath('Провалился в яму'/'Сработала ловушка', ...)
-            Die(trapType == LethalTrapType.Pit ? "Провалился в яму" : "Сгорел в лаве");
+            // Explosion (issue #10) не имеет аналога в прототипе — своя причина.
+            Die(DescribeLethalTrap(trapType));
         }
+
+        private static string DescribeLethalTrap(LethalTrapType trapType) => trapType switch
+        {
+            LethalTrapType.Pit => "Провалился в яму",
+            LethalTrapType.Lava => "Сгорел в лаве",
+            LethalTrapType.Explosion => "Подорвался на ловушке",
+            _ => "Сработала ловушка"
+        };
 
         private void OnTileDestroyed(GridCoordinate coordinate)
         {
