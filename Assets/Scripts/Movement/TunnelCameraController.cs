@@ -17,6 +17,20 @@ namespace Burmalda.Movement
     /// разрешения/ориентации без отдельной подписки на события). Сам
     /// горизонтальный FOV вычисляется один раз при (пере)сборке следования
     /// из реальной геометрии старта забега — см. <see cref="TunnelCameraFraming"/>.
+    ///
+    /// <see cref="_heightOffset"/>/<see cref="_pitchDegrees"/> — единственный
+    /// поддерживаемый способ поменять положение/угол камеры. Просто
+    /// подвигать Transform этого объекта в Scene view/инспекторе не выйдет
+    /// (даже в Play Mode) — Update() ниже каждый кадр перезаписывает
+    /// position/rotation результатом Follow. Оба поля читаются заново каждый
+    /// кадр (<see cref="TunnelCameraFollow.HeightOffset"/>/<see cref="TunnelCameraFollow.PitchDegrees"/>
+    /// теперь settable), так что правки применяются вживую, без рестарта
+    /// забега. Исключение — высота (Y) в <see cref="_heightOffset"/> также
+    /// участвует в расчёте горизонтального FOV
+    /// (<see cref="ComputeGroundDistanceToFirstRow"/>), а это пересчитывается
+    /// только на <see cref="RebuildFollow"/> (старт/рестарт забега) — если
+    /// поменяли высоту на лету, ширина обзора тоннеля обновится только на
+    /// следующий рестарт.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TunnelCameraController : MonoBehaviour
@@ -26,6 +40,10 @@ namespace Burmalda.Movement
         // Новое смещение для 3D-камеры от третьего лица — в 2D-прототипе аналога
         // нет (см. issue #8: скоуп увеличен с 2D top-down до 3D третьего лица).
         [SerializeField] private Vector3 _heightOffset = new Vector3(0f, 4f, -1f);
+        // Хотфикс 18.4°/29° -> 35° (см. TunnelCameraFollow) — вынесено в
+        // инспектор, а не оставлено константой, чтобы угол можно было
+        // подстроить без правки кода/пересборки скриптов.
+        [SerializeField] private float _pitchDegrees = TunnelCameraFollow.DefaultPitchDegrees;
 
         private TunnelCameraFollow _follow;
         private float _desiredHorizontalFovDeg;
@@ -59,6 +77,12 @@ namespace Burmalda.Movement
                 RebuildFollow();
             }
 
+            // Прокидываем текущие значения инспектора в Follow каждый кадр —
+            // без этого правка HeightOffset/Pitch во время Play Mode ничего
+            // не меняла бы до следующего RunStarted (см. doc-комментарий класса).
+            _follow.HeightOffset = _heightOffset;
+            _follow.PitchDegrees = _pitchDegrees;
+
             _follow.Tick();
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
 
@@ -77,7 +101,7 @@ namespace Burmalda.Movement
         {
             DisposeFollow();
             if (_input == null || _input.Trail == null) return;
-            _follow = new TunnelCameraFollow(_input.Trail, _input.Projection, _heightOffset);
+            _follow = new TunnelCameraFollow(_input.Trail, _input.Projection, _heightOffset, _pitchDegrees);
 
             var groundDistanceToRow = ComputeGroundDistanceToFirstRow();
             _desiredHorizontalFovDeg = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(

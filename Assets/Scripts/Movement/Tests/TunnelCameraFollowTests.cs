@@ -202,6 +202,55 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void Constructor_CustomPitchDegrees_OverridesDefault()
+        {
+            var (_, trail, projection) = CreateTrail();
+
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, pitchDegrees: 20f);
+
+            Assert.AreEqual(20f, follow.TargetRotation.eulerAngles.x, 1e-4f);
+        }
+
+        [Test]
+        public void PitchDegrees_SetAfterConstruction_UpdatesRotationImmediately()
+        {
+            // Живая правка из инспектора (TunnelCameraController) — не должна
+            // требовать пересборки Follow/рестарта забега, чтобы применяться.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            follow.PitchDegrees = 40f;
+
+            Assert.AreEqual(40f, follow.TargetRotation.eulerAngles.x, 1e-4f);
+            Assert.AreEqual(40f, follow.CurrentRotation.eulerAngles.x, 1e-4f);
+        }
+
+        [Test]
+        public void HeightOffset_SetAfterConstruction_RecomputesTargetPositionImmediately()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            follow.HeightOffset = new Vector3(0f, 4f, -1f);
+
+            // Игрок всё ещё на старте (0,2): x=0, z=0.5 (см. первый тест) + новый offset.
+            Assert.AreEqual(new Vector3(0f, 4f, -0.5f), follow.TargetPosition);
+        }
+
+        [Test]
+        public void HeightOffset_SetAfterTrailAdvanced_UsesCurrentPositionNotStale()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+            for (var row = 1; row <= 6; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // трейлинг-ряд 1 -> z=1.5, см. тест выше
+
+            follow.HeightOffset = new Vector3(0f, 2f, 0f);
+
+            Assert.AreEqual(new Vector3(0f, 2f, 1.5f), follow.TargetPosition);
+        }
+
+        [Test]
         public void Dispose_StopsUpdatingTargetOnFurtherTrailAdvances()
         {
             var (_, trail, projection) = CreateTrail();
