@@ -11,7 +11,10 @@ namespace Burmalda.Movement
     /// но не разрушена распадом (<see cref="Tile.IsDestroyed"/>) — явный
     /// запрос владельца продукта, #61, отменяет прежний полный запрет повтора.
     /// Плита-препятствие (<see cref="Tile.IsBlocked"/>, PRD 4.2, #9) непроходима
-    /// независимо от того, пройдена она трейлом или нет.
+    /// независимо от того, пройдена она трейлом или нет. Плита-цель ловушки
+    /// с таймингом (<see cref="Tile.IsTimedTrapActive"/>, PRD v5 4.2, #45)
+    /// непроходима, только пока активна — в отличие от прочих препятствий
+    /// это временное состояние.
     /// </summary>
     public sealed class GridTraceTrail
     {
@@ -72,10 +75,19 @@ namespace Burmalda.Movement
         public event Action<GridCoordinate, LethalTrapType> LethalTrapTriggered;
 
         /// <summary>
+        /// Срабатывает, когда игрок пытается шагнуть на плиту-цель ловушки с
+        /// таймингом, пока она активна (<see cref="Tile.IsTimedTrapActive"/>,
+        /// PRD v5 4.2, #45) — по аналогии с <see cref="LethalTrapTriggered"/>,
+        /// сам ход при этом НЕ засчитывается.
+        /// </summary>
+        public event Action<GridCoordinate, TimedTrapType> TimedTrapTriggered;
+
+        /// <summary>
         /// Ход на <paramref name="target"/> валиден, если плита в пределах
-        /// сетки, соседняя текущей позиции, не является препятствием (#9) и
-        /// не смертельной ловушкой (PRD 4.2), и при этом либо ещё не
-        /// пройдена трейлом, либо пройдена, но не разрушена распадом (#61).
+        /// сетки, соседняя текущей позиции, не является препятствием (#9), не
+        /// смертельной ловушкой (PRD 4.2) и не активной прямо сейчас плитой-
+        /// целью ловушки с таймингом (#45), и при этом либо ещё не пройдена
+        /// трейлом, либо пройдена, но не разрушена распадом (#61).
         /// </summary>
         public bool CanAdvanceTo(GridCoordinate target)
         {
@@ -91,6 +103,7 @@ namespace Burmalda.Movement
             {
                 if (tile.IsBlocked) return false;
                 if (tile.LethalTrap.HasValue) return false;
+                if (tile.IsTimedTrapActive) return false;
                 if (_visited.Contains(target)) return !tile.IsDestroyed;
             }
 
@@ -99,20 +112,29 @@ namespace Burmalda.Movement
 
         /// <summary>
         /// Продвигает трейл на <paramref name="target"/>, если ход валиден.
-        /// Если цель — смертельная ловушка, ход не засчитывается (как и для
-        /// любой другой невалидной цели), но дополнительно поднимается
-        /// <see cref="LethalTrapTriggered"/> — попытка шагнуть на ловушку
-        /// сама по себе является игровым событием, даже если позиция не
-        /// меняется (см. legacy/burmolda_demo.html, tryAct: attemptDeath
-        /// вызывается и делается return без продвижения).
+        /// Если цель — смертельная ловушка или активная прямо сейчас плита-
+        /// цель ловушки с таймингом, ход не засчитывается (как и для любой
+        /// другой невалидной цели), но дополнительно поднимается
+        /// <see cref="LethalTrapTriggered"/>/<see cref="TimedTrapTriggered"/> —
+        /// попытка шагнуть на ловушку сама по себе является игровым событием,
+        /// даже если позиция не меняется (см. legacy/burmolda_demo.html,
+        /// tryAct: attemptDeath вызывается и делается return без продвижения).
         /// </summary>
         public bool TryAdvanceTo(GridCoordinate target)
         {
-            if (_grid.Contains(target) && CurrentPosition.IsAdjacentTo(target) &&
-                _grid.TryGetTile(target, out var targetTile) && targetTile.LethalTrap.HasValue)
+            if (_grid.Contains(target) && CurrentPosition.IsAdjacentTo(target) && _grid.TryGetTile(target, out var targetTile))
             {
-                LethalTrapTriggered?.Invoke(target, targetTile.LethalTrap.Value);
-                return false;
+                if (targetTile.LethalTrap.HasValue)
+                {
+                    LethalTrapTriggered?.Invoke(target, targetTile.LethalTrap.Value);
+                    return false;
+                }
+
+                if (targetTile.IsTimedTrapActive)
+                {
+                    TimedTrapTriggered?.Invoke(target, targetTile.TimedTrapKind.Value);
+                    return false;
+                }
             }
 
             if (!CanAdvanceTo(target)) return false;

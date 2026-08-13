@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -19,6 +19,8 @@ namespace Burmalda.DebugVisuals
             LethalTrap = lethalTrap;
             DecayProgress01 = decayProgress01;
             IsExplosiveTrapTrigger = isExplosiveTrapTrigger;
+            IsTimedTrapTrigger = isTimedTrapTrigger;
+            ActiveTimedTrap = activeTimedTrap;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -46,5 +48,19 @@ namespace Burmalda.DebugVisuals
         /// (в финальном арте, возможно, останется невидимой для игрока).
         /// </summary>
         public bool IsExplosiveTrapTrigger { get; }
+
+        /// <summary>
+        /// Плита — триггер ловушки с таймингом, PRD v5 4.2, issue #45 (см.
+        /// <c>Core.Tile.TimedTrapTarget</c>). Сама плита-триггер не опасна —
+        /// цветом отмечена только для ручного тестирования.
+        /// </summary>
+        public bool IsTimedTrapTrigger { get; }
+
+        /// <summary>
+        /// Плита — цель ловушки с таймингом, физически опасна прямо сейчас
+        /// (см. <c>Core.Tile.IsTimedTrapActive</c>/<c>Core.Tile.TimedTrapKind</c>).
+        /// Null — не активна (ещё не сработала или снаряд/лезвие уже прошли).
+        /// </summary>
+        public TimedTrapType? ActiveTimedTrap { get; }
     }
 }

@@ -192,5 +192,63 @@ namespace Burmalda.Core.Tests
 
             Assert.AreEqual(firstTarget, tile.ExplosiveTrapTarget);
         }
+
+        [Test]
+        public void NewTile_HasNoTimedTrapTargetAndIsNotActive()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.TimedTrapTarget.HasValue);
+            Assert.IsFalse(tile.TimedTrapKind.HasValue);
+            Assert.IsFalse(tile.IsTimedTrapActive);
+        }
+
+        [Test]
+        public void MarkTimedTrapTrigger_SetsTargetCoordinateAndKind()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            var target = new GridCoordinate(2, 1);
+
+            tile.MarkTimedTrapTrigger(target, TimedTrapType.Blade);
+
+            Assert.AreEqual(target, tile.TimedTrapTarget);
+            Assert.AreEqual(TimedTrapType.Blade, tile.TimedTrapKind);
+        }
+
+        [Test]
+        public void MarkTimedTrapTrigger_CalledTwice_KeepsFirstTargetAndKind()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            var firstTarget = new GridCoordinate(2, 1);
+
+            tile.MarkTimedTrapTrigger(firstTarget, TimedTrapType.Arrow);
+            tile.MarkTimedTrapTrigger(new GridCoordinate(5, 3), TimedTrapType.Blade);
+
+            Assert.AreEqual(firstTarget, tile.TimedTrapTarget);
+            Assert.AreEqual(TimedTrapType.Arrow, tile.TimedTrapKind);
+        }
+
+        [Test]
+        public void ArmTimedTrap_SetsActiveAndKind()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.ArmTimedTrap(TimedTrapType.Arrow);
+
+            Assert.IsTrue(tile.IsTimedTrapActive);
+            Assert.AreEqual(TimedTrapType.Arrow, tile.TimedTrapKind);
+        }
+
+        [Test]
+        public void DisarmTimedTrap_ClearsActive_KeepsKind()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.ArmTimedTrap(TimedTrapType.Blade);
+
+            tile.DisarmTimedTrap();
+
+            Assert.IsFalse(tile.IsTimedTrapActive);
+            Assert.AreEqual(TimedTrapType.Blade, tile.TimedTrapKind); // историческое значение, IsTimedTrapActive уже false — не опасна
+        }
     }
 }
