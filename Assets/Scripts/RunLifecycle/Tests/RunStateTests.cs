@@ -78,6 +78,53 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
+        public void TimedTrapTriggered_Arrow_SetsIsAliveFalseAndFiresDiedWithOwnReason()
+        {
+            // Issue #45: плита-цель уже активна (снаряд физически проходит) — попытка шагнуть на неё смертельна.
+            var (grid, trail, _, runState) = CreateRun();
+            var target = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(target).ArmTimedTrap(TimedTrapType.Arrow);
+            string firedReason = null;
+            runState.Died += reason => firedReason = reason;
+
+            trail.TryAdvanceTo(target);
+
+            Assert.IsFalse(runState.IsAlive);
+            Assert.AreEqual("Пронзён стрелой", firedReason);
+        }
+
+        [Test]
+        public void TimedTrapTriggered_Blade_SetsIsAliveFalseAndFiresDiedWithOwnReason()
+        {
+            var (grid, trail, _, runState) = CreateRun();
+            var target = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(target).ArmTimedTrap(TimedTrapType.Blade);
+            string firedReason = null;
+            runState.Died += reason => firedReason = reason;
+
+            trail.TryAdvanceTo(target);
+
+            Assert.IsFalse(runState.IsAlive);
+            Assert.AreEqual("Разрублен лезвием", firedReason);
+        }
+
+        [Test]
+        public void TimedTrapTriggered_DisarmedTarget_DoesNotKill()
+        {
+            // Снаряд уже прошёл (DisarmTimedTrap) — шаг на бывшую цель безопасен.
+            var (grid, trail, _, runState) = CreateRun();
+            var target = new GridCoordinate(1, 2);
+            var tile = grid.GetOrCreateTile(target);
+            tile.ArmTimedTrap(TimedTrapType.Arrow);
+            tile.DisarmTimedTrap();
+
+            var advanced = trail.TryAdvanceTo(target);
+
+            Assert.IsTrue(advanced);
+            Assert.IsTrue(runState.IsAlive);
+        }
+
+        [Test]
         public void TileDestroyed_UnderCurrentPosition_SetsIsAliveFalseAndFiresDied()
         {
             var (grid, trail, decay, runState) = CreateRun();
@@ -142,6 +189,19 @@ namespace Burmalda.RunLifecycle.Tests
             grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
 
             trail.TryAdvanceTo(pit);
+
+            Assert.IsTrue(runState.IsAlive, "после Dispose RunState не должен реагировать на события трейла");
+        }
+
+        [Test]
+        public void Dispose_StopsReactingToFurtherTimedTrapTriggers()
+        {
+            var (grid, trail, _, runState) = CreateRun();
+            runState.Dispose();
+            var target = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(target).ArmTimedTrap(TimedTrapType.Arrow);
+
+            trail.TryAdvanceTo(target);
 
             Assert.IsTrue(runState.IsAlive, "после Dispose RunState не должен реагировать на события трейла");
         }

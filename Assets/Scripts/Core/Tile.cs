@@ -8,7 +8,10 @@ namespace Burmalda.Core
     /// плита, яма/лава) — постоянное, не тикает и не связано с распадом, и
     /// связку триггер→плита-взрыва динамической мгновенной ловушки (PRD 4.2,
     /// issue #10) — в отличие от статичных ловушек, опасность плиты
-    /// появляется не сразу, а по факту прохода трейла через её триггер.
+    /// появляется не сразу, а по факту прохода трейла через её триггер, и
+    /// такую же связку для подвижной ловушки с таймингом (PRD v5 4.2, issue
+    /// #45) — здесь опасность ещё и временная, включается/выключается по
+    /// реальному времени, а не постоянна с момента активации.
     /// Остальной тип плиты (валюта/артефакт) добавится сюда же по мере Traps.
     /// </summary>
     public sealed class Tile
@@ -65,6 +68,53 @@ namespace Burmalda.Core
         {
             if (ExplosiveTrapTarget.HasValue) return;
             ExplosiveTrapTarget = targetCoordinate;
+        }
+
+        /// <summary>
+        /// Плита — триггер подвижной ловушки с таймингом (PRD v5 4.2, issue
+        /// #45): координата связанной плиты-цели. В отличие от взрыва (#10),
+        /// опасность цели не постоянна — включается/выключается по времени,
+        /// см. <see cref="IsTimedTrapActive"/> и <c>Burmalda.Movement.TimedTrapSystem</c>.
+        /// Сама плита-триггер всегда безопасна для прохода.
+        /// </summary>
+        public GridCoordinate? TimedTrapTarget { get; private set; }
+
+        /// <summary>
+        /// Тип ловушки с таймингом — актуален и на плите-триггере (какую цель
+        /// готовит <see cref="TimedTrapTarget"/>), и на плите-цели, пока
+        /// <see cref="IsTimedTrapActive"/> (какой тип сейчас активен). Одна и
+        /// та же плита никогда не занимает обе роли одновременно — резервация
+        /// цели в генераторе исключает эту коллизию.
+        /// </summary>
+        public TimedTrapType? TimedTrapKind { get; private set; }
+
+        /// <summary>Помечает плиту как триггер ловушки с таймингом заданного типа, связанный с плитой-целью. Повторные вызовы сохраняют первые значения.</summary>
+        public void MarkTimedTrapTrigger(GridCoordinate targetCoordinate, TimedTrapType kind)
+        {
+            if (TimedTrapTarget.HasValue) return;
+            TimedTrapTarget = targetCoordinate;
+            TimedTrapKind = kind;
+        }
+
+        /// <summary>
+        /// Плита-цель ловушки с таймингом сейчас физически опасна (снаряд/
+        /// лезвие проходит через неё) — в отличие от прочих ловушек это
+        /// временное состояние, включается и выключается
+        /// <c>Burmalda.Movement.TimedTrapSystem</c> по реальному времени.
+        /// </summary>
+        public bool IsTimedTrapActive { get; private set; }
+
+        /// <summary>Делает плиту-цель опасной прямо сейчас и запоминает тип (для сообщения о смерти/визуала).</summary>
+        public void ArmTimedTrap(TimedTrapType kind)
+        {
+            TimedTrapKind = kind;
+            IsTimedTrapActive = true;
+        }
+
+        /// <summary>Снимает опасность с плиты-цели — окончательно, снаряд/лезвие уже прошли (одноразовая ловушка).</summary>
+        public void DisarmTimedTrap()
+        {
+            IsTimedTrapActive = false;
         }
 
         /// <summary>Накопленное время распада плиты в секундах.</summary>

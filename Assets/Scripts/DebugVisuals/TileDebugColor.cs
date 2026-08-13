@@ -51,6 +51,17 @@ namespace Burmalda.DebugVisuals
         // Приглушённый жёлтый — отличим и от ExplosionColor, и от градиента распада.
         public static readonly Color ExplosiveTriggerColor = new Color(200f / 255f, 180f / 255f, 40f / 255f);
 
+        // Issue #45, PRD v5 4.2 — плита-цель ловушки с таймингом, пока снаряд/
+        // лезвие физически проходит через неё (Tile.IsTimedTrapActive). Единый
+        // цвет для обоих видов (стрела/лезвие) — яркая "тревожная" магента, не
+        // пересекается ни с одним из уже занятых цветов.
+        public static readonly Color TimedTrapActiveColor = new Color(1f, 0f, 200f / 255f);
+
+        // Не финальный арт: плита-триггер (issue #45), как и ExplosiveTriggerColor,
+        // сама по себе безопасна. Приглушённая магента — узнаваемо парная к
+        // TimedTrapActiveColor, но не путается с ExplosiveTriggerColor (жёлтый).
+        public static readonly Color TimedTrapTriggerColor = new Color(160f / 255f, 60f / 255f, 140f / 255f);
+
         public static Color Resolve(TileVisualState state)
         {
             if (state.IsDestroyed) return DestroyedColor;
@@ -60,7 +71,9 @@ namespace Burmalda.DebugVisuals
             if (state.LethalTrap == LethalTrapType.Pit) return PitColor;
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
             if (state.LethalTrap == LethalTrapType.Explosion) return ExplosionColor;
+            if (state.ActiveTimedTrap.HasValue) return TimedTrapActiveColor;
             if (state.IsExplosiveTrapTrigger) return ExplosiveTriggerColor;
+            if (state.IsTimedTrapTrigger) return TimedTrapTriggerColor;
 
             // Остальной тип плиты (валюта/артефакт) добавит сюда же
             // ветвление до градиента распада — препятствие/ловушка уже не

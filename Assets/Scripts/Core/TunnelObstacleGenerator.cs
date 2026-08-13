@@ -4,9 +4,10 @@ using System.Collections.Generic;
 namespace Burmalda.Core
 {
     /// <summary>
-    /// Процедурная расстановка препятствий по сетке (PRD 4.2, issues #9/#10):
-    /// заблокированные плиты, статичные смертельные ловушки (яма/лава) и
-    /// триггеры динамических мгновенных ловушек (взрыв). Реагирует на
+    /// Процедурная расстановка препятствий по сетке (PRD 4.2, issues #9/#10/
+    /// #45): заблокированные плиты, статичные смертельные ловушки (яма/
+    /// лава), триггеры динамических мгновенных ловушек (взрыв) и триггеры
+    /// ловушек с таймингом (стрела/лезвие). Реагирует на
     /// <see cref="TunnelGrid.TileMaterialized"/> — как только плита впервые
     /// появляется в сетке, для неё один раз бросается случайное решение, по
     /// аналогии с genTileType() из legacy/burmolda_demo.html. Материализация
@@ -17,15 +18,15 @@ namespace Burmalda.Core
     /// (genTileType: "if(r===0)return 'safe'").
     ///
     /// Пороговые значения (5% заблокировано, 3% суммарно яма/лава, 3%
-    /// триггер взрыва) взяты буквально из прототипа (genTileType: rnd&lt;0.05
-    /// → 'block', rnd&lt;0.08 → 'pit', rnd&lt;0.11 → 'spike'). Деление ямы/лавы
-    /// поровну (1.5%/1.5%) — черновое решение агента: в прототипе лавы не
-    /// было (появилась только в PRD v5, аналога частоты взять неоткуда);
-    /// частота триггера взрыва позаимствована у прототипного 'spike' (сам
-    /// spike в прототипе был статичной мгновенной смертью без отдельного
-    /// триггера — ближайший доступный аналог по частоте, не по механике, см.
-    /// PRD v5 4.2). Все эти числа — предмет плейтеста баланса (Спринт 10, см.
-    /// docs/rules/forbidden-actions.md) — не менять молча.
+    /// триггер взрыва, 1.5%/1.5% триггер стрелы/лезвия) взяты буквально из
+    /// прототипа там, где есть аналог (genTileType: rnd&lt;0.05 → 'block',
+    /// rnd&lt;0.08 → 'pit', rnd&lt;0.11 → 'spike'), либо оценены агентом по
+    /// аналогии там, где аналога нет (лава — новая в PRD v5; ловушки с
+    /// таймингом — тоже новые в PRD v5, частота взята вдвое меньше взрыва,
+    /// т.к. это более сложная в реализации будущая механика с окном
+    /// тайминга, а не мгновенная смерть). Все эти числа — предмет плейтеста
+    /// баланса (Спринт 10, см. docs/rules/forbidden-actions.md) — не менять
+    /// молча.
     /// </summary>
     public sealed class TunnelObstacleGenerator : IDisposable
     {
@@ -33,16 +34,18 @@ namespace Burmalda.Core
         public const float PitThreshold = 0.065f;
         public const float LavaThreshold = 0.08f;
         public const float ExplosiveTriggerThreshold = 0.11f;
+        public const float TimedTrapArrowThreshold = 0.125f;
+        public const float TimedTrapBladeThreshold = 0.14f;
 
         private readonly TunnelGrid _grid;
         private readonly Func<float> _random01;
         // Координаты плит, зарезервированных как цель уже сгенерированного
-        // триггера (issue #10) — им нельзя роллить собственный тип, иначе
-        // цель взрыва могла бы оказаться заранее видимым препятствием
-        // (block/pit/lava), что противоречит идее "не видна заранее, пока
-        // не активирована". Одноразовая резервация — снимается при первой
-        // материализации этой координаты (Remove ниже).
-        private readonly HashSet<GridCoordinate> _reservedExplosionTargets = new HashSet<GridCoordinate>();
+        // триггера (взрыв #10 или тайминг #45) — им нельзя роллить
+        // собственный тип, иначе цель могла бы оказаться заранее видимым
+        // препятствием (block/pit/lava), что противоречит идее "не видна
+        // заранее, пока не активирована". Одноразовая резервация — снимается
+        // при первой материализации этой координаты (Remove ниже).
+        private readonly HashSet<GridCoordinate> _reservedTrapTargets = new HashSet<GridCoordinate>();
         private bool _disposed;
 
         /// <param name="random01">
@@ -70,10 +73,10 @@ namespace Burmalda.Core
         {
             if (tile.Coordinate.Row == 0) return; // стартовый ряд всегда безопасен
 
-            // Плита зарезервирована как цель взрыва другого триггера —
-            // остаётся обычной (безопасной на вид) до срабатывания триггера,
+            // Плита зарезервирована как цель другого триггера — остаётся
+            // обычной (безопасной на вид) до срабатывания триггера,
             // собственного броска не получает.
-            if (_reservedExplosionTargets.Remove(tile.Coordinate)) return;
+            if (_reservedTrapTargets.Remove(tile.Coordinate)) return;
 
             var roll = _random01();
             if (roll < BlockedThreshold) tile.MarkBlocked();
@@ -81,17 +84,31 @@ namespace Burmalda.Core
             else if (roll < LavaThreshold) tile.MarkLethalTrap(LethalTrapType.Lava);
             else if (roll < ExplosiveTriggerThreshold)
             {
-                // Цель — плита сразу впереди по глубине тоннеля, тот же
-                // столбец (issue #10: "запускается с плиты-триггера" —
-                // ближайшая по ходу движения плита, PRD не уточняет радиус/
-                // направление детальнее). Координата известна сразу — сама
-                // плита-цель материализуется позже (TunnelGridReveal идёт по
-                // рядам последовательно), к этому моменту резервация уже
-                // ждёт её.
-                var target = new GridCoordinate(tile.Coordinate.Row + 1, tile.Coordinate.Column);
+                var target = NextRowTarget(tile.Coordinate);
                 tile.MarkExplosiveTrapTrigger(target);
-                _reservedExplosionTargets.Add(target);
+                _reservedTrapTargets.Add(target);
+            }
+            else if (roll < TimedTrapArrowThreshold)
+            {
+                var target = NextRowTarget(tile.Coordinate);
+                tile.MarkTimedTrapTrigger(target, TimedTrapType.Arrow);
+                _reservedTrapTargets.Add(target);
+            }
+            else if (roll < TimedTrapBladeThreshold)
+            {
+                var target = NextRowTarget(tile.Coordinate);
+                tile.MarkTimedTrapTrigger(target, TimedTrapType.Blade);
+                _reservedTrapTargets.Add(target);
             }
         }
+
+        // Цель — плита сразу впереди по глубине тоннеля, тот же столбец
+        // (issues #10/#45: "запускается с плиты-триггера" — ближайшая по
+        // ходу движения плита, PRD не уточняет радиус/направление
+        // детальнее). Координата известна сразу — сама плита-цель
+        // материализуется позже (TunnelGridReveal идёт по рядам
+        // последовательно), к этому моменту резервация уже ждёт её.
+        private static GridCoordinate NextRowTarget(GridCoordinate trigger) =>
+            new GridCoordinate(trigger.Row + 1, trigger.Column);
     }
 }

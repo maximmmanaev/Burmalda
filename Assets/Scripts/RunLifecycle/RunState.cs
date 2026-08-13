@@ -10,9 +10,11 @@ namespace Burmalda.RunLifecycle
     /// d20-испытания: по прямому запросу владельца продукта, пока в проекте
     /// нет системы d20 (Спринт 7, см. terminology.md — <c>D20Trial</c>/
     /// <c>D20Outcome</c> зарезервированы под неё), смерть наступает сразу,
-    /// без броска. Слушает два источника смерти — попытку шагнуть на
-    /// смертельную ловушку (<see cref="GridTraceTrail.LethalTrapTriggered"/>,
-    /// PRD 4.2) и обрушение плиты под ногами игрока
+    /// без броска. Слушает источники смерти — попытку шагнуть на смертельную
+    /// ловушку (<see cref="GridTraceTrail.LethalTrapTriggered"/>, PRD 4.2),
+    /// попытку шагнуть на активную прямо сейчас плиту-цель ловушки с
+    /// таймингом (<see cref="GridTraceTrail.TimedTrapTriggered"/>, PRD v5
+    /// 4.2, issue #45) и обрушение плиты под ногами игрока
     /// (<see cref="TrailDecaySystem.TileDestroyed"/> для текущей позиции) —
     /// по аналогии с legacy/burmolda_demo.html, attemptDeath(), вызываемым из
     /// tryAct() (ловушка) и updateDecay() (плита под ногами).
@@ -32,6 +34,7 @@ namespace Burmalda.RunLifecycle
             IsAlive = true;
 
             _trail.LethalTrapTriggered += OnLethalTrapTriggered;
+            _trail.TimedTrapTriggered += OnTimedTrapTriggered;
             _decay.TileDestroyed += OnTileDestroyed;
         }
 
@@ -46,6 +49,7 @@ namespace Burmalda.RunLifecycle
         {
             if (_disposed) return;
             _trail.LethalTrapTriggered -= OnLethalTrapTriggered;
+            _trail.TimedTrapTriggered -= OnTimedTrapTriggered;
             _decay.TileDestroyed -= OnTileDestroyed;
             _disposed = true;
         }
@@ -62,6 +66,18 @@ namespace Burmalda.RunLifecycle
             LethalTrapType.Pit => "Провалился в яму",
             LethalTrapType.Lava => "Сгорел в лаве",
             LethalTrapType.Explosion => "Подорвался на ловушке",
+            _ => "Сработала ловушка"
+        };
+
+        private void OnTimedTrapTriggered(GridCoordinate coordinate, TimedTrapType trapType)
+        {
+            Die(DescribeTimedTrap(trapType));
+        }
+
+        private static string DescribeTimedTrap(TimedTrapType trapType) => trapType switch
+        {
+            TimedTrapType.Arrow => "Пронзён стрелой",
+            TimedTrapType.Blade => "Разрублен лезвием",
             _ => "Сработала ловушка"
         };
 
