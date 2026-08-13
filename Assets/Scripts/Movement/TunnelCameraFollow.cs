@@ -33,8 +33,16 @@ namespace Burmalda.Movement
     /// отставание (<see cref="TrailingRowsBehindPlayer"/>) — см.
     /// <see cref="ComputeCurrentPitchDegrees"/>.
     ///
-    /// <see cref="HeightOffset"/>, <see cref="PitchDegrees"/> и
-    /// <see cref="IntroPitchDegrees"/> — публично изменяемые свойства, не
+    /// Тот же top-down интро задел ещё один, отдельный (геометрический, не
+    /// про угол) конфликт: устоявшийся <see cref="HeightOffset"/>.Z, применённый
+    /// с самого первого кадра, физически уводит камеру мимо стартовой плиты
+    /// (трейлинг-ряд ещё клампится к 0) — плита уходит за НИЖНИЙ край экрана.
+    /// Чинится тем же паттерном интерполяции, что и pitch, только для
+    /// Z-компоненты офсета — см. <see cref="IntroHeightOffsetZ"/>.
+    ///
+    /// <see cref="HeightOffset"/>, <see cref="PitchDegrees"/>,
+    /// <see cref="IntroPitchDegrees"/> и <see cref="IntroHeightOffsetZ"/> —
+    /// публично изменяемые свойства, не
     /// только конструкторские параметры: раньше все применялись один раз в
     /// конструкторе, и Transform камеры каждый кадр перезаписывался
     /// вычисленным значением — из инспектора/Scene view положение камеры
@@ -66,16 +74,43 @@ namespace Burmalda.Movement
         // использует её как значение по умолчанию своего инспекторного поля.
         public const float DefaultPitchDegrees = 50f;
 
-        // Top-down интро на старте забега — почти вертикально вниз, но не
-        // 90° (сингулярность взгляда строго по вертикали — при 90° forward
-        // становится параллелен "up", теряется однозначность поворота).
-        public const float DefaultIntroPitchDegrees = 85f;
+        // Top-down интро на старте забега. 90° исключён (сингулярность взгляда
+        // строго по вертикали — forward параллелен "up"). Изначально было 85°
+        // (максимально top-down), но проверка реальным WorldToViewportPoint
+        // показала побочный эффект: FOV откалиброван под устоявшийся pitch=50°
+        // и не годится для геометрии почти-вертикального интро — ближняя
+        // (стартовая) плитка на 85° раздувается почти во весь кадр, а ряды
+        // впереди уходят за верхний край почти сразу (виден только 0-2 ряд из
+        // TunnelGridReveal.RowsAheadOfPlayer=8). 70° — верхняя граница
+        // изначально рассматриваемого диапазона (65-70°), решение владельца
+        // продукта: заметно более top-down, чем устоявшиеся 50°, но без
+        // экстремальной раздутости 85°. См. также TunnelCameraController —
+        // FOV теперь пересчитывается каждый кадр от текущего
+        // интерполированного pitch, не только от устоявшегося.
+        public const float DefaultIntroPitchDegrees = 70f;
+
+        // Хотфикс геометрического конфликта (не про pitch): HeightOffset.Z
+        // фиксированный на устоявшемся значении (Z=2) на самом старте забега
+        // физически уводит камеру ВПЕРЁД от трейлинг-ряда (который в этот
+        // момент клампится к 0 и совпадает с самой стартовой плитой) — камера
+        // смотрит вниз-вперёд мимо стартовой плиты, а не на неё, и та уходит
+        // за НИЖНИЙ край экрана (проверено WorldToViewportPoint: -0.167 при
+        // Z=2 фиксированном). Угол (Pitch/IntroPitch) тут ни при чём — чинить
+        // нужно позицию, не поворот. Тот же паттерн интерполяции по
+        // caughtUpDistance/TrailingRowsBehindPlayer, что уже есть у pitch
+        // (см. ComputeCatchUpScale), применён теперь ещё и к Z-компоненте
+        // HeightOffset — см. IntroHeightOffsetZ/ComputeTargetPosition.
+        // Значение подобрано численно (не на глаз): при playerRow=0
+        // (scale=0), IntroPitchDegrees=70° — эффективный Z=-1 даёт
+        // viewport.y стартовой плиты 0.344 (цель была 0.25-0.55).
+        public const float DefaultIntroHeightOffsetZ = -1f;
 
         private readonly GridTraceTrail _trail;
         private readonly WorldGridProjection _projection;
         private Vector3 _heightOffset;
         private float _pitchDegrees;
         private float _introPitchDegrees;
+        private float _introHeightOffsetZ;
         private bool _disposed;
 
         public TunnelCameraFollow(
@@ -83,13 +118,15 @@ namespace Burmalda.Movement
             WorldGridProjection projection,
             Vector3 heightOffset,
             float pitchDegrees = DefaultPitchDegrees,
-            float introPitchDegrees = DefaultIntroPitchDegrees)
+            float introPitchDegrees = DefaultIntroPitchDegrees,
+            float introHeightOffsetZ = DefaultIntroHeightOffsetZ)
         {
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
             _projection = projection;
             _heightOffset = heightOffset;
             _pitchDegrees = pitchDegrees;
             _introPitchDegrees = introPitchDegrees;
+            _introHeightOffsetZ = introHeightOffsetZ;
 
             TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
             CurrentPosition = TargetPosition;
@@ -103,7 +140,9 @@ namespace Burmalda.Movement
         /// <summary>
         /// Смещение камеры над/позади игрока. Изменение немедленно
         /// пересчитывает <see cref="TargetPosition"/> от текущей позиции
-        /// трейла — не нужно ждать следующего хода игрока, чтобы увидеть эффект.
+        /// трейла — не нужно ждать следующего хода игрока, чтобы увидеть
+        /// эффект. Z-компонента до устоявшегося режима не применяется
+        /// напрямую — см. <see cref="IntroHeightOffsetZ"/>.
         /// </summary>
         public Vector3 HeightOffset
         {
@@ -148,6 +187,26 @@ namespace Burmalda.Movement
         }
 
         /// <summary>
+        /// Стартовая (top-down интро) Z-компонента <see cref="HeightOffset"/>
+        /// — см. doc-комментарий класса и <see cref="DefaultIntroHeightOffsetZ"/>
+        /// (геометрический конфликт, не про поворот: устоявшийся Z уводит
+        /// камеру мимо стартовой плиты, пока трейлинг-ряд ещё клампится к 0).
+        /// Публично изменяема по тому же принципу, что и
+        /// <see cref="IntroPitchDegrees"/>; изменение немедленно
+        /// пересчитывает <see cref="TargetPosition"/>. X/Y компоненты
+        /// HeightOffset не интерполируются — конфликт был только по Z.
+        /// </summary>
+        public float IntroHeightOffsetZ
+        {
+            get => _introHeightOffsetZ;
+            set
+            {
+                _introHeightOffsetZ = value;
+                TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
+            }
+        }
+
+        /// <summary>
         /// Поворот камеры прямо сейчас — интерполяция между
         /// <see cref="IntroPitchDegrees"/> и <see cref="PitchDegrees"/> по
         /// тому, насколько камера уже "нагнала" штатное отставание
@@ -161,6 +220,19 @@ namespace Burmalda.Movement
 
         /// <summary>Совпадает с <see cref="TargetRotation"/> — поворот не сглаживается отдельно, интерполяция уже даёт плавность по рядам.</summary>
         public Quaternion CurrentRotation => TargetRotation;
+
+        /// <summary>
+        /// То же значение, что и угол в <see cref="TargetRotation"/>/<see cref="CurrentRotation"/>
+        /// (<c>eulerAngles.x</c>), но напрямую как число градусов — нужно
+        /// <see cref="TunnelCameraController"/>, чтобы калибровать FOV
+        /// (<see cref="TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees"/>)
+        /// от РЕАЛЬНОГО текущего pitch каждый кадр (включая top-down интро), а
+        /// не только от устоявшегося <see cref="PitchDegrees"/> — иначе FOV,
+        /// откалиброванный под устоявшуюся геометрию, на интро-pitch (близко к
+        /// вертикали) даёт слишком узкий кадр: ближняя плитка раздувается,
+        /// дальние ряды уходят за край раньше времени.
+        /// </summary>
+        public float CurrentPitchDegrees => ComputeCurrentPitchDegrees();
 
         /// <summary>
         /// Продвигает сглаживание позиции на один тик — константа сглаживания
@@ -193,24 +265,35 @@ namespace Burmalda.Movement
             // по X (иначе камера уезжает влево-вправо при диагональном пути).
             var trailingRow = Math.Max(0, playerPosition.Row - TrailingRowsBehindPlayer);
             var followCoordinate = new GridCoordinate(trailingRow, _projection.Width / 2);
-            return _projection.ToWorldPosition(followCoordinate) + _heightOffset;
+
+            // Z-компонента HeightOffset интерполируется тем же scale, что и
+            // pitch (см. ComputeCatchUpScale/DefaultIntroHeightOffsetZ) — X/Y
+            // применяются напрямую, конфликт был только по Z.
+            var scale = ComputeCatchUpScale(playerPosition.Row);
+            var effectiveOffsetZ = Mathf.Lerp(_introHeightOffsetZ, _heightOffset.z, scale);
+            var effectiveOffset = new Vector3(_heightOffset.x, _heightOffset.y, effectiveOffsetZ);
+
+            return _projection.ToWorldPosition(followCoordinate) + effectiveOffset;
         }
 
         /// <summary>
-        /// Тот же паттерн интерполяции, что был у старой (убранной)
-        /// LookAheadRowsBeyondPlayer-логики точки взгляда — только теперь для
-        /// угла наклона, не для точки: 0 в самый первый момент забега
-        /// (трейлинг-ряд камеры клампится к 0, совпадает с игроком) — камера
-        /// смотрит почти строго вниз, стартовая плитка гарантированно видна;
-        /// 1, как только камера нагоняет штатное отставание
-        /// (<see cref="TrailingRowsBehindPlayer"/> рядов) — игровой pitch.
+        /// 0 в самый первый момент забега (трейлинг-ряд камеры клампится к 0,
+        /// совпадает с игроком), 1 — как только камера нагоняет штатное
+        /// отставание (<see cref="TrailingRowsBehindPlayer"/> рядов). Общий
+        /// для интерполяции и pitch (<see cref="ComputeCurrentPitchDegrees"/>),
+        /// и Z-компоненты HeightOffset (<see cref="ComputeTargetPosition"/>) —
+        /// тот же паттерн, что был у старой убранной LookAheadRowsBeyondPlayer-логики точки взгляда.
         /// </summary>
-        private float ComputeCurrentPitchDegrees()
+        private float ComputeCatchUpScale(int playerRow)
         {
-            var playerRow = _trail.CurrentPosition.Row;
             var cameraTrailingRow = Math.Max(0, playerRow - TrailingRowsBehindPlayer);
             var caughtUpDistance = playerRow - cameraTrailingRow;
-            var scale = Mathf.Clamp01((float)caughtUpDistance / TrailingRowsBehindPlayer);
+            return Mathf.Clamp01((float)caughtUpDistance / TrailingRowsBehindPlayer);
+        }
+
+        private float ComputeCurrentPitchDegrees()
+        {
+            var scale = ComputeCatchUpScale(_trail.CurrentPosition.Row);
             return Mathf.Lerp(_introPitchDegrees, _pitchDegrees, scale);
         }
     }

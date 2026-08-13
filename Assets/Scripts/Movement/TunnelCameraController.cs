@@ -13,25 +13,33 @@ namespace Burmalda.Movement
     /// (<see cref="TunnelCameraFraming.DesiredVisibleTiles"/> плиток) на любом
     /// аспекте экрана — пересчитывает Camera.fieldOfView (вертикальный) из
     /// желаемого горизонтального FOV каждый кадр (дёшево, покрывает смену
-    /// разрешения/ориентации без отдельной подписки на события). Сам
-    /// горизонтальный FOV вычисляется один раз при (пере)сборке следования —
-    /// не от геометрии старта забега (вырожденный случай, см. историю
-    /// багов), а аналитически от устоявшегося (steady-state) режима, см.
-    /// <see cref="TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow"/>.
+    /// разрешения/ориентации без отдельной подписки на события).
     ///
-    /// <see cref="_heightOffset"/>/<see cref="_pitchDegrees"/>/<see cref="_introPitchDegrees"/> —
-    /// единственный поддерживаемый способ поменять положение/угол камеры.
-    /// Просто подвигать Transform этого объекта в Scene view/инспекторе не
-    /// выйдет (даже в Play Mode) — Update() ниже каждый кадр перезаписывает
-    /// position/rotation результатом Follow. Все поля читаются заново каждый
-    /// кадр (<see cref="TunnelCameraFollow.HeightOffset"/>/<see cref="TunnelCameraFollow.PitchDegrees"/>/
-    /// <see cref="TunnelCameraFollow.IntroPitchDegrees"/> теперь settable),
-    /// так что правки применяются вживую, без рестарта забега. Исключение —
-    /// высота (Y) в <see cref="_heightOffset"/> также участвует в расчёте
-    /// горизонтального FOV, а это пересчитывается только на
-    /// <see cref="RebuildFollow"/> (старт/рестарт забега) — если поменяли
-    /// высоту на лету, ширина обзора тоннеля обновится только на следующий
-    /// рестарт.
+    /// Горизонтальный FOV тоже пересчитывается КАЖДЫЙ кадр (не только на
+    /// (пере)сборке следования) — от ТЕКУЩЕГО интерполированного pitch
+    /// (<see cref="TunnelCameraFollow.CurrentPitchDegrees"/>), не только от
+    /// устоявшегося <see cref="_pitchDegrees"/>. Найдено проверкой реальным
+    /// WorldToViewportPoint: FOV, откалиброванный один раз под устоявшийся
+    /// pitch, ломает геометрию во время top-down интро (сильно другой pitch)
+    /// — ближняя (стартовая) плитка раздувается почти во весь кадр, дальние
+    /// ряды уходят за верхний край раньше времени. `groundDistanceToRow` от
+    /// вырожденного старта забега не берём и здесь — по-прежнему аналитически
+    /// от устоявшегося (steady-state) режима, см.
+    /// <see cref="TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow"/>
+    /// (эта часть от pitch не зависит, только от HeightOffset.Z).
+    ///
+    /// <see cref="_heightOffset"/>/<see cref="_pitchDegrees"/>/<see cref="_introPitchDegrees"/>/
+    /// <see cref="_introHeightOffsetZ"/> — единственный поддерживаемый способ
+    /// поменять положение/угол камеры. Просто подвигать Transform этого
+    /// объекта в Scene view/инспекторе не выйдет (даже в Play Mode) —
+    /// Update() ниже каждый кадр перезаписывает position/rotation результатом
+    /// Follow. Все поля читаются заново каждый кадр
+    /// (<see cref="TunnelCameraFollow.HeightOffset"/>/<see cref="TunnelCameraFollow.PitchDegrees"/>/
+    /// <see cref="TunnelCameraFollow.IntroPitchDegrees"/>/<see cref="TunnelCameraFollow.IntroHeightOffsetZ"/>
+    /// теперь settable), так что правки применяются вживую, без рестарта
+    /// забега — включая высоту (Y) в <see cref="_heightOffset"/>, теперь тоже
+    /// каждый кадр (см. выше). <see cref="_introHeightOffsetZ"/> чинит
+    /// отдельный геометрический конфликт (не про угол) — см. TunnelCameraFollow.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TunnelCameraController : MonoBehaviour
@@ -40,8 +48,15 @@ namespace Burmalda.Movement
         [SerializeField] private Camera _camera;
         // Новое смещение для 3D-камеры от третьего лица — в 2D-прототипе аналога
         // нет (см. issue #8: скоуп увеличен с 2D top-down до 3D третьего лица).
-        // Хотфикс (0,4,-1) -> (0,6,2) по прямому запросу владельца продукта,
-        // вместе с подъёмом игрового Pitch Degrees (см. ниже).
+        // Хотфикс (0,4,-1) -> (0,6,2) по прямому запросу владельца продукта.
+        // Была короткая ошибочная попытка синхронизировать этот дефолт с
+        // рассинхронизированным значением (0,6,-1), которое залипло в
+        // SampleScene.unity ещё до этого хотфикса (Inspector-значение, once
+        // сериализовано, не следует за новым инициализатором поля само по
+        // себе) — отменено: (0,6,2) провалидирован тестом на «плитка игрока
+        // ниже центра» (см. TunnelCameraViewportFramingTests), сцена сама
+        // была устаревшей, не эталоном. Сцена приведена в соответствие
+        // (SampleScene.unity), не наоборот.
         [SerializeField] private Vector3 _heightOffset = new Vector3(0f, 6f, 2f);
         // Хотфикс 18.4°/29°/35° -> 29° -> 50° (см. TunnelCameraFollow) — по
         // прямому запросу владельца продукта. Связано константой, а не
@@ -51,9 +66,12 @@ namespace Burmalda.Movement
         [SerializeField] private float _pitchDegrees = TunnelCameraFollow.DefaultPitchDegrees;
         // Top-down интро на старте забега — см. TunnelCameraFollow.
         [SerializeField] private float _introPitchDegrees = TunnelCameraFollow.DefaultIntroPitchDegrees;
+        // Отдельный геометрический фикс (не про угол) — см. TunnelCameraFollow.
+        // IntroHeightOffsetZ/DefaultIntroHeightOffsetZ: устоявшийся HeightOffset.Z
+        // на самом старте забега уводит камеру мимо стартовой плиты.
+        [SerializeField] private float _introHeightOffsetZ = TunnelCameraFollow.DefaultIntroHeightOffsetZ;
 
         private TunnelCameraFollow _follow;
-        private float _desiredHorizontalFovDeg;
 
         private void Awake()
         {
@@ -91,16 +109,27 @@ namespace Burmalda.Movement
             _follow.HeightOffset = _heightOffset;
             _follow.PitchDegrees = _pitchDegrees;
             _follow.IntroPitchDegrees = _introPitchDegrees;
+            _follow.IntroHeightOffsetZ = _introHeightOffsetZ;
 
             _follow.Tick();
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
 
-            // Пересчитывается каждый кадр (не только на старте) — дёшево, и
-            // покрывает смену разрешения/ориентации без отдельного события.
+            // Пересчитывается каждый кадр, как и aspect ниже — дёшево, и
+            // покрывает не только смену разрешения/ориентации, но и
+            // top-down интро (текущий pitch меняется кадр к кадру, см.
+            // doc-комментарий класса). groundDistanceToRow от pitch не
+            // зависит (только от HeightOffset.Z), пересчёт этой части
+            // каждый кадр — не необходимость, а просто следствие того, что
+            // вся формула теперь считается заново, не кэшируется.
             if (_camera != null)
             {
+                var groundDistanceToRow = TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow(
+                    _heightOffset.z, _input.Projection.TileSize, TunnelCameraFollow.TrailingRowsBehindPlayer);
+                var desiredHorizontalFovDeg = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(
+                    _heightOffset.y, groundDistanceToRow, _follow.CurrentPitchDegrees, _input.Projection.TileSize);
+
                 var aspect = (float)Screen.width / Screen.height;
-                _camera.fieldOfView = TunnelCameraFraming.ComputeVerticalFovDegrees(_desiredHorizontalFovDeg, aspect);
+                _camera.fieldOfView = TunnelCameraFraming.ComputeVerticalFovDegrees(desiredHorizontalFovDeg, aspect);
             }
         }
 
@@ -110,20 +139,7 @@ namespace Burmalda.Movement
         {
             DisposeFollow();
             if (_input == null || _input.Trail == null) return;
-            _follow = new TunnelCameraFollow(_input.Trail, _input.Projection, _heightOffset, _pitchDegrees, _introPitchDegrees);
-
-            // Калибровка от устоявшегося (steady-state) режима, не от
-            // вырожденного старта забега (см. doc-комментарий класса и
-            // TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow) —
-            // не требует реального трейла, чистая функция от констант.
-            var groundDistanceToRow = TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow(
-                _heightOffset.z, _input.Projection.TileSize, TunnelCameraFollow.TrailingRowsBehindPlayer);
-            // _pitchDegrees (устоявшийся игровой pitch), не текущий
-            // интерполированный — ширина обзора калибруется под то, как
-            // выглядит игра большую часть времени (после top-down интро),
-            // не под сам момент интро.
-            _desiredHorizontalFovDeg = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(
-                _heightOffset.y, groundDistanceToRow, _pitchDegrees, _input.Projection.TileSize);
+            _follow = new TunnelCameraFollow(_input.Trail, _input.Projection, _heightOffset, _pitchDegrees, _introPitchDegrees, _introHeightOffsetZ);
         }
 
         private void DisposeFollow()

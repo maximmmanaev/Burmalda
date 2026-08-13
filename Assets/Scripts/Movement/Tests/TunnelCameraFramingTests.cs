@@ -10,8 +10,8 @@ namespace Burmalda.Movement.Tests
         {
             // cameraHeight=6 (Height Offset Y со сцены), groundDistanceToRow=1
             // (см. ComputeSteadyStateGroundDistanceToReferenceRow_ProductionOffset
-            // ниже), pitch=50 (Pitch Degrees со сцены) -> depth =
-            // 6*sin(50°)+1*cos(50°) = 4.5962+0.6428 = 5.2391,
+            // ниже — Height Offset Z=2 со сцены), pitch=50 (Pitch Degrees со
+            // сцены) -> depth = 6*sin(50°)+1*cos(50°) = 4.5962+0.6428 = 5.2391,
             // hFOV=2*atan(2/5.2391)=41.7885°.
             var hFov = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(
                 cameraHeight: 6f, groundDistanceToRow: 1f, pitchDegrees: 50f, tileSize: 1f);
@@ -81,7 +81,10 @@ namespace Burmalda.Movement.Tests
         {
             // Старый (уже убранный) вырожденный расчёт для Height Offset
             // Z=-1 давал |heightOffsetZ|=1 — ловит регресс на возврат к нему.
-            // Правильное значение от устоявшегося состояния: (5-2)*1-(-1)=4.
+            // Правильное значение от устоявшегося состояния: |(5-2)*1-(-1)|=4.
+            // Z=-1 здесь — исторический пример (когда-то залипшее в сцене
+            // значение, уже не производственное — см. TunnelCameraController),
+            // не текущий дефолт.
             var distance = TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow(
                 heightOffsetZ: -1f, tileSize: 1f, trailingRowsBehindPlayer: 5);
 
