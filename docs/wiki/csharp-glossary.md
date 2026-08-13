@@ -56,6 +56,14 @@
 Персонаж не отображается — камера следует за
 `GridTraceTrail.CurrentPosition` через `WorldGridProjection.ToWorldPosition`.
 
+`TunnelCameraFollow.HeightOffset`/`PitchDegrees` — публично изменяемые
+свойства (не только конструкторские параметры): двигать `Transform`
+`TunnelCameraController` напрямую в Scene view/инспекторе нельзя, он каждый
+кадр перезаписывается результатом Follow — вместо этого меняются поля
+`Height Offset`/`Pitch Degrees` в инспекторе `TunnelCameraController`,
+которые прокидываются в `Follow` каждый кадр и применяются вживую, без
+рестарта забега.
+
 | Термин (RU) | Раздел PRD | C#-идентификатор | Тип сущности |
 |---|---|---|---|
 | Плавное следование камеры за трейлом (позиция и поворот) | 16 | `TunnelCameraFollow` | класс (Movement) |

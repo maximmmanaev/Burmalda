@@ -23,6 +23,15 @@ namespace Burmalda.Movement
     /// ширины обзора тоннеля на разных аспектах экрана теперь обеспечивает
     /// не поворот, а динамический FOV — см. <see cref="TunnelCameraFraming"/>
     /// и <see cref="TunnelCameraController"/>.
+    ///
+    /// <see cref="HeightOffset"/> и <see cref="PitchDegrees"/> — публично
+    /// изменяемые свойства, не только конструкторские параметры: раньше оба
+    /// применялись один раз в конструкторе, и Transform камеры каждый кадр
+    /// перезаписывался вычисленным значением — из инспектора/Scene view
+    /// положение камеры поменять было нельзя даже в Play Mode, правка
+    /// терялась на следующем кадре. Теперь <see cref="TunnelCameraController"/>
+    /// прокидывает значения своих полей сюда каждый кадр — правки в
+    /// инспекторе применяются вживую, без пересборки Follow/рестарта забега.
     /// </summary>
     public sealed class TunnelCameraFollow : IDisposable
     {
@@ -35,21 +44,24 @@ namespace Burmalda.Movement
         private const float SmoothingFactor = 0.01f;
         // legacy/burmolda_demo.html, tryAct()/returnToAltar(): cameraTargetRow = Math.max(0, r-5)
         private const int TrailingRowsBehindPlayer = 5;
-        // Хотфикс: Rotation X зафиксирован на 35° — обоснование в doc-комментарии класса.
-        private const float PitchDegrees = 35f;
-
-        private static readonly Quaternion FixedRotation = Quaternion.Euler(PitchDegrees, 0f, 0f);
+        // Хотфикс: Rotation X зафиксирован на 35° по умолчанию — обоснование
+        // в doc-комментарии класса. Публичная константа, а не только
+        // значение по умолчанию параметра конструктора — TunnelCameraController
+        // использует её как значение по умолчанию своего инспекторного поля.
+        public const float DefaultPitchDegrees = 35f;
 
         private readonly GridTraceTrail _trail;
         private readonly WorldGridProjection _projection;
-        private readonly Vector3 _heightOffset;
+        private Vector3 _heightOffset;
+        private float _pitchDegrees;
         private bool _disposed;
 
-        public TunnelCameraFollow(GridTraceTrail trail, WorldGridProjection projection, Vector3 heightOffset)
+        public TunnelCameraFollow(GridTraceTrail trail, WorldGridProjection projection, Vector3 heightOffset, float pitchDegrees = DefaultPitchDegrees)
         {
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
             _projection = projection;
             _heightOffset = heightOffset;
+            _pitchDegrees = pitchDegrees;
 
             TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
             CurrentPosition = TargetPosition;
@@ -60,17 +72,45 @@ namespace Burmalda.Movement
             _trail.PositionChanged += OnPositionChanged;
         }
 
+        /// <summary>
+        /// Смещение камеры над/позади игрока. Изменение немедленно
+        /// пересчитывает <see cref="TargetPosition"/> от текущей позиции
+        /// трейла — не нужно ждать следующего хода игрока, чтобы увидеть эффект.
+        /// </summary>
+        public Vector3 HeightOffset
+        {
+            get => _heightOffset;
+            set
+            {
+                _heightOffset = value;
+                TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
+            }
+        }
+
         /// <summary>Точка, к которой плавно движется камера — со смещением позади игрока (PRD 16).</summary>
         public Vector3 TargetPosition { get; private set; }
 
         /// <summary>Текущая сглаженная позиция камеры — присваивать Transform.position.</summary>
         public Vector3 CurrentPosition { get; private set; }
 
+        /// <summary>
+        /// Наклон камеры (Rotation X), градусы. Публично изменяем — в отличие
+        /// от прежней компилируемой константы, значение можно крутить в
+        /// инспекторе <see cref="TunnelCameraController"/> вживую, включая
+        /// Play Mode. При vFOV=60° горизонт уходит из кадра начиная с
+        /// pitch&gt;=30° — меньшие значения снова покажут небо (см. doc-комментарий класса).
+        /// </summary>
+        public float PitchDegrees
+        {
+            get => _pitchDegrees;
+            set => _pitchDegrees = value;
+        }
+
         /// <summary>Поворот камеры — фиксированный Rotation X = <see cref="PitchDegrees"/>, не зависит от позиции трейла.</summary>
-        public Quaternion TargetRotation => FixedRotation;
+        public Quaternion TargetRotation => Quaternion.Euler(_pitchDegrees, 0f, 0f);
 
         /// <summary>Совпадает с <see cref="TargetRotation"/> — поворот фиксирован, сглаживать нечего.</summary>
-        public Quaternion CurrentRotation => FixedRotation;
+        public Quaternion CurrentRotation => TargetRotation;
 
         /// <summary>
         /// Продвигает сглаживание позиции на один тик — константа сглаживания
