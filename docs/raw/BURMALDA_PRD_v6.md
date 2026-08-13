@@ -1,3 +1,5 @@
+> ⚠️ УСТАРЕЛО — см. docs/raw/BURMALDA_PRD_v7.md. Оставлено для истории.
+
 # BURMALDA — Product Requirements Document v6.0
 Endless Tunnel / Treasure-Run Greed Loop (3D, вид от третьего лица)
 
