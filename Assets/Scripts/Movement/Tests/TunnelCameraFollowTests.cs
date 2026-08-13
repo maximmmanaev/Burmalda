@@ -149,113 +149,56 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void TargetRotation_CameraAboveAndBehindPlayer_LooksForwardAndDown()
+        public void TargetRotation_IsFixedAt35DegreesPitch_RegardlessOfHeightOffset()
+        {
+            // Хотфикс (18.4° -> 29° -> 35°): поворот камеры больше не
+            // вычисляется динамически «взглядом вперёд» — Rotation X
+            // зафиксирован. При vFOV=60° горизонт исчезает из кадра при
+            // pitch >= 30° (vFOV/2); 35° — с запасом на покачивание камеры.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 4f, -1f));
+
+            Assert.AreEqual(35f, follow.TargetRotation.eulerAngles.x, 1e-4f);
+            Assert.AreEqual(35f, follow.CurrentRotation.eulerAngles.x, 1e-4f);
+        }
+
+        [Test]
+        public void TargetRotation_NoYawOrRoll_OnlyPitch()
         {
             var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 3f, 0f));
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 4f, -1f));
 
-            for (var row = 1; row <= 6; row++)
+            var euler = follow.TargetRotation.eulerAngles;
+
+            Assert.AreEqual(0f, euler.y, 1e-4f, "поворота влево-вправо (yaw) быть не должно");
+            Assert.AreEqual(0f, euler.z, 1e-4f, "крена (roll) быть не должно");
+        }
+
+        [Test]
+        public void TargetRotation_DoesNotChangeAsTrailAdvances()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 4f, -1f));
+            var rotationAtStart = follow.TargetRotation;
+
+            for (var row = 1; row <= 10; row++)
                 trail.TryAdvanceTo(new GridCoordinate(row, 2));
+            trail.TryAdvanceTo(new GridCoordinate(9, 2)); // шаг назад (#61)
 
-            var forward = follow.TargetRotation * Vector3.forward;
-
-            Assert.Less(forward.y, 0f, "камера выше игрока — должна смотреть вниз");
-            Assert.Greater(forward.z, 0f, "игрок впереди по тоннелю — должна смотреть вперёд");
-            Assert.AreEqual(0f, forward.x, 1e-5f, "нет бокового смещения между камерой и игроком");
+            Assert.AreEqual(rotationAtStart, follow.TargetRotation);
         }
 
         [Test]
-        public void TargetRotation_LateralMove_NoLeftRightYaw()
+        public void TargetRotation_IsIndependentOfHeightOffset()
         {
-            var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 3f, 0f));
+            // В отличие от старой look-at-логики, поворот больше не зависит
+            // от heightOffset вообще — только позиция (ComputeTargetPosition).
+            var (_, trailA, projectionA) = CreateTrail();
+            var followA = new TunnelCameraFollow(trailA, projectionA, Vector3.zero);
+            var (_, trailB, projectionB) = CreateTrail();
+            var followB = new TunnelCameraFollow(trailB, projectionB, new Vector3(0f, 10f, -5f));
 
-            for (var row = 1; row <= 6; row++)
-                trail.TryAdvanceTo(new GridCoordinate(row, 2));
-            trail.TryAdvanceTo(new GridCoordinate(6, 4)); // шаг вбок к краю тоннеля, ряд не меняется
-
-            var forward = follow.TargetRotation * Vector3.forward;
-
-            // Камера смотрит по центру тоннеля, а не на реальный столбец игрока —
-            // иначе она поворачивается влево-вправо при каждом боковом шаге.
-            Assert.AreEqual(0f, forward.x, 1e-5f, "камера не должна поворачиваться влево-вправо при боковом движении игрока");
-        }
-
-        [Test]
-        public void TargetRotation_AtVeryStart_CameraAndLookAtCoincide_FallsBackToIdentity()
-        {
-            // На самом старте забега камера (трейлинг-ряд ещё клампится к 0)
-            // и запас взгляда вперёд (см. LookAheadScale ниже) оба совпадают
-            // с позицией игрока — без высоты камеры это ровно одна и та же
-            // точка, направление нулевое. Тот же degenerate-случай, что был
-            // до добавления взгляда с запасом вперёд.
-            var (_, trail, projection) = CreateTrail();
-
-            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
-
-            Assert.AreEqual(Quaternion.identity, follow.TargetRotation);
-        }
-
-        [Test]
-        public void TargetRotation_AtVeryStart_WithHeightOffset_LooksDirectlyAtPlayer()
-        {
-            // Баг-репорт владельца продукта: на самом старте, пока камера ещё
-            // не отстала на штатные TrailingRowsBehindPlayer рядов, взгляд
-            // «с запасом вперёд» на полную глубину уводил прицел камеры так
-            // далеко от игрока (который почти рядом с камерой), что белая
-            // плитка выпадала из кадра. Запас должен масштабироваться до 0
-            // ровно в момент старта — камера целится прямо в игрока, он
-            // гарантированно виден, как и до появления запаса вперёд.
-            var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 3f, -1f));
-
-            var forward = follow.TargetRotation * Vector3.forward;
-
-            // Камера и игрок на одном ряду (0), heightOffset=(0,3,-1) ->
-            // direction = playerPos-cameraPos = (0,-3,1), нормализовано.
-            var expected = new Vector3(0f, -3f, 1f).normalized;
-            Assert.AreEqual(expected.x, forward.x, 1e-4f);
-            Assert.AreEqual(expected.y, forward.y, 1e-4f);
-            Assert.AreEqual(expected.z, forward.z, 1e-4f);
-        }
-
-        [Test]
-        public void TargetRotation_PartiallyCaughtUp_NoHeightOffset_AlreadyLooksAheadDownTunnel()
-        {
-            // Даже до полного отставания камеры (штатные 5 рядов) запас
-            // взгляда вперёд должен уже частично включаться, а не резко
-            // появляться скачком — иначе на границе снова возможен провал кадра.
-            var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
-
-            for (var row = 1; row <= 3; row++)
-                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // трейлинг-ряд камеры всё ещё клампится к 0
-
-            var forward = follow.TargetRotation * Vector3.forward;
-
-            Assert.Greater(forward.z, 0f, "запас взгляда вперёд должен уже частично работать");
-            Assert.AreEqual(0f, forward.y, 1e-5f, "без высоты камеры наклона по Y быть не должно");
-        }
-
-        [Test]
-        public void TargetRotation_LooksAheadOfPlayer_ShallowerPitchThanLookingDirectlyAtPlayer()
-        {
-            // По запросу владельца продукта: белая плитка (игрок) должна быть
-            // ближе к низу экрана, а не в центре. Если бы камера целилась
-            // ровно в игрока (старое поведение), при heightOffset=(0,3,0) и
-            // трейлинг-ряде 1 (игрок на ряду 6) угол был бы y/z = -3/5 = -0.6.
-            // Камера уже полностью отстала на штатные 5 рядов (6-1=5) — запас
-            // взгляда вперёд включён на полную, угол должен быть более пологим.
-            var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 3f, 0f));
-
-            for (var row = 1; row <= 6; row++)
-                trail.TryAdvanceTo(new GridCoordinate(row, 2));
-
-            var forward = follow.TargetRotation * Vector3.forward;
-            var previousPitchRatio = Mathf.Abs(-3f / 5f);
-
-            Assert.Less(Mathf.Abs(forward.y / forward.z), previousPitchRatio);
+            Assert.AreEqual(followA.TargetRotation, followB.TargetRotation);
         }
 
         [Test]
