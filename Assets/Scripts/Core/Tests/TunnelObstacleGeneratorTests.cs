@@ -49,15 +49,104 @@ namespace Burmalda.Core.Tests
         }
 
         [Test]
-        public void TileMaterialized_RollAtOrAboveLavaThreshold_TileStaysPassable()
+        public void TileMaterialized_RollAtLavaThreshold_MarksExplosiveTrapTrigger()
         {
             var grid = new TunnelGrid(5);
             using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold));
+
+            var trigger = new GridCoordinate(1, 0);
+            var tile = grid.GetOrCreateTile(trigger);
+
+            Assert.IsFalse(tile.IsBlocked);
+            Assert.IsFalse(tile.LethalTrap.HasValue);
+            Assert.AreEqual(new GridCoordinate(2, 0), tile.ExplosiveTrapTarget);
+        }
+
+        [Test]
+        public void TileMaterialized_RollAtExplosiveTriggerThreshold_MarksTimedTrapTriggerArrow()
+        {
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.ExplosiveTriggerThreshold));
+
+            var trigger = new GridCoordinate(1, 0);
+            var tile = grid.GetOrCreateTile(trigger);
+
+            Assert.IsFalse(tile.IsBlocked);
+            Assert.IsFalse(tile.LethalTrap.HasValue);
+            Assert.AreEqual(new GridCoordinate(2, 0), tile.TimedTrapTarget);
+            Assert.AreEqual(TimedTrapType.Arrow, tile.TimedTrapKind);
+        }
+
+        [Test]
+        public void TileMaterialized_RollAtTimedTrapArrowThreshold_MarksTimedTrapTriggerBlade()
+        {
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.TimedTrapArrowThreshold));
+
+            var trigger = new GridCoordinate(1, 0);
+            var tile = grid.GetOrCreateTile(trigger);
+
+            Assert.AreEqual(new GridCoordinate(2, 0), tile.TimedTrapTarget);
+            Assert.AreEqual(TimedTrapType.Blade, tile.TimedTrapKind);
+        }
+
+        [Test]
+        public void TileMaterialized_RollAtOrAboveTimedTrapBladeThreshold_TileStaysPassable()
+        {
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.TimedTrapBladeThreshold));
 
             var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
 
             Assert.IsFalse(tile.IsBlocked);
             Assert.IsFalse(tile.LethalTrap.HasValue);
+            Assert.IsFalse(tile.ExplosiveTrapTarget.HasValue);
+            Assert.IsFalse(tile.TimedTrapTarget.HasValue);
+        }
+
+        [Test]
+        public void TileMaterialized_TargetOfExplosiveTrigger_IsNotIndependentlyRolled()
+        {
+            // Плита-цель триггера — резервирована: даже если бы ей самой
+            // выпал бросок "заблокировано", она должна остаться обычной
+            // (см. комментарий про _reservedTrapTargets в генераторе).
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold, 0f));
+
+            grid.GetOrCreateTile(new GridCoordinate(1, 0)); // становится триггером на (2, 0), резервирует цель
+            var target = grid.GetOrCreateTile(new GridCoordinate(2, 0));
+
+            Assert.IsFalse(target.IsBlocked);
+            Assert.IsFalse(target.LethalTrap.HasValue);
+        }
+
+        [Test]
+        public void TileMaterialized_TargetOfTimedTrapTrigger_IsNotIndependentlyRolled()
+        {
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.ExplosiveTriggerThreshold, 0f));
+
+            grid.GetOrCreateTile(new GridCoordinate(1, 0)); // становится триггером стрелы на (2, 0), резервирует цель
+            var target = grid.GetOrCreateTile(new GridCoordinate(2, 0));
+
+            Assert.IsFalse(target.IsBlocked);
+            Assert.IsFalse(target.IsTimedTrapActive);
+        }
+
+        [Test]
+        public void TileMaterialized_TargetOfExplosiveTrigger_ResolvedOnceThenRollsNormallyAgain()
+        {
+            // Резервация одноразовая: другая, никак не связанная плита с той
+            // же координатой (в теории — другой забег/сетка) не должна
+            // случайно остаться навсегда защищённой от бросков.
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold, 0f));
+
+            grid.GetOrCreateTile(new GridCoordinate(1, 0)); // триггер → резервирует (2, 0)
+            grid.GetOrCreateTile(new GridCoordinate(2, 0)); // резервированная цель — бросок не тратится, снимается резервация
+            var otherTile = grid.GetOrCreateTile(new GridCoordinate(3, 0)); // обычная плита — снова тратит бросок (второе значение очереди)
+
+            Assert.IsTrue(otherTile.IsBlocked);
         }
 
         [Test]

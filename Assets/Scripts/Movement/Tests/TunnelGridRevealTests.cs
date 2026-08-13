@@ -61,12 +61,21 @@ namespace Burmalda.Movement.Tests
             var (grid, trail) = CreateTrail(new GridCoordinate(0, 2));
             using var reveal = new TunnelGridReveal(grid, trail);
 
-            var materializedCount = 0;
-            grid.TileMaterialized += _ => materializedCount++;
+            // Именно (1,2) — цель шага — не должна повторно поднять TileMaterialized:
+            // она уже была раскрыта конструктором reveal. Общий счётчик здесь не
+            // годится: сам шаг на (1,2) сдвигает окно раскрытия на ряд вперёд (до
+            // 1+RowsAheadOfPlayer), а это по замыслу TunnelGridReveal материализует
+            // целый новый ряд (Width плиток) — ожидаемое поведение, не регрессия.
+            var target = new GridCoordinate(1, 2);
+            var refiredForTarget = false;
+            grid.TileMaterialized += tile =>
+            {
+                if (tile.Coordinate == target) refiredForTarget = true;
+            };
 
-            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // (1,2) уже был материализован конструктором reveal
+            trail.TryAdvanceTo(target); // (1,2) уже был материализован конструктором reveal
 
-            Assert.AreEqual(0, materializedCount);
+            Assert.IsFalse(refiredForTarget, "уже материализованная плита не должна повторно поднимать TileMaterialized");
         }
 
         [Test]
