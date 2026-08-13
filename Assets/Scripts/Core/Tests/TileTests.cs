@@ -161,5 +161,36 @@ namespace Burmalda.Core.Tests
 
             Assert.AreEqual(LethalTrapType.Pit, tile.LethalTrap);
         }
+
+        [Test]
+        public void NewTile_HasNoExplosiveTrapTarget()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.ExplosiveTrapTarget.HasValue);
+        }
+
+        [Test]
+        public void MarkExplosiveTrapTrigger_SetsTargetCoordinate()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            var target = new GridCoordinate(2, 1);
+
+            tile.MarkExplosiveTrapTrigger(target);
+
+            Assert.AreEqual(target, tile.ExplosiveTrapTarget);
+        }
+
+        [Test]
+        public void MarkExplosiveTrapTrigger_CalledTwice_KeepsFirstTarget()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            var firstTarget = new GridCoordinate(2, 1);
+
+            tile.MarkExplosiveTrapTrigger(firstTarget);
+            tile.MarkExplosiveTrapTrigger(new GridCoordinate(5, 3));
+
+            Assert.AreEqual(firstTarget, tile.ExplosiveTrapTarget);
+        }
     }
 }

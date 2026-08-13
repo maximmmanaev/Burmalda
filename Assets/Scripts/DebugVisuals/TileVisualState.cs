@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -18,6 +18,7 @@ namespace Burmalda.DebugVisuals
             IsBlocked = isBlocked;
             LethalTrap = lethalTrap;
             DecayProgress01 = decayProgress01;
+            IsExplosiveTrapTrigger = isExplosiveTrapTrigger;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -37,5 +38,13 @@ namespace Burmalda.DebugVisuals
 
         /// <summary>Доля пройденного времени распада, 0..1 (см. <c>Core.Tile.DecayProgress01</c>).</summary>
         public float DecayProgress01 { get; }
+
+        /// <summary>
+        /// Плита — триггер динамической мгновенной ловушки, PRD 4.2, issue
+        /// #10 (см. <c>Core.Tile.ExplosiveTrapTarget</c>). Сама плита-триггер
+        /// не опасна — цветом отмечена только для ручного тестирования
+        /// (в финальном арте, возможно, останется невидимой для игрока).
+        /// </summary>
+        public bool IsExplosiveTrapTrigger { get; }
     }
 }

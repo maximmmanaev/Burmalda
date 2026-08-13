@@ -41,6 +41,16 @@ namespace Burmalda.DebugVisuals
         // Яркий тревожный оранжево-красный, отличим от градиента распада на глаз.
         public static readonly Color LavaColor = new Color(1f, 90f / 255f, 0f);
 
+        // Issue #10, PRD 4.2 — динамическая мгновенная ловушка после срабатывания
+        // триггера. Ярко-жёлтый со вспышкой (условно "взрыв"), не пересекается
+        // с остальными тревожными цветами (лава — оранжевый, яма — чёрный).
+        public static readonly Color ExplosionColor = new Color(1f, 230f / 255f, 0f);
+
+        // Не финальный арт: плита-триггер (issue #10) сама по себе безопасна,
+        // цвет — только чтобы при ручном тестировании видеть, где она есть.
+        // Приглушённый жёлтый — отличим и от ExplosionColor, и от градиента распада.
+        public static readonly Color ExplosiveTriggerColor = new Color(200f / 255f, 180f / 255f, 40f / 255f);
+
         public static Color Resolve(TileVisualState state)
         {
             if (state.IsDestroyed) return DestroyedColor;
@@ -49,6 +59,8 @@ namespace Burmalda.DebugVisuals
             if (state.IsBlocked) return BlockedColor;
             if (state.LethalTrap == LethalTrapType.Pit) return PitColor;
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
+            if (state.LethalTrap == LethalTrapType.Explosion) return ExplosionColor;
+            if (state.IsExplosiveTrapTrigger) return ExplosiveTriggerColor;
 
             // Остальной тип плиты (валюта/артефакт) добавит сюда же
             // ветвление до градиента распада — препятствие/ловушка уже не
