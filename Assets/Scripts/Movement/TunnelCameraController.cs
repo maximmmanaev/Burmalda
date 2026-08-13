@@ -1,3 +1,4 @@
+using Burmalda.Core;
 using UnityEngine;
 
 namespace Burmalda.Movement
@@ -8,20 +9,31 @@ namespace Burmalda.Movement
     /// того же забега, что и <see cref="GridTraceInputController"/>.
     /// Привязка этого компонента к Main Camera на сцене — вручную пользователем,
     /// здесь только логика следования.
+    ///
+    /// Хотфикс: держит устойчивую ширину обзора тоннеля
+    /// (<see cref="TunnelCameraFraming.DesiredVisibleTiles"/> плиток) на любом
+    /// аспекте экрана — пересчитывает Camera.fieldOfView (вертикальный) из
+    /// желаемого горизонтального FOV каждый кадр (дёшево, покрывает смену
+    /// разрешения/ориентации без отдельной подписки на события). Сам
+    /// горизонтальный FOV вычисляется один раз при (пере)сборке следования
+    /// из реальной геометрии старта забега — см. <see cref="TunnelCameraFraming"/>.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TunnelCameraController : MonoBehaviour
     {
         [SerializeField] private GridTraceInputController _input;
+        [SerializeField] private Camera _camera;
         // Новое смещение для 3D-камеры от третьего лица — в 2D-прототипе аналога
         // нет (см. issue #8: скоуп увеличен с 2D top-down до 3D третьего лица).
         [SerializeField] private Vector3 _heightOffset = new Vector3(0f, 4f, -1f);
 
         private TunnelCameraFollow _follow;
+        private float _desiredHorizontalFovDeg;
 
         private void Awake()
         {
             if (_input == null) _input = GetComponent<GridTraceInputController>();
+            if (_camera == null) _camera = GetComponent<Camera>();
         }
 
         private void OnEnable()
@@ -49,6 +61,14 @@ namespace Burmalda.Movement
 
             _follow.Tick();
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
+
+            // Пересчитывается каждый кадр (не только на старте) — дёшево, и
+            // покрывает смену разрешения/ориентации без отдельного события.
+            if (_camera != null)
+            {
+                var aspect = (float)Screen.width / Screen.height;
+                _camera.fieldOfView = TunnelCameraFraming.ComputeVerticalFovDegrees(_desiredHorizontalFovDeg, aspect);
+            }
         }
 
         private void HandleRunStarted() => RebuildFollow();
@@ -58,6 +78,23 @@ namespace Burmalda.Movement
             DisposeFollow();
             if (_input == null || _input.Trail == null) return;
             _follow = new TunnelCameraFollow(_input.Trail, _input.Projection, _heightOffset);
+
+            var groundDistanceToRow = ComputeGroundDistanceToFirstRow();
+            _desiredHorizontalFovDeg = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(
+                _heightOffset.y, groundDistanceToRow, _input.Projection.TileSize);
+        }
+
+        /// <summary>
+        /// Дистанция от стартовой позиции камеры до первой заспавненной
+        /// плиты (ряд 0) — вход для <see cref="TunnelCameraFraming"/>.
+        /// Берётся из реально вычисленной позиции камеры/сетки, а не
+        /// захардкожена.
+        /// </summary>
+        private float ComputeGroundDistanceToFirstRow()
+        {
+            var firstRow = new GridCoordinate(0, _input.Projection.Width / 2);
+            var firstRowWorldZ = _input.Projection.ToWorldPosition(firstRow).z;
+            return Mathf.Abs(firstRowWorldZ - _follow.TargetPosition.z);
         }
 
         private void DisposeFollow()
