@@ -71,7 +71,7 @@ namespace Burmalda.Movement
         // TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow)
         // и тестам вне этого класса, а не только ComputeTargetPosition здесь.
         // Устоявшееся следование за игроком — НЕ про интро, не переписывалось.
-        public const int TrailingRowsBehindPlayer = 5;
+        public const int TrailingRowsBehindPlayer = 3;
 
         // Хотфикс: игровой (устоявшийся) Rotation X — обоснование в
         // doc-комментарии класса. Публичная константа, а не только значение
@@ -115,6 +115,7 @@ namespace Burmalda.Movement
         private float _manualForwardOffsetZ;
         private bool _hasConfirmedRun;
         private float _introTweenElapsedSeconds;
+        private GridCoordinate _confirmRunPlayerPosition;
         private bool _disposed;
 
         public TunnelCameraFollow(
@@ -268,6 +269,11 @@ namespace Burmalda.Movement
             if (_hasConfirmedRun) return;
             _hasConfirmedRun = true;
             _introTweenElapsedSeconds = 0f;
+            // Снимок ряда игрока НА МОМЕНТ подтверждения — см. doc-комментарий
+            // AdvanceIntroTween: твин ниже имеет право хард-синкать
+            // CurrentPosition=TargetPosition только пока игрок ещё не
+            // сдвинулся с этой позиции.
+            _confirmRunPlayerPosition = _trail.CurrentPosition;
         }
 
         /// <summary>
@@ -279,17 +285,47 @@ namespace Burmalda.Movement
         /// уже отыграл <see cref="TweenDurationSeconds"/> — повторные вызовы
         /// безопасны, вторая анимация не запускается (прямой запрос
         /// владельца продукта: "не прерывай и не запускай второй
-        /// одновременно"). Пока твин идёт, держит
+        /// одновременно"). Пока твин идёт И игрок ещё не сдвинулся с
+        /// позиции, зафиксированной в <see cref="ConfirmRun"/>, держит
         /// <see cref="CurrentPosition"/> НАПРЯМУЮ равной <see cref="TargetPosition"/>
         /// (без экспоненциального сглаживания <see cref="Tick"/>) — сам твин
         /// уже даёт нужную плавность через easing (см. <see cref="EaseOutCubic"/>),
         /// дополнительное сглаживание поверх него ощущалось бы медленнее
         /// заявленных 0.35с.
+        ///
+        /// <b>Хотфикс 2026-08-14 (реально сломанный сценарий на устройстве,
+        /// не гипотеза):</b> раньше хард-синк применялся безусловно, каждый
+        /// кадр окна в 0.35с после ConfirmRun — в том числе если игрок успевал
+        /// реально шагнуть в это же окно (непрерывный жест: палец не
+        /// отрывался между тапом по своей же плите и первым свайпом вперёд).
+        /// TargetPosition завязана на РЯД игрока (см. ComputeTargetPosition/
+        /// OnPositionChanged) — реальный ход двигает её независимо от твина,
+        /// и безусловный хард-синк тогда мгновенно телепортировал камеру на
+        /// новый ряд БЕЗ Tick()/SmoothingFactor, что на устройстве читалось
+        /// как рывок на несколько клеток около 3-4 хода (ранние ходы забега
+        /// чаще всего попадают в это окно). Раньше этот путь ошибочно не
+        /// подозревался — предыдущие два захода чинили FOV и снап-на-тапе
+        /// (SnapToTarget/ResetManualForwardOffset), ни один не трогал этот
+        /// метод. Теперь: если ряд игрока успел измениться с момента
+        /// ConfirmRun, твин считается завершённым немедленно (без хард-синка
+        /// на этом кадре) — дальше обычный Tick()/SmoothingFactor подхватывает
+        /// CurrentPosition как для любого обычного продвижения.
         /// </summary>
         public void AdvanceIntroTween(float deltaSeconds)
         {
             if (!_hasConfirmedRun) return;
             if (_introTweenElapsedSeconds >= TweenDurationSeconds) return; // уже завершён — дальше обычный Tick()
+
+            if (!_trail.CurrentPosition.Equals(_confirmRunPlayerPosition))
+            {
+                // Игрок сдвинулся до того, как твин доиграл — см.
+                // doc-комментарий выше. Завершаем твин немедленно, без
+                // хард-синка на этом кадре: TargetPosition уже пересчитана
+                // подпиской OnPositionChanged на реальный ход, CurrentPosition
+                // догонит её как обычно, через Tick()/SmoothingFactor.
+                _introTweenElapsedSeconds = TweenDurationSeconds;
+                return;
+            }
 
             _introTweenElapsedSeconds = Mathf.Min(_introTweenElapsedSeconds + deltaSeconds, TweenDurationSeconds);
             TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
@@ -300,19 +336,56 @@ namespace Burmalda.Movement
         /// Мгновенно (без сглаживания) показывает текущую позицию трейла у
         /// низа экрана — сбрасывает накопленный <see cref="NudgeForward"/> и
         /// ставит <see cref="CurrentPosition"/> сразу в <see cref="TargetPosition"/>.
-        /// Вызывать на каждый новый тап (переход "не прижат"->"прижат", см.
-        /// <see cref="GridTraceInputController.PressStarted"/>) — иначе после
-        /// долгого свайпа вперёд (см. <see cref="NudgeForward"/>) камера на
-        /// СЛЕДУЮЩЕМ тапе стартовала бы с прежнего, уже неактуального
-        /// накопленного смещения. Не трогает состояние твина интро
-        /// (<see cref="ConfirmRun"/>/<see cref="AdvanceIntroTween"/>) — это
-        /// независимые механизмы.
+        ///
+        /// <b>Больше НЕ вызывается на каждый новый тап</b> (2026-08-14,
+        /// прямой запрос владельца продукта, реально сломанный сценарий, не
+        /// гипотеза) — раньше вызывалась из
+        /// <see cref="TunnelCameraController"/> на каждый переход "не
+        /// прижат"->"прижат" (см. <see cref="GridTraceInputController.PressStarted"/>),
+        /// но <see cref="SmoothingFactor"/>=0.01 очень медленный: если между
+        /// подряд идущими тапами (палец отрывался/прижимался заново, не
+        /// один непрерывный свайп) между <see cref="CurrentPosition"/> и
+        /// <see cref="TargetPosition"/> накапливался заметный разрыв,
+        /// мгновенный снап на КАЖДОМ новом тапе читался на устройстве как
+        /// рывок камеры на несколько клеток вперёд. Обычное продвижение
+        /// теперь ВСЕГДА идёт только через <see cref="Tick"/>/
+        /// <see cref="SmoothingFactor"/>, без исключений на новый тап — см.
+        /// <see cref="ResetManualForwardOffset"/> (тот же сброс эдж-скролла,
+        /// но без снапа позиции — им теперь и заменён вызов на
+        /// PressStarted). Метод оставлен публичным (не удалён) — годится
+        /// для места, где мгновенный снап РЕАЛЬНО нужен (например, самый
+        /// первый старт забега, если для него когда-нибудь понадобится
+        /// отдельная обработка), просто такого места сейчас нет.
+        ///
+        /// Не трогает состояние твина интро (<see cref="ConfirmRun"/>/
+        /// <see cref="AdvanceIntroTween"/>) — это независимые механизмы.
         /// </summary>
         public void SnapToTarget()
         {
             _manualForwardOffsetZ = 0f;
             TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
             CurrentPosition = TargetPosition;
+        }
+
+        /// <summary>
+        /// Сбрасывает накопленный <see cref="NudgeForward"/> БЕЗ снапа
+        /// позиции — вызывать на каждый новый тап (переход "не прижат"->
+        /// "прижат", см. <see cref="GridTraceInputController.PressStarted"/>)
+        /// ВМЕСТО <see cref="SnapToTarget"/> (2026-08-14, см. её
+        /// doc-комментарий — почему мгновенный снап там больше не нужен).
+        /// Сам сброс эдж-скролла всё ещё нужен на каждом новом тапе — иначе
+        /// TargetPosition на следующем тапе стартовал бы с прежнего, уже
+        /// неактуального накопленного смещения (см. doc-комментарий
+        /// <see cref="NudgeForward"/>) — просто без сопутствующего снапа
+        /// <see cref="CurrentPosition"/>: она по-прежнему плавно, тиком,
+        /// доедет до нового <see cref="TargetPosition"/> через
+        /// <see cref="Tick"/>/<see cref="SmoothingFactor"/>, как и любое
+        /// обычное продвижение.
+        /// </summary>
+        public void ResetManualForwardOffset()
+        {
+            _manualForwardOffsetZ = 0f;
+            TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
         }
 
         /// <summary>
@@ -404,9 +477,18 @@ namespace Burmalda.Movement
         /// </summary>
         private float ComputeIntroTweenProgress01()
         {
-            if (!_hasConfirmedRun) return 0f;
-            var linear = Mathf.Clamp01(_introTweenElapsedSeconds / TweenDurationSeconds);
-            return EaseOutCubic(linear);
+            // ВРЕМЕННО ОТКЛЮЧЕНО (2026-08-14, локальная сборка для ручной
+            // проверки на устройстве, не коммитить как есть): весь top-down
+            // интро/твин-механизм выключен целиком по прямому запросу
+            // владельца продукта — камера должна стоять на устоявшихся
+            // значениях (PitchDegrees/HeightOffset.Z) с первого кадра, без
+            // какой-либо анимации. Progress всегда 1 — ComputeCurrentPitchDegrees
+            // и ComputeTargetPosition ниже всегда лерпят к 100% устоявшегося
+            // состояния, интро-значения (_introPitchDegrees/_introHeightOffsetZ)
+            // никогда не видны. ConfirmRun/AdvanceIntroTween продолжают
+            // существовать и вызываться из TunnelCameraController — они
+            // просто становятся не-op, ничего не ломается выше по стеку.
+            return 1f;
         }
 
         // Резкий старт, плавное торможение к цели — ощущается быстрее и

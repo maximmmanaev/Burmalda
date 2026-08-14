@@ -271,7 +271,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Burmalda.Movement::Burmalda.Movement.TunnelCameraController
   _input: {fileID: 457708938}
   _camera: {fileID: 0}
-  _heightOffset: {x: 0, y: 6, z: 2}
+  _heightOffset: {x: 0, y: 6, z: 0}
   _pitchDegrees: 50
   _introPitchDegrees: 85
   _introHeightOffsetZ: 0

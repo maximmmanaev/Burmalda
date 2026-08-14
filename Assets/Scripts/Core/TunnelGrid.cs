@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Burmalda.Core
 {
@@ -56,6 +57,22 @@ namespace Burmalda.Core
         /// смотрел, по определению не может быть заблокирована.
         /// </summary>
         public bool TryGetTile(GridCoordinate coordinate, out Tile tile) => _tiles.TryGetValue(coordinate, out tile);
+
+        /// <summary>
+        /// Снимок уже материализованных плит на текущий момент — прямой
+        /// доступ к состоянию, а не только через <see cref="TileMaterialized"/>.
+        /// Нужен, чтобы догнать пропущенные события (2026-08-14, реальный
+        /// баг, не гипотеза): <see cref="TileMaterialized"/> — идемпотентное
+        /// событие (стреляет один раз за координату навсегда, см.
+        /// <see cref="GetOrCreateTile"/>), а порядок <c>Update()</c> между
+        /// независимыми MonoBehaviour-компонентами Unity не гарантирует —
+        /// если что-то материализует плиты РАНЬШЕ, чем подписчик успел
+        /// подписаться (см. <c>Burmalda.DebugVisuals.TunnelDebugVisual</c>),
+        /// те события улетают в пустоту без второго шанса. Возвращает
+        /// снимок (не live view) — безопасно перечислять, даже если
+        /// вызывающий код сам параллельно вызывает <see cref="GetOrCreateTile"/>.
+        /// </summary>
+        public IReadOnlyCollection<Tile> MaterializedTiles => _tiles.Values.ToArray();
 
         /// <summary>
         /// Соседние плиты для позиции — 8-направленно (PRD 4.1: "тянет палец

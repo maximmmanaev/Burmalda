@@ -28,12 +28,19 @@ namespace Burmalda.Movement.Tests
         // аспект-инвариантна (зависит только от tan(hFOV/2), не от aspect),
         // так что заодно ловит регресс этого свойства. А низкое положение
         // плитки игрока (вертикальный тест ниже) — только портрет: при
-        // текущем Pitch Degrees=50°/Height Offset=(0,6,2) (реальный
-        // WorldToViewportPoint, устоявшееся состояние) viewport.y плитки
+        // текущем Pitch Degrees=50°/Height Offset=(0,6,0) (z: 2 -> 0,
+        // 2026-08-14 — компенсация TrailingRowsBehindPlayer 5->3, см.
+        // TunnelCameraController; дистанция камера-игрок восстановлена к
+        // исходным 3 тайлам, поэтому числа ниже не изменились) — реальный
+        // WorldToViewportPoint, устоявшееся состояние — viewport.y плитки
         // игрока: портрет=0.324 (ниже центра — то, что нужно), square=0.187
         // (тоже ниже центра, просто ещё не за кадром), landscape=-0.056 (уже
         // за нижним краем). Раз landscape/square недостижимы в билде — не
-        // тестируем их для этого условия, только портрет.
+        // тестируем их для этого условия, только портрет. Row=0 (playerRow=0)
+        // даёт РОВНО то же самое число, что и устоявшееся состояние —
+        // дистанция камера-игрок не зависит от Row (без клампа трейлинг-ряда
+        // к 0), см. TunnelCameraFollow.ComputeTargetPosition и соседний тест
+        // SteadyState_PlayerTile_LandsInFrameImmediatelyAfterConfirmRunEvenAtRowZero.
         private static readonly (float aspect, string name)[] AllAspects =
         {
             (0.5625f, "portrait"),
@@ -46,7 +53,7 @@ namespace Burmalda.Movement.Tests
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, Width / 2));
             var projection = new WorldGridProjection(TileSize, Width);
-            var heightOffset = new Vector3(0f, 6f, 2f); // Height Offset со сцены — не трогается
+            var heightOffset = new Vector3(0f, 6f, 0f); // Height Offset со сцены — z: 2 -> 0 (2026-08-14, компенсация TrailingRowsBehindPlayer 5->3, см. TunnelCameraController)
 
             // Продвигаем трейл за TrailingRowsBehindPlayer рядов — это всё
             // ещё нужно для ПОЗИЦИИ (трейлинг-ряд камеры, не переписывался,
@@ -163,7 +170,7 @@ namespace Burmalda.Movement.Tests
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, Width / 2)); // игрок НЕ продвигался — row=0
             var projection = new WorldGridProjection(TileSize, Width);
-            var heightOffset = new Vector3(0f, 6f, 2f); // Height Offset со сцены — не трогается
+            var heightOffset = new Vector3(0f, 6f, 0f); // Height Offset со сцены — z: 2 -> 0 (2026-08-14, компенсация TrailingRowsBehindPlayer 5->3, см. TunnelCameraController)
 
             var follow = CreateSteadyStateFollow(trail, projection, heightOffset);
             var pitch = follow.TargetRotation.eulerAngles.x;
