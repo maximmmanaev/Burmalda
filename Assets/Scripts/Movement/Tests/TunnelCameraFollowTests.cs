@@ -18,7 +18,7 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void Constructor_StartOfRun_TargetTrailsFullFiveRowsEvenAtRowZero()
+        public void Constructor_StartOfRun_TargetTrailsFullTrailingWindowEvenAtRowZero()
         {
             var (_, trail, projection) = CreateTrail();
 
@@ -28,19 +28,21 @@ namespace Burmalda.Movement.Tests
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
 
             // Плита (0,2): x=(2-2.5+0.5)*1=0; трейлинг-ряд БЕЗ клампа (убран
-            // 2026-08-14) = 0-5=-5 -> z=(-5+0.5)*1=-4.5. Дистанция
-            // камера-игрок постоянна (TrailingRowsBehindPlayer рядов) с
-            // самого первого кадра, а не только после того, как игрок
-            // реально продвинется на 5+ рядов (см. doc-комментарий
+            // 2026-08-14) = 0-3=-3 -> z=(-3+0.5)*1=-2.5 (TrailingRowsBehindPlayer=3,
+            // тихо поменяли с 5 отдельной правкой — см. changelog 2026-08-14
+            // продолжение 8). Дистанция камера-игрок постоянна
+            // (TrailingRowsBehindPlayer рядов) с самого первого кадра, а не
+            // только после того, как игрок реально продвинется на
+            // TrailingRowsBehindPlayer+ рядов (см. doc-комментарий
             // ComputeTargetPosition — раньше клампилось к 0, что и уводило
             // камеру мимо стартовой плиты).
-            var expected = new Vector3(0f, 0f, -4.5f);
+            var expected = new Vector3(0f, 0f, -2.5f);
             Assert.AreEqual(expected, follow.TargetPosition);
             Assert.AreEqual(expected, follow.CurrentPosition);
         }
 
         [Test]
-        public void OnTrailAdvanced_WithinFirstFiveRows_TargetKeepsTrailingLinearlyNotClampedToRowZero()
+        public void OnTrailAdvanced_WithinTrailingWindow_TargetKeepsTrailingLinearlyNotClampedToRowZero()
         {
             // introHeightOffsetZ:0f — этот тест про трейлинг-ряд (позицию),
             // не про твин интро (см. класс ConfirmRun/AdvanceIntroTween-тестов ниже).
@@ -48,17 +50,18 @@ namespace Burmalda.Movement.Tests
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(new GridCoordinate(2, 2));
-            trail.TryAdvanceTo(new GridCoordinate(3, 2));
 
             // Клампа больше нет (см. ComputeTargetPosition) — трейлинг-ряд
-            // 3-5=-2 (отрицательный, не 0) -> z=(-2+0.5)=-1.5. Раньше (с
+            // 1-3=-2 (отрицательный, не 0) -> z=(-2+0.5)=-1.5. Раньше (с
             // клампом) тут было бы 0.5 — фиксирует именно это отличие.
+            // (TrailingRowsBehindPlayer=3 — при row=3 трейлинг-ряд был бы
+            // ровно 0, не отличимо от старого поведения с клампом, поэтому
+            // тест останавливается на row=1, где отрицательность видна.)
             Assert.AreEqual(new Vector3(0f, 0f, -1.5f), follow.TargetPosition);
         }
 
         [Test]
-        public void OnTrailAdvanced_BeyondFiveRows_TargetTrailsFiveRowsBehindPlayer()
+        public void OnTrailAdvanced_BeyondTrailingWindow_TargetTrailsTrailingRowsBehindPlayer()
         {
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
@@ -66,8 +69,8 @@ namespace Burmalda.Movement.Tests
             for (var row = 1; row <= 6; row++)
                 trail.TryAdvanceTo(new GridCoordinate(row, 2));
 
-            // Игрок на ряду 6 -> целевой ряд камеры 6-5=1: x=0, z=(1+0.5)=1.5.
-            Assert.AreEqual(new Vector3(0f, 0f, 1.5f), follow.TargetPosition);
+            // Игрок на ряду 6 -> целевой ряд камеры 6-3=3: x=0, z=(3+0.5)=3.5.
+            Assert.AreEqual(new Vector3(0f, 0f, 3.5f), follow.TargetPosition);
         }
 
         [Test]
@@ -83,7 +86,7 @@ namespace Burmalda.Movement.Tests
             // #62: камера двигается только вперёд-назад (по Z) — X зафиксирован
             // на центре ширины тоннеля (Width/2=2 -> x=0), не следует за
             // столбцом игрока, даже когда игрок сместился в столбец 3.
-            Assert.AreEqual(new Vector3(0f, 0f, 1.5f), follow.TargetPosition);
+            Assert.AreEqual(new Vector3(0f, 0f, 3.5f), follow.TargetPosition);
         }
 
         [Test]
@@ -118,7 +121,7 @@ namespace Burmalda.Movement.Tests
 
             for (var row = 1; row <= 10; row++)
                 trail.TryAdvanceTo(new GridCoordinate(row, 2));
-            var targetZAtDepth = follow.TargetPosition.z; // трейлинг-ряд 10-5=5 -> z=5.5
+            var targetZAtDepth = follow.TargetPosition.z; // трейлинг-ряд 10-3=7 -> z=7.5
 
             trail.TryAdvanceTo(new GridCoordinate(9, 2)); // шаг назад на уже пройденную плиту (#61)
 
@@ -126,7 +129,7 @@ namespace Burmalda.Movement.Tests
             // трейлинг-ряд должен пересчитаться от новой CurrentPosition (9),
             // а не только от последней НОВОЙ плитки.
             Assert.Less(follow.TargetPosition.z, targetZAtDepth);
-            Assert.AreEqual(new Vector3(0f, 0f, 4.5f), follow.TargetPosition); // трейлинг-ряд 9-5=4 -> z=4.5
+            Assert.AreEqual(new Vector3(0f, 0f, 6.5f), follow.TargetPosition); // трейлинг-ряд 9-3=6 -> z=6.5
         }
 
         [Test]
@@ -136,7 +139,7 @@ namespace Burmalda.Movement.Tests
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
 
             for (var row = 1; row <= 6; row++)
-                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Target=(0,0,1.5), Current всё ещё (0,0,-4.5) — старт без клампа, см. Constructor-тест выше
+                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Target=(0,0,3.5), Current всё ещё (0,0,-2.5) — старт без клампа, см. Constructor-тест выше
 
             follow.Tick();
 
@@ -144,7 +147,7 @@ namespace Burmalda.Movement.Tests
             // см. changelog) — камера ощущалась слишком резкой/дёрганой,
             // константа дважды замедлена относительно буквального значения
             // из прототипа (0.045 -> 0.02 -> 0.01); не масштабируется на deltaTime.
-            var expectedZ = -4.5f + (1.5f - -4.5f) * 0.01f;
+            var expectedZ = -2.5f + (3.5f - -2.5f) * 0.01f;
             Assert.AreEqual(new Vector3(0f, 0f, expectedZ), follow.CurrentPosition);
         }
 
@@ -157,7 +160,7 @@ namespace Burmalda.Movement.Tests
             for (var row = 1; row <= 6; row++)
                 trail.TryAdvanceTo(new GridCoordinate(row, 2));
 
-            // Без клампа старт (row0) заметно дальше от Target (z=-4.5 против
+            // Без клампа старт (row0) заметно дальше от Target (z=-2.5 против
             // прежних 0.5) — больше кадров нужно, чтобы экспоненциальное
             // сглаживание (0.99^n) сошлось в те же 1e-4 допуска.
             for (var i = 0; i < 2000; i++) follow.Tick();
@@ -189,29 +192,36 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void TargetRotation_BeforeConfirmRun_EqualsIntroPitchDegreesRegardlessOfTrailAdvance()
+        public void TargetRotation_IntroSuppressed_AlwaysSteadyPitchRegardlessOfConfirmRunOrTrailAdvance()
         {
-            // Row-based интерполяция убрана целиком (2026-08-14) — до
-            // ConfirmRun камера статично стоит на интро-значениях, даже
-            // если трейл успел продвинуться (не должно происходить по
-            // геймплею до тапа-кнопки, но код не должен на это реагировать).
+            // Top-down интро выключено ЦЕЛИКОМ (2026-08-14, прямой запрос
+            // владельца продукта) — ComputeIntroTweenProgress01() захардкожен
+            // на 1, поэтому TargetRotation/TargetPosition ВСЕГДА на
+            // устоявшихся значениях, с первого кадра, независимо от
+            // ConfirmRun/трейл-продвижения. Раньше (до этого хардкода) тест
+            // с тем же именем проверял противоположное — что до ConfirmRun
+            // камера стоит на IntroPitchDegrees; теперь это уже не так,
+            // тест инвертирован под новое, окончательное поведение.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
 
             for (var row = 1; row <= 6; row++) trail.TryAdvanceTo(new GridCoordinate(row, 2));
 
-            Assert.AreEqual(TunnelCameraFollow.DefaultIntroPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
+            Assert.AreEqual(TunnelCameraFollow.DefaultPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
         }
 
         [Test]
-        public void IntroPitchDegrees_SetAtStart_UpdatesRotationImmediately()
+        public void IntroPitchDegrees_SetAtStart_NoLongerAffectsRotation_IntroSuppressed()
         {
+            // Интро выключено целиком (см. тест выше) — IntroPitchDegrees
+            // остаётся публичным изменяемым свойством (не удалено, история/
+            // потенциальный будущий возврат), но больше ни на что не влияет.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
 
             follow.IntroPitchDegrees = 75f;
 
-            Assert.AreEqual(75f, follow.TargetRotation.eulerAngles.x, 1e-4f);
+            Assert.AreEqual(TunnelCameraFollow.DefaultPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
         }
 
         [Test]
@@ -222,12 +232,12 @@ namespace Burmalda.Movement.Tests
 
             follow.HeightOffset = new Vector3(0f, 4f, -1f);
 
-            // Игрок всё ещё на старте (0,2), твин интро не запущен
-            // (ConfirmRun не вызван) -> Z всё ещё берётся из
-            // IntroHeightOffsetZ (дефолт -1), не из только что
-            // установленного HeightOffset.Z: база -4.5 (см. Constructor-тест
-            // выше) + IntroHeightOffsetZ(-1) = -5.5.
-            Assert.AreEqual(new Vector3(0f, 4f, -5.5f), follow.TargetPosition);
+            // Интро выключено целиком — Z ВСЕГДА берётся напрямую из
+            // HeightOffset.Z, независимо от ConfirmRun: база -2.5
+            // (трейлинг-ряд без клампа, row0-3=-3, TrailingRowsBehindPlayer=3,
+            // см. Constructor-тест выше) + только что установленный
+            // HeightOffset.Z(-1) = -3.5.
+            Assert.AreEqual(new Vector3(0f, 4f, -3.5f), follow.TargetPosition);
         }
 
         [Test]
@@ -236,64 +246,79 @@ namespace Burmalda.Movement.Tests
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
             for (var row = 1; row <= 6; row++)
-                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // трейлинг-ряд 1 -> z=1.5, см. тест выше
+                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // трейлинг-ряд 3 -> z=3.5, см. тест выше
 
             follow.HeightOffset = new Vector3(0f, 2f, 0f);
 
-            Assert.AreEqual(new Vector3(0f, 2f, 1.5f), follow.TargetPosition);
+            Assert.AreEqual(new Vector3(0f, 2f, 3.5f), follow.TargetPosition);
         }
 
         [Test]
-        public void TargetPosition_BeforeConfirmRun_ZUsesIntroHeightOffsetZNotHeightOffsetZ()
+        public void TargetPosition_BeforeConfirmRun_ZUsesHeightOffsetZDirectly_IntroSuppressed()
         {
-            // Геометрический фикс (не про pitch): до ConfirmRun Z-компонента
-            // офсета берётся из IntroHeightOffsetZ (дефолт -1), а не
-            // напрямую из HeightOffset.Z (тут 2) — иначе устоявшийся Z=2
-            // уводит камеру мимо стартовой плиты (см. doc-комментарий
-            // класса/DefaultIntroHeightOffsetZ).
+            // Интро выключено целиком (2026-08-14) — до ConfirmRun Z-компонента
+            // офсета уже берётся напрямую из HeightOffset.Z (тут 2), НЕ из
+            // IntroHeightOffsetZ. Раньше (до этого хардкода) было наоборот —
+            // геометрический фикс тогда требовал IntroHeightOffsetZ на старте,
+            // иначе устоявшийся Z=2 уводил камеру мимо стартовой плиты; тест
+            // инвертирован под новое, окончательное поведение.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
 
-            // База z=-4.5 (трейлинг-ряд без клампа, row0-5=-5, см. Constructor-тест выше) + IntroHeightOffsetZ.
-            var expectedZ = -4.5f + TunnelCameraFollow.DefaultIntroHeightOffsetZ;
+            // База z=-2.5 (трейлинг-ряд без клампа, row0-3=-3, TrailingRowsBehindPlayer=3,
+            // см. Constructor-тест выше) + HeightOffset.Z=2 напрямую.
+            var expectedZ = -2.5f + 2f;
             Assert.AreEqual(new Vector3(0f, 6f, expectedZ), follow.TargetPosition, "X/Y — напрямую из HeightOffset, не интерполируются");
         }
 
         [Test]
-        public void IntroHeightOffsetZ_SetAtStart_UpdatesPositionImmediately()
+        public void IntroHeightOffsetZ_SetAtStart_NoLongerAffectsPosition_IntroSuppressed()
         {
+            // Интро выключено целиком (см. тест выше) — IntroHeightOffsetZ
+            // остаётся публичным изменяемым свойством (не удалено, история/
+            // потенциальный будущий возврат), но больше ни на что не влияет.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
 
             follow.IntroHeightOffsetZ = -3f;
 
-            Assert.AreEqual(-4.5f - 3f, follow.TargetPosition.z, 1e-4f);
+            Assert.AreEqual(-2.5f + 2f, follow.TargetPosition.z, 1e-4f);
         }
 
         // === ConfirmRun / AdvanceIntroTween — time-based твин интро (2026-08-14) ===
 
         [Test]
-        public void ConfirmRun_WithoutAdvanceIntroTween_StaysAtIntroValues()
+        public void ConfirmRun_WithoutAdvanceIntroTween_StaysAtSteadyValues_IntroSuppressed()
         {
-            // ConfirmRun только "взводит" твин — сама анимация идёт через AdvanceIntroTween.
+            // Интро выключено целиком (2026-08-14) — ConfirmRun() без
+            // единого вызова AdvanceIntroTween уже не оставляет камеру на
+            // интро-значениях (было так до хардкода прогресса на 1) —
+            // TargetRotation/TargetPosition устоявшиеся с первого кадра,
+            // ConfirmRun сам по себе визуально ничего не меняет.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
 
             follow.ConfirmRun();
 
-            Assert.AreEqual(TunnelCameraFollow.DefaultIntroPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
-            Assert.AreEqual(-4.5f + TunnelCameraFollow.DefaultIntroHeightOffsetZ, follow.TargetPosition.z, 1e-4f);
+            Assert.AreEqual(TunnelCameraFollow.DefaultPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
+            Assert.AreEqual(-2.5f + 2f, follow.TargetPosition.z, 1e-4f); // база -2.5 (TrailingRowsBehindPlayer=3) + HeightOffset.Z=2
         }
 
         [Test]
-        public void AdvanceIntroTween_WithoutConfirmRun_IsNoOp()
+        public void AdvanceIntroTween_WithoutConfirmRun_DoesNotCrash_StaysAtSteadyPitch()
         {
+            // AdvanceIntroTween без ConfirmRun — ранний выход по
+            // `!_hasConfirmedRun` (внутренняя бухгалтерия твина не трогается),
+            // но снаружи это уже неотличимо от любого другого состояния —
+            // интро выключено целиком (2026-08-14), pitch и так всегда
+            // устоявшийся. Тест сведён к смоук-проверке "не падает и не
+            // уводит pitch куда-то ещё".
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
 
             follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds); // весь твин разом, но ConfirmRun не вызван
 
-            Assert.AreEqual(TunnelCameraFollow.DefaultIntroPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
+            Assert.AreEqual(TunnelCameraFollow.DefaultPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
         }
 
         [Test]
@@ -317,8 +342,9 @@ namespace Burmalda.Movement.Tests
             follow.ConfirmRun();
             follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds);
 
-            // База z=-4.5 (трейлинг-ряд без клампа — игрок ещё на старте) + устоявшийся HeightOffset.Z=2.
-            Assert.AreEqual(-2.5f, follow.TargetPosition.z, 1e-4f);
+            // База z=-2.5 (трейлинг-ряд без клампа — игрок ещё на старте,
+            // TrailingRowsBehindPlayer=3) + устоявшийся HeightOffset.Z=2.
+            Assert.AreEqual(-0.5f, follow.TargetPosition.z, 1e-4f);
         }
 
         [Test]
@@ -335,24 +361,18 @@ namespace Burmalda.Movement.Tests
             Assert.AreEqual(follow.TargetPosition, follow.CurrentPosition);
         }
 
-        [Test]
-        public void AdvanceIntroTween_HalfDuration_UsesEaseOutCubicNotLinear()
-        {
-            // EaseOutCubic(0.5) = 1-(1-0.5)^3 = 1-0.125 = 0.875 — заметно
-            // дальше от старта, чем линейные 0.5 (резкий старт, плавное
-            // торможение к цели, как и просили).
-            var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, pitchDegrees: 20f, introPitchDegrees: 80f);
-            follow.ConfirmRun();
-
-            follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds * 0.5f);
-
-            var expectedPitch = Mathf.Lerp(80f, 20f, 0.875f);
-            Assert.AreEqual(expectedPitch, follow.TargetRotation.eulerAngles.x, 1e-2f);
-
-            var linearPitch = Mathf.Lerp(80f, 20f, 0.5f);
-            Assert.Greater(Mathf.Abs(follow.TargetRotation.eulerAngles.x - linearPitch), 1e-2f, "не должно быть линейной интерполяцией");
-        }
+        // AdvanceIntroTween_HalfDuration_UsesEaseOutCubicNotLinear — УДАЛЕН
+        // (2026-08-14, интро выключено целиком). Тест проверял ФОРМУ кривой
+        // easing в середине твина (EaseOutCubic vs линейная интерполяция) —
+        // с ComputeIntroTweenProgress01() захардкоженным на 1 прогресс
+        // твина больше никогда не бывает промежуточным нигде в публичном
+        // API: TargetRotation/TargetPosition мгновенно устоявшиеся при
+        // любом deltaSeconds в AdvanceIntroTween, середина твина
+        // принципиально ненаблюдаема снаружи. Сам EaseOutCubic — приватный
+        // static-метод, отдельно не тестируем. Не переписан в тест на
+        // "ничего не меняется" — это уже дословно покрыто соседними
+        // тестами (ConfirmRun_WithoutAdvanceIntroTween_StaysAtSteadyValues_IntroSuppressed
+        // и другими) — дублировать нечего.
 
         [Test]
         public void AdvanceIntroTween_MultiplePartialCalls_AccumulatesElapsedTime()
@@ -378,7 +398,7 @@ namespace Burmalda.Movement.Tests
             follow.AdvanceIntroTween(100f); // сильно больше длительности твина — не должно ничего сломать
 
             Assert.AreEqual(TunnelCameraFollow.DefaultPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
-            Assert.AreEqual(-2.5f, follow.TargetPosition.z, 1e-4f);
+            Assert.AreEqual(-0.5f, follow.TargetPosition.z, 1e-4f); // база -2.5 (TrailingRowsBehindPlayer=3) + HeightOffset.Z=2
         }
 
         [Test]
