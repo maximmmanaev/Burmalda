@@ -120,5 +120,87 @@ namespace Burmalda.Currencies.Tests
 
             Assert.IsFalse(fired);
         }
+
+        [Test]
+        public void RevertToCheckpoint_WithoutAnyCheckpoint_RevertsToZero()
+        {
+            // Старт забега — тоже чекпоинт (0), пока Checkpoint() не вызван явно.
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(50);
+
+            accumulator.RevertToCheckpoint();
+
+            Assert.AreEqual(0, accumulator.Total);
+        }
+
+        [Test]
+        public void Checkpoint_ThenAddMore_RevertToCheckpoint_RestoresCheckpointedValue()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(50);
+            accumulator.Checkpoint();
+            accumulator.Add(30); // после чекпоинта — то, что "в пути"
+
+            accumulator.RevertToCheckpoint();
+
+            Assert.AreEqual(50, accumulator.Total);
+        }
+
+        [Test]
+        public void RevertToCheckpoint_AfterSpendingBelowCheckpoint_RestoresCheckpointedValue()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(50);
+            accumulator.Checkpoint();
+            accumulator.Spend(20);
+
+            accumulator.RevertToCheckpoint();
+
+            Assert.AreEqual(50, accumulator.Total);
+        }
+
+        [Test]
+        public void RevertToCheckpoint_TotalAlreadyEqualsCheckpoint_DoesNotRaiseChanged()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(50);
+            accumulator.Checkpoint();
+            var fired = false;
+            accumulator.Changed += _ => fired = true;
+
+            accumulator.RevertToCheckpoint();
+
+            Assert.IsFalse(fired);
+        }
+
+        [Test]
+        public void RevertToCheckpoint_TotalDiffersFromCheckpoint_RaisesChanged()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(50);
+            accumulator.Checkpoint();
+            accumulator.Add(10);
+            var seen = -1;
+            accumulator.Changed += total => seen = total;
+
+            accumulator.RevertToCheckpoint();
+
+            Assert.AreEqual(50, seen);
+        }
+
+        [Test]
+        public void Checkpoint_CalledAgainAfterMoreProgress_MovesCheckpointForward()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(50);
+            accumulator.Checkpoint();
+            accumulator.Add(30);
+            accumulator.Checkpoint(); // новый чекпоинт на Алтаре — 80
+
+            accumulator.Add(10);
+            accumulator.RevertToCheckpoint();
+
+            Assert.AreEqual(80, accumulator.Total);
+        }
     }
 }

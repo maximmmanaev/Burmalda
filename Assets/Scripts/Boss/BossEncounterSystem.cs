@@ -3,6 +3,7 @@ using Burmalda.Artifacts;
 using Burmalda.Core;
 using Burmalda.Currencies;
 using Burmalda.Movement;
+using Burmalda.Progression;
 
 namespace Burmalda.Boss
 {
@@ -13,8 +14,11 @@ namespace Burmalda.Boss
     /// новая плита (#61), как Алтарь/Рычаг. Победа: Перелив энергии сверх
     /// порога → Монеты (PRD v7 §8.2), выдаётся Реликвия, первая победа за
     /// прохождение разблокирует все Амулеты/Талисманы каталога в
-    /// <see cref="ArtifactPool"/> (PRD раздел 6). Поражение: детерминированная
-    /// смерть — d20 НЕ применяется (PRD v7 §8.3, issue #82).
+    /// <see cref="ArtifactPool"/> (PRD раздел 6), Ярус Глубины продвигается
+    /// (<see cref="RunDepthTier.RecordBossVictory"/>, PRD v7 §22, issue
+    /// #83) — победа над Боссом ГРАНИЦА Яруса, требуемая энергия следующего
+    /// Босса растёт от ТЕКУЩЕГО (до этой победы) Яруса. Поражение:
+    /// детерминированная смерть — d20 НЕ применяется (PRD v7 §8.3, issue #82).
     ///
     /// Смерть сообщается через <paramref name="reportBossDefeat"/> — колбэк,
     /// а не прямая ссылка на <c>RunLifecycle.RunState</c>: RunState
@@ -26,8 +30,8 @@ namespace Burmalda.Boss
     /// чтобы он читался заново при каждом вызове (см. <c>BossController</c>).
     ///
     /// Выбор "вернуться в лагерь или идти глубже" после победы — вне этой
-    /// системы, зависит от Лагеря/Ярусов Глубины (Спринт 8); эта система
-    /// только разрешает встречу и публикует результат.
+    /// системы, зависит от Лагеря (Спринт 8); эта система только разрешает
+    /// встречу и публикует результат.
     /// </summary>
     public sealed class BossEncounterSystem : IDisposable
     {
@@ -37,18 +41,19 @@ namespace Burmalda.Boss
         private readonly RunCurrencyAccumulator _coins;
         private readonly ArtifactPool _pool;
         private readonly FirstBossVictoryTracker _firstVictoryTracker;
+        private readonly RunDepthTier _depthTier;
         private readonly Action<string> _reportBossDefeat;
-        private readonly Func<int, int> _requiredEnergyForRow;
+        private readonly Func<int, int> _requiredEnergyForTier;
         private bool _disposed;
 
-        /// <param name="requiredEnergyForRow">
-        /// Требуемая энергия для Босса на данном ряду — заглушка кривой по
-        /// Ярусам Глубины (Спринт 8, ещё не существует), как у
-        /// <c>Generation.SegmentGenerationController</c>/<c>Altar.ManaToBossIndicator</c>.
+        /// <param name="requiredEnergyForTier">
+        /// Требуемая энергия для Босса на границе данного Яруса (0 — первый
+        /// Босс). Кривая по Ярусам — черновая (см. <c>BossController</c>),
+        /// предмет баланса (Спринт 10).
         /// </param>
         /// <param name="reportBossDefeat">Вызывается с причиной при поражении — см. докстроку класса про причину колбэка вместо прямой ссылки на RunState.</param>
         public BossEncounterSystem(TunnelGrid grid, GridTraceTrail trail, RunCurrencyAccumulator mana, RunCurrencyAccumulator coins,
-            ArtifactPool pool, FirstBossVictoryTracker firstVictoryTracker, Action<string> reportBossDefeat, Func<int, int> requiredEnergyForRow)
+            ArtifactPool pool, FirstBossVictoryTracker firstVictoryTracker, RunDepthTier depthTier, Action<string> reportBossDefeat, Func<int, int> requiredEnergyForTier)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
@@ -56,8 +61,9 @@ namespace Burmalda.Boss
             _coins = coins ?? throw new ArgumentNullException(nameof(coins));
             _pool = pool ?? throw new ArgumentNullException(nameof(pool));
             _firstVictoryTracker = firstVictoryTracker ?? throw new ArgumentNullException(nameof(firstVictoryTracker));
+            _depthTier = depthTier ?? throw new ArgumentNullException(nameof(depthTier));
             _reportBossDefeat = reportBossDefeat ?? throw new ArgumentNullException(nameof(reportBossDefeat));
-            _requiredEnergyForRow = requiredEnergyForRow ?? throw new ArgumentNullException(nameof(requiredEnergyForRow));
+            _requiredEnergyForTier = requiredEnergyForTier ?? throw new ArgumentNullException(nameof(requiredEnergyForTier));
 
             _trail.Advanced += OnAdvanced;
         }
@@ -78,14 +84,15 @@ namespace Burmalda.Boss
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
             if (!tile.IsBoss) return;
 
-            var boss = new Boss(_requiredEnergyForRow(coordinate.Row));
+            var boss = new Boss(_requiredEnergyForTier(_depthTier.CurrentTier));
             var outcome = boss.Resolve(_mana.Total);
             Relic relic = null;
 
             if (outcome.IsVictory)
             {
                 _coins.Add(outcome.CoinsFromOverflow);
-                relic = new Relic($"relic-boss-row-{coordinate.Row}", "Реликвия Босса");
+                relic = new Relic($"relic-boss-tier-{_depthTier.CurrentTier}-row-{coordinate.Row}", "Реликвия Босса");
+                _depthTier.RecordBossVictory();
 
                 if (!_firstVictoryTracker.HasWonBefore)
                 {
