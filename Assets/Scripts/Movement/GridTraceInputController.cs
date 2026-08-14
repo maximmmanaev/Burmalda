@@ -9,16 +9,22 @@ namespace Burmalda.Movement
     /// Приём трейс-ввода пальцем (PRD 4.1): пока палец/курсор прижат,
     /// каждая новая плита под ним, соседняя текущей позиции, продвигает
     /// трейл игрока вперёд по тоннелю. Механика ввода не меняется
-    /// относительно HTML-прототипа (legacy/burmolda_demo.html); автоскролл
-    /// камеры — отдельная задача (#8), здесь не реализуется. Позиция курсора
-    /// обрабатывается только при реальном изменении с прошлого обработанного
-    /// кадра (#60) — иначе статичный зажатый клик, опрашиваемый каждый кадр,
-    /// мог засчитать несколько шагов подряд на одной и той же позиции.
-    /// Владеет жизненным циклом забега: <see cref="Grid"/>/<see cref="Trail"/>
+    /// относительно HTML-прототипа (legacy/burmolda_demo.html). Позиция
+    /// курсора обрабатывается только при реальном изменении с прошлого
+    /// обработанного кадра (#60) — иначе статичный зажатый клик, опрашиваемый
+    /// каждый кадр, мог засчитать несколько шагов подряд на одной и той же
+    /// позиции. Владеет жизненным циклом забега: <see cref="Grid"/>/<see cref="Trail"/>
     /// пересоздаются в <see cref="Restart"/> (мир перегенерируется заново, по
     /// прямому запросу владельца продукта) — зависимые системы (Decay,
     /// камера, debug-визуал, Burmalda.RunLifecycle) подписываются на
     /// <see cref="RunStarted"/>, чтобы пересобрать себя под новый забег.
+    ///
+    /// <see cref="IsPressed"/>/<see cref="CurrentScreenPosition"/>/
+    /// <see cref="PressStarted"/> — публично читаемое состояние прижатия
+    /// пальца, нужно смежным системам (см. <see cref="TunnelCameraController"/>:
+    /// тап мгновенно подводит камеру к текущей позиции, драг у верхней
+    /// границы нижней трети экрана — автоскролл вперёд), не только этому
+    /// классу для собственной логики хода.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class GridTraceInputController : MonoBehaviour
@@ -50,6 +56,12 @@ namespace Burmalda.Movement
         /// </summary>
         public bool IsAlive { get; private set; } = true;
 
+        /// <summary>Прижат ли сейчас палец/курсор. Обновляется каждый кадр в <see cref="Update"/>.</summary>
+        public bool IsPressed { get; private set; }
+
+        /// <summary>Последняя известная экранная позиция пальца/курсора — валидна, пока <see cref="IsPressed"/>.</summary>
+        public Vector2 CurrentScreenPosition { get; private set; }
+
         /// <summary>
         /// Срабатывает сразу после того, как <see cref="Grid"/>/<see cref="Trail"/>
         /// (пере)созданы — и при первом запуске (<see cref="Awake"/>), и при
@@ -58,6 +70,34 @@ namespace Burmalda.Movement
         /// этому событию, а не полагаться на разовую ленивую инициализацию.
         /// </summary>
         public event Action RunStarted;
+
+        /// <summary>
+        /// Срабатывает в момент перехода "не прижат" -> "прижат" — ровно
+        /// один раз на новое нажатие, не каждый кадр, пока палец удерживается
+        /// (для этого — <see cref="IsPressed"/>). Камера подписывается, чтобы
+        /// мгновенно (без сглаживания) показать текущую позицию трейла у
+        /// низа экрана на каждый новый тап.
+        /// </summary>
+        public event Action PressStarted;
+
+        /// <summary>
+        /// Срабатывает, когда тап попадает ровно на ТЕКУЩУЮ позицию игрока
+        /// (<c>Trail.CurrentPosition</c>) — на практике это в первую очередь
+        /// самый первый тап по стартовой плите, ДО того, как игрок реально
+        /// сдвинулся (прямой запрос владельца продукта, 2026-08-14): смена
+        /// архитектуры камеры-интро с row-based интерполяции на явный
+        /// тап-триггер + time-based твин (см. <see cref="TunnelCameraFollow.ConfirmRun"/>).
+        /// Тап по своей же текущей позиции сам по себе НЕ засчитывается как
+        /// обычный ход (см. <see cref="TryAdvanceAtScreenPosition"/> —
+        /// <c>IsAdjacentTo</c> и так вернула бы false для координаты,
+        /// равной самой себе, это не меняет обычное поведение трейла,
+        /// только добавляет сигнал для случая, который раньше молча
+        /// игнорировался). Камера подписывается, чтобы запустить твин в
+        /// устоявшийся игровой режим, минуя top-down интро — без него
+        /// игроку было бы обязательно свайпать вперёд, чтобы вообще увидеть
+        /// обычный ракурс камеры.
+        /// </summary>
+        public event Action RunConfirmed;
 
         private void Awake()
         {
@@ -104,14 +144,22 @@ namespace Burmalda.Movement
             if (!IsAlive) return;
 
             var pointer = Pointer.current;
-            if (pointer == null || !pointer.press.isPressed)
+            var pressed = pointer != null && pointer.press.isPressed;
+
+            if (pressed && !IsPressed) PressStarted?.Invoke(); // переход "не прижат" -> "прижат"
+            IsPressed = pressed;
+
+            if (!pressed)
             {
                 _positionChangeFilter.Reset();
                 return;
             }
 
             var screenPosition = pointer.position.ReadValue();
-            if (!_positionChangeFilter.HasChanged(screenPosition)) return;
+            CurrentScreenPosition = screenPosition;
+            var hasChanged = _positionChangeFilter.HasChanged(screenPosition); // ЕДИНСТВЕННЫЙ вызов — метод мутирует состояние фильтра.
+
+            if (!hasChanged) return;
 
             TryAdvanceAtScreenPosition(screenPosition);
         }
@@ -126,6 +174,13 @@ namespace Burmalda.Movement
 
             var worldPoint = ray.GetPoint(distance);
             var target = _projection.ToGridCoordinate(worldPoint);
+
+            if (target == _trail.CurrentPosition)
+            {
+                RunConfirmed?.Invoke();
+                return; // тап по своей же текущей позиции — кнопка, не обычный ход
+            }
+
             _trail.TryAdvanceTo(target);
         }
 
