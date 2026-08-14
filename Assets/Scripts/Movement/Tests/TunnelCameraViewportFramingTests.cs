@@ -48,13 +48,25 @@ namespace Burmalda.Movement.Tests
             var projection = new WorldGridProjection(TileSize, Width);
             var heightOffset = new Vector3(0f, 6f, 2f); // Height Offset со сцены — не трогается
 
-            // Продвигаем трейл в установившийся режим (playerRow >= TrailingRowsBehindPlayer),
-            // иначе top-down интро (issue: плитки вне кадра на старте) ещё не
-            // отпустило pitch к игровому значению.
+            // Продвигаем трейл за TrailingRowsBehindPlayer рядов — это всё
+            // ещё нужно для ПОЗИЦИИ (трейлинг-ряд камеры, не переписывался,
+            // см. doc-комментарий TunnelCameraFollow). Устоявшийся Pitch/Z-
+            // офсет теперь НЕ зависят от рядов вообще (row-based интерполяция
+            // убрана целиком, 2026-08-14) — их даёт только твин
+            // ConfirmRun()/AdvanceIntroTween(), см. CreateSteadyStateFollow.
             for (var row = 1; row <= 10; row++)
                 trail.TryAdvanceTo(new GridCoordinate(row, Width / 2));
 
             return (grid, trail, projection, heightOffset);
+        }
+
+        /// <summary>Создаёт Follow и сразу прогоняет твин интро целиком — устоявшийся Pitch/HeightOffset.Z, без ожидания рядов.</summary>
+        private static TunnelCameraFollow CreateSteadyStateFollow(GridTraceTrail trail, WorldGridProjection projection, Vector3 heightOffset)
+        {
+            var follow = new TunnelCameraFollow(trail, projection, heightOffset);
+            follow.ConfirmRun();
+            follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds);
+            return follow;
         }
 
         private static float ComputeDesiredHorizontalFovDeg(WorldGridProjection projection, Vector3 heightOffset, float pitchDeg)
@@ -71,10 +83,10 @@ namespace Burmalda.Movement.Tests
         public void SteadyStateReferenceRow_DesiredVisibleWidth_LandsNearFrameEdgesOnAnyAspect()
         {
             var (grid, trail, projection, heightOffset) = CreateSteadyStateSetup();
-            var follow = new TunnelCameraFollow(trail, projection, heightOffset);
+            var follow = CreateSteadyStateFollow(trail, projection, heightOffset);
 
-            // Устоявшийся режим -> top-down интро уже полностью отпустило
-            // pitch к игровому значению (PitchDegrees).
+            // Устоявшийся режим (твин интро отыгран целиком) -> pitch уже
+            // полностью отпущен к игровому значению (PitchDegrees).
             var pitch = follow.TargetRotation.eulerAngles.x;
             Assert.GreaterOrEqual(pitch, 30f, "условие отсутствия неба в кадре (vFOV=60° -> vFOV/2=30°)");
 
@@ -145,7 +157,7 @@ namespace Burmalda.Movement.Tests
             // тюнинга, без проверки реальным WorldToViewportPoint. Только
             // портрет — единственная поддерживаемая ориентация (см. класс).
             var (grid, trail, projection, heightOffset) = CreateSteadyStateSetup();
-            var follow = new TunnelCameraFollow(trail, projection, heightOffset);
+            var follow = CreateSteadyStateFollow(trail, projection, heightOffset);
             var pitch = follow.TargetRotation.eulerAngles.x;
             var desiredHorizontalFovDeg = ComputeDesiredHorizontalFovDeg(projection, heightOffset, pitch);
 
