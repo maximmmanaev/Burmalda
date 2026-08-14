@@ -155,7 +155,12 @@ namespace Burmalda.IntegrationTests
             Assert.AreEqual(runCoins.Total, coinsWallet.Balance);
 
             // === Лагерь (PRD раздел 11) ===
-            var camp = new Camp(coinsWallet, crystalsWallet, pool);
+            // Полное имя обязательно: простое "Camp" в этом контексте
+            // резолвится компилятором в СОСЕДНЕЕ пространство имён
+            // Burmalda.Camp (сиблинг Burmalda.IntegrationTests под общим
+            // Burmalda), а не в импортированный `using Burmalda.Camp;`
+            // класс — вылезло только на реальной компиляции (CS0118).
+            var camp = new Burmalda.Camp.Camp(coinsWallet, crystalsWallet, pool);
             var totem = new Totem("totem-test", "Тестовый Тотем", TotemAbilityType.Breach);
             var coinsBeforeUpgrade = coinsWallet.Balance;
             var upgraded = camp.TryUpgradeTotem(totem, cost: 1);
