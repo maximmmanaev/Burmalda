@@ -86,6 +86,22 @@ namespace Burmalda.Currencies.Tests
         }
 
         [Test]
+        public void Advanced_WithRewardMultiplier_ScalesAddedAmount()
+        {
+            // PRD v7 §20, Знамение «Хрупкий Свод»: Кристаллы Маны ×1.5.
+            // amountPerSource=2 намеренно — 2*1.5=3.0 без округления, чтобы
+            // тест не зависел от режима округления Math.Round на границе .5.
+            var (grid, trail) = CreateTrail();
+            grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkManaSource();
+            var accumulator = new RunCurrencyAccumulator();
+            using var system = new TrailTileCurrencySystem(grid, trail, t => t.IsManaSource, 2, accumulator, rewardMultiplier: 1.5f);
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+
+            Assert.AreEqual(3, accumulator.Total);
+        }
+
+        [Test]
         public void Dispose_StopsReactingToFurtherAdvances()
         {
             var (grid, trail) = CreateTrail();

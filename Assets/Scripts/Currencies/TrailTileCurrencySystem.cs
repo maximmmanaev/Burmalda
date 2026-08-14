@@ -19,15 +19,24 @@ namespace Burmalda.Currencies
         private readonly GridTraceTrail _trail;
         private readonly Func<Tile, bool> _isSource;
         private readonly int _amountPerSource;
+        private readonly float _rewardMultiplier;
         private readonly RunCurrencyAccumulator _accumulator;
         private bool _disposed;
 
-        public TrailTileCurrencySystem(TunnelGrid grid, GridTraceTrail trail, Func<Tile, bool> isSource, int amountPerSource, RunCurrencyAccumulator accumulator)
+        /// <param name="rewardMultiplier">
+        /// Множитель начисляемой суммы (PRD v7 §20, Знамения «Хрупкий Свод»:
+        /// Кристаллы Маны ×1.5, «Ловчая Тропа»: Ключи ×2). По умолчанию 1
+        /// (нейтрально) — Currencies.asmdef намеренно не получает
+        /// зависимость от RunModifiers, значение читает и передаёт
+        /// вызывающая сторона (см. Currencies.CurrencyController).
+        /// </param>
+        public TrailTileCurrencySystem(TunnelGrid grid, GridTraceTrail trail, Func<Tile, bool> isSource, int amountPerSource, RunCurrencyAccumulator accumulator, float rewardMultiplier = 1f)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
             _isSource = isSource ?? throw new ArgumentNullException(nameof(isSource));
             _amountPerSource = amountPerSource;
+            _rewardMultiplier = rewardMultiplier;
             _accumulator = accumulator ?? throw new ArgumentNullException(nameof(accumulator));
 
             _trail.Advanced += OnAdvanced;
@@ -46,7 +55,7 @@ namespace Burmalda.Currencies
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
             if (!_isSource(tile)) return;
 
-            _accumulator.Add(_amountPerSource);
+            _accumulator.Add((int)Math.Round(_amountPerSource * _rewardMultiplier));
         }
     }
 }

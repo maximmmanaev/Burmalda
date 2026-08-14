@@ -65,6 +65,29 @@ namespace Burmalda.Camp.Tests
         }
 
         [Test]
+        public void PositionChanged_WithCoinsOnReturnMultiplier_ScalesCommittedCoins()
+        {
+            // PRD v7 §20, Знамение «Голодный Босс»: "Монеты ×2 при возврате в Лагерь".
+            var grid = new TunnelGrid(Width);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            trail.TryAdvanceTo(new GridCoordinate(2, 2));
+            var coins = new RunCurrencyAccumulator();
+            coins.Add(120);
+            var coinWallet = new PersistentWallet();
+            var system = new ReturnJourneySystem(trail, coins, new RunCurrencyAccumulator(), new RunCurrencyAccumulator(), coinWallet, coinsOnReturnMultiplier: 2f);
+            system.BeginReturn();
+            int? committed = null;
+            system.Returned += amount => committed = amount;
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // row 0 — "лагерь"
+
+            Assert.AreEqual(240, committed);
+            Assert.AreEqual(240, coinWallet.Balance);
+        }
+
+        [Test]
         public void PositionChanged_ReachesRowZeroWhileNotReturning_DoesNothing()
         {
             var f = CreateFixture();

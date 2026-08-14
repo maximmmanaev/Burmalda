@@ -30,14 +30,23 @@ namespace Burmalda.Decay
 
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
+        private readonly float _decayThresholdMultiplier;
         private float _decayAcceleration = InitialDecayAcceleration;
         private float _suspendedSecondsRemaining;
         private bool _disposed;
 
-        public TrailDecaySystem(TunnelGrid grid, GridTraceTrail trail)
+        /// <param name="decayThresholdMultiplier">
+        /// Множитель порога распада (PRD v7 §20, Знамение «Хрупкий Свод»:
+        /// "порог распада плит −25%" → 0.75). По умолчанию 1 (нейтрально) —
+        /// эта система намеренно не ссылается на <c>RunModifiers.RunModifiers</c>
+        /// напрямую (Decay.asmdef не получает такой зависимости), значение
+        /// читает и передаёт вызывающая сторона (см. Decay.TrailDecayController).
+        /// </param>
+        public TrailDecaySystem(TunnelGrid grid, GridTraceTrail trail, float decayThresholdMultiplier = 1f)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
+            _decayThresholdMultiplier = decayThresholdMultiplier;
             _trail.Advanced += OnTrailAdvanced;
         }
 
@@ -104,7 +113,7 @@ namespace Burmalda.Decay
             // стартовая плита (index 0) добавляется в конструкторе трейла и в
             // это событие никогда не попадает.
             var trailIndex = _trail.Path.Count - 1;
-            var threshold = BaseDecayThresholdSeconds + trailIndex * DecayThresholdSecondsPerTrailIndex;
+            var threshold = (BaseDecayThresholdSeconds + trailIndex * DecayThresholdSecondsPerTrailIndex) * _decayThresholdMultiplier;
             _grid.GetOrCreateTile(coordinate).BeginDecay(threshold);
         }
     }

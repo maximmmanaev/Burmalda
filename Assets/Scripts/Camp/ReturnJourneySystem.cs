@@ -39,16 +39,25 @@ namespace Burmalda.Camp
         private readonly RunCurrencyAccumulator _runMana;
         private readonly RunCurrencyAccumulator _runKeys;
         private readonly PersistentWallet _coinWallet;
+        private readonly float _coinsOnReturnMultiplier;
         private bool _disposed;
 
+        /// <param name="coinsOnReturnMultiplier">
+        /// Множитель зафиксированных Монет (PRD v7 §20, Знамение «Голодный
+        /// Босс»: "Монеты ×2 при возврате в Лагерь"). По умолчанию 1
+        /// (нейтрально) — Camp.asmdef намеренно не получает зависимость от
+        /// RunModifiers, значение читает и передаёт вызывающая сторона
+        /// (см. Camp.CampController).
+        /// </param>
         public ReturnJourneySystem(GridTraceTrail trail, RunCurrencyAccumulator runCoins, RunCurrencyAccumulator runMana,
-            RunCurrencyAccumulator runKeys, PersistentWallet coinWallet)
+            RunCurrencyAccumulator runKeys, PersistentWallet coinWallet, float coinsOnReturnMultiplier = 1f)
         {
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
             _runCoins = runCoins ?? throw new ArgumentNullException(nameof(runCoins));
             _runMana = runMana ?? throw new ArgumentNullException(nameof(runMana));
             _runKeys = runKeys ?? throw new ArgumentNullException(nameof(runKeys));
             _coinWallet = coinWallet ?? throw new ArgumentNullException(nameof(coinWallet));
+            _coinsOnReturnMultiplier = coinsOnReturnMultiplier;
 
             _trail.PositionChanged += OnPositionChanged;
         }
@@ -90,7 +99,7 @@ namespace Burmalda.Camp
             if (coordinate.Row > 0) return;
 
             IsReturning = false;
-            var committed = _runCoins.Total;
+            var committed = (int)Math.Round(_runCoins.Total * _coinsOnReturnMultiplier);
             _coinWallet.Deposit(committed);
             Returned?.Invoke(committed);
         }
