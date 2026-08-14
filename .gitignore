@@ -26,3 +26,6 @@
 
 # macOS
 .DS_Store
+
+# Android-нативный build cache (IL2CPP/CMake, tmp-объекты по хешу — не источник)
+.utmp/

@@ -51,7 +51,19 @@ namespace Burmalda.Movement
         // Новое смещение для 3D-камеры от третьего лица — в 2D-прототипе аналога
         // нет (см. issue #8: скоуп увеличен с 2D top-down до 3D третьего лица).
         // Хотфикс (0,4,-1) -> (0,6,2) по прямому запросу владельца продукта.
-        [SerializeField] private Vector3 _heightOffset = new Vector3(0f, 6f, 2f);
+        //
+        // z: 2 -> 0 (2026-08-14): TrailingRowsBehindPlayer тихо поменяли 5->3
+        // отдельной правкой без пересчёта этого z — дистанция камера-игрок
+        // (TrailingRowsBehindPlayer*tileSize - z) просела с исходных 3 до 1,
+        // плитка прижалась к нижнему краю кадра (row=0 при playerRow=0:
+        // viewport.y 0.324 -> 0.065, реально измерено через WorldToViewportPoint,
+        // не на глаз). z=0 восстанавливает исходную дистанцию 3 (5-2 = 3-0) —
+        // не своё отдельное значение, а компенсация чужого рассинхрона.
+        // Row=0 и устоявшееся состояние теперь буквально одно и то же число
+        // (см. TunnelCameraFollow.ComputeTargetPosition — без клампа
+        // трейлинг-ряда к 0 дистанция камера-игрок не зависит от Row) —
+        // TunnelCameraViewportFramingTests это же подтверждает.
+        [SerializeField] private Vector3 _heightOffset = new Vector3(0f, 6f, 0f);
         // Хотфикс 18.4°/29°/35° -> 29° -> 50° (см. TunnelCameraFollow) — по
         // прямому запросу владельца продукта.
         [SerializeField] private float _pitchDegrees = TunnelCameraFollow.DefaultPitchDegrees;
@@ -161,9 +173,14 @@ namespace Burmalda.Movement
 
         private void HandleRunStarted() => RebuildFollow();
 
-        // Новый тап (переход "не прижат"->"прижат") — мгновенно показать
-        // текущую позицию трейла у низа экрана, см. doc-комментарий SnapToTarget.
-        private void HandlePressStarted() => _follow?.SnapToTarget();
+        // Новый тап (переход "не прижат"->"прижат") — сбрасывает накопленный
+        // эдж-скролл (NudgeForward), БЕЗ мгновенного снапа позиции (2026-08-14,
+        // реально сломанный сценарий на устройстве, не гипотеза: снап на
+        // каждом новом тапе читался как рывок камеры на несколько клеток —
+        // см. doc-комментарии SnapToTarget/ResetManualForwardOffset в
+        // TunnelCameraFollow). Обычное продвижение теперь всегда идёт через
+        // плавный Tick()/SmoothingFactor, без исключения на новый тап.
+        private void HandlePressStarted() => _follow?.ResetManualForwardOffset();
 
         // Тап по собственной текущей позиции игрока ("кнопка") — запускает
         // твин в устоявшийся игровой режим, см. doc-комментарий ConfirmRun.

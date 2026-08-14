@@ -398,23 +398,40 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void AdvanceIntroTween_PlayerAdvancesMidTween_TweenContinuesUsingCurrentProgressNotRestarted()
+        public void AdvanceIntroTween_PlayerAdvancesMidTween_EndsTweenEarlyInsteadOfHardSnappingPosition()
         {
-            // "Если игрок продвинется до завершения твина — не должно быть
-            // возможно по геймплею, но защитись: дай твину доиграть, не
-            // прерывай" — обычный ход трейла НЕ трогает elapsed твина.
+            // Хотфикс 2026-08-14 (реально сломанный сценарий на устройстве,
+            // не гипотеза, см. doc-комментарий AdvanceIntroTween): раньше
+            // хард-синк CurrentPosition=TargetPosition применялся безусловно
+            // каждый кадр окна твина, включая кадры, где игрок уже реально
+            // шагнул (непрерывный жест: тап по своей плите -> сразу свайп
+            // вперёд, без отрыва пальца) — TargetPosition в этот момент уже
+            // отражает новый ряд (см. OnPositionChanged), и хард-синк
+            // телепортировал камеру на несколько клеток БЕЗ Tick()/
+            // SmoothingFactor. Теперь: реальный ход трейла посреди твина
+            // завершает твин немедленно (без хард-синка на этом кадре) —
+            // CurrentPosition после этого догоняет TargetPosition ТОЛЬКО
+            // через обычный Tick()/SmoothingFactor, как любое другое
+            // продвижение, а не мгновенным скачком.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
             follow.ConfirmRun();
-            follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds * 0.5f);
-            var pitchMidTween = follow.TargetRotation.eulerAngles.x;
+            follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds * 0.5f); // ещё не сдвинулся — обычный хард-синк тут ок
+            var positionBeforeRealMove = follow.CurrentPosition;
 
-            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // обычный ход трейла посреди твина
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // непрерывный жест: реальный ход посреди окна твина
+            var targetAfterRealMove = follow.TargetPosition;
+            Assert.AreNotEqual(positionBeforeRealMove, targetAfterRealMove, "ход должен был сдвинуть TargetPosition — иначе тест ничего не проверяет");
 
-            Assert.AreEqual(pitchMidTween, follow.TargetRotation.eulerAngles.x, 1e-4f, "ход трейла не должен сбрасывать/ускорять твин");
+            follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds * 0.1f); // кадр ПОСЛЕ реального хода, внутри исходного окна твина
 
-            follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds * 0.5f); // твин продолжает доигрывать как ни в чём не бывало
-            Assert.AreEqual(TunnelCameraFollow.DefaultPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
+            Assert.AreEqual(positionBeforeRealMove, follow.CurrentPosition,
+                "CurrentPosition не должна мгновенно телепортироваться на TargetPosition — только через Tick()");
+            Assert.AreNotEqual(targetAfterRealMove, follow.CurrentPosition,
+                "CurrentPosition ещё не должна совпадать с новым TargetPosition сразу после хода без Tick()");
+
+            follow.Tick(); // обычное сглаживание — единственный путь, которым CurrentPosition теперь имеет право двигаться после реального хода
+            Assert.AreNotEqual(positionBeforeRealMove, follow.CurrentPosition, "Tick() должен был сдвинуть камеру хоть немного к новой цели");
         }
 
         [Test]
@@ -443,6 +460,42 @@ namespace Burmalda.Movement.Tests
             // Смещение сброшено — цель вернулась к чисто рядовой (без ручного скролла).
             Assert.AreEqual(targetBeforeNudge, follow.TargetPosition);
             Assert.AreEqual(targetBeforeNudge, follow.CurrentPosition);
+        }
+
+        [Test]
+        public void ResetManualForwardOffset_AfterFallingBehind_DoesNotSnapCurrentPosition()
+        {
+            // Регресс-тест на реально сломанный сценарий (2026-08-14, не
+            // гипотеза): SnapToTarget вызывался на КАЖДЫЙ новый тап
+            // (HandlePressStarted) — при заметном разрыве Current/Target
+            // (SmoothingFactor=0.01 очень медленный) это читалось как рывок
+            // камеры на несколько клеток. ResetManualForwardOffset — замена
+            // в HandlePressStarted, которая НЕ трогает CurrentPosition.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
+            for (var row = 1; row <= 20; row++) trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Current сильно отстаёт от Target без Tick()
+            var currentBeforeReset = follow.CurrentPosition;
+
+            follow.ResetManualForwardOffset();
+
+            Assert.AreEqual(currentBeforeReset, follow.CurrentPosition, "ResetManualForwardOffset не должен мгновенно снапать позицию — это и был рывок камеры");
+            Assert.AreNotEqual(follow.TargetPosition, follow.CurrentPosition, "Current должен по-прежнему отставать от Target — снапа больше нет, только плавный Tick() наверстает разрыв");
+        }
+
+        [Test]
+        public void ResetManualForwardOffset_AfterPriorNudgeForward_ResetsTargetOffsetOnlyNotCurrentPosition()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
+            for (var row = 1; row <= 6; row++) trail.TryAdvanceTo(new GridCoordinate(row, 2));
+            var targetBeforeNudge = follow.TargetPosition;
+            follow.NudgeForward(10f); // накопленное ручное смещение — двигает и Target, и Current мгновенно
+            var currentAfterNudge = follow.CurrentPosition;
+
+            follow.ResetManualForwardOffset();
+
+            Assert.AreEqual(targetBeforeNudge, follow.TargetPosition, "накопленный эдж-скролл должен сброситься — тот же эффект, что раньше давал SnapToTarget");
+            Assert.AreEqual(currentAfterNudge, follow.CurrentPosition, "но CurrentPosition этот вызов трогать не должен — только TargetPosition");
         }
 
         [Test]
@@ -475,7 +528,7 @@ namespace Burmalda.Movement.Tests
         [Test]
         public void NudgeForward_SurvivesNormalTrailAdvance_NotResetByOrdinaryMovement()
         {
-            // Эдж-скролл не должен стираться обычным ходом трейла — только SnapToTarget (новый тап).
+            // Эдж-скролл не должен стираться обычным ходом трейла — только ResetManualForwardOffset/SnapToTarget (новый тап).
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
             follow.NudgeForward(4f);

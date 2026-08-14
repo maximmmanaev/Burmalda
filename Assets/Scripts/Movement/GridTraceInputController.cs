@@ -22,9 +22,10 @@ namespace Burmalda.Movement
     /// <see cref="IsPressed"/>/<see cref="CurrentScreenPosition"/>/
     /// <see cref="PressStarted"/> — публично читаемое состояние прижатия
     /// пальца, нужно смежным системам (см. <see cref="TunnelCameraController"/>:
-    /// тап мгновенно подводит камеру к текущей позиции, драг у верхней
-    /// границы нижней трети экрана — автоскролл вперёд), не только этому
-    /// классу для собственной логики хода.
+    /// тап сбрасывает накопленный эдж-скролл (без мгновенного снапа
+    /// позиции, см. doc-комментарий <see cref="PressStarted"/>), драг у
+    /// верхней границы нижней трети экрана — автоскролл вперёд), не
+    /// только этому классу для собственной логики хода.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class GridTraceInputController : MonoBehaviour
@@ -75,8 +76,11 @@ namespace Burmalda.Movement
         /// Срабатывает в момент перехода "не прижат" -> "прижат" — ровно
         /// один раз на новое нажатие, не каждый кадр, пока палец удерживается
         /// (для этого — <see cref="IsPressed"/>). Камера подписывается, чтобы
-        /// мгновенно (без сглаживания) показать текущую позицию трейла у
-        /// низа экрана на каждый новый тап.
+        /// сбросить накопленный эдж-скролл на каждый новый тап (см.
+        /// <see cref="TunnelCameraFollow.ResetManualForwardOffset"/>) — БЕЗ
+        /// мгновенного снапа позиции (убрано 2026-08-14, читалось на
+        /// устройстве как рывок камеры на несколько клеток, см.
+        /// doc-комментарий <see cref="TunnelCameraFollow.SnapToTarget"/>).
         /// </summary>
         public event Action PressStarted;
 
@@ -168,20 +172,47 @@ namespace Burmalda.Movement
         {
             if (_camera == null) return;
 
-            var ray = _camera.ScreenPointToRay(screenPosition);
-            var tunnelFloor = new Plane(Vector3.up, Vector3.zero);
-            if (!tunnelFloor.Raycast(ray, out var distance)) return;
+            var target = ResolveTappedTile(_camera, screenPosition);
+            if (!target.HasValue) return; // тап мимо любой отрендеренной плитки (пустой пол/за пределами сетки) — тихо ничего не делаем
 
-            var worldPoint = ray.GetPoint(distance);
-            var target = _projection.ToGridCoordinate(worldPoint);
-
-            if (target == _trail.CurrentPosition)
+            if (target.Value == _trail.CurrentPosition)
             {
                 RunConfirmed?.Invoke();
                 return; // тап по своей же текущей позиции — кнопка, не обычный ход
             }
 
-            _trail.TryAdvanceTo(target);
+            _trail.TryAdvanceTo(target.Value);
+        }
+
+        /// <summary>
+        /// Разрешает экранную точку тапа в координату ФИЗИЧЕСКИ
+        /// отрендеренной плитки — <c>Physics.Raycast</c> против реальных
+        /// коллайдеров (<see cref="TileVisualMarker"/>), не абстрактная
+        /// математическая плоскость пола (issue 2026-08-14: раньше луч на
+        /// бесконечную <c>Plane(Vector3.up, Vector3.zero)</c> давал
+        /// какую-то мировую точку для ЛЮБОГО тапа, включая пустой пол за
+        /// пределами раскрытой сетки — а дальше эта точка пересчитывалась
+        /// в GridCoordinate, которая могла случайно пройти
+        /// <c>grid.Contains</c>/<c>IsAdjacentTo</c> в <see cref="GridTraceTrail"/>,
+        /// хотя визуально тайла там нет). Координата читается ПРЯМО с
+        /// компонента попавшего коллайдера, не пересчитывается обратно из
+        /// точки удара — обратный пересчёт был бы той же самой ошибкой.
+        /// Null, если луч не попал ни в одну плитку (мимо/пустое место/
+        /// коллайдер без <see cref="TileVisualMarker"/>) — вызывающий код
+        /// должен в этом случае тихо ничего не делать.
+        ///
+        /// Статический и публичный — как и <see cref="PointerPositionChangeFilter"/>,
+        /// тестируется напрямую, без Update()/реального Input System.
+        /// </summary>
+        public static GridCoordinate? ResolveTappedTile(Camera camera, Vector2 screenPosition)
+        {
+            if (camera == null) return null;
+
+            var ray = camera.ScreenPointToRay(screenPosition);
+            if (!Physics.Raycast(ray, out var hit)) return null;
+
+            var marker = hit.collider.GetComponent<TileVisualMarker>();
+            return marker != null ? marker.Coordinate : (GridCoordinate?)null;
         }
 
         /// <summary>

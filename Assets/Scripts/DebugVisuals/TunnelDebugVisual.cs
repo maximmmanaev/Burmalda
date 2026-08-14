@@ -58,12 +58,29 @@ namespace Burmalda.DebugVisuals
 
             _grid.TileMaterialized += OnTileMaterialized;
 
-            // Стартовая плита трейла материализуется в конструкторе
-            // GridTraceTrail — до того, как визуал успевает подписаться на
-            // событие выше. Досоздаём всё, что уже есть в трейле на момент
-            // подписки, чтобы не потерять её и любые более ранние ходы.
-            foreach (var coordinate in _trail.Path)
-                OnTileMaterialized(_grid.GetOrCreateTile(coordinate));
+            // Реальный баг, подтверждён логами на устройстве (2026-08-14,
+            // не гипотеза): TileMaterialized — идемпотентное событие
+            // (стреляет один раз за координату навсегда, см.
+            // TunnelGrid.GetOrCreateTile), а порядок Update() между
+            // TunnelObstacleController (материализует TunnelGridReveal
+            // рядов вперёд игрока) и TunnelDebugVisualController (создаёт
+            // этот класс) Unity не гарантирует — тот же класс проблем, что
+            // и с RunStarted/Awake/OnEnable (см. док-комментарии там).
+            // Если reveal успевает материализовать плиты РАНЬШЕ подписки
+            // выше, их события улетают в пустоту без второго шанса — эти
+            // плиты остаются без GameObject НАВСЕГДА (не только до
+            // следующего хода), визуально это была "одинокая плитка"
+            // вместо всей раскрытой вперёд сетки. Раньше здесь бэкфиллился
+            // только _trail.Path (пройденные клетки, на старте — одна
+            // стартовая) — недостаточно, раскрытые-но-непосещённые плиты
+            // TunnelGridReveal в него не попадают. Теперь бэкфиллим ВСЕ уже
+            // материализованные на текущий момент плиты грида
+            // (TunnelGrid.MaterializedTiles) — это надмножество Path,
+            // накрывает и старт, и любой уже раскрытый перед игроком запас.
+            // Сам race по Update()-порядку НЕ трогаем (точечный фикс
+            // достаточен — см. TunnelGrid.MaterializedTiles).
+            foreach (var tile in _grid.MaterializedTiles)
+                OnTileMaterialized(tile);
         }
 
         /// <summary>Пересчитывает цвет всех созданных плит по их текущему состоянию. Не-op, если <see cref="IsEnabled"/> ложь.</summary>
@@ -124,6 +141,10 @@ namespace Burmalda.DebugVisuals
                 _projection.TileSize * TileScale,
                 TileHeight,
                 _projection.TileSize * TileScale);
+
+            // Тап должен физически попадать в эту плитку (см. TileVisualMarker) —
+            // CreatePrimitive(Cube) уже даёт BoxCollider, отдельно добавлять не нужно.
+            primitive.AddComponent<TileVisualMarker>().Initialize(tile.Coordinate);
 
             var renderer = primitive.GetComponent<Renderer>();
             if (renderer != null) renderer.material = new Material(_templateMaterial);
