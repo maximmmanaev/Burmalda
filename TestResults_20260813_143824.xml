@@ -1,0 +1,1269 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="182" result="Failed(Child)" total="182" passed="181" failed="1" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.0712848">
+  <test-suite type="TestSuite" id="1230" name="BurmaldaUnity" fullname="BurmaldaUnity" runstate="Runnable" testcasecount="182" result="Failed" site="Child" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.071285" total="182" passed="181" failed="1" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <failure>
+      <message><![CDATA[One or more child tests had errors]]></message>
+    </failure>
+    <test-suite type="Assembly" id="1069" name="Burmalda.Core.Tests.dll" fullname="/Users/ganzoliki/Burmalda/Library/ScriptAssemblies/Burmalda.Core.Tests.dll" runstate="Runnable" testcasecount="61" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.032745" total="61" passed="61" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="15079" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1070" name="Burmalda" fullname="Burmalda" runstate="Runnable" testcasecount="61" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.032491" total="61" passed="61" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1071" name="Core" fullname="Burmalda.Core" runstate="Runnable" testcasecount="61" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.032406" total="61" passed="61" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1072" name="Tests" fullname="Burmalda.Core.Tests" runstate="Runnable" testcasecount="61" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.032248" total="61" passed="61" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1001" name="GridCoordinateTests" fullname="Burmalda.Core.Tests.GridCoordinateTests" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" testcasecount="13" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.016489" total="13" passed="13" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1016" name="Equals_SameRowAndColumn_ReturnsTrue" fullname="Burmalda.Core.Tests.GridCoordinateTests.Equals_SameRowAndColumn_ReturnsTrue" methodname="Equals_SameRowAndColumn_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="1332810383" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.006010" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-suite type="ParameterizedMethod" id="1010" name="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003534" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1002" name="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(0,1)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(0,1)" methodname="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="1558871357" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000322" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1003" name="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(0,-1)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(0,-1)" methodname="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="1165496981" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000028" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1004" name="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(1,0)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(1,0)" methodname="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="1674876332" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000022" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1005" name="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(-1,0)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(-1,0)" methodname="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="459759865" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000019" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1006" name="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(1,1)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(1,1)" methodname="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="763331511" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000018" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1007" name="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(1,-1)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(1,-1)" methodname="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="1065964890" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000019" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1008" name="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(-1,1)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(-1,1)" methodname="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="429533968" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000020" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1009" name="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(-1,-1)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue(-1,-1)" methodname="IsAdjacentTo_AllEightSurroundingCells_ReturnsTrue" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="1141153448" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000018" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-suite type="ParameterizedMethod" id="1015" name="IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001556" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1012" name="IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse(0,2)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse(0,2)" methodname="IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="397286634" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000233" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1013" name="IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse(2,0)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse(2,0)" methodname="IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="1031669858" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000026" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1014" name="IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse(2,2)" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse(2,2)" methodname="IsAdjacentTo_MoreThanOneCellAway_ReturnsFalse" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="2103921592" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000020" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-case id="1011" name="IsAdjacentTo_SameCoordinate_ReturnsFalse" fullname="Burmalda.Core.Tests.GridCoordinateTests.IsAdjacentTo_SameCoordinate_ReturnsFalse" methodname="IsAdjacentTo_SameCoordinate_ReturnsFalse" classname="Burmalda.Core.Tests.GridCoordinateTests" runstate="Runnable" seed="1466590946" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000047" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1017" name="TileTests" fullname="Burmalda.Core.Tests.TileTests" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" testcasecount="23" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.005052" total="23" passed="23" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1023" name="AdvanceDecay_AfterDestroyed_DoesNotAccumulateFurther" fullname="Burmalda.Core.Tests.TileTests.AdvanceDecay_AfterDestroyed_DoesNotAccumulateFurther" methodname="AdvanceDecay_AfterDestroyed_DoesNotAccumulateFurther" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="2020086784" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000573" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1020" name="AdvanceDecay_BelowThreshold_DoesNotDestroyTile" fullname="Burmalda.Core.Tests.TileTests.AdvanceDecay_BelowThreshold_DoesNotDestroyTile" methodname="AdvanceDecay_BelowThreshold_DoesNotDestroyTile" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="1375022053" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000062" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1022" name="AdvanceDecay_ExceedsThreshold_DestroysTile" fullname="Burmalda.Core.Tests.TileTests.AdvanceDecay_ExceedsThreshold_DestroysTile" methodname="AdvanceDecay_ExceedsThreshold_DestroysTile" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="449389584" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000043" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1021" name="AdvanceDecay_ReachesThreshold_DestroysTile" fullname="Burmalda.Core.Tests.TileTests.AdvanceDecay_ReachesThreshold_DestroysTile" methodname="AdvanceDecay_ReachesThreshold_DestroysTile" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="746686470" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000037" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1019" name="AdvanceDecay_WithoutBeginDecay_IsNoOp" fullname="Burmalda.Core.Tests.TileTests.AdvanceDecay_WithoutBeginDecay_IsNoOp" methodname="AdvanceDecay_WithoutBeginDecay_IsNoOp" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="888710038" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000038" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1039" name="ArmTimedTrap_SetsActiveAndKind" fullname="Burmalda.Core.Tests.TileTests.ArmTimedTrap_SetsActiveAndKind" methodname="ArmTimedTrap_SetsActiveAndKind" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="389680964" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000121" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1024" name="BeginDecay_CalledTwice_KeepsFirstThreshold" fullname="Burmalda.Core.Tests.TileTests.BeginDecay_CalledTwice_KeepsFirstThreshold" methodname="BeginDecay_CalledTwice_KeepsFirstThreshold" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="41000102" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000060" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1026" name="DecayProgress01_AfterDestroyed_IsClampedToOne" fullname="Burmalda.Core.Tests.TileTests.DecayProgress01_AfterDestroyed_IsClampedToOne" methodname="DecayProgress01_AfterDestroyed_IsClampedToOne" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="1215987156" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000044" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1025" name="DecayProgress01_HalfwayToThreshold_ReturnsHalf" fullname="Burmalda.Core.Tests.TileTests.DecayProgress01_HalfwayToThreshold_ReturnsHalf" methodname="DecayProgress01_HalfwayToThreshold_ReturnsHalf" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="1716112739" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000040" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1040" name="DisarmTimedTrap_ClearsActive_KeepsKind" fullname="Burmalda.Core.Tests.TileTests.DisarmTimedTrap_ClearsActive_KeepsKind" methodname="DisarmTimedTrap_ClearsActive_KeepsKind" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="491124997" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000052" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1029" name="MarkBlocked_CalledTwice_StaysBlocked" fullname="Burmalda.Core.Tests.TileTests.MarkBlocked_CalledTwice_StaysBlocked" methodname="MarkBlocked_CalledTwice_StaysBlocked" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="1068463648" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000040" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1028" name="MarkBlocked_SetsIsBlockedTrue" fullname="Burmalda.Core.Tests.TileTests.MarkBlocked_SetsIsBlockedTrue" methodname="MarkBlocked_SetsIsBlockedTrue" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="198013382" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000034" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1035" name="MarkExplosiveTrapTrigger_CalledTwice_KeepsFirstTarget" fullname="Burmalda.Core.Tests.TileTests.MarkExplosiveTrapTrigger_CalledTwice_KeepsFirstTarget" methodname="MarkExplosiveTrapTrigger_CalledTwice_KeepsFirstTarget" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="1816852059" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000111" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1034" name="MarkExplosiveTrapTrigger_SetsTargetCoordinate" fullname="Burmalda.Core.Tests.TileTests.MarkExplosiveTrapTrigger_SetsTargetCoordinate" methodname="MarkExplosiveTrapTrigger_SetsTargetCoordinate" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="40422183" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000050" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1032" name="MarkLethalTrap_CalledTwice_KeepsFirstType" fullname="Burmalda.Core.Tests.TileTests.MarkLethalTrap_CalledTwice_KeepsFirstType" methodname="MarkLethalTrap_CalledTwice_KeepsFirstType" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="140905553" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000087" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1031" name="MarkLethalTrap_SetsLethalTrapType" fullname="Burmalda.Core.Tests.TileTests.MarkLethalTrap_SetsLethalTrapType" methodname="MarkLethalTrap_SetsLethalTrapType" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="787641236" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000053" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1038" name="MarkTimedTrapTrigger_CalledTwice_KeepsFirstTargetAndKind" fullname="Burmalda.Core.Tests.TileTests.MarkTimedTrapTrigger_CalledTwice_KeepsFirstTargetAndKind" methodname="MarkTimedTrapTrigger_CalledTwice_KeepsFirstTargetAndKind" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="31882039" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000100" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1037" name="MarkTimedTrapTrigger_SetsTargetCoordinateAndKind" fullname="Burmalda.Core.Tests.TileTests.MarkTimedTrapTrigger_SetsTargetCoordinateAndKind" methodname="MarkTimedTrapTrigger_SetsTargetCoordinateAndKind" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="1608468817" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000059" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1018" name="NewTile_DecayNotBegun_IsNotDestroyedAndThresholdIsNull" fullname="Burmalda.Core.Tests.TileTests.NewTile_DecayNotBegun_IsNotDestroyedAndThresholdIsNull" methodname="NewTile_DecayNotBegun_IsNotDestroyedAndThresholdIsNull" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="789406113" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000134" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1033" name="NewTile_HasNoExplosiveTrapTarget" fullname="Burmalda.Core.Tests.TileTests.NewTile_HasNoExplosiveTrapTarget" methodname="NewTile_HasNoExplosiveTrapTarget" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="937492891" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000049" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1030" name="NewTile_HasNoLethalTrap" fullname="Burmalda.Core.Tests.TileTests.NewTile_HasNoLethalTrap" methodname="NewTile_HasNoLethalTrap" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="384403296" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000037" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1036" name="NewTile_HasNoTimedTrapTargetAndIsNotActive" fullname="Burmalda.Core.Tests.TileTests.NewTile_HasNoTimedTrapTargetAndIsNotActive" methodname="NewTile_HasNoTimedTrapTargetAndIsNotActive" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="1260394986" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000052" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1027" name="NewTile_IsNotBlocked" fullname="Burmalda.Core.Tests.TileTests.NewTile_IsNotBlocked" methodname="NewTile_IsNotBlocked" classname="Burmalda.Core.Tests.TileTests" runstate="Runnable" seed="1996051899" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000034" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1041" name="TunnelGridTests" fullname="Burmalda.Core.Tests.TunnelGridTests" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.006752" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1042" name="Contains_ColumnWithinWidthAndNonNegativeRow_ReturnsTrue" fullname="Burmalda.Core.Tests.TunnelGridTests.Contains_ColumnWithinWidthAndNonNegativeRow_ReturnsTrue" methodname="Contains_ColumnWithinWidthAndNonNegativeRow_ReturnsTrue" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="1130870066" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000200" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-suite type="ParameterizedMethod" id="1046" name="Contains_OutOfBoundsCoordinate_ReturnsFalse" fullname="Burmalda.Core.Tests.TunnelGridTests.Contains_OutOfBoundsCoordinate_ReturnsFalse" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001552" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1043" name="Contains_OutOfBoundsCoordinate_ReturnsFalse(0,-1)" fullname="Burmalda.Core.Tests.TunnelGridTests.Contains_OutOfBoundsCoordinate_ReturnsFalse(0,-1)" methodname="Contains_OutOfBoundsCoordinate_ReturnsFalse" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="783645042" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000128" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1044" name="Contains_OutOfBoundsCoordinate_ReturnsFalse(0,5)" fullname="Burmalda.Core.Tests.TunnelGridTests.Contains_OutOfBoundsCoordinate_ReturnsFalse(0,5)" methodname="Contains_OutOfBoundsCoordinate_ReturnsFalse" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="1454076152" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000027" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1045" name="Contains_OutOfBoundsCoordinate_ReturnsFalse(-1,0)" fullname="Burmalda.Core.Tests.TunnelGridTests.Contains_OutOfBoundsCoordinate_ReturnsFalse(-1,0)" methodname="Contains_OutOfBoundsCoordinate_ReturnsFalse" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="679577328" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000019" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-case id="1049" name="GetNeighbors_CornerCoordinate_ReturnsOnlyInBoundsNeighbors" fullname="Burmalda.Core.Tests.TunnelGridTests.GetNeighbors_CornerCoordinate_ReturnsOnlyInBoundsNeighbors" methodname="GetNeighbors_CornerCoordinate_ReturnsOnlyInBoundsNeighbors" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="2034038127" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001184" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1050" name="GetNeighbors_MiddleCoordinate_ReturnsAllEightNeighbors" fullname="Burmalda.Core.Tests.TunnelGridTests.GetNeighbors_MiddleCoordinate_ReturnsAllEightNeighbors" methodname="GetNeighbors_MiddleCoordinate_ReturnsAllEightNeighbors" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="295492536" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000075" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1048" name="GetOrCreateTile_OutOfBoundsCoordinate_Throws" fullname="Burmalda.Core.Tests.TunnelGridTests.GetOrCreateTile_OutOfBoundsCoordinate_Throws" methodname="GetOrCreateTile_OutOfBoundsCoordinate_Throws" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="1706486792" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001146" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1047" name="GetOrCreateTile_SameCoordinateTwice_ReturnsSameInstance" fullname="Burmalda.Core.Tests.TunnelGridTests.GetOrCreateTile_SameCoordinateTwice_ReturnsSameInstance" methodname="GetOrCreateTile_SameCoordinateTwice_ReturnsSameInstance" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="1126021674" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000114" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1053" name="TileMaterialized_FirstGetOrCreateTile_FiresWithNewTile" fullname="Burmalda.Core.Tests.TunnelGridTests.TileMaterialized_FirstGetOrCreateTile_FiresWithNewTile" methodname="TileMaterialized_FirstGetOrCreateTile_FiresWithNewTile" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="208280716" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000071" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1054" name="TileMaterialized_SameCoordinateTwice_FiresOnlyOnce" fullname="Burmalda.Core.Tests.TunnelGridTests.TileMaterialized_SameCoordinateTwice_FiresOnlyOnce" methodname="TileMaterialized_SameCoordinateTwice_FiresOnlyOnce" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="1465998829" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000067" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1052" name="TryGetTile_AlreadyMaterialized_ReturnsTrueWithSameInstance" fullname="Burmalda.Core.Tests.TunnelGridTests.TryGetTile_AlreadyMaterialized_ReturnsTrueWithSameInstance" methodname="TryGetTile_AlreadyMaterialized_ReturnsTrueWithSameInstance" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="293834696" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000052" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1051" name="TryGetTile_NeverMaterialized_ReturnsFalseWithoutCreatingTile" fullname="Burmalda.Core.Tests.TunnelGridTests.TryGetTile_NeverMaterialized_ReturnsFalseWithoutCreatingTile" methodname="TryGetTile_NeverMaterialized_ReturnsFalseWithoutCreatingTile" classname="Burmalda.Core.Tests.TunnelGridTests" runstate="Runnable" seed="804877639" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000088" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1055" name="TunnelObstacleGeneratorTests" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" testcasecount="13" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003393" total="13" passed="13" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1068" name="Dispose_StopsReactingToFurtherMaterializedTiles" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.Dispose_StopsReactingToFurtherMaterializedTiles" methodname="Dispose_StopsReactingToFurtherMaterializedTiles" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="1530147845" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000527" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1057" name="TileMaterialized_RollAtBlockedThreshold_MarksLethalTrapPit" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_RollAtBlockedThreshold_MarksLethalTrapPit" methodname="TileMaterialized_RollAtBlockedThreshold_MarksLethalTrapPit" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="772803770" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000310" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1060" name="TileMaterialized_RollAtExplosiveTriggerThreshold_MarksTimedTrapTriggerArrow" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_RollAtExplosiveTriggerThreshold_MarksTimedTrapTriggerArrow" methodname="TileMaterialized_RollAtExplosiveTriggerThreshold_MarksTimedTrapTriggerArrow" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="1306236187" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000129" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1059" name="TileMaterialized_RollAtLavaThreshold_MarksExplosiveTrapTrigger" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_RollAtLavaThreshold_MarksExplosiveTrapTrigger" methodname="TileMaterialized_RollAtLavaThreshold_MarksExplosiveTrapTrigger" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="1666288821" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000082" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1062" name="TileMaterialized_RollAtOrAboveTimedTrapBladeThreshold_TileStaysPassable" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_RollAtOrAboveTimedTrapBladeThreshold_TileStaysPassable" methodname="TileMaterialized_RollAtOrAboveTimedTrapBladeThreshold_TileStaysPassable" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="931614776" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000080" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1058" name="TileMaterialized_RollAtPitThreshold_MarksLethalTrapLava" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_RollAtPitThreshold_MarksLethalTrapLava" methodname="TileMaterialized_RollAtPitThreshold_MarksLethalTrapLava" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="395200188" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000064" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1061" name="TileMaterialized_RollAtTimedTrapArrowThreshold_MarksTimedTrapTriggerBlade" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_RollAtTimedTrapArrowThreshold_MarksTimedTrapTriggerBlade" methodname="TileMaterialized_RollAtTimedTrapArrowThreshold_MarksTimedTrapTriggerBlade" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="1353527500" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000072" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1056" name="TileMaterialized_RollBelowBlockedThreshold_MarksTileBlocked" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_RollBelowBlockedThreshold_MarksTileBlocked" methodname="TileMaterialized_RollBelowBlockedThreshold_MarksTileBlocked" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="204741956" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000062" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1067" name="TileMaterialized_RowZero_DoesNotConsumeRandomRoll" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_RowZero_DoesNotConsumeRandomRoll" methodname="TileMaterialized_RowZero_DoesNotConsumeRandomRoll" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="1615087221" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000054" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1066" name="TileMaterialized_RowZero_NeverMarkedRegardlessOfRoll" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_RowZero_NeverMarkedRegardlessOfRoll" methodname="TileMaterialized_RowZero_NeverMarkedRegardlessOfRoll" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="674967128" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000054" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1063" name="TileMaterialized_TargetOfExplosiveTrigger_IsNotIndependentlyRolled" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_TargetOfExplosiveTrigger_IsNotIndependentlyRolled" methodname="TileMaterialized_TargetOfExplosiveTrigger_IsNotIndependentlyRolled" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="1101055998" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000063" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1065" name="TileMaterialized_TargetOfExplosiveTrigger_ResolvedOnceThenRollsNormallyAgain" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_TargetOfExplosiveTrigger_ResolvedOnceThenRollsNormallyAgain" methodname="TileMaterialized_TargetOfExplosiveTrigger_ResolvedOnceThenRollsNormallyAgain" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="86450923" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000059" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1064" name="TileMaterialized_TargetOfTimedTrapTrigger_IsNotIndependentlyRolled" fullname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests.TileMaterialized_TargetOfTimedTrapTrigger_IsNotIndependentlyRolled" methodname="TileMaterialized_TargetOfTimedTrapTrigger_IsNotIndependentlyRolled" classname="Burmalda.Core.Tests.TunnelObstacleGeneratorTests" runstate="Runnable" seed="893566524" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000062" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+    <test-suite type="Assembly" id="1098" name="Burmalda.DebugVisuals.Tests.dll" fullname="/Users/ganzoliki/Burmalda/Library/ScriptAssemblies/Burmalda.DebugVisuals.Tests.dll" runstate="Runnable" testcasecount="24" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.004808" total="24" passed="24" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="15079" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1099" name="Burmalda" fullname="Burmalda" runstate="Runnable" testcasecount="24" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003904" total="24" passed="24" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1100" name="DebugVisuals" fullname="Burmalda.DebugVisuals" runstate="Runnable" testcasecount="24" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003715" total="24" passed="24" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1101" name="Tests" fullname="Burmalda.DebugVisuals.Tests" runstate="Runnable" testcasecount="24" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003611" total="24" passed="24" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1073" name="TileDebugColorTests" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" testcasecount="24" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003409" total="24" passed="24" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1078" name="Resolve_Blocked_IgnoresDecayProgress" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_Blocked_IgnoresDecayProgress" methodname="Resolve_Blocked_IgnoresDecayProgress" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1354755842" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000187" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1077" name="Resolve_Blocked_NotStartNotCurrentNotDestroyed_ReturnsBlockedColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_Blocked_NotStartNotCurrentNotDestroyed_ReturnsBlockedColor" methodname="Resolve_Blocked_NotStartNotCurrentNotDestroyed_ReturnsBlockedColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1216375498" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000051" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1075" name="Resolve_CurrentPosition_NotDestroyed_ReturnsCurrentPositionColor_EvenIfAlsoStart" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_CurrentPosition_NotDestroyed_ReturnsCurrentPositionColor_EvenIfAlsoStart" methodname="Resolve_CurrentPosition_NotDestroyed_ReturnsCurrentPositionColor_EvenIfAlsoStart" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="549221539" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000056" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1074" name="Resolve_Destroyed_ReturnsDestroyedColor_RegardlessOfOtherFlags" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_Destroyed_ReturnsDestroyedColor_RegardlessOfOtherFlags" methodname="Resolve_Destroyed_ReturnsDestroyedColor_RegardlessOfOtherFlags" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="34317763" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000044" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1082" name="Resolve_Explosion_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsExplosionColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_Explosion_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsExplosionColor" methodname="Resolve_Explosion_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsExplosionColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1403123765" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000057" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1084" name="Resolve_ExplosiveTrapTrigger_IgnoresDecayProgress" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_ExplosiveTrapTrigger_IgnoresDecayProgress" methodname="Resolve_ExplosiveTrapTrigger_IgnoresDecayProgress" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="369622134" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000060" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1083" name="Resolve_ExplosiveTrapTrigger_NotArmedYet_ReturnsExplosiveTriggerColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_ExplosiveTrapTrigger_NotArmedYet_ReturnsExplosiveTriggerColor" methodname="Resolve_ExplosiveTrapTrigger_NotArmedYet_ReturnsExplosiveTriggerColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1351691519" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000049" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1080" name="Resolve_Lava_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsLavaColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_Lava_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsLavaColor" methodname="Resolve_Lava_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsLavaColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1218726948" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000051" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1081" name="Resolve_LethalTrap_IgnoresDecayProgress" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_LethalTrap_IgnoresDecayProgress" methodname="Resolve_LethalTrap_IgnoresDecayProgress" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1680257508" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000048" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1079" name="Resolve_Pit_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsPitColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_Pit_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsPitColor" methodname="Resolve_Pit_NotStartNotCurrentNotDestroyedNotBlocked_ReturnsPitColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1723535445" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000057" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1096" name="Resolve_ProgressAboveOne_ClampsToAboutToDecayColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_ProgressAboveOne_ClampsToAboutToDecayColor" methodname="Resolve_ProgressAboveOne_ClampsToAboutToDecayColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="129216031" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000044" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1097" name="Resolve_ProgressBelowZero_ClampsToFreshColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_ProgressBelowZero_ClampsToFreshColor" methodname="Resolve_ProgressBelowZero_ClampsToFreshColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1748010781" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000044" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1093" name="Resolve_RegularTile_FullDecayProgress_ReturnsAboutToDecayColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_RegularTile_FullDecayProgress_ReturnsAboutToDecayColor" methodname="Resolve_RegularTile_FullDecayProgress_ReturnsAboutToDecayColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1567118785" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000043" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1092" name="Resolve_RegularTile_HalfDecayProgress_ReturnsHalfDecayedColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_RegularTile_HalfDecayProgress_ReturnsHalfDecayedColor" methodname="Resolve_RegularTile_HalfDecayProgress_ReturnsHalfDecayedColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="2002509481" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000045" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1094" name="Resolve_RegularTile_QuarterProgress_IsBetweenFreshAndHalfDecayed" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_RegularTile_QuarterProgress_IsBetweenFreshAndHalfDecayed" methodname="Resolve_RegularTile_QuarterProgress_IsBetweenFreshAndHalfDecayed" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1243696375" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000794" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1095" name="Resolve_RegularTile_ThreeQuarterProgress_IsBetweenHalfDecayedAndAboutToDecay" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_RegularTile_ThreeQuarterProgress_IsBetweenHalfDecayedAndAboutToDecay" methodname="Resolve_RegularTile_ThreeQuarterProgress_IsBetweenHalfDecayedAndAboutToDecay" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="292385857" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000053" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1091" name="Resolve_RegularTile_ZeroDecayProgress_ReturnsFreshColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_RegularTile_ZeroDecayProgress_ReturnsFreshColor" methodname="Resolve_RegularTile_ZeroDecayProgress_ReturnsFreshColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1317346467" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000047" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1076" name="Resolve_Start_NotCurrentNotDestroyed_ReturnsStartColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_Start_NotCurrentNotDestroyed_ReturnsStartColor" methodname="Resolve_Start_NotCurrentNotDestroyed_ReturnsStartColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1132796842" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000046" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1085" name="Resolve_TimedTrapActive_Arrow_ReturnsTimedTrapActiveColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_TimedTrapActive_Arrow_ReturnsTimedTrapActiveColor" methodname="Resolve_TimedTrapActive_Arrow_ReturnsTimedTrapActiveColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1271359471" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000058" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1086" name="Resolve_TimedTrapActive_Blade_ReturnsSameTimedTrapActiveColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_TimedTrapActive_Blade_ReturnsSameTimedTrapActiveColor" methodname="Resolve_TimedTrapActive_Blade_ReturnsSameTimedTrapActiveColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="169493832" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000047" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1087" name="Resolve_TimedTrapActive_IgnoresDecayProgress" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_TimedTrapActive_IgnoresDecayProgress" methodname="Resolve_TimedTrapActive_IgnoresDecayProgress" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1799059777" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000047" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1090" name="Resolve_TimedTrapActive_TakesPriorityOverTimedTrapTrigger" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_TimedTrapActive_TakesPriorityOverTimedTrapTrigger" methodname="Resolve_TimedTrapActive_TakesPriorityOverTimedTrapTrigger" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="186271716" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000047" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1089" name="Resolve_TimedTrapTrigger_IgnoresDecayProgress" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_TimedTrapTrigger_IgnoresDecayProgress" methodname="Resolve_TimedTrapTrigger_IgnoresDecayProgress" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1411836359" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000044" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1088" name="Resolve_TimedTrapTrigger_NotActiveYet_ReturnsTimedTrapTriggerColor" fullname="Burmalda.DebugVisuals.Tests.TileDebugColorTests.Resolve_TimedTrapTrigger_NotActiveYet_ReturnsTimedTrapTriggerColor" methodname="Resolve_TimedTrapTrigger_NotActiveYet_ReturnsTimedTrapTriggerColor" classname="Burmalda.DebugVisuals.Tests.TileDebugColorTests" runstate="Runnable" seed="1060257071" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000045" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+    <test-suite type="Assembly" id="1110" name="Burmalda.Decay.Tests.dll" fullname="/Users/ganzoliki/Burmalda/Library/ScriptAssemblies/Burmalda.Decay.Tests.dll" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.002817" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="15079" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1111" name="Burmalda" fullname="Burmalda" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.002050" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1112" name="Decay" fullname="Burmalda.Decay" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001858" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1113" name="Tests" fullname="Burmalda.Decay.Tests" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001748" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1102" name="TrailDecaySystemTests" fullname="Burmalda.Decay.Tests.TrailDecaySystemTests" classname="Burmalda.Decay.Tests.TrailDecaySystemTests" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001606" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1109" name="Dispose_StopsBeginningDecayForFutureTrailAdvances" fullname="Burmalda.Decay.Tests.TrailDecaySystemTests.Dispose_StopsBeginningDecayForFutureTrailAdvances" methodname="Dispose_StopsBeginningDecayForFutureTrailAdvances" classname="Burmalda.Decay.Tests.TrailDecaySystemTests" runstate="Runnable" seed="2028428594" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000169" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1106" name="Tick_AccumulatesAcrossMultipleCalls_DestroysOnlyOnceThresholdReached" fullname="Burmalda.Decay.Tests.TrailDecaySystemTests.Tick_AccumulatesAcrossMultipleCalls_DestroysOnlyOnceThresholdReached" methodname="Tick_AccumulatesAcrossMultipleCalls_DestroysOnlyOnceThresholdReached" classname="Burmalda.Decay.Tests.TrailDecaySystemTests" runstate="Runnable" seed="521866368" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000067" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1105" name="Tick_SingleLargeStep_DestroysTileOnceThresholdExceeded" fullname="Burmalda.Decay.Tests.TrailDecaySystemTests.Tick_SingleLargeStep_DestroysTileOnceThresholdExceeded" methodname="Tick_SingleLargeStep_DestroysTileOnceThresholdExceeded" classname="Burmalda.Decay.Tests.TrailDecaySystemTests" runstate="Runnable" seed="1180338951" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000079" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1103" name="Tick_StartTileNeverDecays_EvenAfterLongTime" fullname="Burmalda.Decay.Tests.TrailDecaySystemTests.Tick_StartTileNeverDecays_EvenAfterLongTime" methodname="Tick_StartTileNeverDecays_EvenAfterLongTime" classname="Burmalda.Decay.Tests.TrailDecaySystemTests" runstate="Runnable" seed="2071806997" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000060" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1107" name="Tick_ZigzagPath_EachTileDecaysIndependentlyByOwnThreshold" fullname="Burmalda.Decay.Tests.TrailDecaySystemTests.Tick_ZigzagPath_EachTileDecaysIndependentlyByOwnThreshold" methodname="Tick_ZigzagPath_EachTileDecaysIndependentlyByOwnThreshold" classname="Burmalda.Decay.Tests.TrailDecaySystemTests" runstate="Runnable" seed="167324752" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000105" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1108" name="TileDestroyed_FiresExactlyOnceForEachTileTransition" fullname="Burmalda.Decay.Tests.TrailDecaySystemTests.TileDestroyed_FiresExactlyOnceForEachTileTransition" methodname="TileDestroyed_FiresExactlyOnceForEachTileTransition" classname="Burmalda.Decay.Tests.TrailDecaySystemTests" runstate="Runnable" seed="429630713" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000169" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1104" name="TryAdvanceTo_BeginsDecayImmediatelyWithThresholdForTrailIndex" fullname="Burmalda.Decay.Tests.TrailDecaySystemTests.TryAdvanceTo_BeginsDecayImmediatelyWithThresholdForTrailIndex" methodname="TryAdvanceTo_BeginsDecayImmediatelyWithThresholdForTrailIndex" classname="Burmalda.Decay.Tests.TrailDecaySystemTests" runstate="Runnable" seed="343452118" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000395" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+    <test-suite type="Assembly" id="1201" name="Burmalda.Movement.Tests.dll" fullname="/Users/ganzoliki/Burmalda/Library/ScriptAssemblies/Burmalda.Movement.Tests.dll" runstate="Runnable" testcasecount="78" result="Failed" site="Child" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.022794" total="78" passed="77" failed="1" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="15079" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <failure>
+        <message><![CDATA[One or more child tests had errors]]></message>
+      </failure>
+      <test-suite type="TestSuite" id="1202" name="Burmalda" fullname="Burmalda" runstate="Runnable" testcasecount="78" result="Failed" site="Child" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.021969" total="78" passed="77" failed="1" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <failure>
+          <message><![CDATA[One or more child tests had errors]]></message>
+        </failure>
+        <test-suite type="TestSuite" id="1203" name="Movement" fullname="Burmalda.Movement" runstate="Runnable" testcasecount="78" result="Failed" site="Child" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.021785" total="78" passed="77" failed="1" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <failure>
+            <message><![CDATA[One or more child tests had errors]]></message>
+          </failure>
+          <test-suite type="TestSuite" id="1204" name="Tests" fullname="Burmalda.Movement.Tests" runstate="Runnable" testcasecount="78" result="Failed" site="Child" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.021523" total="78" passed="77" failed="1" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <failure>
+              <message><![CDATA[One or more child tests had errors]]></message>
+            </failure>
+            <test-suite type="TestFixture" id="1114" name="ExplosiveTrapArmingSystemTests" fullname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests" classname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001343" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1119" name="Dispose_StopsReactingToFurtherPositionChanges" fullname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests.Dispose_StopsReactingToFurtherPositionChanges" methodname="Dispose_StopsReactingToFurtherPositionChanges" classname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests" runstate="Runnable" seed="1572995826" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000250" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1118" name="PositionChanged_RevisitingTrigger_StaysIdempotent" fullname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests.PositionChanged_RevisitingTrigger_StaysIdempotent" methodname="PositionChanged_RevisitingTrigger_StaysIdempotent" classname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests" runstate="Runnable" seed="1944834599" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000188" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1116" name="PositionChanged_TargetNotYetMaterialized_IsMaterializedAndArmed" fullname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests.PositionChanged_TargetNotYetMaterialized_IsMaterializedAndArmed" methodname="PositionChanged_TargetNotYetMaterialized_IsMaterializedAndArmed" classname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests" runstate="Runnable" seed="229987568" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000145" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1117" name="PositionChanged_TileWithoutTrigger_DoesNotArmAnything" fullname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests.PositionChanged_TileWithoutTrigger_DoesNotArmAnything" methodname="PositionChanged_TileWithoutTrigger_DoesNotArmAnything" classname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests" runstate="Runnable" seed="1604958755" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000080" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1115" name="PositionChanged_TrailReachesTrigger_ArmsTargetAsExplosion" fullname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests.PositionChanged_TrailReachesTrigger_ArmsTargetAsExplosion" methodname="PositionChanged_TrailReachesTrigger_ArmsTargetAsExplosion" classname="Burmalda.Movement.Tests.ExplosiveTrapArmingSystemTests" runstate="Runnable" seed="893708906" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000082" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1120" name="GridTraceInputControllerTests" fullname="Burmalda.Movement.Tests.GridTraceInputControllerTests" classname="Burmalda.Movement.Tests.GridTraceInputControllerTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001639" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1125" name="HasChanged_ChainOfDifferentPositions_EachReturnsTrue" fullname="Burmalda.Movement.Tests.GridTraceInputControllerTests.HasChanged_ChainOfDifferentPositions_EachReturnsTrue" methodname="HasChanged_ChainOfDifferentPositions_EachReturnsTrue" classname="Burmalda.Movement.Tests.GridTraceInputControllerTests" runstate="Runnable" seed="1745338600" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000122" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1124" name="HasChanged_DifferentPositionThanLastProcessed_ReturnsTrue" fullname="Burmalda.Movement.Tests.GridTraceInputControllerTests.HasChanged_DifferentPositionThanLastProcessed_ReturnsTrue" methodname="HasChanged_DifferentPositionThanLastProcessed_ReturnsTrue" classname="Burmalda.Movement.Tests.GridTraceInputControllerTests" runstate="Runnable" seed="789499606" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000044" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1121" name="HasChanged_FirstCall_ReturnsTrue" fullname="Burmalda.Movement.Tests.GridTraceInputControllerTests.HasChanged_FirstCall_ReturnsTrue" methodname="HasChanged_FirstCall_ReturnsTrue" classname="Burmalda.Movement.Tests.GridTraceInputControllerTests" runstate="Runnable" seed="2134543500" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000036" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1122" name="HasChanged_SamePositionAsLastProcessed_ReturnsFalse" fullname="Burmalda.Movement.Tests.GridTraceInputControllerTests.HasChanged_SamePositionAsLastProcessed_ReturnsFalse" methodname="HasChanged_SamePositionAsLastProcessed_ReturnsFalse" classname="Burmalda.Movement.Tests.GridTraceInputControllerTests" runstate="Runnable" seed="1900926623" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000041" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1123" name="HasChanged_StaticHoldAcrossManyFrames_OnlyFirstFrameReturnsTrue" fullname="Burmalda.Movement.Tests.GridTraceInputControllerTests.HasChanged_StaticHoldAcrossManyFrames_OnlyFirstFrameReturnsTrue" methodname="HasChanged_StaticHoldAcrossManyFrames_OnlyFirstFrameReturnsTrue" classname="Burmalda.Movement.Tests.GridTraceInputControllerTests" runstate="Runnable" seed="182492781" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000094" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1126" name="Reset_ThenSamePositionAsBeforeReset_ReturnsTrueAgain" fullname="Burmalda.Movement.Tests.GridTraceInputControllerTests.Reset_ThenSamePositionAsBeforeReset_ReturnsTrueAgain" methodname="Reset_ThenSamePositionAsBeforeReset_ReturnsTrueAgain" classname="Burmalda.Movement.Tests.GridTraceInputControllerTests" runstate="Runnable" seed="1714000173" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000044" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1127" name="GridTraceTrailTests" fullname="Burmalda.Movement.Tests.GridTraceTrailTests" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" testcasecount="30" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.004552" total="30" passed="30" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1142" name="CanAdvanceTo_ActiveTimedTrapTile_ReturnsFalse" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_ActiveTimedTrapTile_ReturnsFalse" methodname="CanAdvanceTo_ActiveTimedTrapTile_ReturnsFalse" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1703005858" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000082" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1129" name="CanAdvanceTo_AdjacentUnvisitedTile_ReturnsTrue" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_AdjacentUnvisitedTile_ReturnsTrue" methodname="CanAdvanceTo_AdjacentUnvisitedTile_ReturnsTrue" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1887030406" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000058" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1133" name="CanAdvanceTo_AlreadyVisitedDestroyedTile_ReturnsFalse" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_AlreadyVisitedDestroyedTile_ReturnsFalse" methodname="CanAdvanceTo_AlreadyVisitedDestroyedTile_ReturnsFalse" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1057190018" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000106" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1132" name="CanAdvanceTo_AlreadyVisitedNotDestroyedTile_ReturnsTrue" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_AlreadyVisitedNotDestroyedTile_ReturnsTrue" methodname="CanAdvanceTo_AlreadyVisitedNotDestroyedTile_ReturnsTrue" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="901334589" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000048" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1143" name="CanAdvanceTo_DisarmedTimedTrapTile_ReturnsTrue" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_DisarmedTimedTrapTile_ReturnsTrue" methodname="CanAdvanceTo_DisarmedTimedTrapTile_ReturnsTrue" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="2089739177" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000053" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1130" name="CanAdvanceTo_NonAdjacentTile_ReturnsFalse" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_NonAdjacentTile_ReturnsFalse" methodname="CanAdvanceTo_NonAdjacentTile_ReturnsFalse" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="135602368" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000037" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1131" name="CanAdvanceTo_OutOfGridBounds_ReturnsFalse" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_OutOfGridBounds_ReturnsFalse" methodname="CanAdvanceTo_OutOfGridBounds_ReturnsFalse" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1599416" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000045" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1135" name="CanAdvanceTo_UnvisitedBlockedTile_ReturnsFalse" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_UnvisitedBlockedTile_ReturnsFalse" methodname="CanAdvanceTo_UnvisitedBlockedTile_ReturnsFalse" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1926709599" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000047" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1137" name="CanAdvanceTo_UnvisitedLethalTrapTile_ReturnsFalse" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_UnvisitedLethalTrapTile_ReturnsFalse" methodname="CanAdvanceTo_UnvisitedLethalTrapTile_ReturnsFalse" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1690214856" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000047" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1134" name="CanAdvanceTo_UnvisitedNotYetMaterializedTile_ReturnsTrue" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.CanAdvanceTo_UnvisitedNotYetMaterializedTile_ReturnsTrue" methodname="CanAdvanceTo_UnvisitedNotYetMaterializedTile_ReturnsTrue" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1364619533" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000039" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1128" name="Constructor_StartCoordinate_IsCurrentPositionAndOnlyPathEntry" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.Constructor_StartCoordinate_IsCurrentPositionAndOnlyPathEntry" methodname="Constructor_StartCoordinate_IsCurrentPositionAndOnlyPathEntry" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1439884920" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000099" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1144" name="TryAdvanceTo_ActiveTimedTrapTile_DoesNotAdvanceAndDoesNotMutatePath" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_ActiveTimedTrapTile_DoesNotAdvanceAndDoesNotMutatePath" methodname="TryAdvanceTo_ActiveTimedTrapTile_DoesNotAdvanceAndDoesNotMutatePath" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="292040420" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000074" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1145" name="TryAdvanceTo_ActiveTimedTrapTile_FiresTimedTrapTriggeredWithCoordinateAndType" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_ActiveTimedTrapTile_FiresTimedTrapTriggeredWithCoordinateAndType" methodname="TryAdvanceTo_ActiveTimedTrapTile_FiresTimedTrapTriggeredWithCoordinateAndType" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1577817078" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000191" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1157" name="TryAdvanceTo_AfterRevisit_CanContinueToNewAdjacentTile" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_AfterRevisit_CanContinueToNewAdjacentTile" methodname="TryAdvanceTo_AfterRevisit_CanContinueToNewAdjacentTile" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="333738934" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000080" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1136" name="TryAdvanceTo_BlockedTile_DoesNotAdvanceAndDoesNotMutatePath" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_BlockedTile_DoesNotAdvanceAndDoesNotMutatePath" methodname="TryAdvanceTo_BlockedTile_DoesNotAdvanceAndDoesNotMutatePath" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="60003378" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000071" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1140" name="TryAdvanceTo_BlockedTile_DoesNotFireLethalTrapTriggered" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_BlockedTile_DoesNotFireLethalTrapTriggered" methodname="TryAdvanceTo_BlockedTile_DoesNotFireLethalTrapTriggered" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="757053430" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000104" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1156" name="TryAdvanceTo_InvalidMove_DoesNotFirePositionChangedEvent" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_InvalidMove_DoesNotFirePositionChangedEvent" methodname="TryAdvanceTo_InvalidMove_DoesNotFirePositionChangedEvent" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1482169866" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000074" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1148" name="TryAdvanceTo_InvalidMove_ReturnsFalseAndDoesNotMutatePath" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_InvalidMove_ReturnsFalseAndDoesNotMutatePath" methodname="TryAdvanceTo_InvalidMove_ReturnsFalseAndDoesNotMutatePath" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1473562422" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000051" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1138" name="TryAdvanceTo_LethalTrapTile_DoesNotAdvanceAndDoesNotMutatePath" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_LethalTrapTile_DoesNotAdvanceAndDoesNotMutatePath" methodname="TryAdvanceTo_LethalTrapTile_DoesNotAdvanceAndDoesNotMutatePath" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1457181779" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000071" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1139" name="TryAdvanceTo_LethalTrapTile_FiresLethalTrapTriggeredWithCoordinateAndType" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_LethalTrapTile_FiresLethalTrapTriggeredWithCoordinateAndType" methodname="TryAdvanceTo_LethalTrapTile_FiresLethalTrapTriggeredWithCoordinateAndType" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1578972559" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000126" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1153" name="TryAdvanceTo_NewTile_FiresAdvancedEventWithTargetCoordinate" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_NewTile_FiresAdvancedEventWithTargetCoordinate" methodname="TryAdvanceTo_NewTile_FiresAdvancedEventWithTargetCoordinate" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1935976494" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000080" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1154" name="TryAdvanceTo_NewTile_FiresPositionChangedEventWithTargetCoordinate" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_NewTile_FiresPositionChangedEventWithTargetCoordinate" methodname="TryAdvanceTo_NewTile_FiresPositionChangedEventWithTargetCoordinate" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="551040315" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000073" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1151" name="TryAdvanceTo_RevisitDestroyedTile_ReturnsFalseAndDoesNotMoveCurrentPosition" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_RevisitDestroyedTile_ReturnsFalseAndDoesNotMoveCurrentPosition" methodname="TryAdvanceTo_RevisitDestroyedTile_ReturnsFalseAndDoesNotMoveCurrentPosition" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="870448786" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000075" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1152" name="TryAdvanceTo_RevisitNotDestroyedTile_DoesNotFireAdvancedEvent" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_RevisitNotDestroyedTile_DoesNotFireAdvancedEvent" methodname="TryAdvanceTo_RevisitNotDestroyedTile_DoesNotFireAdvancedEvent" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1459863363" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000238" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1155" name="TryAdvanceTo_RevisitNotDestroyedTile_FiresPositionChangedEvent" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_RevisitNotDestroyedTile_FiresPositionChangedEvent" methodname="TryAdvanceTo_RevisitNotDestroyedTile_FiresPositionChangedEvent" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="660576421" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000083" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1150" name="TryAdvanceTo_RevisitNotDestroyedTile_MovesCurrentPositionWithoutDuplicatingPath" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_RevisitNotDestroyedTile_MovesCurrentPositionWithoutDuplicatingPath" methodname="TryAdvanceTo_RevisitNotDestroyedTile_MovesCurrentPositionWithoutDuplicatingPath" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1152163297" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000070" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1147" name="TryAdvanceTo_ValidMove_AppendsToPathAndUpdatesCurrentPosition" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_ValidMove_AppendsToPathAndUpdatesCurrentPosition" methodname="TryAdvanceTo_ValidMove_AppendsToPathAndUpdatesCurrentPosition" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="2125559835" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000062" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1141" name="TryAdvanceTo_ValidMove_DoesNotFireLethalTrapTriggered" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_ValidMove_DoesNotFireLethalTrapTriggered" methodname="TryAdvanceTo_ValidMove_DoesNotFireLethalTrapTriggered" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="664712613" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000053" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1146" name="TryAdvanceTo_ValidMove_DoesNotFireTimedTrapTriggered" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_ValidMove_DoesNotFireTimedTrapTriggered" methodname="TryAdvanceTo_ValidMove_DoesNotFireTimedTrapTriggered" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="708815956" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000049" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1149" name="TryAdvanceTo_ZigzagPathOverNeverVisitedTiles_AllStepsSucceed" fullname="Burmalda.Movement.Tests.GridTraceTrailTests.TryAdvanceTo_ZigzagPathOverNeverVisitedTiles_AllStepsSucceed" methodname="TryAdvanceTo_ZigzagPathOverNeverVisitedTiles_AllStepsSucceed" classname="Burmalda.Movement.Tests.GridTraceTrailTests" runstate="Runnable" seed="1072516102" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000064" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1158" name="TimedTrapSystemTests" fullname="Burmalda.Movement.Tests.TimedTrapSystemTests" classname="Burmalda.Movement.Tests.TimedTrapSystemTests" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.002009" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1166" name="Dispose_StopsReactingToFurtherPositionChanges" fullname="Burmalda.Movement.Tests.TimedTrapSystemTests.Dispose_StopsReactingToFurtherPositionChanges" methodname="Dispose_StopsReactingToFurtherPositionChanges" classname="Burmalda.Movement.Tests.TimedTrapSystemTests" runstate="Runnable" seed="513792" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000115" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1165" name="PositionChanged_RevisitingAlreadyFiredTrigger_DoesNotQueueSecondTimer" fullname="Burmalda.Movement.Tests.TimedTrapSystemTests.PositionChanged_RevisitingAlreadyFiredTrigger_DoesNotQueueSecondTimer" methodname="PositionChanged_RevisitingAlreadyFiredTrigger_DoesNotQueueSecondTimer" classname="Burmalda.Movement.Tests.TimedTrapSystemTests" runstate="Runnable" seed="487807747" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000193" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1159" name="PositionChanged_TrailReachesTrigger_DoesNotArmTargetImmediately" fullname="Burmalda.Movement.Tests.TimedTrapSystemTests.PositionChanged_TrailReachesTrigger_DoesNotArmTargetImmediately" methodname="PositionChanged_TrailReachesTrigger_DoesNotArmTargetImmediately" classname="Burmalda.Movement.Tests.TimedTrapSystemTests" runstate="Runnable" seed="752375197" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000071" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1163" name="Tick_ActivePhaseElapses_DisarmsTargetPermanently" fullname="Burmalda.Movement.Tests.TimedTrapSystemTests.Tick_ActivePhaseElapses_DisarmsTargetPermanently" methodname="Tick_ActivePhaseElapses_DisarmsTargetPermanently" classname="Burmalda.Movement.Tests.TimedTrapSystemTests" runstate="Runnable" seed="1853050978" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000065" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1164" name="Tick_AfterDisarm_FurtherTicksDoNotReArm" fullname="Burmalda.Movement.Tests.TimedTrapSystemTests.Tick_AfterDisarm_FurtherTicksDoNotReArm" methodname="Tick_AfterDisarm_FurtherTicksDoNotReArm" classname="Burmalda.Movement.Tests.TimedTrapSystemTests" runstate="Runnable" seed="1777570777" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000067" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1160" name="Tick_BeforeWindUpElapses_TargetStaysInactive" fullname="Burmalda.Movement.Tests.TimedTrapSystemTests.Tick_BeforeWindUpElapses_TargetStaysInactive" methodname="Tick_BeforeWindUpElapses_TargetStaysInactive" classname="Burmalda.Movement.Tests.TimedTrapSystemTests" runstate="Runnable" seed="1694101737" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000066" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1162" name="Tick_TargetNotYetMaterialized_IsMaterializedAndArmed" fullname="Burmalda.Movement.Tests.TimedTrapSystemTests.Tick_TargetNotYetMaterialized_IsMaterializedAndArmed" methodname="Tick_TargetNotYetMaterialized_IsMaterializedAndArmed" classname="Burmalda.Movement.Tests.TimedTrapSystemTests" runstate="Runnable" seed="1634565256" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000100" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1161" name="Tick_WindUpElapses_ArmsTargetWithTriggerKind" fullname="Burmalda.Movement.Tests.TimedTrapSystemTests.Tick_WindUpElapses_ArmsTargetWithTriggerKind" methodname="Tick_WindUpElapses_ArmsTargetWithTriggerKind" classname="Burmalda.Movement.Tests.TimedTrapSystemTests" runstate="Runnable" seed="1507623112" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000099" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1167" name="TunnelCameraFollowTests" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" testcasecount="13" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.002892" total="13" passed="13" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1168" name="Constructor_StartOfRun_TargetAndCurrentPositionMatchStartTileNoLagYet" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.Constructor_StartOfRun_TargetAndCurrentPositionMatchStartTileNoLagYet" methodname="Constructor_StartOfRun_TargetAndCurrentPositionMatchStartTileNoLagYet" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="1428559605" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000257" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1180" name="Dispose_StopsUpdatingTargetOnFurtherTrailAdvances" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.Dispose_StopsUpdatingTargetOnFurtherTrailAdvances" methodname="Dispose_StopsUpdatingTargetOnFurtherTrailAdvances" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="597296274" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000081" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1173" name="OnPositionChanged_RevisitOlderTileAfterGoingDeep_TargetMovesBackward" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.OnPositionChanged_RevisitOlderTileAfterGoingDeep_TargetMovesBackward" methodname="OnPositionChanged_RevisitOlderTileAfterGoingDeep_TargetMovesBackward" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="559726257" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000098" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1170" name="OnTrailAdvanced_BeyondFiveRows_TargetTrailsFiveRowsBehindPlayer" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.OnTrailAdvanced_BeyondFiveRows_TargetTrailsFiveRowsBehindPlayer" methodname="OnTrailAdvanced_BeyondFiveRows_TargetTrailsFiveRowsBehindPlayer" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="1971592689" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000071" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1172" name="OnTrailAdvanced_DiagonalMovementAcrossColumns_TargetColumnNeverLeavesTunnelCenter" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.OnTrailAdvanced_DiagonalMovementAcrossColumns_TargetColumnNeverLeavesTunnelCenter" methodname="OnTrailAdvanced_DiagonalMovementAcrossColumns_TargetColumnNeverLeavesTunnelCenter" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="1314405182" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000167" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1171" name="OnTrailAdvanced_LateralMove_TargetColumnStaysFixedAtTunnelCenter" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.OnTrailAdvanced_LateralMove_TargetColumnStaysFixedAtTunnelCenter" methodname="OnTrailAdvanced_LateralMove_TargetColumnStaysFixedAtTunnelCenter" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="1610368445" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000115" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1169" name="OnTrailAdvanced_WithinFirstFiveRows_TargetStaysClampedToRowZero" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.OnTrailAdvanced_WithinFirstFiveRows_TargetStaysClampedToRowZero" methodname="OnTrailAdvanced_WithinFirstFiveRows_TargetStaysClampedToRowZero" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="657413560" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000063" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1178" name="TargetRotation_DoesNotChangeAsTrailAdvances" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.TargetRotation_DoesNotChangeAsTrailAdvances" methodname="TargetRotation_DoesNotChangeAsTrailAdvances" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="613799066" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000151" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1176" name="TargetRotation_IsFixedAt35DegreesPitch_RegardlessOfHeightOffset" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.TargetRotation_IsFixedAt35DegreesPitch_RegardlessOfHeightOffset" methodname="TargetRotation_IsFixedAt35DegreesPitch_RegardlessOfHeightOffset" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="365442715" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000168" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1179" name="TargetRotation_IsIndependentOfHeightOffset" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.TargetRotation_IsIndependentOfHeightOffset" methodname="TargetRotation_IsIndependentOfHeightOffset" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="785019439" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000086" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1177" name="TargetRotation_NoYawOrRoll_OnlyPitch" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.TargetRotation_NoYawOrRoll_OnlyPitch" methodname="TargetRotation_NoYawOrRoll_OnlyPitch" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="1147768782" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000088" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1174" name="Tick_AppliesSmoothingFactorOncePerCall" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.Tick_AppliesSmoothingFactorOncePerCall" methodname="Tick_AppliesSmoothingFactorOncePerCall" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="901485801" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000072" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1175" name="Tick_RepeatedCalls_ConvergesTowardsTarget" fullname="Burmalda.Movement.Tests.TunnelCameraFollowTests.Tick_RepeatedCalls_ConvergesTowardsTarget" methodname="Tick_RepeatedCalls_ConvergesTowardsTarget" classname="Burmalda.Movement.Tests.TunnelCameraFollowTests" runstate="Runnable" seed="1680765602" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000089" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1181" name="TunnelCameraFramingTests" fullname="Burmalda.Movement.Tests.TunnelCameraFramingTests" classname="Burmalda.Movement.Tests.TunnelCameraFramingTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001268" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1183" name="ComputeDesiredHorizontalFovDegrees_LargerTileSize_ScalesWidthLinearly" fullname="Burmalda.Movement.Tests.TunnelCameraFramingTests.ComputeDesiredHorizontalFovDegrees_LargerTileSize_ScalesWidthLinearly" methodname="ComputeDesiredHorizontalFovDegrees_LargerTileSize_ScalesWidthLinearly" classname="Burmalda.Movement.Tests.TunnelCameraFramingTests" runstate="Runnable" seed="703999221" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000046" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1182" name="ComputeDesiredHorizontalFovDegrees_ProductionValues_MatchesExpected" fullname="Burmalda.Movement.Tests.TunnelCameraFramingTests.ComputeDesiredHorizontalFovDegrees_ProductionValues_MatchesExpected" methodname="ComputeDesiredHorizontalFovDegrees_ProductionValues_MatchesExpected" classname="Burmalda.Movement.Tests.TunnelCameraFramingTests" runstate="Runnable" seed="778091236" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000033" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1186" name="ComputeVerticalFovDegrees_LandscapeAspect_IsSmallerThanHorizontalFov" fullname="Burmalda.Movement.Tests.TunnelCameraFramingTests.ComputeVerticalFovDegrees_LandscapeAspect_IsSmallerThanHorizontalFov" methodname="ComputeVerticalFovDegrees_LandscapeAspect_IsSmallerThanHorizontalFov" classname="Burmalda.Movement.Tests.TunnelCameraFramingTests" runstate="Runnable" seed="1548518973" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000037" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1185" name="ComputeVerticalFovDegrees_PortraitAspect_IsLargerThanHorizontalFov" fullname="Burmalda.Movement.Tests.TunnelCameraFramingTests.ComputeVerticalFovDegrees_PortraitAspect_IsLargerThanHorizontalFov" methodname="ComputeVerticalFovDegrees_PortraitAspect_IsLargerThanHorizontalFov" classname="Burmalda.Movement.Tests.TunnelCameraFramingTests" runstate="Runnable" seed="2084988149" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000030" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1187" name="ComputeVerticalFovDegrees_RoundTrip_RecoversOriginalHorizontalFov" fullname="Burmalda.Movement.Tests.TunnelCameraFramingTests.ComputeVerticalFovDegrees_RoundTrip_RecoversOriginalHorizontalFov" methodname="ComputeVerticalFovDegrees_RoundTrip_RecoversOriginalHorizontalFov" classname="Burmalda.Movement.Tests.TunnelCameraFramingTests" runstate="Runnable" seed="834231179" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000041" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1184" name="ComputeVerticalFovDegrees_SquareAspect_EqualsHorizontalFov" fullname="Burmalda.Movement.Tests.TunnelCameraFramingTests.ComputeVerticalFovDegrees_SquareAspect_EqualsHorizontalFov" methodname="ComputeVerticalFovDegrees_SquareAspect_EqualsHorizontalFov" classname="Burmalda.Movement.Tests.TunnelCameraFramingTests" runstate="Runnable" seed="1110396232" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000033" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1188" name="TunnelCameraViewportFramingTests" fullname="Burmalda.Movement.Tests.TunnelCameraViewportFramingTests" classname="Burmalda.Movement.Tests.TunnelCameraViewportFramingTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001470" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1189" name="SteadyStateReferenceRow_LeftAndRightEdges_LandNearFrameEdgesOnAnyAspect" fullname="Burmalda.Movement.Tests.TunnelCameraViewportFramingTests.SteadyStateReferenceRow_LeftAndRightEdges_LandNearFrameEdgesOnAnyAspect" methodname="SteadyStateReferenceRow_LeftAndRightEdges_LandNearFrameEdgesOnAnyAspect" classname="Burmalda.Movement.Tests.TunnelCameraViewportFramingTests" runstate="Runnable" seed="1449577543" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000651" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1190" name="TunnelGridRevealTests" fullname="Burmalda.Movement.Tests.TunnelGridRevealTests" classname="Burmalda.Movement.Tests.TunnelGridRevealTests" runstate="Runnable" testcasecount="5" result="Failed" site="Child" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.004184" total="5" passed="4" failed="1" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <failure>
+                <message><![CDATA[One or more child tests had errors]]></message>
+              </failure>
+              <test-case id="1192" name="Constructor_DoesNotRevealBeyondRowsAheadWindow" fullname="Burmalda.Movement.Tests.TunnelGridRevealTests.Constructor_DoesNotRevealBeyondRowsAheadWindow" methodname="Constructor_DoesNotRevealBeyondRowsAheadWindow" classname="Burmalda.Movement.Tests.TunnelGridRevealTests" runstate="Runnable" seed="643676306" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000364" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1191" name="Constructor_RevealsCurrentRowAndRowsAheadAcrossFullWidth" fullname="Burmalda.Movement.Tests.TunnelGridRevealTests.Constructor_RevealsCurrentRowAndRowsAheadAcrossFullWidth" methodname="Constructor_RevealsCurrentRowAndRowsAheadAcrossFullWidth" classname="Burmalda.Movement.Tests.TunnelGridRevealTests" runstate="Runnable" seed="1832606393" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000126" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1195" name="Dispose_StopsRevealingOnFurtherPositionChanges" fullname="Burmalda.Movement.Tests.TunnelGridRevealTests.Dispose_StopsRevealingOnFurtherPositionChanges" methodname="Dispose_StopsRevealingOnFurtherPositionChanges" classname="Burmalda.Movement.Tests.TunnelGridRevealTests" runstate="Runnable" seed="1985729021" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000073" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1194" name="OnPositionChanged_TileAlreadyRevealed_DoesNotRefireMaterialized" fullname="Burmalda.Movement.Tests.TunnelGridRevealTests.OnPositionChanged_TileAlreadyRevealed_DoesNotRefireMaterialized" methodname="OnPositionChanged_TileAlreadyRevealed_DoesNotRefireMaterialized" classname="Burmalda.Movement.Tests.TunnelGridRevealTests" runstate="Runnable" seed="1589379023" result="Failed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001301" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <failure>
+                  <message><![CDATA[  Expected: 0
+  But was:  5
+]]></message>
+                  <stack-trace><![CDATA[at Burmalda.Movement.Tests.TunnelGridRevealTests.OnPositionChanged_TileAlreadyRevealed_DoesNotRefireMaterialized () [0x0004e] in /Users/ganzoliki/Burmalda/Assets/Scripts/Movement/Tests/TunnelGridRevealTests.cs:69
+]]></stack-trace>
+                </failure>
+              </test-case>
+              <test-case id="1193" name="OnPositionChanged_TrailAdvances_RevealsFurtherRowsAhead" fullname="Burmalda.Movement.Tests.TunnelGridRevealTests.OnPositionChanged_TrailAdvances_RevealsFurtherRowsAhead" methodname="OnPositionChanged_TrailAdvances_RevealsFurtherRowsAhead" classname="Burmalda.Movement.Tests.TunnelGridRevealTests" runstate="Runnable" seed="464935403" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000099" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1196" name="WorldGridProjectionTests" fullname="Burmalda.Movement.Tests.WorldGridProjectionTests" classname="Burmalda.Movement.Tests.WorldGridProjectionTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.001590" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1200" name="Constructor_NonPositiveTileSize_Throws" fullname="Burmalda.Movement.Tests.WorldGridProjectionTests.Constructor_NonPositiveTileSize_Throws" methodname="Constructor_NonPositiveTileSize_Throws" classname="Burmalda.Movement.Tests.WorldGridProjectionTests" runstate="Runnable" seed="1163190528" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000215" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1197" name="ToGridCoordinate_OriginPoint_ReturnsRowZeroAndCenterColumn" fullname="Burmalda.Movement.Tests.WorldGridProjectionTests.ToGridCoordinate_OriginPoint_ReturnsRowZeroAndCenterColumn" methodname="ToGridCoordinate_OriginPoint_ReturnsRowZeroAndCenterColumn" classname="Burmalda.Movement.Tests.WorldGridProjectionTests" runstate="Runnable" seed="346147181" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000081" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1198" name="ToGridCoordinate_PointFurtherAlongTunnel_IncreasesRow" fullname="Burmalda.Movement.Tests.WorldGridProjectionTests.ToGridCoordinate_PointFurtherAlongTunnel_IncreasesRow" methodname="ToGridCoordinate_PointFurtherAlongTunnel_IncreasesRow" classname="Burmalda.Movement.Tests.WorldGridProjectionTests" runstate="Runnable" seed="1983484397" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000049" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1199" name="ToWorldPosition_ThenToGridCoordinate_RoundTripsToSameCoordinate" fullname="Burmalda.Movement.Tests.WorldGridProjectionTests.ToWorldPosition_ThenToGridCoordinate_RoundTripsToSameCoordinate" methodname="ToWorldPosition_ThenToGridCoordinate_RoundTripsToSameCoordinate" classname="Burmalda.Movement.Tests.WorldGridProjectionTests" runstate="Runnable" seed="39541782" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000062" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+    <test-suite type="Assembly" id="1218" name="Burmalda.RunLifecycle.Tests.dll" fullname="/Users/ganzoliki/Burmalda/Library/ScriptAssemblies/Burmalda.RunLifecycle.Tests.dll" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003946" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="15079" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1219" name="Burmalda" fullname="Burmalda" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003246" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1220" name="RunLifecycle" fullname="Burmalda.RunLifecycle" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003153" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1221" name="Tests" fullname="Burmalda.RunLifecycle.Tests" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.003027" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1205" name="RunStateTests" fullname="Burmalda.RunLifecycle.Tests.RunStateTests" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.002849" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1206" name="Constructor_NewRun_IsAlive" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.Constructor_NewRun_IsAlive" methodname="Constructor_NewRun_IsAlive" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="366944059" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000252" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1215" name="Die_CalledTwice_FiresDiedOnlyOnce" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.Die_CalledTwice_FiresDiedOnlyOnce" methodname="Die_CalledTwice_FiresDiedOnlyOnce" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="2132846708" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000181" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1216" name="Dispose_StopsReactingToFurtherLethalTrapTriggers" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.Dispose_StopsReactingToFurtherLethalTrapTriggers" methodname="Dispose_StopsReactingToFurtherLethalTrapTriggers" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="1907104351" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000190" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1217" name="Dispose_StopsReactingToFurtherTimedTrapTriggers" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.Dispose_StopsReactingToFurtherTimedTrapTriggers" methodname="Dispose_StopsReactingToFurtherTimedTrapTriggers" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="421403294" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000064" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1209" name="LethalTrapTriggered_Explosion_SetsIsAliveFalseAndFiresDiedWithOwnReason" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.LethalTrapTriggered_Explosion_SetsIsAliveFalseAndFiresDiedWithOwnReason" methodname="LethalTrapTriggered_Explosion_SetsIsAliveFalseAndFiresDiedWithOwnReason" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="1089306620" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000127" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1208" name="LethalTrapTriggered_Lava_SetsIsAliveFalseAndFiresDied" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.LethalTrapTriggered_Lava_SetsIsAliveFalseAndFiresDied" methodname="LethalTrapTriggered_Lava_SetsIsAliveFalseAndFiresDied" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="1621442784" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000723" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1207" name="LethalTrapTriggered_Pit_SetsIsAliveFalseAndFiresDied" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.LethalTrapTriggered_Pit_SetsIsAliveFalseAndFiresDied" methodname="LethalTrapTriggered_Pit_SetsIsAliveFalseAndFiresDied" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="1163621944" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000088" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1214" name="TileDestroyed_NotUnderCurrentPosition_DoesNotDie" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.TileDestroyed_NotUnderCurrentPosition_DoesNotDie" methodname="TileDestroyed_NotUnderCurrentPosition_DoesNotDie" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="1282571867" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000097" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1213" name="TileDestroyed_UnderCurrentPosition_SetsIsAliveFalseAndFiresDied" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.TileDestroyed_UnderCurrentPosition_SetsIsAliveFalseAndFiresDied" methodname="TileDestroyed_UnderCurrentPosition_SetsIsAliveFalseAndFiresDied" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="2017670450" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000090" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1210" name="TimedTrapTriggered_Arrow_SetsIsAliveFalseAndFiresDiedWithOwnReason" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.TimedTrapTriggered_Arrow_SetsIsAliveFalseAndFiresDiedWithOwnReason" methodname="TimedTrapTriggered_Arrow_SetsIsAliveFalseAndFiresDiedWithOwnReason" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="2030006456" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000100" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1211" name="TimedTrapTriggered_Blade_SetsIsAliveFalseAndFiresDiedWithOwnReason" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.TimedTrapTriggered_Blade_SetsIsAliveFalseAndFiresDiedWithOwnReason" methodname="TimedTrapTriggered_Blade_SetsIsAliveFalseAndFiresDiedWithOwnReason" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="1678883775" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000070" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1212" name="TimedTrapTriggered_DisarmedTarget_DoesNotKill" fullname="Burmalda.RunLifecycle.Tests.RunStateTests.TimedTrapTriggered_DisarmedTarget_DoesNotKill" methodname="TimedTrapTriggered_DisarmedTarget_DoesNotKill" classname="Burmalda.RunLifecycle.Tests.RunStateTests" runstate="Runnable" seed="2101628930" result="Passed" start-time="2026-08-13 11:37:46Z" end-time="2026-08-13 11:37:46Z" duration="0.000058" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Saving results to: /Users/ganzoliki/Library/Application Support/DefaultCompany/BurmaldaUnity/TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

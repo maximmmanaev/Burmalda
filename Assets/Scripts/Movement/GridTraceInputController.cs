@@ -104,14 +104,28 @@ namespace Burmalda.Movement
             if (!IsAlive) return;
 
             var pointer = Pointer.current;
-            if (pointer == null || !pointer.press.isPressed)
+            var pressed = pointer != null && pointer.press.isPressed;
+
+            if (!pressed)
             {
+                // TEMP DIAGNOSTIC (issue: ввод не реагирует даже при зажатой
+                // кнопке мыши) — убрать после диагностики.
+                if (Time.timeSinceLevelLoad <= 30f)
+                    Debug.Log($"[InputDiag] t={Time.timeSinceLevelLoad:F3} pointer={(pointer == null ? "NULL" : pointer.GetType().Name)} pressed=false");
+
                 _positionChangeFilter.Reset();
                 return;
             }
 
             var screenPosition = pointer.position.ReadValue();
-            if (!_positionChangeFilter.HasChanged(screenPosition)) return;
+            var hasChanged = _positionChangeFilter.HasChanged(screenPosition); // ЕДИНСТВЕННЫЙ вызов — метод мутирует состояние фильтра.
+
+            // TEMP DIAGNOSTIC — см. выше.
+            if (Time.timeSinceLevelLoad <= 30f)
+                Debug.Log($"[InputDiag] t={Time.timeSinceLevelLoad:F3} pointer={pointer.GetType().Name} pressed=true " +
+                    $"screenPos={screenPosition} hasChanged={hasChanged} camera={(_camera != null ? _camera.name : "NULL")}");
+
+            if (!hasChanged) return;
 
             TryAdvanceAtScreenPosition(screenPosition);
         }

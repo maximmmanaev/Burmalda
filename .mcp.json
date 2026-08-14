@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "mcp-unity": {
+      "command": "node",
+      "args": [
+        "Library/PackageCache/com.gamelovers.mcp-unity@0e9fdb65b3cc/Server~/build/index.js"
+      ],
+      "env": {
+        "MCP_UNITY_SETTINGS_PATH": "/Users/ganzoliki/Burmalda/ProjectSettings/McpUnitySettings.json"
+      }
+    }
+  }
+}
