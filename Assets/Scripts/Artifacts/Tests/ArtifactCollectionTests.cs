@@ -56,5 +56,20 @@ namespace Burmalda.Artifacts.Tests
             var collection = new ArtifactCollection();
             Assert.Throws<ArgumentException>(() => collection.Record(id));
         }
+
+        [Test]
+        public void RecordedIds_ReflectsAllRecordedArtifacts()
+        {
+            // Понадобилось Persistence.ProgressSnapshot (issue #107) — без
+            // этого свойства Capture() не компилировался (найдено при
+            // написании e2e-теста core loop, issue #29).
+            var collection = new ArtifactCollection();
+
+            collection.Record("a1");
+            collection.Record("a2");
+            collection.Record("a1"); // повтор — не дублирует
+
+            CollectionAssert.AreEquivalent(new[] { "a1", "a2" }, collection.RecordedIds);
+        }
     }
 }

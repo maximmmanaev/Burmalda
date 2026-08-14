@@ -19,6 +19,9 @@ namespace Burmalda.Artifacts
 
         public bool Contains(string artifactId) => _recordedIds.Contains(artifactId);
 
+        /// <summary>Все зафиксированные Id — для сохранения/восстановления (issue #107), по аналогии с <see cref="ArtifactPool.UnlockedIds"/>.</summary>
+        public IReadOnlyCollection<string> RecordedIds => _recordedIds;
+
         /// <summary>Фиксирует артефакт как использованный хотя бы раз. Повторные вызовы для уже зафиксированного id — не-op.</summary>
         public void Record(string artifactId)
         {
