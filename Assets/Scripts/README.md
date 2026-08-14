@@ -24,7 +24,7 @@
 | `Achievements/` | `Achievement` — условие → оповещение → разлок артефакта | [Спринт 9](https://github.com/maximmmanaev/Burmalda/milestone/9) |
 | `Monetization/` | `MonetizationOffer`, `ReviveOffer`, `ArtifactGachaPack`, `RewardedPlacement`, `GachaPityCounter` | [Спринт 11](https://github.com/maximmmanaev/Burmalda/milestone/11) |
 | `RunModifiers/` | `Omen` (Знамение Шахты), `RunModifiers` — единая точка применения модификаторов забега (PRD v7 §20) | [Спринт 9](https://github.com/maximmmanaev/Burmalda/milestone/9) |
-| `Generation/` | `RunSeed`, `TunnelSegment`, `SegmentTemplate`, `SegmentRowProvider` — сегментная генерация трасс (PRD v7 §21), заменяет `TunnelObstacleGenerator`/`TunnelGridReveal` из `Core`/`Movement` | [Спринт 3](https://github.com/maximmmanaev/Burmalda/milestone/3) |
+| `Generation/` | Реализовано (issue #78, #51): `RunSeed`, `SegmentTileType`, `SegmentRewardTag`, `SegmentTemplate`, `SegmentReachabilityValidator`, `SegmentSelector`, `SegmentRowProvider`, `SegmentTemplateCatalog`, `SegmentGenerationController`, `LeverActivationSystem`/`LeverActivationController` — сегментная генерация трасс и рычаги (PRD v7 §21, PRD 4.2). Заменяет `TunnelObstacleGenerator`/`TunnelGridReveal` из `Core`/`Movement` — те помечены устаревшими в коде, но не удалены (уже на `SampleScene.unity`, см. `docs/rules/forbidden-actions.md`); замена компонента на сцене — вручную | [Спринт 3](https://github.com/maximmmanaev/Burmalda/milestone/3) |
 | `Progression/` | `DepthTier`, `DepthSeal`, `NewDescent` — Ярусы Глубины и мягкий prestige (PRD v7 §22) | [Спринт 8](https://github.com/maximmmanaev/Burmalda/milestone/8) |
 | `Trials/` | `DailyTrial` (минимальная версия — общий seed + награды по порогу, без лидерборда, §23.1) в Спринте 9; `WeeklyTrial`/`TrialStreak` (§23.2–23.3) — в Спринте 13, вместе с остальным live-ops | [Спринт 9](https://github.com/maximmmanaev/Burmalda/milestone/9) → [Спринт 13](https://github.com/maximmmanaev/Burmalda/milestone/13) |
 | `Leaderboards/` | `Leaderboard`, `GhostTrail` — платформенные сервисы (Game Center / Google Play Games), PRD v7 §24 | [Спринт 13](https://github.com/maximmmanaev/Burmalda/milestone/13) |
@@ -46,12 +46,25 @@ issue #9), динамические мгновенные (взрыв, issue #10)
 будущем понадобится «настоящая» траектория снаряда (несколько плит подряд,
 визуальный полёт) вместо текущей версии (одна плита, окно времени —
 упрощение первой версии #45), это, вероятно, и будет тем, что переедет сюда.
-Процедурная расстановка препятствий по сетке (`Core/TunnelObstacleGenerator`,
-`Movement/TunnelGridReveal`), активация взрыва по триггеру
-(`Movement/ExplosiveTrapArmingSystem`) и тайминг активации ловушек с таймингом
-(`Movement/TimedTrapSystem`) по той же причине тоже не в `Traps/`; PRD v7 §21
-заменяет всё это сегментной генерацией (`Generation/`) — при реализации эти
-классы ожидаемо будут переписаны или поглощены новыми.
+Активация взрыва по триггеру (`Movement/ExplosiveTrapArmingSystem`) и тайминг
+активации ловушек с таймингом (`Movement/TimedTrapSystem`) по той же причине
+тоже не в `Traps/` — они не заменяются `Generation/`, только СПОСОБ
+расстановки триггеров на сетке (см. ниже). Процедурная поплиточная
+расстановка препятствий (`Core/TunnelObstacleGenerator`,
+`Movement/TunnelGridReveal`) заменена сегментной генерацией (`Generation/`,
+issue #78) — оба класса помечены устаревшими в коде, но НЕ удалены: уже
+привязаны к GameObject на `Assets/Scenes/SampleScene.unity`, а трогать
+.unity-файлы автономно запрещено (`docs/rules/forbidden-actions.md`); замену
+компонента `Movement/TunnelObstacleController` на новый
+`Generation/SegmentGenerationController` в сцене нужно сделать вручную.
+Рычаги (issue #51) реализованы внутри `Generation/` как элемент шаблона
+сегмента (`SegmentTileType.Lever`/`LeverGate`, `LeverActivationSystem`), а не
+отдельно в `Traps/` — PRD v7 §21 прямо делает их частью сегментов.
+
+Множитель добычи (PRD 4.3, issue #11) по той же логике не получил отдельной
+папки — `MultiplierCurve` (Core, чистая функция) и `TrailMultiplierSystem`/
+`TrailMultiplierController` (Movement) тесно связаны с `GridTraceTrail` и не
+образуют системы, которой нужна собственная asmdef-сборка.
 
 PRD v7 (см. [C#-глоссарий](../../docs/wiki/csharp-glossary.md)) добавляет
 шесть новых папок по тому же принципу, что Boss/Achievements в v6 — по

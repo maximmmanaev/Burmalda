@@ -14,7 +14,10 @@ namespace Burmalda.Movement
     /// независимо от того, пройдена она трейлом или нет. Плита-цель ловушки
     /// с таймингом (<see cref="Tile.IsTimedTrapActive"/>, PRD v5 4.2, #45)
     /// непроходима, только пока активна — в отличие от прочих препятствий
-    /// это временное состояние.
+    /// это временное состояние. Плита-ворота рычага (<see cref="Tile.IsGated"/>,
+    /// PRD 4.2/21, #51) непроходима, пока не открыта связанным рычагом
+    /// (<see cref="Tile.IsLeverGateOpen"/>) — по механике похожа на
+    /// <see cref="Tile.IsBlocked"/>, но открывается навсегда, а не постоянна.
     /// </summary>
     public sealed class GridTraceTrail
     {
@@ -102,6 +105,7 @@ namespace Burmalda.Movement
             if (_grid.TryGetTile(target, out var tile))
             {
                 if (tile.IsBlocked) return false;
+                if (tile.IsGated && !tile.IsLeverGateOpen) return false;
                 if (tile.LethalTrap.HasValue) return false;
                 if (tile.IsTimedTrapActive) return false;
                 if (_visited.Contains(target)) return !tile.IsDestroyed;
