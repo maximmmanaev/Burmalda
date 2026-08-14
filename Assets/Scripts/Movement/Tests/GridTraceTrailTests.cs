@@ -448,5 +448,67 @@ namespace Burmalda.Movement.Tests
             Assert.AreEqual(new GridCoordinate(1, 3), trail.CurrentPosition);
             Assert.AreEqual(3, trail.Path.Count); // start, (1,2), (1,3) — без дублей
         }
+
+        [Test]
+        public void TeleportTo_SetsCurrentPosition()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+
+            trail.TeleportTo(start);
+
+            Assert.AreEqual(start, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void TeleportTo_NonAdjacentCoordinate_Succeeds()
+        {
+            // Не ход игрока — соседство не требуется (#24, откат к Алтарю может быть далеко).
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+
+            trail.TeleportTo(new GridCoordinate(4, 0));
+
+            Assert.AreEqual(new GridCoordinate(4, 0), trail.CurrentPosition);
+        }
+
+        [Test]
+        public void TeleportTo_RaisesPositionChangedButNotAdvanced()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+            var advancedFired = false;
+            GridCoordinate? positionChanged = null;
+            trail.Advanced += _ => advancedFired = true;
+            trail.PositionChanged += c => positionChanged = c;
+
+            trail.TeleportTo(new GridCoordinate(3, 3));
+
+            Assert.IsFalse(advancedFired);
+            Assert.AreEqual(new GridCoordinate(3, 3), positionChanged);
+        }
+
+        [Test]
+        public void TeleportTo_DoesNotMutatePathOrVisitedSet()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            var pathCountBefore = trail.Path.Count;
+
+            trail.TeleportTo(new GridCoordinate(4, 4));
+
+            Assert.AreEqual(pathCountBefore, trail.Path.Count);
+        }
+
+        [Test]
+        public void TeleportTo_OutOfGridBounds_Throws()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => trail.TeleportTo(new GridCoordinate(0, 99)));
+        }
     }
 }

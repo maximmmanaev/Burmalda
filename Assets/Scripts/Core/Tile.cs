@@ -200,6 +200,19 @@ namespace Burmalda.Core
             IsAltar = true;
         }
 
+        /// <summary>
+        /// Плита — точка встречи с Боссом (PRD раздел 8, issue #22):
+        /// обязательная, без победы дальше не пройти. Не ловушка, всегда
+        /// проходима — встреча разрешается автоматически при достижении.
+        /// </summary>
+        public bool IsBoss { get; private set; }
+
+        /// <summary>Помечает плиту как точку Босса. Повторные вызовы — не-op.</summary>
+        public void MarkBoss()
+        {
+            IsBoss = true;
+        }
+
         /// <summary>Накопленное время распада плиты в секундах.</summary>
         public float DecayElapsedSeconds { get; private set; }
 

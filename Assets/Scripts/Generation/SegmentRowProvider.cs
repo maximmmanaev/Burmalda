@@ -146,6 +146,9 @@ namespace Burmalda.Generation
                 case SegmentTileType.Altar:
                     tile.MarkAltar();
                     break;
+                case SegmentTileType.Boss:
+                    tile.MarkBoss();
+                    break;
                 case SegmentTileType.Open:
                 default:
                     break;
