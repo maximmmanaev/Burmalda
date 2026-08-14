@@ -41,5 +41,28 @@ namespace Burmalda.Generation.Tests
                 new[] { SegmentRewardTag.Mana, SegmentRewardTag.Keys, SegmentRewardTag.Coins, SegmentRewardTag.Artifact },
                 tags);
         }
+
+        [Test]
+        public void ManaVeinTemplate_ActuallyContainsManaSourceTiles()
+        {
+            var template = SegmentTemplateCatalog.All.Single(t => t.Name == "жила-маны");
+            Assert.IsTrue(ContainsTileType(template, SegmentTileType.ManaSource));
+        }
+
+        [Test]
+        public void KeyScatterTemplate_ActuallyContainsKeySourceTiles()
+        {
+            var template = SegmentTemplateCatalog.All.Single(t => t.Name == "россыпь-ключей");
+            Assert.IsTrue(ContainsTileType(template, SegmentTileType.KeySource));
+        }
+
+        private static bool ContainsTileType(SegmentTemplate template, SegmentTileType type)
+        {
+            for (var r = 0; r < template.RowCount; r++)
+                for (var c = 0; c < template.Width; c++)
+                    if (template.TileAt(r, c) == type)
+                        return true;
+            return false;
+        }
     }
 }
