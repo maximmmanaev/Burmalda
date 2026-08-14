@@ -159,8 +159,8 @@ namespace Burmalda.Altar
             var index = Math.Min((int)(_random01() * candidates.Count), candidates.Count - 1);
             var picked = candidates[index];
 
-            return picked is Amulet amulet
-                ? (Chest)new AmuletChest(TalismanOrAmuletChestCost, amulet)
+            return picked is Amulet pickedAmulet
+                ? (Chest)new AmuletChest(TalismanOrAmuletChestCost, pickedAmulet)
                 : new TalismanChest(TalismanOrAmuletChestCost, (Talisman)picked);
         }
     }
