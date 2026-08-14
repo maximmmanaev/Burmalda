@@ -14,7 +14,9 @@ namespace Burmalda.Core
     /// такую же связку для подвижной ловушки с таймингом (PRD v5 4.2, issue
     /// #45) — здесь опасность ещё и временная, включается/выключается по
     /// реальному времени, а не постоянна с момента активации.
-    /// Остальной тип плиты (валюта/артефакт) добавится сюда же по мере Traps.
+    /// Также хранит признак плиты-источника Кристаллов Маны/Ключей (PRD
+    /// раздел 5, issue #12) — постоянное состояние, аналогично препятствиям.
+    /// Остальной тип плиты (артефакт) добавится сюда же по мере Traps.
     /// </summary>
     public sealed class Tile
     {
@@ -159,6 +161,31 @@ namespace Burmalda.Core
         public void OpenLeverGate()
         {
             IsLeverGateOpen = true;
+        }
+
+        /// <summary>
+        /// Плита — источник Кристаллов Маны (PRD раздел 5, issue #12):
+        /// "плитки-источники маны на пути". Сбор — см.
+        /// <c>Burmalda.Currencies.TrailTileCurrencySystem</c>.
+        /// </summary>
+        public bool IsManaSource { get; private set; }
+
+        /// <summary>Помечает плиту как источник Кристаллов Маны. Повторные вызовы — не-op.</summary>
+        public void MarkManaSource()
+        {
+            IsManaSource = true;
+        }
+
+        /// <summary>
+        /// Плита — источник Ключей (PRD раздел 5, issue #12): "отдельные
+        /// плитки-источники ключей на пути".
+        /// </summary>
+        public bool IsKeySource { get; private set; }
+
+        /// <summary>Помечает плиту как источник Ключей. Повторные вызовы — не-op.</summary>
+        public void MarkKeySource()
+        {
+            IsKeySource = true;
         }
 
         /// <summary>Накопленное время распада плиты в секундах.</summary>

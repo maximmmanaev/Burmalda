@@ -15,7 +15,7 @@
 | `Movement/` | Grid-trace движение (тянешь палец по плитам) | [Спринт 2](https://github.com/maximmmanaev/Burmalda/milestone/2) |
 | `Decay/` | Decay-система (обрушение плит позади игрока) | [Спринт 2](https://github.com/maximmmanaev/Burmalda/milestone/2) |
 | `Traps/` | Пока не используется — все три вида ловушек (статичные, мгновенные, с таймингом) реализованы в `Core`/`Movement`, см. ниже | [Спринт 3](https://github.com/maximmmanaev/Burmalda/milestone/3) |
-| `Currencies/` | `ManaCrystals`, `Keys`, `Coins`, `Crystals` | [Спринт 4](https://github.com/maximmmanaev/Burmalda/milestone/4) |
+| `Currencies/` | Реализовано (issues #12–#14): `RunCurrencyAccumulator`/`PersistentWallet` (общие реализации временных/постоянных валют), `TrailCoinSystem`, `TrailTileCurrencySystem`, `CurrencyController` | [Спринт 4](https://github.com/maximmmanaev/Burmalda/milestone/4) |
 | `Artifacts/` | `Idol`, `Totem`, `Amulet`, `Talisman`, `Rune`, `Relic` и связанные `ArtifactCollection`/`ArtifactPool` | [Спринт 5](https://github.com/maximmmanaev/Burmalda/milestone/5) |
 | `Altar/` | `Altar`, `Ritual`, `Chest` и подтипы сундуков, `SellArtifact` | [Спринт 6](https://github.com/maximmmanaev/Burmalda/milestone/6) |
 | `Boss/` | Обязательный Босс (`Boss`): 2 Алтаря перед ним, автобой лучом энергии | [Спринт 7](https://github.com/maximmmanaev/Burmalda/milestone/7) |

@@ -83,6 +83,34 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
+        public void ApplyTemplate_ManaSource_MarksTile()
+        {
+            var (grid, trail) = CreateTrail();
+            var tiles = OpenRows(5);
+            tiles[1, 2] = SegmentTileType.ManaSource;
+
+            var template = new SegmentTemplate("with-mana", 1, SegmentRewardTag.Mana, tiles);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+
+            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsManaSource);
+            Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsKeySource);
+        }
+
+        [Test]
+        public void ApplyTemplate_KeySource_MarksTile()
+        {
+            var (grid, trail) = CreateTrail();
+            var tiles = OpenRows(5);
+            tiles[1, 2] = SegmentTileType.KeySource;
+
+            var template = new SegmentTemplate("with-key", 1, SegmentRewardTag.Keys, tiles);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+
+            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsKeySource);
+            Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsManaSource);
+        }
+
+        [Test]
         public void ApplyTemplate_LeverAndGate_WiresAbsoluteGateCoordinates()
         {
             var (grid, trail) = CreateTrail();

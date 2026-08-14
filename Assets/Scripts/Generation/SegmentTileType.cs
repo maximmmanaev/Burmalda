@@ -5,7 +5,7 @@ namespace Burmalda.Generation
     /// Значения переиспользуют уже существующую механику ловушек (раздел
     /// 4.2) — сегментная генерация заменяет только СПОСОБ расстановки
     /// (авторские шаблоны вместо броска на каждую плиту), не саму механику
-    /// ловушек. См. <see cref="SegmentTemplateApplier"/> — маппинг на методы
+    /// ловушек. См. <see cref="SegmentRowProvider"/> — маппинг на методы
     /// <c>Tile.Mark*</c>.
     /// </summary>
     public enum SegmentTileType
@@ -50,6 +50,12 @@ namespace Burmalda.Generation
         /// непроходима, пока связанный <see cref="Lever"/> того же шаблона не
         /// активирован. Требует ровно одного <see cref="Lever"/> в шаблоне.
         /// </summary>
-        LeverGate
+        LeverGate,
+
+        /// <summary>Источник Кристаллов Маны (PRD раздел 5, issue #12) — проходима, не ловушка.</summary>
+        ManaSource,
+
+        /// <summary>Источник Ключей (PRD раздел 5, issue #12) — проходима, не ловушка.</summary>
+        KeySource
     }
 }

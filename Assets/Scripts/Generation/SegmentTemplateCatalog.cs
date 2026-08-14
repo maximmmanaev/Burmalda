@@ -11,7 +11,8 @@ namespace Burmalda.Generation
     ///
     /// Символ → <see cref="SegmentTileType"/>: '.' Open, '#' Blocked, 'p' Pit,
     /// 'l' Lava, 'e' ExplosiveTrigger, 'a' TimedTrapArrowTrigger,
-    /// 'b' TimedTrapBladeTrigger, 'L' Lever, 'g' LeverGate.
+    /// 'b' TimedTrapBladeTrigger, 'L' Lever, 'g' LeverGate, 'm' ManaSource,
+    /// 'k' KeySource.
     ///
     /// **Контент-долг**: 11 шаблонов, а не минимум ~30 на Ярус, требуемый
     /// PRD до релиза (issue #78: "минимум ~30 авторских шаблонов на Ярус до
@@ -42,18 +43,18 @@ namespace Burmalda.Generation
             new SegmentTemplate("жила-маны", 1, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
+                ".m.m.",
                 ".....",
-                ".....",
-                ".....",
+                ".m.m.",
                 ".....",
             })),
 
             new SegmentTemplate("россыпь-ключей", 1, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                ".....",
-                ".....",
-                ".....",
+                "..k..",
+                ".k.k.",
+                "..k..",
                 ".....",
             })),
 
@@ -149,6 +150,8 @@ namespace Burmalda.Generation
                     'b' => SegmentTileType.TimedTrapBladeTrigger,
                     'L' => SegmentTileType.Lever,
                     'g' => SegmentTileType.LeverGate,
+                    'm' => SegmentTileType.ManaSource,
+                    'k' => SegmentTileType.KeySource,
                     _ => SegmentTileType.Open
                 };
 
