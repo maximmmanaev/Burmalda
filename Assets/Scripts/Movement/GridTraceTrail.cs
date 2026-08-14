@@ -155,5 +155,25 @@ namespace Burmalda.Movement
             PositionChanged?.Invoke(target);
             return true;
         }
+
+        /// <summary>
+        /// Принудительно переносит текущую позицию на <paramref name="target"/>
+        /// — не ход игрока: не требует соседства с текущей позицией, не
+        /// проверяет препятствия/ловушки, не материализует новую плиту и не
+        /// поднимает <see cref="Advanced"/> (target уже посещался раньше —
+        /// иначе телепортировать туда было бы некуда). Используется
+        /// d20-испытанием (PRD раздел 9, issue #24) — откат к последнему
+        /// пройденному Алтарю при исходе Knockback. Поднимает
+        /// <see cref="PositionChanged"/>, чтобы камера/прочие подписчики на
+        /// текущую позицию сориентировались на новом месте.
+        /// </summary>
+        public void TeleportTo(GridCoordinate target)
+        {
+            if (!_grid.Contains(target))
+                throw new ArgumentOutOfRangeException(nameof(target), target, "Координата телепорта вне сетки тоннеля.");
+
+            _currentPosition = target;
+            PositionChanged?.Invoke(target);
+        }
     }
 }

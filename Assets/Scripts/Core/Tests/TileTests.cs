@@ -363,5 +363,23 @@ namespace Burmalda.Core.Tests
 
             Assert.IsTrue(tile.IsAltar);
         }
+
+        [Test]
+        public void NewTile_IsNotBoss()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsBoss);
+        }
+
+        [Test]
+        public void MarkBoss_SetsIsBossTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBoss();
+
+            Assert.IsTrue(tile.IsBoss);
+        }
     }
 }

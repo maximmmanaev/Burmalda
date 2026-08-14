@@ -1,11 +1,12 @@
 {
-    "name": "Burmalda.RunLifecycle",
-    "rootNamespace": "Burmalda.RunLifecycle",
+    "name": "Burmalda.Boss",
+    "rootNamespace": "Burmalda.Boss",
     "references": [
         "Burmalda.Core",
         "Burmalda.Movement",
-        "Burmalda.Decay",
-        "Burmalda.D20"
+        "Burmalda.Currencies",
+        "Burmalda.Artifacts",
+        "Burmalda.RunLifecycle"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -59,6 +59,9 @@ namespace Burmalda.Generation
         KeySource,
 
         /// <summary>Клетка-Алтарь (PRD раздел 7, issue #19) — проходима, запускает Ритуал.</summary>
-        Altar
+        Altar,
+
+        /// <summary>Точка встречи с Боссом (PRD раздел 8, issue #22) — проходима, встреча разрешается автоматически.</summary>
+        Boss
     }
 }

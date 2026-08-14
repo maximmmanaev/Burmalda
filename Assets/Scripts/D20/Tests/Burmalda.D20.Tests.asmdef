@@ -1,12 +1,8 @@
 {
-    "name": "Burmalda.RunLifecycle.Tests",
-    "rootNamespace": "Burmalda.RunLifecycle.Tests",
+    "name": "Burmalda.D20.Tests",
+    "rootNamespace": "Burmalda.D20.Tests",
     "references": [
-        "Burmalda.Core",
-        "Burmalda.Movement",
-        "Burmalda.Decay",
         "Burmalda.D20",
-        "Burmalda.RunLifecycle",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

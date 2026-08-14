@@ -124,6 +124,19 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
+        public void ApplyTemplate_Boss_MarksTile()
+        {
+            var (grid, trail) = CreateTrail();
+            var tiles = OpenRows(5);
+            tiles[1, 2] = SegmentTileType.Boss;
+
+            var template = new SegmentTemplate("with-boss", 1, SegmentRewardTag.Coins, tiles);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+
+            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsBoss);
+        }
+
+        [Test]
         public void ApplyTemplate_LeverAndGate_WiresAbsoluteGateCoordinates()
         {
             var (grid, trail) = CreateTrail();

@@ -57,6 +57,13 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
+        public void BossArenaTemplate_ActuallyContainsBossTile()
+        {
+            var template = SegmentTemplateCatalog.All.Single(t => t.Name == "арена-босса");
+            Assert.IsTrue(ContainsTileType(template, SegmentTileType.Boss));
+        }
+
+        [Test]
         public void KeyScatterTemplate_ActuallyContainsKeySourceTiles()
         {
             var template = SegmentTemplateCatalog.All.Single(t => t.Name == "россыпь-ключей");

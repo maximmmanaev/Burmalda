@@ -1,3 +1,4 @@
+using Burmalda.D20;
 using Burmalda.Decay;
 using Burmalda.Movement;
 using UnityEngine;
@@ -9,8 +10,12 @@ namespace Burmalda.RunLifecycle
     /// TunnelCameraController/TunnelDebugVisualController): создаёт/пересобирает
     /// её по <see cref="GridTraceInputController.RunStarted"/>, при смерти
     /// вызывает <see cref="GridTraceInputController.MarkDead"/> — сама решение
-    /// о смерти принимает RunState, этот класс только применяет результат к
-    /// вводу. UI экрана смерти/кнопки рестарта в проекте ещё нет — <see cref="GridTraceInputController.Restart"/>
+    /// о смерти (в т.ч. бросок d20, issue #24) принимает RunState, этот
+    /// класс только применяет результат к вводу и собирает
+    /// <see cref="D20Trial"/> на реальном кубике (<c>UnityEngine.Random.Range</c>,
+    /// не завязан на воспроизводимость — в отличие от seeded-RNG сегментной
+    /// генерации, d20-бросок не требует детерминизма). UI экрана смерти/
+    /// кнопки рестарта в проекте ещё нет — <see cref="GridTraceInputController.Restart"/>
     /// нужно вызывать вручную (например, из будущей кнопки), как и привязка
     /// камеры к сцене в #8.
     /// </summary>
@@ -24,6 +29,9 @@ namespace Burmalda.RunLifecycle
 
         /// <summary>Причина последней смерти — для будущего UI, пока никак не отображается.</summary>
         public string LastDeathReason { get; private set; }
+
+        /// <summary>Текущий <see cref="RunState"/> — для смежных систем, которым нужно сообщать о смерти напрямую (например, <c>Boss.BossEncounterSystem.ReportBossDefeat</c>). Null до первого забега.</summary>
+        public RunState RunState => _runState;
 
         private void Awake()
         {
@@ -57,9 +65,10 @@ namespace Burmalda.RunLifecycle
             DisposeRunState();
 
             if (_input == null || _decayController == null) return;
-            if (_input.Trail == null || _decayController.Decay == null) return;
+            if (_input.Grid == null || _input.Trail == null || _decayController.Decay == null) return;
 
-            _runState = new RunState(_input.Trail, _decayController.Decay);
+            var d20 = new D20Trial(() => UnityEngine.Random.Range(1, 21)); // Range(1,21) — верхняя граница исключена, даёт 1..20
+            _runState = new RunState(_input.Grid, _input.Trail, _decayController.Decay, d20);
             _runState.Died += OnDied;
         }
 

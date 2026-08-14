@@ -12,7 +12,7 @@ namespace Burmalda.Generation
     /// Символ → <see cref="SegmentTileType"/>: '.' Open, '#' Blocked, 'p' Pit,
     /// 'l' Lava, 'e' ExplosiveTrigger, 'a' TimedTrapArrowTrigger,
     /// 'b' TimedTrapBladeTrigger, 'L' Lever, 'g' LeverGate, 'm' ManaSource,
-    /// 'k' KeySource, 'A' Altar.
+    /// 'k' KeySource, 'A' Altar, 'B' Boss.
     ///
     /// **Контент-долг**: 11 шаблонов, а не минимум ~30 на Ярус, требуемый
     /// PRD до релиза (issue #78: "минимум ~30 авторских шаблонов на Ярус до
@@ -138,6 +138,15 @@ namespace Burmalda.Generation
                 ".....",
                 ".....",
             })),
+
+            new SegmentTemplate("арена-босса", 5, SegmentRewardTag.Artifact, ParseRows(new[]
+            {
+                ".....",
+                ".....",
+                "..B..",
+                ".....",
+                ".....",
+            })),
         };
 
         private static SegmentTileType[,] ParseRows(string[] rows)
@@ -162,6 +171,7 @@ namespace Burmalda.Generation
                     'm' => SegmentTileType.ManaSource,
                     'k' => SegmentTileType.KeySource,
                     'A' => SegmentTileType.Altar,
+                    'B' => SegmentTileType.Boss,
                     _ => SegmentTileType.Open
                 };
 
