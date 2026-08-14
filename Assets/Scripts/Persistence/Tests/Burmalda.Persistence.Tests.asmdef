@@ -1,11 +1,13 @@
 {
-    "name": "Burmalda.Artifacts.Tests",
-    "rootNamespace": "Burmalda.Artifacts.Tests",
+    "name": "Burmalda.Persistence.Tests",
+    "rootNamespace": "Burmalda.Persistence.Tests",
     "references": [
-        "Burmalda.Core",
-        "Burmalda.Movement",
-        "Burmalda.Decay",
+        "Burmalda.Currencies",
         "Burmalda.Artifacts",
+        "Burmalda.Progression",
+        "Burmalda.Boss",
+        "Burmalda.Altar",
+        "Burmalda.Persistence",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

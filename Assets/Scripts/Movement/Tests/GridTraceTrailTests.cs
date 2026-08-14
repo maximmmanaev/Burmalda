@@ -115,6 +115,70 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void PrimeBreach_ThenAdvanceIntoBlockedTile_Succeeds()
+        {
+            // PRD раздел 12 (Тотем — "Пробой"): одноразовый проход сквозь препятствие.
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var blocked = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(blocked).MarkBlocked();
+
+            trail.PrimeBreach();
+            var advanced = trail.TryAdvanceTo(blocked);
+
+            Assert.IsTrue(advanced);
+            Assert.AreEqual(blocked, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void PrimeBreach_ConsumedAfterUse_SecondBlockedTileStillImpassable()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var firstBlocked = new GridCoordinate(1, 2);
+            var secondBlocked = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(firstBlocked).MarkBlocked();
+            grid.GetOrCreateTile(secondBlocked).MarkBlocked();
+
+            trail.PrimeBreach();
+            trail.TryAdvanceTo(firstBlocked);
+            var secondAdvance = trail.TryAdvanceTo(secondBlocked);
+
+            Assert.IsFalse(secondAdvance);
+            Assert.AreEqual(firstBlocked, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void PrimeBreach_MoveIntoNonBlockedTileFirst_DoesNotConsumeBreach()
+        {
+            // Обычный ход на не заблокированную плиту не должен тратить заряд Пробоя.
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var open = new GridCoordinate(1, 2);
+            var blocked = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(blocked).MarkBlocked();
+
+            trail.PrimeBreach();
+            trail.TryAdvanceTo(open);
+            var advancedThroughBlocked = trail.TryAdvanceTo(blocked);
+
+            Assert.IsTrue(advancedThroughBlocked);
+            Assert.AreEqual(blocked, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void CanAdvanceTo_BlockedTileWithoutBreach_StillReturnsFalse()
+        {
+            // Регрессия: без активного Пробоя препятствие непроходимо как раньше (#9).
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var blocked = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(blocked).MarkBlocked();
+
+            Assert.IsFalse(trail.CanAdvanceTo(blocked));
+        }
+
+        [Test]
         public void CanAdvanceTo_ClosedGatedTile_ReturnsFalse()
         {
             // #51: плита бокового прохода закрыта, пока не активирован рычаг.

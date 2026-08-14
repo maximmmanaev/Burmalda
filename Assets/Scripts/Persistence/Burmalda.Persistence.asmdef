@@ -1,10 +1,12 @@
 {
-    "name": "Burmalda.Artifacts",
-    "rootNamespace": "Burmalda.Artifacts",
+    "name": "Burmalda.Persistence",
+    "rootNamespace": "Burmalda.Persistence",
     "references": [
-        "Burmalda.Core",
-        "Burmalda.Movement",
-        "Burmalda.Decay"
+        "Burmalda.Currencies",
+        "Burmalda.Artifacts",
+        "Burmalda.Progression",
+        "Burmalda.Boss",
+        "Burmalda.Altar"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -14,5 +16,5 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
-    "noEngineReferences": true
+    "noEngineReferences": false
 }

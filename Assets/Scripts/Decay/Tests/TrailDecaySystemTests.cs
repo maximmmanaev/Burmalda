@@ -126,5 +126,47 @@ namespace Burmalda.Decay.Tests
 
             Assert.IsFalse(grid.GetOrCreateTile(target).IsDestroyed);
         }
+
+        [Test]
+        public void Suspend_TickDuringSuspension_DoesNotAdvanceDecay()
+        {
+            // PRD раздел 12 (Тотем, Неуязвимость): "Трейл временно не распадается".
+            var (grid, trail, decay) = CreateSystem();
+            var target = new GridCoordinate(1, 2);
+            trail.TryAdvanceTo(target);
+
+            decay.Suspend(5f);
+            decay.Tick(1000f); // без Suspend гарантированно разрушило бы плиту
+
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsDestroyed);
+        }
+
+        [Test]
+        public void Suspend_TickBeyondSuspensionDuration_ResumesDecay()
+        {
+            var (grid, trail, decay) = CreateSystem();
+            var target = new GridCoordinate(1, 2);
+            trail.TryAdvanceTo(target);
+
+            decay.Suspend(2f);
+            decay.Tick(2f); // ровно на границе — приостановка исчерпана
+            decay.Tick(1000f); // теперь распад снова тикает
+
+            Assert.IsTrue(grid.GetOrCreateTile(target).IsDestroyed);
+        }
+
+        [Test]
+        public void IsSuspended_ReflectsRemainingSuspension()
+        {
+            var (_, _, decay) = CreateSystem();
+
+            Assert.IsFalse(decay.IsSuspended);
+
+            decay.Suspend(3f);
+            Assert.IsTrue(decay.IsSuspended);
+
+            decay.Tick(3f);
+            Assert.IsFalse(decay.IsSuspended);
+        }
     }
 }

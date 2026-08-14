@@ -31,6 +31,7 @@ namespace Burmalda.Decay
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private float _decayAcceleration = InitialDecayAcceleration;
+        private float _suspendedSecondsRemaining;
         private bool _disposed;
 
         public TrailDecaySystem(TunnelGrid grid, GridTraceTrail trail)
@@ -46,14 +47,36 @@ namespace Burmalda.Decay
         /// <summary>Разрушена ли плита под текущей позицией игрока (провал под ногами).</summary>
         public bool IsCurrentTileDestroyed => _grid.GetOrCreateTile(_trail.CurrentPosition).IsDestroyed;
 
+        /// <summary>Распад временно приостановлен (PRD раздел 12 — Тотем, Неуязвимость).</summary>
+        public bool IsSuspended => _suspendedSecondsRemaining > 0f;
+
+        /// <summary>
+        /// Приостанавливает распад на <paramref name="seconds"/> секунд
+        /// реального времени (PRD раздел 12: "Трейл временно не распадается").
+        /// Повторный вызов во время уже идущей приостановки берёт большее из
+        /// двух значений оставшегося времени, а не складывает их.
+        /// </summary>
+        public void Suspend(float seconds)
+        {
+            if (seconds <= 0f) return;
+            _suspendedSecondsRemaining = Math.Max(_suspendedSecondsRemaining, seconds);
+        }
+
         /// <summary>
         /// Продвигает распад на <paramref name="deltaSeconds"/> секунд
         /// реального времени: ускоряет глобальный темп распада и накапливает
-        /// время распада для всех активных (уже начавших распадаться) плит трейла.
+        /// время распада для всех активных (уже начавших распадаться) плит
+        /// трейла. Не-op целиком, пока действует <see cref="Suspend"/>.
         /// </summary>
         public void Tick(float deltaSeconds)
         {
             if (deltaSeconds <= 0f) return;
+
+            if (_suspendedSecondsRemaining > 0f)
+            {
+                _suspendedSecondsRemaining -= deltaSeconds;
+                return;
+            }
 
             _decayAcceleration += deltaSeconds * DecayAccelerationPerSecond;
 
