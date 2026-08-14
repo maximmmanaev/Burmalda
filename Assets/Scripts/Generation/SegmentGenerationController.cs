@@ -65,7 +65,7 @@ namespace Burmalda.Generation
             DisposeProvider();
             if (_input == null || _input.Grid == null || _input.Trail == null) return;
 
-            var seed = new RunSeed(new Random().Next());
+            var seed = new RunSeed(new System.Random().Next()); // явно System.Random — не UnityEngine.Random, см. doc-комментарий класса
             var selector = new SegmentSelector(SegmentTemplateCatalog.All, seed);
             _provider = new SegmentRowProvider(_input.Grid, _input.Trail, selector, MaxDifficultyForRow);
         }
