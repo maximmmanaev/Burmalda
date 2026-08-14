@@ -345,5 +345,23 @@ namespace Burmalda.Core.Tests
             Assert.IsTrue(tile.IsKeySource);
             Assert.IsFalse(tile.IsManaSource);
         }
+
+        [Test]
+        public void NewTile_IsNotAltar()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsAltar);
+        }
+
+        [Test]
+        public void MarkAltar_SetsIsAltarTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkAltar();
+
+            Assert.IsTrue(tile.IsAltar);
+        }
     }
 }

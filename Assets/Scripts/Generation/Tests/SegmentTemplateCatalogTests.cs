@@ -50,6 +50,13 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
+        public void AltarHallTemplate_ActuallyContainsAltarTile()
+        {
+            var template = SegmentTemplateCatalog.All.Single(t => t.Name == "зал-алтаря");
+            Assert.IsTrue(ContainsTileType(template, SegmentTileType.Altar));
+        }
+
+        [Test]
         public void KeyScatterTemplate_ActuallyContainsKeySourceTiles()
         {
             var template = SegmentTemplateCatalog.All.Single(t => t.Name == "россыпь-ключей");

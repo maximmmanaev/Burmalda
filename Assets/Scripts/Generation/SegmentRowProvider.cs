@@ -143,6 +143,9 @@ namespace Burmalda.Generation
                 case SegmentTileType.KeySource:
                     tile.MarkKeySource();
                     break;
+                case SegmentTileType.Altar:
+                    tile.MarkAltar();
+                    break;
                 case SegmentTileType.Open:
                 default:
                     break;

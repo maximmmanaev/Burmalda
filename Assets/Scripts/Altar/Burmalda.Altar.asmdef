@@ -1,0 +1,19 @@
+{
+    "name": "Burmalda.Altar",
+    "rootNamespace": "Burmalda.Altar",
+    "references": [
+        "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Currencies",
+        "Burmalda.Artifacts"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
