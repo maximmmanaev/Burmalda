@@ -1,0 +1,20 @@
+{
+    "name": "Burmalda.Persistence",
+    "rootNamespace": "Burmalda.Persistence",
+    "references": [
+        "Burmalda.Currencies",
+        "Burmalda.Artifacts",
+        "Burmalda.Progression",
+        "Burmalda.Boss",
+        "Burmalda.Altar"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

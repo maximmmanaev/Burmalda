@@ -5,6 +5,7 @@
         "Burmalda.Core",
         "Burmalda.Movement",
         "Burmalda.Decay",
+        "Burmalda.D20",
         "Burmalda.RunLifecycle",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

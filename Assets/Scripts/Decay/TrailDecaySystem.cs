@@ -15,6 +15,27 @@ namespace Burmalda.Decay
     /// (DecayAccelerationPerSecond) не менялось.
     /// Стартовая плита трейла (index 0, "safe" в прототипе) распаду не
     /// подвержена — как и в прототипе (updateDecay: "if(r===0)continue").
+    ///
+    /// <b>Сверка с философией сложности (PRD §18, issue #75, Спринт 9):</b>
+    /// "карта не давит таймером, а стимулирует... риск через отклонение от
+    /// маршрута". Само срабатывание распада ПОЛНОСТЬЮ завязано на трейл
+    /// игрока (<see cref="OnTrailAdvanced"/> начинает отсчёт для конкретной
+    /// пройденной плиты) — нет глобального экранного таймера/countdown,
+    /// смерть приходит только от плиты, которую разрушил сам игрок своим же
+    /// маршрутом, что соответствует формулировке дословно.
+    /// <see cref="_decayAcceleration"/> растёт от РЕАЛЬНОГО прошедшего
+    /// времени (<see cref="Tick"/> тикает каждый кадр вне зависимости от
+    /// того, движется ли игрок) — это единственный момент, теоретически
+    /// похожий на "таймер": если игрок просто стоит на месте, плита ПОД НИМ
+    /// (уже начавшая распадаться с момента шага на неё) в конце концов
+    /// разрушится и без движения дальше. Признано СООТВЕТСТВУЮЩИМ
+    /// философии, а не расхождением: угроза по-прежнему локальна (только
+    /// плиты, на которые игрок сам наступил) и является следствием
+    /// собственного решения игрока задержаться, а не внешним видимым
+    /// countdown-UI, который философия явно противопоставляет "давлению
+    /// таймером" — такого UI-элемента в проекте нет и не появится по этой
+    /// механике. Формула ускорения — буквальный порт прототипа
+    /// (см. выше), не новое расхождение этого спринта.
     /// </summary>
     public sealed class TrailDecaySystem : IDisposable
     {
@@ -30,13 +51,23 @@ namespace Burmalda.Decay
 
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
+        private readonly float _decayThresholdMultiplier;
         private float _decayAcceleration = InitialDecayAcceleration;
+        private float _suspendedSecondsRemaining;
         private bool _disposed;
 
-        public TrailDecaySystem(TunnelGrid grid, GridTraceTrail trail)
+        /// <param name="decayThresholdMultiplier">
+        /// Множитель порога распада (PRD v7 §20, Знамение «Хрупкий Свод»:
+        /// "порог распада плит −25%" → 0.75). По умолчанию 1 (нейтрально) —
+        /// эта система намеренно не ссылается на <c>RunModifiers.RunModifiers</c>
+        /// напрямую (Decay.asmdef не получает такой зависимости), значение
+        /// читает и передаёт вызывающая сторона (см. Decay.TrailDecayController).
+        /// </param>
+        public TrailDecaySystem(TunnelGrid grid, GridTraceTrail trail, float decayThresholdMultiplier = 1f)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
+            _decayThresholdMultiplier = decayThresholdMultiplier;
             _trail.Advanced += OnTrailAdvanced;
         }
 
@@ -46,14 +77,36 @@ namespace Burmalda.Decay
         /// <summary>Разрушена ли плита под текущей позицией игрока (провал под ногами).</summary>
         public bool IsCurrentTileDestroyed => _grid.GetOrCreateTile(_trail.CurrentPosition).IsDestroyed;
 
+        /// <summary>Распад временно приостановлен (PRD раздел 12 — Тотем, Неуязвимость).</summary>
+        public bool IsSuspended => _suspendedSecondsRemaining > 0f;
+
+        /// <summary>
+        /// Приостанавливает распад на <paramref name="seconds"/> секунд
+        /// реального времени (PRD раздел 12: "Трейл временно не распадается").
+        /// Повторный вызов во время уже идущей приостановки берёт большее из
+        /// двух значений оставшегося времени, а не складывает их.
+        /// </summary>
+        public void Suspend(float seconds)
+        {
+            if (seconds <= 0f) return;
+            _suspendedSecondsRemaining = Math.Max(_suspendedSecondsRemaining, seconds);
+        }
+
         /// <summary>
         /// Продвигает распад на <paramref name="deltaSeconds"/> секунд
         /// реального времени: ускоряет глобальный темп распада и накапливает
-        /// время распада для всех активных (уже начавших распадаться) плит трейла.
+        /// время распада для всех активных (уже начавших распадаться) плит
+        /// трейла. Не-op целиком, пока действует <see cref="Suspend"/>.
         /// </summary>
         public void Tick(float deltaSeconds)
         {
             if (deltaSeconds <= 0f) return;
+
+            if (_suspendedSecondsRemaining > 0f)
+            {
+                _suspendedSecondsRemaining -= deltaSeconds;
+                return;
+            }
 
             _decayAcceleration += deltaSeconds * DecayAccelerationPerSecond;
 
@@ -81,7 +134,7 @@ namespace Burmalda.Decay
             // стартовая плита (index 0) добавляется в конструкторе трейла и в
             // это событие никогда не попадает.
             var trailIndex = _trail.Path.Count - 1;
-            var threshold = BaseDecayThresholdSeconds + trailIndex * DecayThresholdSecondsPerTrailIndex;
+            var threshold = (BaseDecayThresholdSeconds + trailIndex * DecayThresholdSecondsPerTrailIndex) * _decayThresholdMultiplier;
             _grid.GetOrCreateTile(coordinate).BeginDecay(threshold);
         }
     }

@@ -16,6 +16,11 @@ namespace Burmalda.Movement
     ///
     /// Ряды раскрываются по всей ширине тоннеля (не только по столбцу
     /// игрока) — препятствие может оказаться в соседнем столбце.
+    ///
+    /// <b>УСТАРЕЛО (PRD v7 §21, issue #78)</b> — заменён
+    /// <c>Burmalda.Generation.SegmentRowProvider</c> (раскрывает целыми
+    /// сегментами, а не построчно). См. <c>TunnelObstacleController</c> для
+    /// причины, по которой класс не удалён.
     /// </summary>
     public sealed class TunnelGridReveal : IDisposable
     {

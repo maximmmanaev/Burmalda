@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Burmalda.Core
 {
     /// <summary>
@@ -12,7 +14,9 @@ namespace Burmalda.Core
     /// такую же связку для подвижной ловушки с таймингом (PRD v5 4.2, issue
     /// #45) — здесь опасность ещё и временная, включается/выключается по
     /// реальному времени, а не постоянна с момента активации.
-    /// Остальной тип плиты (валюта/артефакт) добавится сюда же по мере Traps.
+    /// Также хранит признак плиты-источника Кристаллов Маны/Ключей (PRD
+    /// раздел 5, issue #12) — постоянное состояние, аналогично препятствиям.
+    /// Остальной тип плиты (артефакт) добавится сюда же по мере Traps.
     /// </summary>
     public sealed class Tile
     {
@@ -115,6 +119,98 @@ namespace Burmalda.Core
         public void DisarmTimedTrap()
         {
             IsTimedTrapActive = false;
+        }
+
+        /// <summary>
+        /// Плита — рычаг (PRD 4.2, раздел 21, issue #51): не ловушка, не
+        /// наносит вреда. Активация (проход трейла через эту плиту) должна
+        /// открыть все плиты <see cref="LeverGateTargets"/> — см.
+        /// <c>Burmalda.Generation.LeverActivationSystem</c>.
+        /// </summary>
+        public bool IsLever { get; private set; }
+
+        /// <summary>Координаты плит короткого бокового прохода, которые открывает этот рычаг. Null, пока не помечена рычагом.</summary>
+        public IReadOnlyList<GridCoordinate> LeverGateTargets { get; private set; }
+
+        /// <summary>Помечает плиту как рычаг с заданным набором целей-ворот. Повторные вызовы сохраняют первый набор.</summary>
+        public void MarkLever(IReadOnlyList<GridCoordinate> gateTargets)
+        {
+            if (IsLever) return;
+            IsLever = true;
+            LeverGateTargets = gateTargets;
+        }
+
+        /// <summary>
+        /// Плита — часть бокового прохода, закрытого до активации связанного
+        /// рычага (issue #51). В отличие от <see cref="IsBlocked"/>
+        /// (постоянно непроходима), становится проходимой после
+        /// <see cref="OpenLeverGate"/>.
+        /// </summary>
+        public bool IsGated { get; private set; }
+
+        /// <summary>Плита-ворота открыта — рычаг уже активирован.</summary>
+        public bool IsLeverGateOpen { get; private set; }
+
+        /// <summary>Помечает плиту как закрытые ворота бокового прохода (закрыта по умолчанию).</summary>
+        public void MarkGated()
+        {
+            IsGated = true;
+        }
+
+        /// <summary>Открывает ворота бокового прохода — вызывается системой активации рычага.</summary>
+        public void OpenLeverGate()
+        {
+            IsLeverGateOpen = true;
+        }
+
+        /// <summary>
+        /// Плита — источник Кристаллов Маны (PRD раздел 5, issue #12):
+        /// "плитки-источники маны на пути". Сбор — см.
+        /// <c>Burmalda.Currencies.TrailTileCurrencySystem</c>.
+        /// </summary>
+        public bool IsManaSource { get; private set; }
+
+        /// <summary>Помечает плиту как источник Кристаллов Маны. Повторные вызовы — не-op.</summary>
+        public void MarkManaSource()
+        {
+            IsManaSource = true;
+        }
+
+        /// <summary>
+        /// Плита — источник Ключей (PRD раздел 5, issue #12): "отдельные
+        /// плитки-источники ключей на пути".
+        /// </summary>
+        public bool IsKeySource { get; private set; }
+
+        /// <summary>Помечает плиту как источник Ключей. Повторные вызовы — не-op.</summary>
+        public void MarkKeySource()
+        {
+            IsKeySource = true;
+        }
+
+        /// <summary>
+        /// Плита — клетка-Алтарь (PRD раздел 7, issue #19): достижение
+        /// запускает Ритуал. Не ловушка, всегда проходима.
+        /// </summary>
+        public bool IsAltar { get; private set; }
+
+        /// <summary>Помечает плиту как Алтарь. Повторные вызовы — не-op.</summary>
+        public void MarkAltar()
+        {
+            IsAltar = true;
+        }
+
+        /// <summary>
+        /// Плита — точка встречи с Боссом (PRD раздел 8, issue #22):
+        /// обязательная, без победы дальше не пройти. Не ловушка, всегда
+        /// проходима — встреча разрешается автоматически при достижении.
+        /// </summary>
+        public bool IsBoss { get; private set; }
+
+        /// <summary>Помечает плиту как точку Босса. Повторные вызовы — не-op.</summary>
+        public void MarkBoss()
+        {
+            IsBoss = true;
         }
 
         /// <summary>Накопленное время распада плиты в секундах.</summary>

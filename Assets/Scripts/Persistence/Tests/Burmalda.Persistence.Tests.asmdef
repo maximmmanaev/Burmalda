@@ -1,0 +1,29 @@
+{
+    "name": "Burmalda.Persistence.Tests",
+    "rootNamespace": "Burmalda.Persistence.Tests",
+    "references": [
+        "Burmalda.Currencies",
+        "Burmalda.Artifacts",
+        "Burmalda.Progression",
+        "Burmalda.Boss",
+        "Burmalda.Altar",
+        "Burmalda.Persistence",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

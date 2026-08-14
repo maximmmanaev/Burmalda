@@ -1,0 +1,16 @@
+{
+    "name": "Burmalda.Achievements",
+    "rootNamespace": "Burmalda.Achievements",
+    "references": [
+        "Burmalda.Artifacts"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

@@ -1,0 +1,21 @@
+{
+    "name": "Burmalda.Camp",
+    "rootNamespace": "Burmalda.Camp",
+    "references": [
+        "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Currencies",
+        "Burmalda.Artifacts",
+        "Burmalda.Altar",
+        "Burmalda.RunLifecycle"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

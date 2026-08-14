@@ -27,6 +27,11 @@ namespace Burmalda.Core
     /// тайминга, а не мгновенная смерть). Все эти числа — предмет плейтеста
     /// баланса (Спринт 10, см. docs/rules/forbidden-actions.md) — не менять
     /// молча.
+    ///
+    /// <b>УСТАРЕЛО (PRD v7 §21, issue #78)</b> — заменён сегментной
+    /// генерацией (<c>Burmalda.Generation</c>). См.
+    /// <c>Movement.TunnelObstacleController</c> для причины, по которой
+    /// класс не удалён.
     /// </summary>
     public sealed class TunnelObstacleGenerator : IDisposable
     {

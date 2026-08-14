@@ -115,6 +115,95 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void PrimeBreach_ThenAdvanceIntoBlockedTile_Succeeds()
+        {
+            // PRD раздел 12 (Тотем — "Пробой"): одноразовый проход сквозь препятствие.
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var blocked = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(blocked).MarkBlocked();
+
+            trail.PrimeBreach();
+            var advanced = trail.TryAdvanceTo(blocked);
+
+            Assert.IsTrue(advanced);
+            Assert.AreEqual(blocked, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void PrimeBreach_ConsumedAfterUse_SecondBlockedTileStillImpassable()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var firstBlocked = new GridCoordinate(1, 2);
+            var secondBlocked = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(firstBlocked).MarkBlocked();
+            grid.GetOrCreateTile(secondBlocked).MarkBlocked();
+
+            trail.PrimeBreach();
+            trail.TryAdvanceTo(firstBlocked);
+            var secondAdvance = trail.TryAdvanceTo(secondBlocked);
+
+            Assert.IsFalse(secondAdvance);
+            Assert.AreEqual(firstBlocked, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void PrimeBreach_MoveIntoNonBlockedTileFirst_DoesNotConsumeBreach()
+        {
+            // Обычный ход на не заблокированную плиту не должен тратить заряд Пробоя.
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var open = new GridCoordinate(1, 2);
+            var blocked = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(blocked).MarkBlocked();
+
+            trail.PrimeBreach();
+            trail.TryAdvanceTo(open);
+            var advancedThroughBlocked = trail.TryAdvanceTo(blocked);
+
+            Assert.IsTrue(advancedThroughBlocked);
+            Assert.AreEqual(blocked, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void CanAdvanceTo_BlockedTileWithoutBreach_StillReturnsFalse()
+        {
+            // Регрессия: без активного Пробоя препятствие непроходимо как раньше (#9).
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var blocked = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(blocked).MarkBlocked();
+
+            Assert.IsFalse(trail.CanAdvanceTo(blocked));
+        }
+
+        [Test]
+        public void CanAdvanceTo_ClosedGatedTile_ReturnsFalse()
+        {
+            // #51: плита бокового прохода закрыта, пока не активирован рычаг.
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var gated = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(gated).MarkGated();
+
+            Assert.IsFalse(trail.CanAdvanceTo(gated));
+        }
+
+        [Test]
+        public void CanAdvanceTo_OpenedGatedTile_ReturnsTrue()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var gated = new GridCoordinate(1, 2);
+            var tile = grid.GetOrCreateTile(gated);
+            tile.MarkGated();
+            tile.OpenLeverGate();
+
+            Assert.IsTrue(trail.CanAdvanceTo(gated));
+        }
+
+        [Test]
         public void CanAdvanceTo_UnvisitedLethalTrapTile_ReturnsFalse()
         {
             var grid = new TunnelGrid(5);
@@ -422,6 +511,68 @@ namespace Burmalda.Movement.Tests
             Assert.IsTrue(advanced);
             Assert.AreEqual(new GridCoordinate(1, 3), trail.CurrentPosition);
             Assert.AreEqual(3, trail.Path.Count); // start, (1,2), (1,3) — без дублей
+        }
+
+        [Test]
+        public void TeleportTo_SetsCurrentPosition()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+
+            trail.TeleportTo(start);
+
+            Assert.AreEqual(start, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void TeleportTo_NonAdjacentCoordinate_Succeeds()
+        {
+            // Не ход игрока — соседство не требуется (#24, откат к Алтарю может быть далеко).
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+
+            trail.TeleportTo(new GridCoordinate(4, 0));
+
+            Assert.AreEqual(new GridCoordinate(4, 0), trail.CurrentPosition);
+        }
+
+        [Test]
+        public void TeleportTo_RaisesPositionChangedButNotAdvanced()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+            var advancedFired = false;
+            GridCoordinate? positionChanged = null;
+            trail.Advanced += _ => advancedFired = true;
+            trail.PositionChanged += c => positionChanged = c;
+
+            trail.TeleportTo(new GridCoordinate(3, 3));
+
+            Assert.IsFalse(advancedFired);
+            Assert.AreEqual(new GridCoordinate(3, 3), positionChanged);
+        }
+
+        [Test]
+        public void TeleportTo_DoesNotMutatePathOrVisitedSet()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            var pathCountBefore = trail.Path.Count;
+
+            trail.TeleportTo(new GridCoordinate(4, 4));
+
+            Assert.AreEqual(pathCountBefore, trail.Path.Count);
+        }
+
+        [Test]
+        public void TeleportTo_OutOfGridBounds_Throws()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => trail.TeleportTo(new GridCoordinate(0, 99)));
         }
     }
 }

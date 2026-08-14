@@ -1,4 +1,5 @@
 using Burmalda.Core;
+using Burmalda.D20;
 using Burmalda.Decay;
 using Burmalda.Movement;
 using NUnit.Framework;
@@ -9,12 +10,17 @@ namespace Burmalda.RunLifecycle.Tests
     {
         private const int Width = 5;
 
-        private static (TunnelGrid grid, GridTraceTrail trail, TrailDecaySystem decay, RunState runState) CreateRun()
+        // d20Roll по умолчанию — 5, в диапазоне Death (1-9): все СУЩЕСТВУЮЩИЕ
+        // тесты (написанные до issue #24) ожидают мгновенную смерть от
+        // ловушки/обвала и не должны меняться при появлении d20 — только
+        // новые тесты Fortune/Knockback переопределяют этот параметр.
+        private static (TunnelGrid grid, GridTraceTrail trail, TrailDecaySystem decay, RunState runState) CreateRun(int d20Roll = 5)
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
             var decay = new TrailDecaySystem(grid, trail);
-            var runState = new RunState(trail, decay);
+            var d20 = new D20Trial(() => d20Roll);
+            var runState = new RunState(grid, trail, decay, d20);
             return (grid, trail, decay, runState);
         }
 
@@ -204,6 +210,110 @@ namespace Burmalda.RunLifecycle.Tests
             trail.TryAdvanceTo(target);
 
             Assert.IsTrue(runState.IsAlive, "после Dispose RunState не должен реагировать на события трейла");
+        }
+
+        [Test]
+        public void LethalTrapTriggered_D20Fortune_StaysAliveAndDoesNotFireDied()
+        {
+            var (grid, trail, _, runState) = CreateRun(d20Roll: 20);
+            var pit = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            var fired = false;
+            runState.Died += _ => fired = true;
+
+            trail.TryAdvanceTo(pit);
+
+            Assert.IsTrue(runState.IsAlive);
+            Assert.IsFalse(fired);
+        }
+
+        [Test]
+        public void LethalTrapTriggered_D20Knockback_TeleportsToStartWhenNoAltarVisited()
+        {
+            var (grid, trail, _, runState) = CreateRun(d20Roll: 12);
+            var start = trail.CurrentPosition;
+            var pit = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+
+            trail.TryAdvanceTo(pit);
+
+            Assert.IsTrue(runState.IsAlive);
+            Assert.AreEqual(start, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void LethalTrapTriggered_D20Knockback_TeleportsToLastVisitedAltar()
+        {
+            var (grid, trail, _, runState) = CreateRun(d20Roll: 12);
+            var altar = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(altar).MarkAltar();
+            trail.TryAdvanceTo(altar);
+            var pit = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+
+            trail.TryAdvanceTo(pit);
+
+            Assert.IsTrue(runState.IsAlive);
+            Assert.AreEqual(altar, trail.CurrentPosition);
+        }
+
+        [Test]
+        public void D20Resolved_FiresWithRolledOutcome()
+        {
+            var (grid, trail, _, runState) = CreateRun(d20Roll: 20);
+            var pit = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            D20Outcome? seen = null;
+            runState.D20Resolved += outcome => seen = outcome;
+
+            trail.TryAdvanceTo(pit);
+
+            Assert.AreEqual(D20Outcome.Fortune, seen);
+        }
+
+        [Test]
+        public void TileDestroyed_D20Fortune_StaysAlive()
+        {
+            var (grid, trail, decay, runState) = CreateRun(d20Roll: 15);
+            var target = new GridCoordinate(1, 2);
+            trail.TryAdvanceTo(target);
+
+            decay.Tick(1000f);
+
+            Assert.IsTrue(grid.GetOrCreateTile(target).IsDestroyed, "тест некорректен, если плита не разрушилась");
+            Assert.IsTrue(runState.IsAlive);
+        }
+
+        [Test]
+        public void ReportBossDefeat_SetsIsAliveFalseAndFiresDiedWithGivenReason_NoD20Rolled()
+        {
+            // #82: d20 НЕ применяется к поражению от Босса — детерминировано.
+            var (_, _, _, runState) = CreateRun(d20Roll: 20); // Fortune, если бы d20 всё-таки бросился — тест поймал бы регресс
+            string firedReason = null;
+            runState.Died += reason => firedReason = reason;
+            var d20Fired = false;
+            runState.D20Resolved += _ => d20Fired = true;
+
+            runState.ReportBossDefeat("Не хватило энергии до Босса");
+
+            Assert.IsFalse(runState.IsAlive);
+            Assert.AreEqual("Не хватило энергии до Босса", firedReason);
+            Assert.IsFalse(d20Fired, "поражение от Босса детерминировано, d20 бросаться не должен");
+        }
+
+        [Test]
+        public void ReportBossDefeat_CalledAfterAlreadyDead_DoesNotFireDiedAgain()
+        {
+            var (grid, trail, _, runState) = CreateRun(d20Roll: 5); // Death
+            var pit = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            trail.TryAdvanceTo(pit); // уже мёртв
+            var firedCount = 0;
+            runState.Died += _ => firedCount++;
+
+            runState.ReportBossDefeat("Не хватило энергии до Босса");
+
+            Assert.AreEqual(0, firedCount);
         }
     }
 }

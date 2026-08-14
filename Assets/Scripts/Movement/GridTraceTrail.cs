@@ -14,7 +14,10 @@ namespace Burmalda.Movement
     /// независимо от того, пройдена она трейлом или нет. Плита-цель ловушки
     /// с таймингом (<see cref="Tile.IsTimedTrapActive"/>, PRD v5 4.2, #45)
     /// непроходима, только пока активна — в отличие от прочих препятствий
-    /// это временное состояние.
+    /// это временное состояние. Плита-ворота рычага (<see cref="Tile.IsGated"/>,
+    /// PRD 4.2/21, #51) непроходима, пока не открыта связанным рычагом
+    /// (<see cref="Tile.IsLeverGateOpen"/>) — по механике похожа на
+    /// <see cref="Tile.IsBlocked"/>, но открывается навсегда, а не постоянна.
     /// </summary>
     public sealed class GridTraceTrail
     {
@@ -22,6 +25,7 @@ namespace Burmalda.Movement
         private readonly List<GridCoordinate> _path = new List<GridCoordinate>();
         private readonly HashSet<GridCoordinate> _visited = new HashSet<GridCoordinate>();
         private GridCoordinate _currentPosition;
+        private bool _breachAvailable;
 
         public GridTraceTrail(TunnelGrid grid, GridCoordinate startCoordinate)
         {
@@ -101,7 +105,8 @@ namespace Burmalda.Movement
             // не нужно.
             if (_grid.TryGetTile(target, out var tile))
             {
-                if (tile.IsBlocked) return false;
+                if (tile.IsBlocked && !_breachAvailable) return false;
+                if (tile.IsGated && !tile.IsLeverGateOpen) return false;
                 if (tile.LethalTrap.HasValue) return false;
                 if (tile.IsTimedTrapActive) return false;
                 if (_visited.Contains(target)) return !tile.IsDestroyed;
@@ -139,6 +144,13 @@ namespace Burmalda.Movement
 
             if (!CanAdvanceTo(target)) return false;
 
+            // Отдельный (не переиспользующий targetTile выше — тот не
+            // гарантированно присвоен на всех путях из-за короткого
+            // замыкания &&) поиск: тратим Пробой, только если им реально
+            // воспользовались (цель была заблокирована).
+            if (_breachAvailable && _grid.TryGetTile(target, out var blockedTile) && blockedTile.IsBlocked)
+                _breachAvailable = false;
+
             var isNewTile = _visited.Add(target);
             if (isNewTile)
             {
@@ -150,6 +162,38 @@ namespace Burmalda.Movement
             if (isNewTile) Advanced?.Invoke(target);
             PositionChanged?.Invoke(target);
             return true;
+        }
+
+        /// <summary>
+        /// Даёт трейлу одноразовую возможность пройти через ЛЮБУЮ одну
+        /// заблокированную плиту (PRD раздел 12, Тотем — "Пробой"). Тратится
+        /// на первом же ходе, который фактически ей воспользовался (шаг на
+        /// заблокированную плиту) — обычный ход на не заблокированную плиту
+        /// её не расходует.
+        /// </summary>
+        public void PrimeBreach()
+        {
+            _breachAvailable = true;
+        }
+
+        /// <summary>
+        /// Принудительно переносит текущую позицию на <paramref name="target"/>
+        /// — не ход игрока: не требует соседства с текущей позицией, не
+        /// проверяет препятствия/ловушки, не материализует новую плиту и не
+        /// поднимает <see cref="Advanced"/> (target уже посещался раньше —
+        /// иначе телепортировать туда было бы некуда). Используется
+        /// d20-испытанием (PRD раздел 9, issue #24) — откат к последнему
+        /// пройденному Алтарю при исходе Knockback. Поднимает
+        /// <see cref="PositionChanged"/>, чтобы камера/прочие подписчики на
+        /// текущую позицию сориентировались на новом месте.
+        /// </summary>
+        public void TeleportTo(GridCoordinate target)
+        {
+            if (!_grid.Contains(target))
+                throw new ArgumentOutOfRangeException(nameof(target), target, "Координата телепорта вне сетки тоннеля.");
+
+            _currentPosition = target;
+            PositionChanged?.Invoke(target);
         }
     }
 }
