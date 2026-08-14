@@ -22,7 +22,11 @@ namespace Burmalda.Movement.Tests
         {
             var (_, trail, projection) = CreateTrail();
 
-            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+            // introHeightOffsetZ явно =0f (совпадает с heightOffset.z=0) —
+            // отключает Z-интерполяцию (см. IntroHeightOffsetZ) для этого
+            // теста: он про сам факт «нет лага на старте», не про интро-Z
+            // фикс (для него — тесты TargetPosition_..._ZUsesIntroHeightOffsetZ ниже).
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
 
             // Плита (0,2): x=(2-2.5+0.5)*1=0, z=(0+0.5)*1=0.5; трейлинг-ряд max(0,0-5)=0 — офсета ещё нет.
             var expected = new Vector3(0f, 0f, 0.5f);
@@ -119,7 +123,11 @@ namespace Burmalda.Movement.Tests
         public void Tick_AppliesSmoothingFactorOncePerCall()
         {
             var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+            // introHeightOffsetZ:0f — тест изолированно проверяет SmoothingFactor,
+            // не должен зависеть от intro-Z интерполяции (см. IntroHeightOffsetZ);
+            // без этого конструктор на playerRow=0 стартует с CurrentPosition.z=-0.5
+            // (дефолтный IntroHeightOffsetZ=-1), а не с 0.5, как предполагает расчёт ниже.
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
 
             for (var row = 1; row <= 6; row++)
                 trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Target=(0,0,1.5), Current всё ещё (0,0,0.5)
@@ -138,7 +146,12 @@ namespace Burmalda.Movement.Tests
         public void Tick_RepeatedCalls_ConvergesTowardsTarget()
         {
             var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+            // introHeightOffsetZ:0f — без этого стартовый разрыв CurrentPosition
+            // вдвое больше (конструктор на playerRow=0 стартует с -0.5, не 0.5),
+            // и 1000 тиков сходятся к цели с запасом всего ~13% от допуска
+            // 1e-4 — не по сути тест ломается, но допуск неоправданно узкий,
+            // не про то, что тест должен проверять (сходимость Tick, не intro-Z).
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
 
             for (var row = 1; row <= 6; row++)
                 trail.TryAdvanceTo(new GridCoordinate(row, 2));
@@ -146,20 +159,6 @@ namespace Burmalda.Movement.Tests
             for (var i = 0; i < 1000; i++) follow.Tick();
 
             Assert.AreEqual(follow.TargetPosition.z, follow.CurrentPosition.z, 1e-4f);
-        }
-
-        [Test]
-        public void TargetRotation_IsFixedAt35DegreesPitch_RegardlessOfHeightOffset()
-        {
-            // Хотфикс (18.4° -> 29° -> 35°): поворот камеры больше не
-            // вычисляется динамически «взглядом вперёд» — Rotation X
-            // зафиксирован. При vFOV=60° горизонт исчезает из кадра при
-            // pitch >= 30° (vFOV/2); 35° — с запасом на покачивание камеры.
-            var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 4f, -1f));
-
-            Assert.AreEqual(35f, follow.TargetRotation.eulerAngles.x, 1e-4f);
-            Assert.AreEqual(35f, follow.CurrentRotation.eulerAngles.x, 1e-4f);
         }
 
         [Test]
@@ -175,24 +174,10 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void TargetRotation_DoesNotChangeAsTrailAdvances()
-        {
-            var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 4f, -1f));
-            var rotationAtStart = follow.TargetRotation;
-
-            for (var row = 1; row <= 10; row++)
-                trail.TryAdvanceTo(new GridCoordinate(row, 2));
-            trail.TryAdvanceTo(new GridCoordinate(9, 2)); // шаг назад (#61)
-
-            Assert.AreEqual(rotationAtStart, follow.TargetRotation);
-        }
-
-        [Test]
         public void TargetRotation_IsIndependentOfHeightOffset()
         {
-            // В отличие от старой look-at-логики, поворот больше не зависит
-            // от heightOffset вообще — только позиция (ComputeTargetPosition).
+            // Поворот не зависит от heightOffset вообще — только от того,
+            // насколько трейл продвинулся (top-down интро, см. ниже).
             var (_, trailA, projectionA) = CreateTrail();
             var followA = new TunnelCameraFollow(trailA, projectionA, Vector3.zero);
             var (_, trailB, projectionB) = CreateTrail();
@@ -202,27 +187,127 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void Constructor_CustomPitchDegrees_OverridesDefault()
+        public void TargetRotation_AtVeryStartOfRun_EqualsIntroPitchDegrees()
         {
+            // Top-down интро (issue: плитки вне кадра при фиксированном
+            // pitch на старте забега): трейлинг-ряд камеры на самом старте
+            // клампится к 0 и совпадает с позицией игрока — caughtUpDistance=0,
+            // scale=0 -> чистый IntroPitchDegrees, без примеси PitchDegrees.
             var (_, trail, projection) = CreateTrail();
 
-            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, pitchDegrees: 20f);
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
 
-            Assert.AreEqual(20f, follow.TargetRotation.eulerAngles.x, 1e-4f);
+            Assert.AreEqual(TunnelCameraFollow.DefaultIntroPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
         }
 
         [Test]
-        public void PitchDegrees_SetAfterConstruction_UpdatesRotationImmediately()
+        public void TargetRotation_AtSteadyState_EqualsPitchDegrees()
+        {
+            // Игрок продвинулся дальше TrailingRowsBehindPlayer (5) рядов —
+            // caughtUpDistance достигает максимума, scale=1 -> чистый
+            // PitchDegrees, интро полностью отпущено.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            for (var row = 1; row <= 5; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+
+            Assert.AreEqual(TunnelCameraFollow.DefaultPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
+        }
+
+        [Test]
+        public void TargetRotation_PartiallyCaughtUp_InterpolatesBetweenIntroAndTarget()
+        {
+            // Тот же паттерн интерполяции, что был у старой (убранной)
+            // LookAheadRowsBeyondPlayer-логики точки взгляда: на ряду 3 из 5
+            // штатного отставания caughtUpDistance=3, scale=3/5=0.6 ->
+            // Lerp(70,50,0.6)=70+(50-70)*0.6=58.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            for (var row = 1; row <= 3; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+
+            Assert.AreEqual(58f, follow.TargetRotation.eulerAngles.x, 1e-3f);
+        }
+
+        [Test]
+        public void TargetRotation_RevisitOlderTileAfterGoingDeep_PitchMovesBackTowardsIntro()
+        {
+            // Как и позиция (#61), угол наклона реагирует на РЕАЛЬНУЮ текущую
+            // позицию трейла, а не только на "самую глубокую" точку — шаг
+            // назад на уже пройденную (но не разрушенную) плиту должен
+            // сдвинуть интерполяцию обратно к интро, если caughtUpDistance
+            // от новой текущей позиции меньше.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            for (var row = 1; row <= 5; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // steady state, pitch=50
+            trail.TryAdvanceTo(new GridCoordinate(4, 2)); // шаг назад, соседний с (5,2)
+            trail.TryAdvanceTo(new GridCoordinate(3, 2)); // ещё шаг назад -> caughtUpDistance=3, pitch=58 (см. тест выше)
+
+            Assert.AreEqual(58f, follow.TargetRotation.eulerAngles.x, 1e-3f);
+        }
+
+        [Test]
+        public void Constructor_CustomPitchAndIntroDegrees_UsedInInterpolation()
+        {
+            var (_, trail, projection) = CreateTrail();
+
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, pitchDegrees: 20f, introPitchDegrees: 80f);
+
+            Assert.AreEqual(80f, follow.TargetRotation.eulerAngles.x, 1e-4f, "на старте — чистый интро");
+
+            for (var row = 1; row <= 5; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+            Assert.AreEqual(20f, follow.TargetRotation.eulerAngles.x, 1e-4f, "на устоявшемся режиме — чистый целевой pitch");
+        }
+
+        [Test]
+        public void PitchDegrees_SetAfterReachingSteadyState_UpdatesRotationImmediately()
         {
             // Живая правка из инспектора (TunnelCameraController) — не должна
             // требовать пересборки Follow/рестарта забега, чтобы применяться.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+            for (var row = 1; row <= 5; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // steady state
 
             follow.PitchDegrees = 40f;
 
             Assert.AreEqual(40f, follow.TargetRotation.eulerAngles.x, 1e-4f);
             Assert.AreEqual(40f, follow.CurrentRotation.eulerAngles.x, 1e-4f);
+        }
+
+        [Test]
+        public void IntroPitchDegrees_SetAtStart_UpdatesRotationImmediately()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            follow.IntroPitchDegrees = 70f;
+
+            Assert.AreEqual(70f, follow.TargetRotation.eulerAngles.x, 1e-4f);
+        }
+
+        [Test]
+        public void CurrentPitchDegrees_MatchesTargetRotationEulerAnglesX_AtStartAndPartiallyCaughtUp()
+        {
+            // TunnelCameraController берёт CurrentPitchDegrees напрямую (не
+            // через Quaternion.eulerAngles.x) для пересчёта FOV каждый кадр —
+            // тест ловит расхождение, если один из двух путей когда-нибудь
+            // разойдётся с другим (например, если ComputeCurrentPitchDegrees
+            // поменяют в одном месте и забудут в другом).
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            Assert.AreEqual(follow.TargetRotation.eulerAngles.x, follow.CurrentPitchDegrees, 1e-4f, "на старте (чистый интро)");
+
+            for (var row = 1; row <= 3; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+            Assert.AreEqual(follow.TargetRotation.eulerAngles.x, follow.CurrentPitchDegrees, 1e-4f, "частично нагнано");
+            Assert.AreEqual(58f, follow.CurrentPitchDegrees, 1e-3f, "тот же сценарий, что и TargetRotation_PartiallyCaughtUp...");
         }
 
         [Test]
@@ -248,6 +333,61 @@ namespace Burmalda.Movement.Tests
             follow.HeightOffset = new Vector3(0f, 2f, 0f);
 
             Assert.AreEqual(new Vector3(0f, 2f, 1.5f), follow.TargetPosition);
+        }
+
+        [Test]
+        public void TargetPosition_AtVeryStartOfRun_ZUsesIntroHeightOffsetZNotHeightOffsetZ()
+        {
+            // Геометрический фикс (не про pitch): на playerRow=0 (scale=0)
+            // Z-компонента офсета берётся из IntroHeightOffsetZ (дефолт -1),
+            // а не напрямую из HeightOffset.Z (тут 2) — иначе устоявшийся
+            // Z=2 уводит камеру мимо стартовой плиты (см. doc-комментарий
+            // класса/DefaultIntroHeightOffsetZ).
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
+
+            // База z=0.5 (трейлинг-ряд клампится к 0, см. первый тест файла) + IntroHeightOffsetZ.
+            var expectedZ = 0.5f + TunnelCameraFollow.DefaultIntroHeightOffsetZ;
+            Assert.AreEqual(new Vector3(0f, 6f, expectedZ), follow.TargetPosition, "X/Y — напрямую из HeightOffset, не интерполируются");
+        }
+
+        [Test]
+        public void TargetPosition_AtSteadyState_ZUsesHeightOffsetZExactly()
+        {
+            // Устоявшийся режим (scale=1) — эффективный Z возвращается ровно
+            // к HeightOffset.Z, интро-Z полностью отпущено (тот же паттерн,
+            // что и pitch).
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
+            for (var row = 1; row <= 5; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+
+            Assert.AreEqual(new Vector3(0f, 6f, 2.5f), follow.TargetPosition); // трейлинг-ряд max(0,5-5)=0 -> база z=0.5 + 2 = 2.5
+        }
+
+        [Test]
+        public void TargetPosition_PartiallyCaughtUp_ZInterpolatesBetweenIntroAndHeightOffset()
+        {
+            // Тот же сценарий (ряд 3, caughtUpDistance=3, scale=0.6), что и
+            // TargetRotation_PartiallyCaughtUp... — Lerp(-1,2,0.6)=-1+3*0.6=0.8.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
+            for (var row = 1; row <= 3; row++)
+                trail.TryAdvanceTo(new GridCoordinate(row, 2));
+
+            // Трейлинг-ряд ещё клампится к 0 (playerRow=3<5) -> база z=0.5.
+            Assert.AreEqual(0.5f + 0.8f, follow.TargetPosition.z, 1e-3f);
+        }
+
+        [Test]
+        public void IntroHeightOffsetZ_SetAtStart_UpdatesPositionImmediately()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
+
+            follow.IntroHeightOffsetZ = -3f;
+
+            Assert.AreEqual(0.5f - 3f, follow.TargetPosition.z, 1e-4f);
         }
 
         [Test]

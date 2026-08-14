@@ -56,13 +56,50 @@
 Персонаж не отображается — камера следует за
 `GridTraceTrail.CurrentPosition` через `WorldGridProjection.ToWorldPosition`.
 
-`TunnelCameraFollow.HeightOffset`/`PitchDegrees` — публично изменяемые
-свойства (не только конструкторские параметры): двигать `Transform`
-`TunnelCameraController` напрямую в Scene view/инспекторе нельзя, он каждый
-кадр перезаписывается результатом Follow — вместо этого меняются поля
-`Height Offset`/`Pitch Degrees` в инспекторе `TunnelCameraController`,
-которые прокидываются в `Follow` каждый кадр и применяются вживую, без
-рестарта забега.
+`TunnelCameraFollow.HeightOffset`/`PitchDegrees`/`IntroPitchDegrees`/
+`IntroHeightOffsetZ` — публично изменяемые свойства (не только
+конструкторские параметры): двигать `Transform` `TunnelCameraController`
+напрямую в Scene view/инспекторе нельзя, он каждый кадр перезаписывается
+результатом Follow — вместо этого меняются соответствующие поля в
+инспекторе `TunnelCameraController`, которые прокидываются в `Follow`
+каждый кадр и применяются вживую, без рестарта забега.
+
+Top-down интро на старте забега: `TargetRotation`/`CurrentRotation`
+вычисляются живьём как `Lerp(IntroPitchDegrees, PitchDegrees, scale)`, где
+`scale` — общий приватный `ComputeCatchUpScale(playerRow)`
+(`caughtUpDistance/TrailingRowsBehindPlayer`), тот же паттерн, что был у
+старой убранной `LookAheadRowsBeyondPlayer`-логики точки взгляда (теперь
+для угла, не для точки взгляда). Решает: на фиксированном игровом
+`PitchDegrees` с первого кадра стартовая плитка физически оказывалась вне
+кадра (трейлинг-ряд камеры на старте совпадает с игроком). `IntroPitchDegrees`
+(дефолт 70°) — не 85°: на более крутом интро FOV, откалиброванный под
+устоявшийся `PitchDegrees`, раздувает ближнюю плитку и роняет дальние ряды
+за верхний край почти сразу (см. `CurrentPitchDegrees` ниже).
+
+Отдельный, геометрический (не про угол) конфликт того же top-down интро:
+`HeightOffset.Z`, применённый с первого кадра, физически уводит камеру
+мимо стартовой плиты (трейлинг-ряд ещё клампится к 0, а Z уже
+"устоявшийся") — плита уходит за НИЖНИЙ край. `IntroHeightOffsetZ`
+(дефолт -1, подобран численно через `WorldToViewportPoint`) интерполируется
+ТЕМ ЖЕ `ComputeCatchUpScale`, что и pitch, но только для Z-компоненты
+`HeightOffset` — X/Y не участвуют.
+
+`TunnelCameraFollow.CurrentPitchDegrees` — то же число, что в
+`TargetRotation.eulerAngles.x`, но напрямую как градусы, без раскрытия
+кватерниона. Нужно `TunnelCameraController`, который пересчитывает
+горизонтальный FOV КАЖДЫЙ кадр (не только на (пере)сборке следования) от
+этого живого pitch — иначе FOV, откалиброванный один раз под устоявшийся
+`PitchDegrees`, не годится для геометрии top-down интро (сильно другой pitch).
+
+`TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees` берёт депт до
+опорного ряда ВДОЛЬ ОСИ ВЗГЛЯДА камеры (`cameraHeight*sin(pitch) +
+groundDistanceToRow*cos(pitch)`), не по прямой — обязательное условие
+того, чтобы `Pitch Degrees` был по-настоящему тюнящимся полем (см.
+`ComputeSteadyStateGroundDistanceToReferenceRow`/`FramingReferenceRowsBehindPlayer`
+ниже — калибровка ширины обзора от устоявшегося режима следования, не от
+вырожденного старта забега; `groundDistanceToRow` зависит только от
+`HeightOffset.Z`, не от pitch, поэтому его саму по себе не нужно
+пересчитывать по ходу top-down интро).
 
 | Термин (RU) | Раздел PRD | C#-идентификатор | Тип сущности |
 |---|---|---|---|
