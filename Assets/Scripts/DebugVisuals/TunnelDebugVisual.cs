@@ -13,6 +13,17 @@ namespace Burmalda.DebugVisuals
     /// только чтобы видеть механики Core/Movement/Decay глазами, а не только
     /// через Test Runner. По паттерну <c>Decay.TrailDecaySystem</c>: обычный
     /// C#-класс с логикой, тикается тонким driver'ом (<see cref="TunnelDebugVisualController"/>).
+    ///
+    /// <b>Найдено на реальном Android-билде (2026-08-14):</b> <c>Shader.Find</c>
+    /// надёжен только в Editor — на устройстве шейдер-страппинг может урезать
+    /// все три перебираемых варианта, и <c>Shader.Find</c> возвращает null для
+    /// каждого. Раньше это приводило к необработанному <c>ArgumentNullException</c>
+    /// в конструкторе КАЖДЫЙ кадр (см. <see cref="TunnelDebugVisualController.Update"/> —
+    /// ленивая пересборка ретраится, пока <c>_visual</c> не создан) — реально
+    /// вешало игру на сером экране после сплэша. Теперь при отсутствии
+    /// доступного шейдера визуал безопасно САМООТКЛЮЧАЕТСЯ (одно предупреждение
+    /// в лог, не создаёт геометрию) — debug-инфраструктура необязательна для
+    /// игры и не должна иметь возможность её сломать.
     /// </summary>
     public sealed class TunnelDebugVisual : IDisposable
     {
@@ -28,6 +39,9 @@ namespace Burmalda.DebugVisuals
         private readonly Material _templateMaterial;
         private bool _disposed;
 
+        /// <summary>Ложь, если ни один шейдер не найден в этой сборке — визуал не создаёт геометрию и ничего не делает.</summary>
+        public bool IsEnabled => _templateMaterial != null;
+
         public TunnelDebugVisual(TunnelGrid grid, GridTraceTrail trail, WorldGridProjection projection, Transform parent)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
@@ -35,6 +49,12 @@ namespace Burmalda.DebugVisuals
             _projection = projection;
             _parent = parent;
             _templateMaterial = CreateTemplateMaterial();
+
+            if (!IsEnabled)
+            {
+                Debug.LogWarning("TunnelDebugVisual: ни один шейдер не найден (Shader.Find вернул null для всех вариантов) — debug-визуализация плит отключена в этой сборке.");
+                return;
+            }
 
             _grid.TileMaterialized += OnTileMaterialized;
 
@@ -46,9 +66,11 @@ namespace Burmalda.DebugVisuals
                 OnTileMaterialized(_grid.GetOrCreateTile(coordinate));
         }
 
-        /// <summary>Пересчитывает цвет всех созданных плит по их текущему состоянию.</summary>
+        /// <summary>Пересчитывает цвет всех созданных плит по их текущему состоянию. Не-op, если <see cref="IsEnabled"/> ложь.</summary>
         public void Tick()
         {
+            if (!IsEnabled) return;
+
             var startCoordinate = _trail.Path[0];
             var currentCoordinate = _trail.CurrentPosition;
 
@@ -71,18 +93,22 @@ namespace Burmalda.DebugVisuals
             }
         }
 
-        /// <summary>Отписывается от сетки и уничтожает всю созданную геометрию.</summary>
+        /// <summary>Отписывается от сетки и уничтожает всю созданную геометрию. Безопасно вызывать, даже если <see cref="IsEnabled"/> ложь.</summary>
         public void Dispose()
         {
             if (_disposed) return;
 
-            _grid.TileMaterialized -= OnTileMaterialized;
+            if (IsEnabled)
+            {
+                _grid.TileMaterialized -= OnTileMaterialized;
 
-            foreach (var tileObject in _tileObjects.Values)
-                UnityEngine.Object.Destroy(tileObject);
-            _tileObjects.Clear();
+                foreach (var tileObject in _tileObjects.Values)
+                    UnityEngine.Object.Destroy(tileObject);
+                _tileObjects.Clear();
 
-            UnityEngine.Object.Destroy(_templateMaterial);
+                UnityEngine.Object.Destroy(_templateMaterial);
+            }
+
             _disposed = true;
         }
 
@@ -116,7 +142,7 @@ namespace Burmalda.DebugVisuals
             var shader = Shader.Find("Universal Render Pipeline/Lit")
                 ?? Shader.Find("Standard")
                 ?? Shader.Find("Unlit/Color");
-            return new Material(shader);
+            return shader != null ? new Material(shader) : null;
         }
     }
 }
