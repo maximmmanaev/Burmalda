@@ -35,12 +35,22 @@ namespace Burmalda.Altar
 
         private readonly ArtifactPool _pool;
         private readonly Func<float> _random01;
+        private readonly int _freeRerolls;
         private int _rerollCount;
 
-        public Ritual(ArtifactPool pool, Func<float> random01)
+        /// <param name="freeRerolls">
+        /// Число бесплатных рероллов в начале этого посещения Алтаря (PRD
+        /// v7 §20, Знамение «Слепой Спуск»: "+1 бесплатный реролл на каждом
+        /// Алтаре"). По умолчанию 0 — Altar.asmdef намеренно не получает
+        /// зависимость от RunModifiers, значение читает и передаёт
+        /// вызывающая сторона (см. Altar.AltarController).
+        /// </param>
+        public Ritual(ArtifactPool pool, Func<float> random01, int freeRerolls = 0)
         {
             _pool = pool ?? throw new ArgumentNullException(nameof(pool));
             _random01 = random01 ?? throw new ArgumentNullException(nameof(random01));
+            if (freeRerolls < 0) throw new ArgumentOutOfRangeException(nameof(freeRerolls), freeRerolls, "Число бесплатных рероллов не может быть отрицательным.");
+            _freeRerolls = freeRerolls;
             RollOffers();
         }
 
@@ -49,14 +59,21 @@ namespace Burmalda.Altar
 
         public RuneChest RuneChestOffer { get; private set; }
 
-        /// <summary>Цена следующего реролла — ×1.5 за каждый предыдущий в этом посещении (PRD v7 §7).</summary>
-        public int NextRerollCost => RerollPricing.CostForRerollNumber(_rerollCount + 1);
+        /// <summary>
+        /// Цена следующего реролла — ×1.5 за каждый предыдущий ПЛАТНЫЙ в
+        /// этом посещении (PRD v7 §7); 0, пока не исчерпаны бесплатные
+        /// рероллы (<see cref="_freeRerolls"/>, Знамение «Слепой Спуск»).
+        /// </summary>
+        public int NextRerollCost =>
+            _rerollCount < _freeRerolls ? 0 : RerollPricing.CostForRerollNumber(_rerollCount - _freeRerolls + 1);
 
-        /// <summary>Меняет оба предложенных сундука за Ключи. Возвращает false, если Ключей не хватило — предложения не меняются.</summary>
+        /// <summary>Меняет оба предложенных сундука. Бесплатно, пока не исчерпаны бесплатные рероллы, иначе за Ключи. Возвращает false, если Ключей не хватило — предложения не меняются.</summary>
         public bool TryReroll(RunCurrencyAccumulator keys)
         {
             if (keys == null) throw new ArgumentNullException(nameof(keys));
-            if (!keys.Spend(NextRerollCost)) return false;
+
+            var cost = NextRerollCost;
+            if (cost > 0 && !keys.Spend(cost)) return false; // cost==0 — бесплатный реролл, Spend(0) не вызываем (он всегда возвращает false)
 
             _rerollCount++;
             RollOffers();

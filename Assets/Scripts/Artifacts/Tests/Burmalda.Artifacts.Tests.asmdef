@@ -2,6 +2,9 @@
     "name": "Burmalda.Artifacts.Tests",
     "rootNamespace": "Burmalda.Artifacts.Tests",
     "references": [
+        "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Decay",
         "Burmalda.Artifacts",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

@@ -57,6 +57,37 @@ namespace Burmalda.Altar.Tests
         }
 
         [Test]
+        public void NextRerollCost_WithFreeRerolls_IsZeroUntilExhausted()
+        {
+            // PRD v7 §20, Знамение «Слепой Спуск»: "+1 бесплатный реролл на каждом Алтаре".
+            var ritual = new Ritual(new ArtifactPool(), () => ConstantRandom(0f), freeRerolls: 1);
+
+            Assert.AreEqual(0, ritual.NextRerollCost);
+        }
+
+        [Test]
+        public void TryReroll_WithFreeRerolls_DoesNotSpendKeysUntilExhausted()
+        {
+            var ritual = new Ritual(new ArtifactPool(), () => ConstantRandom(0f), freeRerolls: 1);
+            var keys = new RunCurrencyAccumulator(); // 0 Ключей — платный реролл сейчас же провалился бы
+
+            var firstResult = ritual.TryReroll(keys); // бесплатный
+            var costAfterFree = ritual.NextRerollCost;
+            var secondResult = ritual.TryReroll(keys); // уже не бесплатный, Ключей нет — провал
+
+            Assert.IsTrue(firstResult);
+            Assert.AreEqual(0, keys.Total);
+            Assert.Greater(costAfterFree, 0);
+            Assert.IsFalse(secondResult);
+        }
+
+        [Test]
+        public void Constructor_NegativeFreeRerolls_Throws()
+        {
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new Ritual(new ArtifactPool(), () => ConstantRandom(0f), freeRerolls: -1));
+        }
+
+        [Test]
         public void TryPurchasePrimary_NullPrimaryChest_ReturnsFalse()
         {
             var ritual = new Ritual(new ArtifactPool(), () => ConstantRandom(0f));

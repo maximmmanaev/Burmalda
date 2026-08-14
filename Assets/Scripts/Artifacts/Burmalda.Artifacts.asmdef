@@ -1,7 +1,11 @@
 {
     "name": "Burmalda.Artifacts",
     "rootNamespace": "Burmalda.Artifacts",
-    "references": [],
+    "references": [
+        "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Decay"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
