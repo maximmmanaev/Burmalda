@@ -16,7 +16,7 @@
 | `Decay/` | Decay-система (обрушение плит позади игрока) | [Спринт 2](https://github.com/maximmmanaev/Burmalda/milestone/2) |
 | `Traps/` | Пока не используется — все три вида ловушек (статичные, мгновенные, с таймингом) реализованы в `Core`/`Movement`, см. ниже | [Спринт 3](https://github.com/maximmmanaev/Burmalda/milestone/3) |
 | `Currencies/` | Реализовано (issues #12–#14): `RunCurrencyAccumulator`/`PersistentWallet` (общие реализации временных/постоянных валют), `TrailCoinSystem`, `TrailTileCurrencySystem`, `CurrencyController` | [Спринт 4](https://github.com/maximmmanaev/Burmalda/milestone/4) |
-| `Artifacts/` | `Idol`, `Totem`, `Amulet`, `Talisman`, `Rune`, `Relic` и связанные `ArtifactCollection`/`ArtifactPool` | [Спринт 5](https://github.com/maximmmanaev/Burmalda/milestone/5) |
+| `Artifacts/` | Реализовано (issues #15–18, #79): `Artifact` (общий предок) + `Idol`/`Totem`/`Amulet`/`Talisman`/`Rune`/`Relic`, `ArtifactCollection`, `ArtifactPool`, `IdolLoadout` (2 постоянных слота), `RunArtifactLoadout` (временный билд забега), `ArtifactTag`/`ResonanceType`/`ResonanceCalculator` (Созвучия), `ArtifactCatalog` (5 примеров из issue #17). Числовые эффекты Амулетов/Талисманов не применяются автоматически — зависят от Алтаря (Спринт 6) и d20 (Спринт 7) | [Спринт 5](https://github.com/maximmmanaev/Burmalda/milestone/5) |
 | `Altar/` | `Altar`, `Ritual`, `Chest` и подтипы сундуков, `SellArtifact` | [Спринт 6](https://github.com/maximmmanaev/Burmalda/milestone/6) |
 | `Boss/` | Обязательный Босс (`Boss`): 2 Алтаря перед ним, автобой лучом энергии | [Спринт 7](https://github.com/maximmmanaev/Burmalda/milestone/7) |
 | `D20/` | `D20Trial` и `D20Outcome` (Испытание Шахты) | [Спринт 7](https://github.com/maximmmanaev/Burmalda/milestone/7) |
