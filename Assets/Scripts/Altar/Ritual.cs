@@ -106,6 +106,15 @@ namespace Burmalda.Altar
             return before.Except(after).ToList();
         }
 
+        /// <summary>Какие Созвучия соберутся, если купить <paramref name="candidate"/> — подсветка в витрине до покупки (PRD v7 §7, issue #81).</summary>
+        public IReadOnlyList<ResonanceType> PreviewResonanceGainOnPurchase(Artifact candidate, RunArtifactLoadout loadout)
+        {
+            var before = loadout.ActiveResonances();
+            var withCandidateTags = loadout.Acquired.Select(a => a.Tags).Append(candidate.Tags).ToList();
+            var after = ResonanceCalculator.Compute(withCandidateTags, unityConditionMet: false);
+            return after.Except(before).ToList();
+        }
+
         /// <summary>Продаёт артефакт из билда забега обратно Алтарю за Ключи. False, если артефакта нет в билде.</summary>
         public bool TrySell(Artifact artifact, RunArtifactLoadout loadout, RunCurrencyAccumulator keys)
         {

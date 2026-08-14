@@ -214,5 +214,30 @@ namespace Burmalda.Altar.Tests
             Assert.IsNotNull(rune);
             Assert.AreEqual(1, idol.PassiveALevel);
         }
+
+        [Test]
+        public void PreviewResonanceGainOnPurchase_CompletesResonance_ReturnsGainedResonance()
+        {
+            var loadout = new RunArtifactLoadout(new ArtifactCollection());
+            loadout.Acquire(new Talisman("kt1", "К1", "э", new[] { ArtifactTag.Keys }));
+            var candidate = new Talisman("kt2", "К2", "э", new[] { ArtifactTag.Keys });
+            var ritual = new Ritual(new ArtifactPool(), () => ConstantRandom(0f));
+
+            var gained = ritual.PreviewResonanceGainOnPurchase(candidate, loadout);
+
+            CollectionAssert.Contains(gained, ResonanceType.KeyBond);
+        }
+
+        [Test]
+        public void PreviewResonanceGainOnPurchase_UnrelatedCandidate_ReturnsEmpty()
+        {
+            var loadout = new RunArtifactLoadout(new ArtifactCollection());
+            var candidate = new Talisman("mt1", "М1", "э", new[] { ArtifactTag.Mana });
+            var ritual = new Ritual(new ArtifactPool(), () => ConstantRandom(0f));
+
+            var gained = ritual.PreviewResonanceGainOnPurchase(candidate, loadout);
+
+            Assert.IsEmpty(gained);
+        }
     }
 }
