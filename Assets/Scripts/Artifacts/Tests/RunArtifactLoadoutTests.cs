@@ -58,5 +58,40 @@ namespace Burmalda.Artifacts.Tests
 
             CollectionAssert.Contains(resonances, ResonanceType.KeyBond);
         }
+
+        [Test]
+        public void Remove_AcquiredArtifact_RemovesFromAcquiredAndReturnsTrue()
+        {
+            var loadout = new RunArtifactLoadout(new ArtifactCollection());
+            var talisman = new Talisman("t1", "Т", "э", new[] { ArtifactTag.Mana });
+            loadout.Acquire(talisman);
+
+            var removed = loadout.Remove(talisman);
+
+            Assert.IsTrue(removed);
+            Assert.IsEmpty(loadout.Acquired);
+        }
+
+        [Test]
+        public void Remove_NotAcquiredArtifact_ReturnsFalse()
+        {
+            var loadout = new RunArtifactLoadout(new ArtifactCollection());
+            var talisman = new Talisman("t1", "Т", "э", new[] { ArtifactTag.Mana });
+
+            Assert.IsFalse(loadout.Remove(talisman));
+        }
+
+        [Test]
+        public void Remove_DoesNotUnrecordFromCollection()
+        {
+            var collection = new ArtifactCollection();
+            var loadout = new RunArtifactLoadout(collection);
+            var talisman = new Talisman("t1", "Т", "э", new[] { ArtifactTag.Mana });
+            loadout.Acquire(talisman);
+
+            loadout.Remove(talisman);
+
+            Assert.IsTrue(collection.Contains("t1"), "запись в Коллекции остаётся навсегда, даже если инстанс убран");
+        }
     }
 }

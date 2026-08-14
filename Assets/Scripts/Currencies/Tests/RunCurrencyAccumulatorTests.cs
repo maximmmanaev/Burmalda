@@ -59,5 +59,66 @@ namespace Burmalda.Currencies.Tests
 
             Assert.IsFalse(fired);
         }
+
+        [Test]
+        public void Spend_SufficientTotal_DecreasesTotalAndReturnsTrue()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(10);
+
+            var spent = accumulator.Spend(6);
+
+            Assert.IsTrue(spent);
+            Assert.AreEqual(4, accumulator.Total);
+        }
+
+        [Test]
+        public void Spend_InsufficientTotal_ReturnsFalseAndLeavesTotalUnchanged()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(5);
+
+            var spent = accumulator.Spend(6);
+
+            Assert.IsFalse(spent);
+            Assert.AreEqual(5, accumulator.Total);
+        }
+
+        [Test]
+        public void Spend_ZeroOrNegativeAmount_ReturnsFalseAndLeavesTotalUnchanged()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(5);
+
+            Assert.IsFalse(accumulator.Spend(0));
+            Assert.IsFalse(accumulator.Spend(-1));
+            Assert.AreEqual(5, accumulator.Total);
+        }
+
+        [Test]
+        public void Spend_Successful_RaisesChangedWithNewTotal()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(10);
+            var seen = -1;
+            accumulator.Changed += total => seen = total;
+
+            accumulator.Spend(4);
+
+            Assert.AreEqual(6, seen);
+        }
+
+        [Test]
+        public void Spend_Failed_DoesNotRaiseChanged()
+        {
+            var accumulator = new RunCurrencyAccumulator();
+            accumulator.Add(5);
+            var fired = false;
+            accumulator.Changed += _ => fired = true;
+
+            accumulator.Spend(100);
+
+            Assert.IsFalse(fired);
+        }
     }
 }

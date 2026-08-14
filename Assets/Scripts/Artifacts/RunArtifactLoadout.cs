@@ -37,6 +37,18 @@ namespace Burmalda.Artifacts
             _collection.Record(artifact.Id);
         }
 
+        /// <summary>
+        /// Убирает артефакт из билда забега — продажа обратно Алтарю (issue
+        /// #20, Спринт 6). НЕ трогает <see cref="ArtifactCollection"/> — "даже
+        /// если сам инстанс исчезнет", запись остаётся навсегда. Возвращает
+        /// false, если артефакта не было в билде.
+        /// </summary>
+        public bool Remove(Artifact artifact)
+        {
+            if (artifact == null) throw new ArgumentNullException(nameof(artifact));
+            return _acquired.Remove(artifact);
+        }
+
         /// <summary>Активные Созвучия для текущего билда (см. <see cref="ResonanceCalculator"/>).</summary>
         public IReadOnlyList<ResonanceType> ActiveResonances(bool unityConditionMet = false) =>
             ResonanceCalculator.Compute(_acquired.Select(a => a.Tags).ToList(), unityConditionMet);

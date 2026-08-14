@@ -56,6 +56,9 @@ namespace Burmalda.Generation
         ManaSource,
 
         /// <summary>Источник Ключей (PRD раздел 5, issue #12) — проходима, не ловушка.</summary>
-        KeySource
+        KeySource,
+
+        /// <summary>Клетка-Алтарь (PRD раздел 7, issue #19) — проходима, запускает Ритуал.</summary>
+        Altar
     }
 }

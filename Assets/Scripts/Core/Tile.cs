@@ -188,6 +188,18 @@ namespace Burmalda.Core
             IsKeySource = true;
         }
 
+        /// <summary>
+        /// Плита — клетка-Алтарь (PRD раздел 7, issue #19): достижение
+        /// запускает Ритуал. Не ловушка, всегда проходима.
+        /// </summary>
+        public bool IsAltar { get; private set; }
+
+        /// <summary>Помечает плиту как Алтарь. Повторные вызовы — не-op.</summary>
+        public void MarkAltar()
+        {
+            IsAltar = true;
+        }
+
         /// <summary>Накопленное время распада плиты в секундах.</summary>
         public float DecayElapsedSeconds { get; private set; }
 
