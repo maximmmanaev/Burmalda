@@ -62,8 +62,12 @@ namespace Burmalda.Movement
         // AdvanceIntroTween, у которого своя, не экспоненциальная анимация.
         private const float SmoothingFactor = 0.01f;
 
-        // legacy/burmolda_demo.html, tryAct()/returnToAltar(): cameraTargetRow = Math.max(0, r-5).
-        // Публичная — нужна TunnelCameraController (калибровка FOV, см.
+        // legacy/burmolda_demo.html, tryAct()/returnToAltar(): cameraTargetRow = r-5
+        // (прототип клампил к Math.max(0, ...) — здесь кламп убран, см.
+        // ComputeTargetPosition: на 2D top-down прототипе клампинг был не
+        // критичен, а в 3D-геометрии этого проекта именно он схлопывал
+        // дистанцию камера-игрок на первых 5 рядах). Публичная — нужна
+        // TunnelCameraController (калибровка FOV, см.
         // TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow)
         // и тестам вне этого класса, а не только ComputeTargetPosition здесь.
         // Устоявшееся следование за игроком — НЕ про интро, не переписывалось.
@@ -357,9 +361,24 @@ namespace Burmalda.Movement
             // #62: камера двигается только вперёд-назад (по Z) — столбец
             // зафиксирован на центре ширины тоннеля, не следует за игроком
             // по X (иначе камера уезжает влево-вправо при диагональном пути).
-            // Трейлинг по рядам — устоявшийся механизм следования, НЕ про
-            // интро, не переписывался (см. doc-комментарий класса).
-            var trailingRow = Math.Max(0, playerPosition.Row - TrailingRowsBehindPlayer);
+            //
+            // НЕ клампится к 0 (было Math.Max(0, ...) — убрано 2026-08-14,
+            // найдено через LogCameraDiagnosticMatrix на реальном устройстве):
+            // клампинг на первых TrailingRowsBehindPlayer рядах схлопывал
+            // дистанцию камера-игрок почти до нуля (на row=0 камера
+            // оказывалась ВПЕРЕДИ игрока по Z, а не позади — отсюда "поле не
+            // попадает в кадр"/плитка не в кадре сразу после ConfirmRun).
+            // GridCoordinate/WorldGridProjection.ToWorldPosition — чистая
+            // линейная функция ряда, отрицательный Row такой же корректный
+            // мировой Z, как и положительный (проверено: нет ни assert'ов,
+            // ни индексации по Row нигде на пути). Без клампа дистанция
+            // камера-игрок ПОСТОЯННА (TrailingRowsBehindPlayer рядов +
+            // HeightOffset.Z) на любом Row, включая 0 — устоявшаяся геометрия
+            // (Pitch/HeightOffset.Z), уже провалидированная
+            // TunnelCameraViewportFramingTests на дальних рядах, теперь
+            // корректна и на самом первом ряду тоже, без отдельного
+            // калибровочного значения под row=0.
+            var trailingRow = playerPosition.Row - TrailingRowsBehindPlayer;
             var followCoordinate = new GridCoordinate(trailingRow, _projection.Width / 2);
 
             // Z-компонента HeightOffset интерполируется ходом твина интро

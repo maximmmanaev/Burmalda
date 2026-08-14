@@ -150,6 +150,50 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void SteadyState_PlayerTile_LandsInFrameImmediatelyAfterConfirmRunEvenAtRowZero()
+        {
+            // Регресс-тест на реально сломанный сценарий (2026-08-14): тап
+            // по стартовой плите (ConfirmRun) ДО того, как игрок реально
+            // продвинулся — трейлинг-ряд БЕЗ клампа (см. doc-комментарий
+            // ComputeTargetPosition/TrailingRowsBehindPlayer) даёт ту же
+            // устоявшуюся геометрию, что и на дальних рядах (см. соседний
+            // тест ниже), а не "поле мимо кадра" — раньше клампинг к 0
+            // схлопывал дистанцию камера-игрок почти до нуля именно в этот
+            // момент.
+            var grid = new TunnelGrid(Width);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, Width / 2)); // игрок НЕ продвигался — row=0
+            var projection = new WorldGridProjection(TileSize, Width);
+            var heightOffset = new Vector3(0f, 6f, 2f); // Height Offset со сцены — не трогается
+
+            var follow = CreateSteadyStateFollow(trail, projection, heightOffset);
+            var pitch = follow.TargetRotation.eulerAngles.x;
+            var desiredHorizontalFovDeg = ComputeDesiredHorizontalFovDeg(projection, heightOffset, pitch);
+
+            var playerWorldPosition = projection.ToWorldPosition(trail.CurrentPosition);
+
+            GameObject cameraObject = null;
+            try
+            {
+                cameraObject = new GameObject("TestCamera_PlayerTileInFrameAtRowZero");
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.transform.SetPositionAndRotation(follow.CurrentPosition, follow.CurrentRotation);
+                camera.aspect = 0.5625f; // портрет 9:16 — целевая (единственная поддерживаемая) ориентация
+                camera.fieldOfView = TunnelCameraFraming.ComputeVerticalFovDegrees(desiredHorizontalFovDeg, camera.aspect);
+
+                var playerViewport = camera.WorldToViewportPoint(playerWorldPosition);
+
+                Assert.Greater(playerViewport.z, 0f, "плитка игрока должна быть перед камерой (не позади/не мимо)");
+                Assert.GreaterOrEqual(playerViewport.y, 0f, "плитка игрока не должна быть за нижним краем экрана");
+                Assert.LessOrEqual(playerViewport.y, 0.35f, "плитка игрока должна быть заметно ниже центра (0.5)");
+            }
+            finally
+            {
+                if (cameraObject != null) Object.DestroyImmediate(cameraObject);
+                follow.Dispose();
+            }
+        }
+
+        [Test]
         public void SteadyState_PlayerTile_LandsNoticeablyBelowCenterInPortrait()
         {
             // Issue: плитка игрока должна быть ближе к низу экрана, а не в
