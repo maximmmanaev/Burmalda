@@ -503,15 +503,21 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void SnapToSteadyState_AtVeryStartOfRun_ZUsesHeightOffsetZNotIntroHeightOffsetZ()
+        public void SnapToSteadyState_AtVeryStartOfRun_ZStillUsesIntroHeightOffsetZ()
         {
+            // Найдено на реальном устройстве (2026-08-14): форсировать
+            // устоявшийся Z=2 на ряду 0 уводит камеру мимо стартовой плиты
+            // (та самая причина, ради которой придуман IntroHeightOffsetZ) —
+            // плита пропадает за нижним краем экрана. SnapToSteadyState
+            // форсирует ТОЛЬКО угол (см. TargetRotation-тест выше), Z-офсет
+            // остаётся под обычной интро-интерполяцией по рядам.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
 
             follow.SnapToSteadyState();
 
-            // База z=0.5 (трейлинг-ряд клампится к 0) + устоявшийся HeightOffset.Z=2, БЕЗ IntroHeightOffsetZ.
-            Assert.AreEqual(2.5f, follow.TargetPosition.z, 1e-4f);
+            // База z=0.5 (трейлинг-ряд клампится к 0) + IntroHeightOffsetZ (дефолт -1), НЕ устоявшийся HeightOffset.Z=2.
+            Assert.AreEqual(0.5f + TunnelCameraFollow.DefaultIntroHeightOffsetZ, follow.TargetPosition.z, 1e-4f);
         }
 
         [Test]

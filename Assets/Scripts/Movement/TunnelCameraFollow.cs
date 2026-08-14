@@ -278,16 +278,27 @@ namespace Burmalda.Movement
         }
 
         /// <summary>
-        /// Мгновенно переводит камеру в устоявшийся (игровой, не top-down
-        /// интро) режим — сразу и позицию (как <see cref="SnapToTarget"/>),
-        /// и наклон (<see cref="PitchDegrees"/>, минуя top-down интро-
-        /// интерполяцию по рядам, см. <see cref="ComputeCatchUpScale"/>).
-        /// Однонаправленно — раз включённый режим не возвращается к интро-
-        /// интерполяции до следующего забега (новый <see cref="TunnelCameraFollow"/>
-        /// на <c>RunStarted</c>). Триггер — тап по стартовой плите (см.
-        /// <see cref="GridTraceInputController.StartTileTapped"/>): отдельная
-        /// "кнопка" вместо обязательного свайпа, чтобы попасть в игровой
-        /// режим камеры, прямой запрос владельца продукта.
+        /// Мгновенно переводит НАКЛОН камеры (<see cref="PitchDegrees"/>) в
+        /// устоявшийся (игровой, не top-down интро) режим, минуя интро-
+        /// интерполяцию по рядам (см. <see cref="ComputeCurrentPitchDegrees"/>)
+        /// — плюс мгновенный снап позиции, как <see cref="SnapToTarget"/>.
+        ///
+        /// <b>Намеренно НЕ форсирует Z-компоненту HeightOffset</b> (см.
+        /// <see cref="ComputeTargetPosition"/>) тем же способом — только
+        /// угол. Найдено на реальном устройстве (2026-08-14): на ряду 0
+        /// устоявшийся HeightOffset.Z=2 физически уводит камеру мимо
+        /// стартовой плиты (ровно тот геометрический конфликт, ради
+        /// которого и придуман <see cref="IntroHeightOffsetZ"/>, см. его
+        /// doc-комментарий) — плита пропадает за нижним краем экрана прямо
+        /// на тапе-"кнопке", который должен был её показать. Z-офсет
+        /// по-прежнему плавно интерполируется по рядам как обычно.
+        ///
+        /// Однонаправленно (для угла) — раз включённый режим не возвращается
+        /// к интро-интерполяции угла до следующего забега (новый
+        /// <see cref="TunnelCameraFollow"/> на <c>RunStarted</c>). Триггер —
+        /// тап по стартовой плите (см. <see cref="GridTraceInputController.StartTileTapped"/>):
+        /// отдельная "кнопка" вместо обязательного свайпа, чтобы почувствовать
+        /// обычный игровой ракурс камеры сразу, прямой запрос владельца продукта.
         /// </summary>
         public void SnapToSteadyState()
         {
@@ -366,11 +377,6 @@ namespace Burmalda.Movement
         /// </summary>
         private float ComputeCatchUpScale(int playerRow)
         {
-            // См. SnapToSteadyState — форсирует "полностью нагнано" (1) для
-            // ОБОИХ потребителей этого метода (pitch и Z-компонента
-            // HeightOffset) одним изменением, не по отдельности в каждом.
-            if (_forceSteadyState) return 1f;
-
             var cameraTrailingRow = Math.Max(0, playerRow - TrailingRowsBehindPlayer);
             var caughtUpDistance = playerRow - cameraTrailingRow;
             return Mathf.Clamp01((float)caughtUpDistance / TrailingRowsBehindPlayer);
@@ -378,6 +384,16 @@ namespace Burmalda.Movement
 
         private float ComputeCurrentPitchDegrees()
         {
+            // См. SnapToSteadyState — форсирует ТОЛЬКО угол. Специально НЕ
+            // форсирует Z-компоненту HeightOffset (см. ComputeTargetPosition)
+            // тем же способом: найдено на реальном устройстве — на ряду 0
+            // устоявшийся Z=2 уводит камеру мимо стартовой плиты (тот самый
+            // геометрический конфликт, ради которого и придуман
+            // IntroHeightOffsetZ, см. его doc-комментарий) — плита пропадает
+            // за нижним краем экрана. Форсировать нужно только "чувство"
+            // обычного игрового ракурса (угол), не саму геометрию кадрирования.
+            if (_forceSteadyState) return _pitchDegrees;
+
             var scale = ComputeCatchUpScale(_trail.CurrentPosition.Row);
             return Mathf.Lerp(_introPitchDegrees, _pitchDegrees, scale);
         }
