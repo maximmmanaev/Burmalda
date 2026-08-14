@@ -12,6 +12,17 @@ namespace Burmalda.Movement
     /// паттерну <c>Burmalda.Decay.TrailDecayController</c>. Привязка к тому
     /// же GameObject, что и <see cref="GridTraceInputController"/> — вручную
     /// пользователем, здесь только логика пересборки.
+    ///
+    /// <para><b>УСТАРЕЛО (PRD v7 §21, issue #78)</b>: заменён
+    /// <c>Burmalda.Generation.SegmentGenerationController</c> (авторские
+    /// шаблоны-сегменты вместо броска на каждую отдельную плиту, seeded RNG
+    /// вместо <c>UnityEngine.Random</c> ниже). Класс НЕ удалён и продолжает
+    /// работать — на сцене уже есть GameObject с этим компонентом
+    /// (`Assets/Scenes/SampleScene.unity`), а трогать .unity-файлы
+    /// автономно запрещено (docs/rules/forbidden-actions.md). Замену
+    /// компонента на новый в сцене нужно сделать вручную в Editor; не
+    /// использовать оба одновременно на одном забеге — конкурируют за одни и
+    /// те же плиты.</para>
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TunnelObstacleController : MonoBehaviour

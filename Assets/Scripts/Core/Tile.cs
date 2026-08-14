@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Burmalda.Core
 {
     /// <summary>
@@ -115,6 +117,48 @@ namespace Burmalda.Core
         public void DisarmTimedTrap()
         {
             IsTimedTrapActive = false;
+        }
+
+        /// <summary>
+        /// Плита — рычаг (PRD 4.2, раздел 21, issue #51): не ловушка, не
+        /// наносит вреда. Активация (проход трейла через эту плиту) должна
+        /// открыть все плиты <see cref="LeverGateTargets"/> — см.
+        /// <c>Burmalda.Generation.LeverActivationSystem</c>.
+        /// </summary>
+        public bool IsLever { get; private set; }
+
+        /// <summary>Координаты плит короткого бокового прохода, которые открывает этот рычаг. Null, пока не помечена рычагом.</summary>
+        public IReadOnlyList<GridCoordinate> LeverGateTargets { get; private set; }
+
+        /// <summary>Помечает плиту как рычаг с заданным набором целей-ворот. Повторные вызовы сохраняют первый набор.</summary>
+        public void MarkLever(IReadOnlyList<GridCoordinate> gateTargets)
+        {
+            if (IsLever) return;
+            IsLever = true;
+            LeverGateTargets = gateTargets;
+        }
+
+        /// <summary>
+        /// Плита — часть бокового прохода, закрытого до активации связанного
+        /// рычага (issue #51). В отличие от <see cref="IsBlocked"/>
+        /// (постоянно непроходима), становится проходимой после
+        /// <see cref="OpenLeverGate"/>.
+        /// </summary>
+        public bool IsGated { get; private set; }
+
+        /// <summary>Плита-ворота открыта — рычаг уже активирован.</summary>
+        public bool IsLeverGateOpen { get; private set; }
+
+        /// <summary>Помечает плиту как закрытые ворота бокового прохода (закрыта по умолчанию).</summary>
+        public void MarkGated()
+        {
+            IsGated = true;
+        }
+
+        /// <summary>Открывает ворота бокового прохода — вызывается системой активации рычага.</summary>
+        public void OpenLeverGate()
+        {
+            IsLeverGateOpen = true;
         }
 
         /// <summary>Накопленное время распада плиты в секундах.</summary>

@@ -250,5 +250,69 @@ namespace Burmalda.Core.Tests
             Assert.IsFalse(tile.IsTimedTrapActive);
             Assert.AreEqual(TimedTrapType.Blade, tile.TimedTrapKind); // историческое значение, IsTimedTrapActive уже false — не опасна
         }
+
+        [Test]
+        public void NewTile_IsNotLeverAndHasNoGateTargets()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsLever);
+            Assert.IsNull(tile.LeverGateTargets);
+        }
+
+        [Test]
+        public void MarkLever_SetsIsLeverAndGateTargets()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            var targets = new[] { new GridCoordinate(1, 2), new GridCoordinate(1, 3) };
+
+            tile.MarkLever(targets);
+
+            Assert.IsTrue(tile.IsLever);
+            CollectionAssert.AreEqual(targets, tile.LeverGateTargets);
+        }
+
+        [Test]
+        public void MarkLever_CalledTwice_KeepsFirstTargets()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            var firstTargets = new[] { new GridCoordinate(1, 2) };
+
+            tile.MarkLever(firstTargets);
+            tile.MarkLever(new[] { new GridCoordinate(9, 9) });
+
+            CollectionAssert.AreEqual(firstTargets, tile.LeverGateTargets);
+        }
+
+        [Test]
+        public void NewTile_IsNotGatedAndGateIsNotOpen()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsGated);
+            Assert.IsFalse(tile.IsLeverGateOpen);
+        }
+
+        [Test]
+        public void MarkGated_SetsIsGatedTrue_GateStaysClosed()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkGated();
+
+            Assert.IsTrue(tile.IsGated);
+            Assert.IsFalse(tile.IsLeverGateOpen);
+        }
+
+        [Test]
+        public void OpenLeverGate_SetsIsLeverGateOpenTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.MarkGated();
+
+            tile.OpenLeverGate();
+
+            Assert.IsTrue(tile.IsLeverGateOpen);
+        }
     }
 }

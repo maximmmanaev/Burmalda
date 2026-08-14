@@ -115,6 +115,31 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void CanAdvanceTo_ClosedGatedTile_ReturnsFalse()
+        {
+            // #51: плита бокового прохода закрыта, пока не активирован рычаг.
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var gated = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(gated).MarkGated();
+
+            Assert.IsFalse(trail.CanAdvanceTo(gated));
+        }
+
+        [Test]
+        public void CanAdvanceTo_OpenedGatedTile_ReturnsTrue()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var gated = new GridCoordinate(1, 2);
+            var tile = grid.GetOrCreateTile(gated);
+            tile.MarkGated();
+            tile.OpenLeverGate();
+
+            Assert.IsTrue(trail.CanAdvanceTo(gated));
+        }
+
+        [Test]
         public void CanAdvanceTo_UnvisitedLethalTrapTile_ReturnsFalse()
         {
             var grid = new TunnelGrid(5);
