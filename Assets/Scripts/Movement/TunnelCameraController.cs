@@ -71,6 +71,15 @@ namespace Burmalda.Movement
         // на самом старте забега уводит камеру мимо стартовой плиты.
         [SerializeField] private float _introHeightOffsetZ = TunnelCameraFollow.DefaultIntroHeightOffsetZ;
 
+        // Эдж-скролл (2026-08-14, прямой запрос владельца продукта): пока
+        // палец держится на экране и поднимается к верхней границе нижней
+        // трети (normalizedY = screenY/Screen.height >= 1/3), камера едет
+        // вперёд сама — водить пальцем нужно только по нижней трети экрана,
+        // не тянуться выше. Черновые значения (порог, скорость) — предмет
+        // плейтеста баланса (Спринт 10), важен сам факт наличия механики.
+        [SerializeField] private float _edgeScrollThresholdNormalizedY = 1f / 3f;
+        [SerializeField] private float _edgeScrollSpeed = 3f; // мировых единиц/с
+
         private TunnelCameraFollow _follow;
 
         private void Awake()
@@ -81,12 +90,22 @@ namespace Burmalda.Movement
 
         private void OnEnable()
         {
-            if (_input != null) _input.RunStarted += HandleRunStarted;
+            if (_input != null)
+            {
+                _input.RunStarted += HandleRunStarted;
+                _input.PressStarted += HandlePressStarted;
+                _input.StartTileTapped += HandleStartTileTapped;
+            }
         }
 
         private void OnDisable()
         {
-            if (_input != null) _input.RunStarted -= HandleRunStarted;
+            if (_input != null)
+            {
+                _input.RunStarted -= HandleRunStarted;
+                _input.PressStarted -= HandlePressStarted;
+                _input.StartTileTapped -= HandleStartTileTapped;
+            }
             DisposeFollow();
         }
 
@@ -111,6 +130,17 @@ namespace Burmalda.Movement
             _follow.IntroPitchDegrees = _introPitchDegrees;
             _follow.IntroHeightOffsetZ = _introHeightOffsetZ;
 
+            // Эдж-скролл — см. doc-комментарий полей выше. Палец держится и
+            // поднялся к верхней границе нижней трети экрана -> двигаем
+            // камеру вперёд напрямую (NudgeForward — без сглаживания Tick(),
+            // отклик должен быть мгновенным).
+            if (_input.IsPressed)
+            {
+                var normalizedY = _input.CurrentScreenPosition.y / Screen.height;
+                if (normalizedY >= _edgeScrollThresholdNormalizedY)
+                    _follow.NudgeForward(_edgeScrollSpeed * Time.deltaTime);
+            }
+
             _follow.Tick();
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
 
@@ -134,6 +164,14 @@ namespace Burmalda.Movement
         }
 
         private void HandleRunStarted() => RebuildFollow();
+
+        // Новый тап (переход "не прижат"->"прижат") — мгновенно показать
+        // текущую позицию трейла у низа экрана, см. doc-комментарий SnapToTarget.
+        private void HandlePressStarted() => _follow?.SnapToTarget();
+
+        // Тап по стартовой плите-"кнопке" — сразу игровой (не top-down
+        // интро) режим камеры, см. doc-комментарий SnapToSteadyState.
+        private void HandleStartTileTapped() => _follow?.SnapToSteadyState();
 
         private void RebuildFollow()
         {

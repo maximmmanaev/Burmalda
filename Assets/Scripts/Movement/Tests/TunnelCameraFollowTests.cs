@@ -391,6 +391,154 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void SnapToTarget_AfterFallingBehind_InstantlyMatchesTarget()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
+            for (var row = 1; row <= 20; row++) trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Current сильно отстаёт от Target без Tick()
+
+            follow.SnapToTarget();
+
+            Assert.AreEqual(follow.TargetPosition, follow.CurrentPosition);
+        }
+
+        [Test]
+        public void SnapToTarget_AfterPriorNudgeForward_ResetsManualOffset()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
+            for (var row = 1; row <= 6; row++) trail.TryAdvanceTo(new GridCoordinate(row, 2));
+            var targetBeforeNudge = follow.TargetPosition;
+            follow.NudgeForward(10f); // накопленное ручное смещение
+
+            follow.SnapToTarget();
+
+            // Смещение сброшено — цель вернулась к чисто рядовой (без ручного скролла).
+            Assert.AreEqual(targetBeforeNudge, follow.TargetPosition);
+            Assert.AreEqual(targetBeforeNudge, follow.CurrentPosition);
+        }
+
+        [Test]
+        public void NudgeForward_MovesTargetAndCurrentPositionImmediatelyByGivenDistance()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
+            var targetBefore = follow.TargetPosition;
+            var currentBefore = follow.CurrentPosition;
+
+            follow.NudgeForward(3f);
+
+            Assert.AreEqual(targetBefore.z + 3f, follow.TargetPosition.z, 1e-5f);
+            Assert.AreEqual(currentBefore.z + 3f, follow.CurrentPosition.z, 1e-5f, "смещение мгновенное, не через сглаживание Tick()");
+        }
+
+        [Test]
+        public void NudgeForward_CalledRepeatedly_Accumulates()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
+            var targetBefore = follow.TargetPosition;
+
+            follow.NudgeForward(2f);
+            follow.NudgeForward(1.5f);
+
+            Assert.AreEqual(targetBefore.z + 3.5f, follow.TargetPosition.z, 1e-5f);
+        }
+
+        [Test]
+        public void NudgeForward_SurvivesNormalTrailAdvance_NotResetByOrdinaryMovement()
+        {
+            // Эдж-скролл не должен стираться обычным ходом трейла — только SnapToTarget (новый тап).
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
+            follow.NudgeForward(4f);
+            var targetAfterNudge = follow.TargetPosition;
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // обычный ход, не тап заново
+
+            Assert.AreEqual(targetAfterNudge.z + 1f, follow.TargetPosition.z, 1e-5f); // ряд сдвинулся на 1, ручное смещение осталось
+        }
+
+        [Test]
+        public void NudgeForward_RequestExceedsMaxManualForwardOffset_ClampsToMaxAndStops()
+        {
+            // Найдено на реальном устройстве (2026-08-14): без капа камера
+            // укатывалась за пределы сгенерированного тоннеля (чёрный экран).
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
+            var targetBefore = follow.TargetPosition;
+            var currentBefore = follow.CurrentPosition;
+
+            follow.NudgeForward(TunnelCameraFollow.MaxManualForwardOffset + 100f); // сильно больше капа за один вызов
+            follow.NudgeForward(50f); // повторный запрос — уже без эффекта, кап исчерпан
+
+            Assert.AreEqual(targetBefore.z + TunnelCameraFollow.MaxManualForwardOffset, follow.TargetPosition.z, 1e-4f);
+            Assert.AreEqual(currentBefore.z + TunnelCameraFollow.MaxManualForwardOffset, follow.CurrentPosition.z, 1e-4f);
+        }
+
+        [TestCase(0f)]
+        [TestCase(-1f)]
+        public void NudgeForward_NonPositiveDistance_IsNoOp(float distance)
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
+            var targetBefore = follow.TargetPosition;
+            var currentBefore = follow.CurrentPosition;
+
+            follow.NudgeForward(distance);
+
+            Assert.AreEqual(targetBefore, follow.TargetPosition);
+            Assert.AreEqual(currentBefore, follow.CurrentPosition);
+        }
+
+        [Test]
+        public void SnapToSteadyState_AtVeryStartOfRun_PitchIsSteadyStateNotIntro()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+
+            follow.SnapToSteadyState();
+
+            Assert.AreEqual(TunnelCameraFollow.DefaultPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
+        }
+
+        [Test]
+        public void SnapToSteadyState_AtVeryStartOfRun_ZUsesHeightOffsetZNotIntroHeightOffsetZ()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
+
+            follow.SnapToSteadyState();
+
+            // База z=0.5 (трейлинг-ряд клампится к 0) + устоявшийся HeightOffset.Z=2, БЕЗ IntroHeightOffsetZ.
+            Assert.AreEqual(2.5f, follow.TargetPosition.z, 1e-4f);
+        }
+
+        [Test]
+        public void SnapToSteadyState_MatchesCurrentPositionToTargetImmediately()
+        {
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
+
+            follow.SnapToSteadyState();
+
+            Assert.AreEqual(follow.TargetPosition, follow.CurrentPosition);
+        }
+
+        [Test]
+        public void SnapToSteadyState_StaysSteadyStateOnSubsequentTrailAdvances()
+        {
+            // Однонаправленно — раз включённый режим не откатывается назад к интро-интерполяции.
+            var (_, trail, projection) = CreateTrail();
+            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+            follow.SnapToSteadyState();
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // всё ещё внутри "интро-зоны" по рядам (row<5)
+
+            Assert.AreEqual(TunnelCameraFollow.DefaultPitchDegrees, follow.TargetRotation.eulerAngles.x, 1e-4f);
+        }
+
+        [Test]
         public void Dispose_StopsUpdatingTargetOnFurtherTrailAdvances()
         {
             var (_, trail, projection) = CreateTrail();

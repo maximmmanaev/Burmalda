@@ -105,12 +105,27 @@ namespace Burmalda.Movement
         // viewport.y стартовой плиты 0.344 (цель была 0.25-0.55).
         public const float DefaultIntroHeightOffsetZ = -1f;
 
+        // Найдено на реальном устройстве (2026-08-14): NudgeForward (эдж-скролл,
+        // TunnelCameraController) без верхнего предела накопления мог увести
+        // камеру ЗА пределы уже сгенерированного/раскрытого тоннеля —
+        // Movement.TunnelGridReveal/Generation.SegmentRowProvider
+        // материализуют плиты только на RowsAheadOfPlayer=8 рядов вперёд
+        // ИГРОКА, а не камеры; камера, укатившаяся дальше этого, смотрит в
+        // буквально пустоту (подтверждено: чёрный экран на устройстве после
+        // долгого удержания пальца в зоне эдж-скролла). Кап держит запас
+        // (TrailingRowsBehindPlayer=5 позади + этот кап) заметно меньше
+        // 8+5=13 рядов, за которыми начинается нераскрытая пустота —
+        // безопасный отступ, а не точная граница.
+        public const float MaxManualForwardOffset = 4f;
+
         private readonly GridTraceTrail _trail;
         private readonly WorldGridProjection _projection;
         private Vector3 _heightOffset;
         private float _pitchDegrees;
         private float _introPitchDegrees;
         private float _introHeightOffsetZ;
+        private float _manualForwardOffsetZ;
+        private bool _forceSteadyState;
         private bool _disposed;
 
         public TunnelCameraFollow(
@@ -245,6 +260,69 @@ namespace Burmalda.Movement
             CurrentPosition += (TargetPosition - CurrentPosition) * SmoothingFactor;
         }
 
+        /// <summary>
+        /// Мгновенно (без сглаживания) показывает текущую позицию трейла у
+        /// низа экрана — сбрасывает накопленный <see cref="NudgeForward"/> и
+        /// ставит <see cref="CurrentPosition"/> сразу в <see cref="TargetPosition"/>.
+        /// Вызывать на каждый новый тап (переход "не прижат"->"прижат", см.
+        /// <see cref="GridTraceInputController.PressStarted"/>) — иначе после
+        /// долгого свайпа вперёд (см. <see cref="NudgeForward"/>) камера на
+        /// СЛЕДУЮЩЕМ тапе стартовала бы с прежнего, уже неактуального
+        /// накопленного смещения.
+        /// </summary>
+        public void SnapToTarget()
+        {
+            _manualForwardOffsetZ = 0f;
+            TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
+            CurrentPosition = TargetPosition;
+        }
+
+        /// <summary>
+        /// Мгновенно переводит камеру в устоявшийся (игровой, не top-down
+        /// интро) режим — сразу и позицию (как <see cref="SnapToTarget"/>),
+        /// и наклон (<see cref="PitchDegrees"/>, минуя top-down интро-
+        /// интерполяцию по рядам, см. <see cref="ComputeCatchUpScale"/>).
+        /// Однонаправленно — раз включённый режим не возвращается к интро-
+        /// интерполяции до следующего забега (новый <see cref="TunnelCameraFollow"/>
+        /// на <c>RunStarted</c>). Триггер — тап по стартовой плите (см.
+        /// <see cref="GridTraceInputController.StartTileTapped"/>): отдельная
+        /// "кнопка" вместо обязательного свайпа, чтобы попасть в игровой
+        /// режим камеры, прямой запрос владельца продукта.
+        /// </summary>
+        public void SnapToSteadyState()
+        {
+            _forceSteadyState = true;
+            SnapToTarget();
+        }
+
+        /// <summary>
+        /// Двигает камеру вперёд НАПРЯМУЮ (без сглаживания <see cref="Tick"/>)
+        /// на <paramref name="worldDistance"/> мировых единиц — эдж-скролл,
+        /// пока палец у верхней границы нижней трети экрана (см.
+        /// <see cref="TunnelCameraController"/>): отклик должен быть
+        /// мгновенным, а не запаздывающим через экспоненциальное сглаживание
+        /// (которое как раз и рассчитано на плавность обычного продвижения
+        /// по плитам, не на ручной скролл). Накопленное смещение сбрасывается
+        /// только на <see cref="SnapToTarget"/> (новый тап), не на обычное
+        /// продвижение трейла — иначе сам эдж-скролл был бы бесполезен: любой
+        /// следующий ход стирал бы его эффект.
+        /// </summary>
+        public void NudgeForward(float worldDistance)
+        {
+            if (worldDistance <= 0f) return;
+
+            // Кап — см. doc-комментарий MaxManualForwardOffset. CurrentPosition
+            // двигается только на РЕАЛЬНО применённую часть запроса (0, если
+            // уже на кап), иначе она бы продолжала уезжать даже после того,
+            // как "логическое" смещение перестало расти.
+            var previousOffset = _manualForwardOffsetZ;
+            _manualForwardOffsetZ = Mathf.Min(_manualForwardOffsetZ + worldDistance, MaxManualForwardOffset);
+            var appliedDelta = _manualForwardOffsetZ - previousOffset;
+
+            TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
+            CurrentPosition += new Vector3(0f, 0f, appliedDelta);
+        }
+
         /// <summary>Отписывается от трейла. Вызывать при завершении забега/уничтожении системы.</summary>
         public void Dispose()
         {
@@ -271,7 +349,9 @@ namespace Burmalda.Movement
             // применяются напрямую, конфликт был только по Z.
             var scale = ComputeCatchUpScale(playerPosition.Row);
             var effectiveOffsetZ = Mathf.Lerp(_introHeightOffsetZ, _heightOffset.z, scale);
-            var effectiveOffset = new Vector3(_heightOffset.x, _heightOffset.y, effectiveOffsetZ);
+            // + _manualForwardOffsetZ — накопленный эдж-скролл (NudgeForward),
+            // независимая надбавка поверх обычного трейлинга по рядам.
+            var effectiveOffset = new Vector3(_heightOffset.x, _heightOffset.y, effectiveOffsetZ + _manualForwardOffsetZ);
 
             return _projection.ToWorldPosition(followCoordinate) + effectiveOffset;
         }
@@ -286,6 +366,11 @@ namespace Burmalda.Movement
         /// </summary>
         private float ComputeCatchUpScale(int playerRow)
         {
+            // См. SnapToSteadyState — форсирует "полностью нагнано" (1) для
+            // ОБОИХ потребителей этого метода (pitch и Z-компонента
+            // HeightOffset) одним изменением, не по отдельности в каждом.
+            if (_forceSteadyState) return 1f;
+
             var cameraTrailingRow = Math.Max(0, playerRow - TrailingRowsBehindPlayer);
             var caughtUpDistance = playerRow - cameraTrailingRow;
             return Mathf.Clamp01((float)caughtUpDistance / TrailingRowsBehindPlayer);
