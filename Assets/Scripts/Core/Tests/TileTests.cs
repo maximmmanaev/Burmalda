@@ -314,5 +314,36 @@ namespace Burmalda.Core.Tests
 
             Assert.IsTrue(tile.IsLeverGateOpen);
         }
+
+        [Test]
+        public void NewTile_IsNotManaSourceAndIsNotKeySource()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsManaSource);
+            Assert.IsFalse(tile.IsKeySource);
+        }
+
+        [Test]
+        public void MarkManaSource_SetsIsManaSourceTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkManaSource();
+
+            Assert.IsTrue(tile.IsManaSource);
+            Assert.IsFalse(tile.IsKeySource);
+        }
+
+        [Test]
+        public void MarkKeySource_SetsIsKeySourceTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkKeySource();
+
+            Assert.IsTrue(tile.IsKeySource);
+            Assert.IsFalse(tile.IsManaSource);
+        }
     }
 }

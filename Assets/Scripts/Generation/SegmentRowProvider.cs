@@ -137,6 +137,12 @@ namespace Burmalda.Generation
                 case SegmentTileType.LeverGate:
                     tile.MarkGated();
                     break;
+                case SegmentTileType.ManaSource:
+                    tile.MarkManaSource();
+                    break;
+                case SegmentTileType.KeySource:
+                    tile.MarkKeySource();
+                    break;
                 case SegmentTileType.Open:
                 default:
                     break;
