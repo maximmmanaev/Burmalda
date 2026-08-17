@@ -492,7 +492,9 @@ namespace Burmalda.Movement
         }
 
         // Резкий старт, плавное торможение к цели — ощущается быстрее и
-        // приятнее чистого Lerp (прямой запрос владельца продукта).
+        // приятнее чистого Lerp (прямой запрос владельца продукта). См.
+        // ComputeIntroTweenProgress01 — сама кривая больше не наблюдаема
+        // через публичный API, пока интро отключено.
         private static float EaseOutCubic(float t) => 1f - Mathf.Pow(1f - t, 3f);
 
         private float ComputeCurrentPitchDegrees()
