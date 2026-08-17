@@ -95,17 +95,27 @@ namespace Burmalda.IntegrationTests
             bossEncounter.EncounterResolved += (outcome, relic) => bossOutcome = outcome;
 
             // === Тоннель → Ловушки (PRD 4.1/4.2) ===
+            // Собираем валюты по пути к ловушке — сама trap=(3,2) на 3 ряда
+            // впереди старта (0,2), не соседняя ему напрямую (IsAdjacentTo —
+            // 8-направлено, максимум 1 клетка); шаг на неё нужно пробовать
+            // с соседней клетки (keySource=(2,2)), иначе TryAdvanceTo даже
+            // не доходит до проверки LethalTrap (реальный баг теста, не
+            // гипотеза — найдено 2026-08-14: LethalTrapTriggered не поднимался
+            // вовсе, "Expected: Pit, But was: null", потому что и
+            // TryAdvanceTo/CanAdvanceTo короткое замыкание на adjacency
+            // раньше, чем успевали проверить сам трап).
+            Assert.IsTrue(trail.TryAdvanceTo(manaSource));
+            Assert.IsTrue(trail.TryAdvanceTo(keySource));
+
             // Прямой путь на ловушку — ход НЕ засчитывается, событие поднимается, но не убивает тест (см. reportBossDefeat выше — сюда не относится).
             LethalTrapType? triggeredTrap = null;
             trail.LethalTrapTriggered += (coord, type) => triggeredTrap = type;
             var steppedOnTrap = trail.TryAdvanceTo(trap);
             Assert.IsFalse(steppedOnTrap, "Шаг на смертельную ловушку не должен засчитываться.");
             Assert.AreEqual(LethalTrapType.Pit, triggeredTrap);
-            Assert.AreEqual(start, trail.CurrentPosition, "Позиция не должна была измениться после отказа шагнуть на ловушку.");
+            Assert.AreEqual(keySource, trail.CurrentPosition, "Позиция не должна была измениться после отказа шагнуть на ловушку.");
 
             // Обходим ловушку по диагонали.
-            Assert.IsTrue(trail.TryAdvanceTo(manaSource));
-            Assert.IsTrue(trail.TryAdvanceTo(keySource));
             Assert.IsTrue(trail.TryAdvanceTo(safeDetour));
 
             // === Множитель (PRD 4.3) ===
