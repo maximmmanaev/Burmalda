@@ -74,15 +74,6 @@ namespace Burmalda.Movement
         // на самом старте забега уводит камеру мимо стартовой плиты.
         [SerializeField] private float _introHeightOffsetZ = TunnelCameraFollow.DefaultIntroHeightOffsetZ;
 
-        // Эдж-скролл (2026-08-14, прямой запрос владельца продукта): пока
-        // палец держится на экране и поднимается к верхней границе нижней
-        // трети (normalizedY = screenY/Screen.height >= 1/3), камера едет
-        // вперёд сама — водить пальцем нужно только по нижней трети экрана,
-        // не тянуться выше. Черновые значения (порог, скорость) — предмет
-        // плейтеста баланса (Спринт 10), важен сам факт наличия механики.
-        [SerializeField] private float _edgeScrollThresholdNormalizedY = 1f / 3f;
-        [SerializeField] private float _edgeScrollSpeed = 3f; // мировых единиц/с
-
         private TunnelCameraFollow _follow;
 
         private void Awake()
@@ -138,16 +129,19 @@ namespace Burmalda.Movement
             // уже отыграл целиком.
             _follow.AdvanceIntroTween(Time.deltaTime);
 
-            // Эдж-скролл — см. doc-комментарий полей выше. Палец держится и
-            // поднялся к верхней границе нижней трети экрана -> двигаем
-            // камеру вперёд напрямую (NudgeForward — без сглаживания Tick(),
-            // отклик должен быть мгновенным).
-            if (_input.IsPressed)
-            {
-                var normalizedY = _input.CurrentScreenPosition.y / Screen.height;
-                if (normalizedY >= _edgeScrollThresholdNormalizedY)
-                    _follow.NudgeForward(_edgeScrollSpeed * Time.deltaTime);
-            }
+            // Эдж-скролл УБРАН (2026-08-18, прямой запрос владельца продукта —
+            // отменяет решение от 2026-08-14): двигал камеру от самого факта
+            // тапа в нижней трети экрана, даже мимо сетки — читалось как баг
+            // ("камера двигается непонятно от чего") и объясняло второй
+            // репортнутый баг ("замедление через несколько секунд" —
+            // TunnelCameraFollow.MaxManualForwardOffset=4 при скорости 3
+            // ед/с достигался за ~1.3с непрерывного удержания, дальше
+            // NudgeForward переставал что-либо добавлять). Камера теперь
+            // двигается СТРОГО от продвижения GridTraceTrail (см.
+            // TunnelCameraFollow.OnPositionChanged), ничего больше.
+            // NudgeForward/ResetManualForwardOffset/MaxManualForwardOffset в
+            // TunnelCameraFollow не удалены — не вызываются отсюда, история/
+            // потенциальный будущий возврат, как и SnapToTarget.
 
             _follow.Tick();
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
