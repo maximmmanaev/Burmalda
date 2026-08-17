@@ -477,24 +477,18 @@ namespace Burmalda.Movement
         /// </summary>
         private float ComputeIntroTweenProgress01()
         {
-            // ОТКЛЮЧЕНО НАВСЕГДА (2026-08-14, прямой запрос владельца
-            // продукта, подтверждён на реальном устройстве, закоммичено):
-            // весь top-down интро/твин-механизм выключен целиком — камера
-            // должна стоять на устоявшихся значениях (PitchDegrees/
-            // HeightOffset.Z) с первого кадра, без какой-либо анимации.
-            // Progress всегда 1 — ComputeCurrentPitchDegrees и
-            // ComputeTargetPosition ниже всегда лерпят к 100% устоявшегося
-            // состояния, интро-значения (_introPitchDegrees/_introHeightOffsetZ)
-            // никогда не видны. ConfirmRun/AdvanceIntroTween продолжают
-            // существовать и вызываться из TunnelCameraController — они не
-            // мёртвый код (см. AdvanceIntroTween — фикс рывка камеры на
-            // 3-4 ходу, 2026-08-14), просто их эффект на pitch/Z-офсет
-            // снаружи неотличим от no-op. Побочный эффект: EaseOutCubic
-            // ниже больше не наблюдаем через публичный API ни в каком тесте
-            // (промежуточный прогресс твина больше никогда не проявляется
-            // видимо) — соответствующий тест на форму кривой удалён, см.
-            // TunnelCameraFollowTests.
-            return 1f;
+            // Восстановлено (issue #109 B.2): причины, из-за которых твин
+            // был отключён целиком (framing "поле далеко", рывок камеры на
+            // 3-4 ходу) устранены отдельными фиксами в этой же истории —
+            // Z-компенсация HeightOffset (см. TunnelCameraController) и
+            // AdvanceIntroTween, реагирующий на реальное движение игрока
+            // внутри окна твина (см. её докстринг). Реальный прогресс,
+            // не хардкод: 0 — ConfirmRun ещё не вызван, растёт линейно до 1
+            // за TweenDurationSeconds (сама плавность — через EaseOutCubic
+            // в ComputeCurrentPitchDegrees/ComputeTargetPosition через Lerp).
+            if (!_hasConfirmedRun) return 0f;
+            var linear = Mathf.Clamp01(_introTweenElapsedSeconds / TweenDurationSeconds);
+            return EaseOutCubic(linear);
         }
 
         // Резкий старт, плавное торможение к цели — ощущается быстрее и
