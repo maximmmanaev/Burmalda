@@ -213,6 +213,35 @@ namespace Burmalda.Core
             IsBoss = true;
         }
 
+        /// <summary>
+        /// Плита существует только внутри Комнаты Босса (PRD v8 §8.2) — null
+        /// вне Комнаты. Аналогично <see cref="LethalTrap"/>: постоянное
+        /// состояние плиты, не связано с распадом.
+        /// </summary>
+        public BossRoomTileKind? BossRoomTile { get; private set; }
+
+        /// <summary>
+        /// Осмысленно только когда <see cref="BossRoomTile"/> ==
+        /// <see cref="BossRoomTileKind.Rift"/> — какое тиканье даёт эта
+        /// плита-Разлом, пока на ней стоишь (PRD v8 §8.2).
+        /// </summary>
+        public BossRoomRiftSubtype? RiftSubtype { get; private set; }
+
+        /// <summary>Помечает плиту как Жилу/Резонанс Комнаты. Повторные вызовы — не-op.</summary>
+        public void MarkBossRoomTile(BossRoomTileKind kind)
+        {
+            if (BossRoomTile.HasValue) return;
+            BossRoomTile = kind;
+        }
+
+        /// <summary>Помечает плиту как Разлом Комнаты нужного подтипа. Повторные вызовы — не-op.</summary>
+        public void MarkBossRoomRift(BossRoomRiftSubtype subtype)
+        {
+            if (BossRoomTile.HasValue) return;
+            BossRoomTile = BossRoomTileKind.Rift;
+            RiftSubtype = subtype;
+        }
+
         /// <summary>Накопленное время распада плиты в секундах.</summary>
         public float DecayElapsedSeconds { get; private set; }
 

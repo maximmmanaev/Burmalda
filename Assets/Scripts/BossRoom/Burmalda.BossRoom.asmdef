@@ -1,0 +1,16 @@
+{
+    "name": "Burmalda.BossRoom",
+    "rootNamespace": "Burmalda.BossRoom",
+    "references": [
+        "Burmalda.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
