@@ -381,5 +381,59 @@ namespace Burmalda.Core.Tests
 
             Assert.IsTrue(tile.IsBoss);
         }
+
+        [Test]
+        public void NewTile_BossRoomTileIsNull()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsNull(tile.BossRoomTile);
+            Assert.IsNull(tile.RiftSubtype);
+        }
+
+        [Test]
+        public void MarkBossRoomTile_Vein_SetsBossRoomTile()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBossRoomTile(BossRoomTileKind.Vein);
+
+            Assert.AreEqual(BossRoomTileKind.Vein, tile.BossRoomTile);
+            Assert.IsNull(tile.RiftSubtype);
+        }
+
+        [Test]
+        public void MarkBossRoomTile_CalledTwice_SecondCallIsNoOp()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBossRoomTile(BossRoomTileKind.Vein);
+            tile.MarkBossRoomTile(BossRoomTileKind.Resonance);
+
+            Assert.AreEqual(BossRoomTileKind.Vein, tile.BossRoomTile, "первая пометка не должна перезаписываться");
+        }
+
+        [Test]
+        public void MarkBossRoomRift_SetsKindRiftAndSubtype()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBossRoomRift(BossRoomRiftSubtype.Resonance);
+
+            Assert.AreEqual(BossRoomTileKind.Rift, tile.BossRoomTile);
+            Assert.AreEqual(BossRoomRiftSubtype.Resonance, tile.RiftSubtype);
+        }
+
+        [Test]
+        public void MarkBossRoomRift_AfterMarkBossRoomTile_IsNoOp()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBossRoomTile(BossRoomTileKind.Vein);
+            tile.MarkBossRoomRift(BossRoomRiftSubtype.Vein);
+
+            Assert.AreEqual(BossRoomTileKind.Vein, tile.BossRoomTile);
+            Assert.IsNull(tile.RiftSubtype);
+        }
     }
 }
