@@ -62,11 +62,19 @@ namespace Burmalda.DebugVisuals
         // TimedTrapActiveColor, но не путается с ExplosiveTriggerColor (жёлтый).
         public static readonly Color TimedTrapTriggerColor = new Color(160f / 255f, 60f / 255f, 140f / 255f);
 
+        // Вход в Комнату Босса (Tile.IsBoss, PRD v8 §8.1) — единственная
+        // строка debug-визуала под механику Босса, которая переживает v8
+        // (см. doc-комментарий TileVisualState.IsBoss). Синий — единственный
+        // не занятый цвет в этой палитре (зелёный/оранжевый/красный —
+        // распад, жёлтый/магента — ловушки, чёрный/тёмный — препятствия).
+        public static readonly Color BossColor = new Color(40f / 255f, 40f / 255f, 220f / 255f);
+
         public static Color Resolve(TileVisualState state)
         {
             if (state.IsDestroyed) return DestroyedColor;
             if (state.IsCurrentPosition) return CurrentPositionColor;
             if (state.IsStart) return StartColor;
+            if (state.IsBoss) return BossColor;
             if (state.IsBlocked) return BlockedColor;
             if (state.LethalTrap == LethalTrapType.Pit) return PitColor;
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;

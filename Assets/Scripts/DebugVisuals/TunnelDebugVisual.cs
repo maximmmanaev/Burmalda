@@ -104,7 +104,8 @@ namespace Burmalda.DebugVisuals
                     decayProgress01: tile.DecayProgress01,
                     isExplosiveTrapTrigger: tile.ExplosiveTrapTarget.HasValue,
                     isTimedTrapTrigger: tile.TimedTrapTarget.HasValue,
-                    activeTimedTrap: tile.IsTimedTrapActive ? tile.TimedTrapKind : null);
+                    activeTimedTrap: tile.IsTimedTrapActive ? tile.TimedTrapKind : null,
+                    isBoss: tile.IsBoss);
 
                 ApplyColor(pair.Value, TileDebugColor.Resolve(state));
             }
