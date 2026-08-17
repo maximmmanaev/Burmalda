@@ -39,6 +39,32 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
+        public void Resolve_Boss_NotStartNotCurrentNotDestroyed_ReturnsBossColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true);
+
+            Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Boss_AlsoBlocked_BossTakesPriority()
+        {
+            // Вход в Комнату Босса важнее найти на устройстве, чем обычное
+            // препятствие — см. doc-комментарий TileDebugColor.BossColor.
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true);
+
+            Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Boss_ButDestroyed_DestroyedTakesPriority()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true);
+
+            Assert.AreEqual(TileDebugColor.DestroyedColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
         public void Resolve_Blocked_IgnoresDecayProgress()
         {
             // Препятствие (#9) не подвержено распаду — градиент по decayProgress01

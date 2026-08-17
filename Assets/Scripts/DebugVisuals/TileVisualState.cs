@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -21,6 +21,7 @@ namespace Burmalda.DebugVisuals
             IsExplosiveTrapTrigger = isExplosiveTrapTrigger;
             IsTimedTrapTrigger = isTimedTrapTrigger;
             ActiveTimedTrap = activeTimedTrap;
+            IsBoss = isBoss;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -62,5 +63,14 @@ namespace Burmalda.DebugVisuals
         /// Null — не активна (ещё не сработала или снаряд/лезвие уже прошли).
         /// </summary>
         public TimedTrapType? ActiveTimedTrap { get; }
+
+        /// <summary>
+        /// Плита — вход в Комнату Босса (PRD v8 §8.1, см. <c>Core.Tile.IsBoss</c>).
+        /// Единственная строка debug-визуала, которую v8 не отменяет: сама
+        /// встреча с Боссом заменяется Комнатой (Спринт 11), но вход в неё —
+        /// та же плита, ту же плитку нужно уметь найти на устройстве уже
+        /// сейчас, иначе на неё не встать.
+        /// </summary>
+        public bool IsBoss { get; }
     }
 }
