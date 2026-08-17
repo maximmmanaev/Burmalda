@@ -5,6 +5,11 @@
         "Burmalda.Core",
         "Burmalda.Movement",
         "Burmalda.DebugVisuals",
+        "Burmalda.D20",
+        "Burmalda.Boss",
+        "Burmalda.Artifacts",
+        "Burmalda.RunModifiers",
+        "Burmalda.RunLifecycle",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
