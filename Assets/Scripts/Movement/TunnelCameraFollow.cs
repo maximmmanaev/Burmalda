@@ -477,18 +477,18 @@ namespace Burmalda.Movement
         /// </summary>
         private float ComputeIntroTweenProgress01()
         {
-            // ВРЕМЕННО ОТКЛЮЧЕНО (2026-08-14, локальная сборка для ручной
-            // проверки на устройстве, не коммитить как есть): весь top-down
-            // интро/твин-механизм выключен целиком по прямому запросу
-            // владельца продукта — камера должна стоять на устоявшихся
-            // значениях (PitchDegrees/HeightOffset.Z) с первого кадра, без
-            // какой-либо анимации. Progress всегда 1 — ComputeCurrentPitchDegrees
-            // и ComputeTargetPosition ниже всегда лерпят к 100% устоявшегося
-            // состояния, интро-значения (_introPitchDegrees/_introHeightOffsetZ)
-            // никогда не видны. ConfirmRun/AdvanceIntroTween продолжают
-            // существовать и вызываться из TunnelCameraController — они
-            // просто становятся не-op, ничего не ломается выше по стеку.
-            return 1f;
+            // Восстановлено (issue #109 B.2): причины, из-за которых твин
+            // был отключён целиком (framing "поле далеко", рывок камеры на
+            // 3-4 ходу) устранены отдельными фиксами в этой же истории —
+            // Z-компенсация HeightOffset (см. TunnelCameraController) и
+            // AdvanceIntroTween, реагирующий на реальное движение игрока
+            // внутри окна твина (см. её докстринг). Реальный прогресс,
+            // не хардкод: 0 — ConfirmRun ещё не вызван, растёт линейно до 1
+            // за TweenDurationSeconds (сама плавность — через EaseOutCubic
+            // в ComputeCurrentPitchDegrees/ComputeTargetPosition через Lerp).
+            if (!_hasConfirmedRun) return 0f;
+            var linear = Mathf.Clamp01(_introTweenElapsedSeconds / TweenDurationSeconds);
+            return EaseOutCubic(linear);
         }
 
         // Резкий старт, плавное торможение к цели — ощущается быстрее и
