@@ -3,7 +3,13 @@
     "rootNamespace": "Burmalda.DebugVisuals",
     "references": [
         "Burmalda.Core",
-        "Burmalda.Movement"
+        "Burmalda.Movement",
+        "Burmalda.D20",
+        "Burmalda.Boss",
+        "Burmalda.Artifacts",
+        "Burmalda.RunModifiers",
+        "Burmalda.RunLifecycle",
+        "Burmalda.Progression"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
