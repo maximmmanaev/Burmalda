@@ -153,10 +153,25 @@ namespace Burmalda.DebugVisuals
             _tileObjects[tile.Coordinate] = primitive;
         }
 
+        // 2026-08-18 ("ещё больше процедурного полиша без арта"): лёгкая
+        // эмиссия поверх базового цвета — плитки заметно "светятся" под
+        // Bloom (DebugVisuals.ScenePostProcessing) независимо от угла
+        // падения света, не только от прямого освещения сцены.
+        private const float EmissionIntensity = 0.35f;
+
         private static void ApplyColor(GameObject tileObject, Color color)
         {
             var renderer = tileObject.GetComponent<Renderer>();
-            if (renderer != null) renderer.material.color = color;
+            if (renderer == null) return;
+
+            var material = renderer.material;
+            material.color = color;
+
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.55f);
+            if (!material.HasProperty("_EmissionColor")) return;
+
+            material.EnableKeyword("_EMISSION");
+            material.SetColor("_EmissionColor", color * EmissionIntensity);
         }
 
         private static Material CreateTemplateMaterial()

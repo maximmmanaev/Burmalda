@@ -80,6 +80,18 @@ namespace Burmalda.Movement
         {
             if (_input == null) _input = GetComponent<GridTraceInputController>();
             if (_camera == null) _camera = GetComponent<Camera>();
+
+            // 2026-08-18 (диагностика, не гипотеза): SampleScene.unity уже
+            // сериализует _introPitchDegrees=85/_introHeightOffsetZ=0 на этом
+            // компоненте — расходится с документированными в коде
+            // DefaultIntroPitchDegrees=70/DefaultIntroHeightOffsetZ (когда-то
+            // -1, тюнится сейчас). Сериализованное значение побеждает
+            // C#-дефолт поля при загрузке сцены — правка константы в коде
+            // сама по себе не меняла поведение билда, пока эти два поля не
+            // перезатёрты явно здесь. .unity трогать нельзя
+            // (forbidden-actions.md), поэтому код — источник истины.
+            _introPitchDegrees = TunnelCameraFollow.DefaultIntroPitchDegrees;
+            _introHeightOffsetZ = TunnelCameraFollow.DefaultIntroHeightOffsetZ;
         }
 
         private void OnEnable()

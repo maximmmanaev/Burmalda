@@ -29,12 +29,40 @@ namespace Burmalda.DebugVisuals
         private const float VignetteSmoothness = 0.6f;
         private const float SaturationBoost = 15f;
 
+        // Процедурное небо (2026-08-18, "ещё больше процедурного полиша без
+        // арта") — встроенный шейдер Unity "Skybox/Procedural", без единой
+        // текстуры. Тёмный, приглушённый — под тон "greed survival", не
+        // отвлекает от тоннеля. Экспозиция занижена (дефолт — 1.3), чтобы
+        // небо не забивало Bloom.
+        private static readonly Color SkyTint = new Color(0.35f, 0.32f, 0.4f);
+        private static readonly Color SkyGroundColor = new Color(0.08f, 0.07f, 0.08f);
+        private const float SkyExposure = 0.6f;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
             var host = new GameObject(nameof(ScenePostProcessing));
             host.AddComponent<ScenePostProcessing>();
             DontDestroyOnLoad(host);
+
+            SetupProceduralSky();
+        }
+
+        private static void SetupProceduralSky()
+        {
+            // Shader.Find может вернуть null при шейдер-стриппинге на
+            // устройстве (см. TunnelDebugVisual, тот же класс бага,
+            // 2026-08-14) — BuildScript добавляет "Skybox/Procedural" в
+            // Always Included Shaders, но защищаемся и здесь на случай
+            // сборки в обход BuildScript.
+            var shader = Shader.Find("Skybox/Procedural");
+            if (shader == null) return;
+
+            var skyMaterial = new Material(shader);
+            skyMaterial.SetColor("_SkyTint", SkyTint);
+            skyMaterial.SetColor("_GroundColor", SkyGroundColor);
+            skyMaterial.SetFloat("_Exposure", SkyExposure);
+            RenderSettings.skybox = skyMaterial;
         }
 
         private Camera _camera;
