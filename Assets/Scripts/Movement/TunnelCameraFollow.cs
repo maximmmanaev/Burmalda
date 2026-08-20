@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Burmalda.Core;
 using UnityEngine;
 
@@ -132,6 +133,60 @@ namespace Burmalda.Movement
         // производным значением, только пока тумблер включён — Follow сам о
         // тумблере/вьюпорте/Camera ничего не знает, только хранит число.
         private float _trailingDistance;
+
+        // Issue #155: покадровое непрерывное следование с компенсацией
+        // скорости вместо твина фиксированной длительности (#153, тумблер 1,
+        // запрещён — давал стоп-старт) и вместо экспоненциального сглаживания
+        // (Tick()/SmoothingFactor — установившееся отставание пропорционально
+        // скорости, корень исходной жалобы). См. AdvanceContinuousAnchorFollow.
+        //
+        // Окно оценки скорости — последние 3 хода (см. EstimateVelocityRowsPerSecond),
+        // рядов в секунду, со знаком (шаг назад даёт отрицательную скорость,
+        // компенсация работает и в обратную сторону).
+        //
+        // Хотфикс (найдено ЭТИМ ЖЕ прогоном тестов, не гипотеза): раньше
+        // список ДОПОЛНИТЕЛЬНО подрезался по возрасту (>300мс), из спеки
+        // "3 хода ИЛИ 300мс, что даёт МЕНЬШЕ данных" — но при темпе
+        // медленнее ~3.3 хода/с (интервал между ходами больше 300мс) это
+        // означало держать ВСЕГДА не больше 1 записи (предыдущая всегда
+        // "слишком старая"), т.е. оценка скорости была ПОСТОЯННО равна нулю
+        // именно на комфортных темпах (1-2 хода/с) — компенсация скорости
+        // не работала там, где нужнее всего, инвариант A валился (0.41
+        // вместо 0.32 при 2 ходах/с, реально измерено). Затухание уже даёт
+        // "устареванию" отдельный, работающий механизм (VelocityDecaySeconds,
+        // от МОМЕНТА последнего хода, а не от возраста записей в окне) —
+        // отдельная подрезка по возрасту была лишней и вредной. Держим
+        // последние 3 хода ВСЕГДА, сколько бы времени они ни заняли.
+        private const int VelocityWindowMaxSteps = 3;
+
+        // Обязательное требование issue #155: оценка скорости ЗАТУХАЕТ до
+        // нуля за 200-300мс после последнего хода — незатухающая оценка
+        // утащила бы камеру вперёд при резкой остановке (ровно механизм
+        // провала #151, см. историю). Середина требуемого диапазона.
+        public const float VelocityDecaySeconds = 0.25f;
+
+        // Скорость мягкой коррекции остаточной ошибки (сек⁻¹) — ВТОРИЧНый
+        // механизм поверх компенсации скорости (см. AdvanceContinuousAnchorFollow):
+        // при точной оценке скорости feedforward сам по себе держит
+        // дистанцию до игрока постоянной (см. docstring метода — вывод в
+        // PR issue #155), эта добавка только подтягивает остаточную ошибку
+        // (неточность оценки на переходных процессах — старт/стоп/смена
+        // темпа), не является основным механизмом слежения. Не выведена в
+        // debug-панель — issue #155 явно просит настраиваемыми только
+        // anchor/tolerance, не внутренние константы контроллера.
+        private const float FeedbackCorrectionRatePerSecond = 6f;
+
+        private readonly List<(int row, float time)> _recentSteps = new List<(int row, float time)>();
+        private float _totalElapsedSeconds;
+        private float _secondsSinceLastStep;
+
+        // Issue #155 — "живая" Z-позиция трейлинг-точки для непрерывного
+        // следования (AdvanceContinuousAnchorFollow), отдельная от
+        // CurrentPosition/TargetPosition экспоненциального пути (Tick()) —
+        // они читаются только пока этот новый метод НЕ вызывается (тумблер
+        // выключен), см. её docstring.
+        private float _continuousCameraZ;
+        private bool _continuousCameraZInitialized;
 
         public TunnelCameraFollow(
             GridTraceTrail trail,
@@ -478,7 +533,135 @@ namespace Burmalda.Movement
 
         private void OnPositionChanged(GridCoordinate coordinate)
         {
+            // Issue #155 — история ходов для оценки скорости, см.
+            // EstimateVelocityRowsPerSecond. Поддерживается ВСЕГДА
+            // (независимо от того, вызывается ли AdvanceContinuousAnchorFollow) —
+            // тот же принцип, что и у _stepTween-подобных полей раньше:
+            // безвредно, если новый метод не вызывается (тумблер выключен,
+            // Tick()/SmoothingFactor-путь этих полей не читает).
+            _recentSteps.Add((coordinate.Row, _totalElapsedSeconds));
+            while (_recentSteps.Count > VelocityWindowMaxSteps) _recentSteps.RemoveAt(0);
+            _secondsSinceLastStep = 0f;
+
             TargetPosition = ComputeTargetPosition(coordinate);
+        }
+
+        /// <summary>
+        /// Средняя скорость продвижения игрока по рядам, рядов/с, со знаком
+        /// (отрицательная — шаг назад) — issue #155. Окно — последние
+        /// <see cref="VelocityWindowMaxSteps"/> ходов (см. <see cref="OnPositionChanged"/>,
+        /// см. её doc-комментарий насчёт того, почему НЕ подрезается ещё и
+        /// по возрасту). Затухает ЛИНЕЙНО до нуля за
+        /// <see cref="VelocityDecaySeconds"/> после последнего хода —
+        /// обязательное требование issue #155 (иначе незатухающая оценка
+        /// утаскивает камеру вперёд при остановке — ровно провал #151).
+        /// </summary>
+        private float EstimateVelocityRowsPerSecond()
+        {
+            if (_recentSteps.Count < 2) return 0f;
+
+            var oldest = _recentSteps[0];
+            var newest = _recentSteps[_recentSteps.Count - 1];
+            var elapsed = newest.time - oldest.time;
+            if (elapsed <= 0f) return 0f;
+
+            var rawVelocity = (newest.row - oldest.row) / elapsed;
+            var decay = 1f - Mathf.Clamp01(_secondsSinceLastStep / VelocityDecaySeconds);
+            return rawVelocity * decay;
+        }
+
+        /// <summary>
+        /// Issue #155: непрерывное покадровое следование с компенсацией
+        /// скорости — замена твина фиксированной длительности (#153,
+        /// тумблер 1, запрещён — давал стоп-старт при 2-4 ходах/с) И
+        /// экспоненциального сглаживания (<see cref="Tick"/> — установившееся
+        /// отставание пропорционально скорости, корень исходной жалобы,
+        /// см. историю провалов в PR). Параллельный, независимый от Tick()
+        /// путь — какой из двух вызывать каждый кадр, решает
+        /// <see cref="TunnelCameraController"/> снаружи (тумблер).
+        ///
+        /// Цель — ТЕКУЩАЯ (не предсказанная) плитка игрока на дистанции
+        /// <paramref name="minTrailingDistance"/> (якорь). Механика —
+        /// комбинация двух слагаемых, оба применяются к "живой" Z-позиции
+        /// трейлинг-точки (<c>_continuousCameraZ</c>):
+        ///
+        /// 1. <b>Компенсация скорости (feedforward)</b> — камера движется с
+        ///    той же (недавно оценённой) средней скоростью, что и игрок,
+        ///    см. <see cref="EstimateVelocityRowsPerSecond"/>. Математически:
+        ///    если D(t) = playerZ(t) - cameraZ(t) — дистанция камера-игрок,
+        ///    и камера движется РОВНО со скоростью игрока (dCameraZ/dt = v),
+        ///    то dD/dt = dPlayerZ/dt - dCameraZ/dt = v - v = 0 — дистанция
+        ///    НЕ РАСТЁТ со скоростью игрока (в отличие от Tick()/SmoothingFactor,
+        ///    где остаточное отставание растёт линейно со скоростью цели) —
+        ///    именно этот вывод и требовался issue A.2 ("ошибка не растёт с
+        ///    темпом"). Между реальными ходами скорость не падает мгновенно
+        ///    до нуля (затухает плавно, см. EstimateVelocityRowsPerSecond) —
+        ///    поэтому камера остаётся в непрерывном движении в паузах между
+        ///    ходами, а не стоит на месте до следующего шага (issue,
+        ///    инвариант D — "отсутствие стоп-старта").
+        /// 2. <b>Мягкая коррекция (feedback)</b> — вторичная подтяжка
+        ///    остаточной ошибки (неточность оценки скорости на переходных
+        ///    процессах — старт/стоп/смена темпа) к идеальной дистанции
+        ///    (<paramref name="minTrailingDistance"/>), см.
+        ///    <see cref="FeedbackCorrectionRatePerSecond"/>.
+        ///
+        /// <b>Жёсткий ограничитель (issue A.3)</b> — ПОСЛЕ обоих слагаемых,
+        /// дистанция камера-игрок зажимается в
+        /// [<paramref name="minTrailingDistance"/>, <paramref name="maxTrailingDistance"/>] —
+        /// инвариант, не тюнинг: не завязан на корректность контроллера
+        /// выше, работает даже если оценка скорости на каком-то переходном
+        /// процессе ошиблась. Нижняя граница делает физически невозможным
+        /// уход плитки из-под пальца вниз (провалы #151/#153-тумблер3),
+        /// верхняя — физически невозможным уползание вверх (исходная жалоба).
+        /// </summary>
+        public void AdvanceContinuousAnchorFollow(float deltaSeconds, float minTrailingDistance, float maxTrailingDistance)
+        {
+            var playerWorldZ = (_trail.CurrentPosition.Row + 0.5f) * _projection.TileSize;
+
+            if (!_continuousCameraZInitialized)
+            {
+                // Первый вызов — стартуем РОВНО с текущей TrailingDistance
+                // (по умолчанию она равна старой фиксированной формуле, см.
+                // конструктор), чтобы не телепортировать камеру в момент
+                // включения тумблера.
+                _continuousCameraZ = playerWorldZ - _trailingDistance;
+                _continuousCameraZInitialized = true;
+            }
+
+            _totalElapsedSeconds += deltaSeconds;
+            _secondsSinceLastStep += deltaSeconds;
+
+            var velocityRowsPerSecond = EstimateVelocityRowsPerSecond();
+            _continuousCameraZ += velocityRowsPerSecond * _projection.TileSize * deltaSeconds; // 1. компенсация скорости
+
+            var idealCameraZ = playerWorldZ - minTrailingDistance;
+            var residual = idealCameraZ - _continuousCameraZ;
+            // Экспоненциальная в непрерывном времени коррекция асимптотически
+            // приближается к нулю, но никогда не достигает его ТОЧНО — без
+            // этого снапа инвариант B (после схождения дальнейшие вызовы БЕЗ
+            // нового хода не двигают камеру НИ НА ЙОТУ) был бы недостижим
+            // побитово, только "достаточно близко". Порог — заведомо меньше
+            // видимого на экране (доли миллиметра в игровом масштабе).
+            const float ResidualSnapEpsilon = 1e-5f;
+            _continuousCameraZ += Mathf.Abs(residual) < ResidualSnapEpsilon ? residual : residual * FeedbackCorrectionRatePerSecond * deltaSeconds; // 2. мягкая коррекция
+
+            // Жёсткий ограничитель — см. doc-комментарий метода.
+            var distance = playerWorldZ - _continuousCameraZ;
+            var clampedDistance = Mathf.Clamp(distance, minTrailingDistance, maxTrailingDistance);
+            _continuousCameraZ = playerWorldZ - clampedDistance;
+            _trailingDistance = clampedDistance;
+
+            var x = _projection.ToWorldPosition(new GridCoordinate(0, _projection.Width / 2)).x;
+            var progress = ComputeIntroTweenProgress01();
+            var effectiveOffsetZ = Mathf.Lerp(_introHeightOffsetZ, _heightOffset.z, progress);
+            var effectiveOffset = new Vector3(_heightOffset.x, _heightOffset.y, effectiveOffsetZ + _manualForwardOffsetZ);
+
+            CurrentPosition = new Vector3(x, 0f, _continuousCameraZ) + effectiveOffset;
+            // TargetPosition — ИДЕАЛЬНАЯ (анкор-точная, без компенсации/клампа)
+            // позиция, для интроспекции/тестов: показывает, куда КОНТРОЛЛЕР
+            // целится, а CurrentPosition — куда РЕАЛЬНО пришла камера после
+            // компенсации и клампа.
+            TargetPosition = new Vector3(x, 0f, idealCameraZ) + effectiveOffset;
         }
 
         private Vector3 ComputeTargetPosition(GridCoordinate playerPosition)
