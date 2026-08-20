@@ -34,6 +34,17 @@ namespace Burmalda.Movement
         [SerializeField] private float _tileSize = 1f;
         [SerializeField] private int _width = 5;
 
+        // Issue #153, тумблер 3 (смещённый курсор): палец в нижней части
+        // экрана иначе тянется к целевой плитке и закрывает её собой —
+        // "голова" трейла берётся не в точке касания, а на столько пикселей
+        // ВЫШЕ (Y растёт вверх экрана в конвенции Unity — см.
+        // TryAdvanceAtScreenPosition). Явный тумблер (не просто офсет=0),
+        // деф. ВЫКЛЮЧЕН — побайтово прежнее поведение, ни один существующий
+        // тест не тронут. Только сдвигает точку ПЕРЕД рейкастом — сам
+        // Physics.Raycast/TileVisualMarker (cbf99ca) не переписан.
+        [SerializeField] private bool _useCursorOffset;
+        [SerializeField] private float _cursorOffsetPixelsY = 120f;
+
         private readonly PointerPositionChangeFilter _positionChangeFilter = new PointerPositionChangeFilter();
 
         private TunnelGrid _grid;
@@ -48,6 +59,20 @@ namespace Burmalda.Movement
 
         /// <summary>Проекция координата↔мир текущего забега — нужна смежным системам (напр. камере) для перевода позиции трейла в мировые координаты.</summary>
         public WorldGridProjection Projection => _projection;
+
+        /// <summary>Тумблер 3 (смещённый курсор) — публично для debug-панели. См. <see cref="_useCursorOffset"/>.</summary>
+        public bool UseCursorOffset
+        {
+            get => _useCursorOffset;
+            set => _useCursorOffset = value;
+        }
+
+        /// <summary>Смещение курсора для рейкаста вверх по экрану, в пикселях — см. <see cref="_cursorOffsetPixelsY"/>. Публично для debug-панели.</summary>
+        public float CursorOffsetPixelsY
+        {
+            get => _cursorOffsetPixelsY;
+            set => _cursorOffsetPixelsY = value;
+        }
 
         /// <summary>
         /// Жив ли игрок в текущем забеге. Пока в проекте нет d20-испытания
@@ -172,7 +197,16 @@ namespace Burmalda.Movement
         {
             if (_camera == null) return;
 
-            var target = ResolveTappedTile(_camera, screenPosition);
+            // Issue #153, тумблер 3: рейкастим не саму точку касания, а
+            // сдвинутую на _cursorOffsetPixelsY вверх — см. её doc-комментарий.
+            // Выключен по умолчанию — тогда raycastPosition == screenPosition,
+            // побайтово прежнее поведение. CurrentScreenPosition (для смежных
+            // систем) намеренно остаётся СЫРОЙ позицией пальца, сдвиг
+            // применяется только здесь, разово, перед резолвом плитки.
+            var raycastPosition = _useCursorOffset
+                ? new Vector2(screenPosition.x, screenPosition.y + _cursorOffsetPixelsY)
+                : screenPosition;
+            var target = ResolveTappedTile(_camera, raycastPosition);
             if (!target.HasValue) return; // тап мимо любой отрендеренной плитки (пустой пол/за пределами сетки) — тихо ничего не делаем
 
             if (target.Value == _trail.CurrentPosition)
