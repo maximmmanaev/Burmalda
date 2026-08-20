@@ -124,6 +124,15 @@ namespace Burmalda.Movement
         private GridCoordinate _confirmRunPlayerPosition;
         private bool _disposed;
 
+        // Issue #153/#155, якорь по вьюпорту: мировой эквивалент
+        // TrailingRowsBehindPlayer — дефолт СОВПАДАЕТ со старой формулой
+        // (TrailingRowsBehindPlayer·tileSize), TrailingDistance ниже полностью
+        // обратно совместима, пока её никто явно не переопределил.
+        // TunnelCameraController переопределяет её каждый кадр анкор-
+        // производным значением, только пока тумблер включён — Follow сам о
+        // тумблере/вьюпорте/Camera ничего не знает, только хранит число.
+        private float _trailingDistance;
+
         public TunnelCameraFollow(
             GridTraceTrail trail,
             WorldGridProjection projection,
@@ -139,6 +148,11 @@ namespace Burmalda.Movement
             _introPitchDegrees = introPitchDegrees;
             _introHeightOffsetZ = introHeightOffsetZ;
 
+            // Мировой эквивалент старого TrailingRowsBehindPlayer — см.
+            // doc-комментарий TrailingDistance. Тот же tileSize, что и
+            // WorldGridProjection.ToWorldPosition использует для Z ниже.
+            _trailingDistance = TrailingRowsBehindPlayer * _projection.TileSize;
+
             TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
             CurrentPosition = TargetPosition;
 
@@ -146,6 +160,27 @@ namespace Burmalda.Movement
             // игроком и назад, при возврате на уже пройденную плиту (#61),
             // не только вперёд на новых плитках (иначе некуда отступить).
             _trail.PositionChanged += OnPositionChanged;
+        }
+
+        /// <summary>
+        /// Дистанция по Z (мировые единицы, НЕ ряды) от плитки игрока до
+        /// целевого положения камеры — issue #153, тумблер 2. По умолчанию
+        /// равна <see cref="TrailingRowsBehindPlayer"/>·tileSize (буквально
+        /// старое поведение); <see cref="TunnelCameraController"/>
+        /// переопределяет её каждый кадр анкор-производным значением
+        /// (<see cref="TunnelCameraAnchor.ComputeTrailingDistanceForAnchor"/>),
+        /// только пока тумблер 2 включён. Изменение немедленно пересчитывает
+        /// <see cref="TargetPosition"/>, по тому же принципу, что и
+        /// <see cref="HeightOffset"/>.
+        /// </summary>
+        public float TrailingDistance
+        {
+            get => _trailingDistance;
+            set
+            {
+                _trailingDistance = value;
+                TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
+            }
         }
 
         /// <summary>
@@ -440,6 +475,16 @@ namespace Burmalda.Movement
             // #62: камера двигается только вперёд-назад (по Z) — столбец
             // зафиксирован на центре ширины тоннеля, не следует за игроком
             // по X (иначе камера уезжает влево-вправо при диагональном пути).
+            // Ряд для X роли не играет (см. WorldGridProjection.ToWorldPosition —
+            // X зависит только от Column), берём 0 как заглушку.
+            var x = _projection.ToWorldPosition(new GridCoordinate(0, _projection.Width / 2)).x;
+
+            // Issue #153, тумблер 2: TrailingDistance — мировая дистанция
+            // (не ряды), по умолчанию совпадает со старой формулой
+            // (TrailingRowsBehindPlayer·tileSize), при включённом тумблере
+            // переопределяется TunnelCameraController анкор-производным
+            // значением. Формула ниже (playerRow+0.5)*tileSize — буквально
+            // Z-часть WorldGridProjection.ToWorldPosition.
             //
             // НЕ клампится к 0 (было Math.Max(0, ...) — убрано 2026-08-14,
             // найдено через LogCameraDiagnosticMatrix на реальном устройстве):
@@ -447,18 +492,12 @@ namespace Burmalda.Movement
             // дистанцию камера-игрок почти до нуля (на row=0 камера
             // оказывалась ВПЕРЕДИ игрока по Z, а не позади — отсюда "поле не
             // попадает в кадр"/плитка не в кадре сразу после ConfirmRun).
-            // GridCoordinate/WorldGridProjection.ToWorldPosition — чистая
-            // линейная функция ряда, отрицательный Row такой же корректный
-            // мировой Z, как и положительный (проверено: нет ни assert'ов,
-            // ни индексации по Row нигде на пути). Без клампа дистанция
-            // камера-игрок ПОСТОЯННА (TrailingRowsBehindPlayer рядов +
-            // HeightOffset.Z) на любом Row, включая 0 — устоявшаяся геометрия
-            // (Pitch/HeightOffset.Z), уже провалидированная
-            // TunnelCameraViewportFramingTests на дальних рядах, теперь
-            // корректна и на самом первом ряду тоже, без отдельного
-            // калибровочного значения под row=0.
-            var trailingRow = playerPosition.Row - TrailingRowsBehindPlayer;
-            var followCoordinate = new GridCoordinate(trailingRow, _projection.Width / 2);
+            // Отрицательный Row — такой же корректный мировой Z, как и
+            // положительный (нет ни assert'ов, ни индексации по Row нигде
+            // на пути). Без клампа дистанция камера-игрок ПОСТОЯННА
+            // (TrailingDistance + HeightOffset.Z) на любом Row, включая 0.
+            var playerWorldZ = (playerPosition.Row + 0.5f) * _projection.TileSize;
+            var followZ = playerWorldZ - TrailingDistance;
 
             // Z-компонента HeightOffset интерполируется ходом твина интро
             // (см. ComputeIntroTweenProgress01/AdvanceIntroTween), НЕ по
@@ -470,7 +509,7 @@ namespace Burmalda.Movement
             // независимая надбавка поверх обычного трейлинга по рядам.
             var effectiveOffset = new Vector3(_heightOffset.x, _heightOffset.y, effectiveOffsetZ + _manualForwardOffsetZ);
 
-            return _projection.ToWorldPosition(followCoordinate) + effectiveOffset;
+            return new Vector3(x, 0f, followZ) + effectiveOffset;
         }
 
         /// <summary>

@@ -74,7 +74,28 @@ namespace Burmalda.Movement
         // на самом старте забега уводит камеру мимо стартовой плиты.
         [SerializeField] private float _introHeightOffsetZ = TunnelCameraFollow.DefaultIntroHeightOffsetZ;
 
+        // Issue #153/#155: якорь по вьюпорту вместо TrailingRowsBehindPlayer
+        // (TunnelCameraAnchor). По умолчанию ВЫКЛЮЧЕН — выключенное
+        // состояние обязано давать побайтово прежнее поведение, см.
+        // doc-комментарий Update() ниже.
+        [SerializeField] private bool _useScreenAnchor;
+        [SerializeField] private float _anchorViewportY = 0.32f;
+
         private TunnelCameraFollow _follow;
+
+        /// <summary>Тумблер (якорь по вьюпорту) — публично для debug-панели.</summary>
+        public bool UseScreenAnchor
+        {
+            get => _useScreenAnchor;
+            set => _useScreenAnchor = value;
+        }
+
+        /// <summary>Доля высоты кадра (снизу) для якоря игрока — публично для debug-панели.</summary>
+        public float AnchorViewportY
+        {
+            get => _anchorViewportY;
+            set => _anchorViewportY = value;
+        }
 
         private void Awake()
         {
@@ -136,6 +157,46 @@ namespace Burmalda.Movement
             _follow.IntroPitchDegrees = _introPitchDegrees;
             _follow.IntroHeightOffsetZ = _introHeightOffsetZ;
 
+            // Пересчитывается каждый кадр — покрывает не только смену
+            // разрешения/ориентации, но и ход твина интро (текущий pitch
+            // меняется кадр к кадру, см. doc-комментарий класса).
+            // groundDistanceToRow от pitch не зависит (только от
+            // HeightOffset.Z), пересчёт этой части каждый кадр — не
+            // необходимость, а просто следствие того, что вся формула
+            // теперь считается заново, не кэшируется.
+            //
+            // Issue #153/#155: перенесено ВЫШЕ Tick() (раньше считалось в
+            // конце Update(), после применения позиции) — анкор-производной
+            // TrailingDistance ниже нужен ГОТОВЫЙ vFOV этого кадра ДО того,
+            // как позиция камеры пересчитается на этом же кадре.
+            if (_camera != null)
+            {
+                // Калибровка ШИРИНЫ (не якоря!) намеренно остаётся на
+                // ФИКСИРОВАННОМ TrailingRowsBehindPlayer, а не на
+                // анкор-производной TrailingDistance ниже — иначе FOV входил
+                // бы в вычисление дистанции-от-якоря, а дистанция-от-якоря
+                // обратно в FOV (через vFOV), зацикливая калибровку без
+                // явной необходимости (см. doc-комментарий TunnelCameraAnchor).
+                var groundDistanceToRow = TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow(
+                    _heightOffset.z, _input.Projection.TileSize, TunnelCameraFollow.TrailingRowsBehindPlayer);
+                var desiredHorizontalFovDeg = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(
+                    _heightOffset.y, groundDistanceToRow, _follow.CurrentPitchDegrees, _input.Projection.TileSize);
+
+                var aspect = (float)Screen.width / Screen.height;
+                var vFov = TunnelCameraFraming.ComputeVerticalFovDegrees(desiredHorizontalFovDeg, aspect);
+                _camera.fieldOfView = vFov;
+
+                // Тумблер выключен по умолчанию — TrailingDistance тогда
+                // НЕ трогается вообще (сеттер даже не вызывается), Follow
+                // держит свой дефолт (TrailingRowsBehindPlayer·tileSize) —
+                // побайтово прежнее поведение, см. doc-комментарий класса.
+                if (_useScreenAnchor)
+                {
+                    _follow.TrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                        _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY);
+                }
+            }
+
             // Твин интро -> устоявшийся режим (см. doc-комментарий класса) —
             // не-op, пока ConfirmRun не вызван, и не-op после того, как твин
             // уже отыграл целиком.
@@ -156,25 +217,8 @@ namespace Burmalda.Movement
             // потенциальный будущий возврат, как и SnapToTarget.
 
             _follow.Tick();
+
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
-
-            // Пересчитывается каждый кадр, как и aspect ниже — дёшево, и
-            // покрывает не только смену разрешения/ориентации, но и ход
-            // твина интро (текущий pitch меняется кадр к кадру, см.
-            // doc-комментарий класса). groundDistanceToRow от pitch не
-            // зависит (только от HeightOffset.Z), пересчёт этой части
-            // каждый кадр — не необходимость, а просто следствие того, что
-            // вся формула теперь считается заново, не кэшируется.
-            if (_camera != null)
-            {
-                var groundDistanceToRow = TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow(
-                    _heightOffset.z, _input.Projection.TileSize, TunnelCameraFollow.TrailingRowsBehindPlayer);
-                var desiredHorizontalFovDeg = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(
-                    _heightOffset.y, groundDistanceToRow, _follow.CurrentPitchDegrees, _input.Projection.TileSize);
-
-                var aspect = (float)Screen.width / Screen.height;
-                _camera.fieldOfView = TunnelCameraFraming.ComputeVerticalFovDegrees(desiredHorizontalFovDeg, aspect);
-            }
         }
 
         private void HandleRunStarted() => RebuildFollow();
