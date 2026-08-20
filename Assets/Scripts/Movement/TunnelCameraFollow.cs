@@ -112,6 +112,13 @@ namespace Burmalda.Movement
         // безопасный отступ, а не точная граница.
         public const float MaxManualForwardOffset = 4f;
 
+        // Issue #153, тумблер 1: доезд фиксированной длительности вместо
+        // экспоненциального сглаживания — см. AdvanceStepTween. 100мс, как
+        // просил владелец продукта после отката #151 (упреждение вместо
+        // этого убрано целиком — не решает проблему остаточного отставания,
+        // только маскирует её ценой "уползания" при быстром вводе).
+        public const float DefaultStepTweenDurationSeconds = 0.1f;
+
         private readonly GridTraceTrail _trail;
         private readonly WorldGridProjection _projection;
         private Vector3 _heightOffset;
@@ -123,6 +130,18 @@ namespace Burmalda.Movement
         private float _introTweenElapsedSeconds;
         private GridCoordinate _confirmRunPlayerPosition;
         private bool _disposed;
+
+        // Issue #153, тумблер 1 — состояние доезда фиксированной длительности,
+        // см. AdvanceStepTween. Поддерживается ВСЕГДА (обновляется в
+        // OnPositionChanged независимо от того, вызывает ли кто-то
+        // AdvanceStepTween) — тумблер живёт снаружи, в TunnelCameraController
+        // (какой из двух методов, Tick() или AdvanceStepTween, зовётся
+        // каждый кадр), Follow сам о тумблере не знает. Это гарантирует, что
+        // Tick()/SmoothingFactor-путь остаётся побайтово прежним при
+        // выключенном тумблере — новые поля просто никогда не читаются.
+        private float _stepTweenDurationSeconds = DefaultStepTweenDurationSeconds;
+        private Vector3 _stepTweenStartPosition;
+        private float _stepTweenElapsedSeconds;
 
         public TunnelCameraFollow(
             GridTraceTrail trail,
@@ -141,6 +160,13 @@ namespace Burmalda.Movement
 
             TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
             CurrentPosition = TargetPosition;
+
+            // "Твин уже завершён" с самого начала — до первого реального
+            // хода AdvanceStepTween должна быть не-op (см. её докстринг и
+            // тест AdvanceStepTween_NoStepYet_IsNoOpAtInitialPosition), а не
+            // лерпить из Vector3.zero к начальной позиции.
+            _stepTweenStartPosition = CurrentPosition;
+            _stepTweenElapsedSeconds = _stepTweenDurationSeconds;
 
             // PositionChanged (а не Advanced) — камера должна следовать за
             // игроком и назад, при возврате на уже пройденную плиту (#61),
@@ -163,6 +189,20 @@ namespace Burmalda.Movement
                 _heightOffset = value;
                 TargetPosition = ComputeTargetPosition(_trail.CurrentPosition);
             }
+        }
+
+        /// <summary>
+        /// Длительность доезда фиксированной длительности (секунды) — issue
+        /// #153, тумблер 1, см. <see cref="AdvanceStepTween"/>. Читается
+        /// заново на каждый вызов <see cref="AdvanceStepTween"/> — смена
+        /// значения на лету (debug-панель) безопасна даже посреди уже
+        /// идущего твина. Отрицательные значения не имеют смысла — клампится
+        /// к 0 (мгновенный снап, как <see cref="SnapToTarget"/>).
+        /// </summary>
+        public float StepTweenDurationSeconds
+        {
+            get => _stepTweenDurationSeconds;
+            set => _stepTweenDurationSeconds = Mathf.Max(0f, value);
         }
 
         /// <summary>Точка, к которой плавно движется камера — со смещением позади игрока (PRD 16).</summary>
@@ -259,6 +299,59 @@ namespace Burmalda.Movement
         public void Tick()
         {
             CurrentPosition += (TargetPosition - CurrentPosition) * SmoothingFactor;
+        }
+
+        /// <summary>
+        /// Issue #153, тумблер 1: доезд ФИКСИРОВАННОЙ длительности вместо
+        /// экспоненциального сглаживания (<see cref="Tick"/>, не тронут —
+        /// это параллельный, независимый путь; <see cref="TunnelCameraController"/>
+        /// решает снаружи, какой из двух вызывать каждый кадр, в
+        /// зависимости от тумблера в debug-панели).
+        ///
+        /// В отличие от экспоненты (константная ДОЛЯ разрыва за тик, поэтому
+        /// установившееся отставание растёт пропорционально скорости цели —
+        /// см. историю #151), доезд фиксированной длительности всегда
+        /// закрывает ТЕКУЩИЙ разрыв ровно за <see cref="StepTweenDurationSeconds"/>
+        /// секунд, независимо от его размера — гарантированно приходит в
+        /// цель, без остаточной ошибки. Если следующий реальный ход
+        /// случается ПОСЛЕ того, как предыдущий твин уже доехал (что
+        /// выполняется для любого реалистичного темпа игры, раз
+        /// длительность мала — 100мс по умолчанию), доля кадра, на которой
+        /// оказывается игрок, оказывается ОДНОЙ И ТОЙ ЖЕ при любом темпе —
+        /// именно это и требует инвариант A (issue #153).
+        ///
+        /// Новый ход ДО завершения текущего твина (быстрый непрерывный
+        /// свайп) не телепортирует камеру — <see cref="OnPositionChanged"/>
+        /// перезапускает твин от ТЕКУЩЕЙ (возможно, ещё в полёте) позиции к
+        /// новой цели, снова на полную длительность.
+        ///
+        /// Безопасно вызывать каждый кадр в любой момент, включая во время
+        /// твина интро — там разрыв между Target/CurrentPosition всегда 0
+        /// (как и для <see cref="Tick"/>), так что это фактический не-op.
+        /// </summary>
+        public void AdvanceStepTween(float deltaSeconds)
+        {
+            if (_stepTweenElapsedSeconds >= _stepTweenDurationSeconds)
+            {
+                // Твин уже доехал — держим CurrentPosition РОВНО в
+                // TargetPosition (а не оставляем как есть) на случай, если
+                // TargetPosition успела чуть измениться по не-шаговой
+                // причине (HeightOffset и т.п. — существующее поведение,
+                // не про инвариант B, см. doc-комментарий HeightOffset).
+                CurrentPosition = TargetPosition;
+                return;
+            }
+
+            _stepTweenElapsedSeconds = Mathf.Min(_stepTweenElapsedSeconds + deltaSeconds, _stepTweenDurationSeconds);
+
+            if (_stepTweenElapsedSeconds >= _stepTweenDurationSeconds || _stepTweenDurationSeconds <= 0f)
+            {
+                CurrentPosition = TargetPosition; // явный снап на границе — не полагаемся на Lerp(t=1) быть побитово точным
+                return;
+            }
+
+            var t = _stepTweenElapsedSeconds / _stepTweenDurationSeconds;
+            CurrentPosition = Vector3.Lerp(_stepTweenStartPosition, TargetPosition, t);
         }
 
         /// <summary>
@@ -432,6 +525,15 @@ namespace Burmalda.Movement
 
         private void OnPositionChanged(GridCoordinate coordinate)
         {
+            // Issue #153, тумблер 1: перезапускаем твин фиксированной
+            // длительности ОТ ТЕКУЩЕЙ позиции (даже если предыдущий твин ещё
+            // не доехал — быстрый непрерывный свайп) — см. AdvanceStepTween.
+            // Безвредно, если AdvanceStepTween вообще не вызывается
+            // (тумблер выключен, TunnelCameraController зовёт только Tick()) —
+            // эти поля тогда просто никогда не читаются.
+            _stepTweenStartPosition = CurrentPosition;
+            _stepTweenElapsedSeconds = 0f;
+
             TargetPosition = ComputeTargetPosition(coordinate);
         }
 
