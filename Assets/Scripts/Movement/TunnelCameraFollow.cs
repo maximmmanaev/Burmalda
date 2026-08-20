@@ -200,6 +200,17 @@ namespace Burmalda.Movement
             }
         }
 
+        /// <summary>
+        /// 0 — твин интро ещё не запущен, 1 — твин полностью отыграл. Нужен
+        /// <see cref="TunnelCameraController"/> напрямую (issue #153/#155) —
+        /// анкор-производная TrailingDistance подмешивается плавно,
+        /// синхронно с твином интро, а не резким переключением в момент
+        /// ConfirmRun (иначе во время top-down интро, на сильно другом
+        /// Pitch, анкор-геометрия для устоявшегося режима уводит камеру
+        /// мимо стартовой плиты). См. <see cref="ComputeIntroTweenProgress01"/>.
+        /// </summary>
+        public float IntroTweenProgress01 => ComputeIntroTweenProgress01();
+
         /// <summary>Точка, к которой плавно движется камера — со смещением позади игрока (PRD 16).</summary>
         public Vector3 TargetPosition { get; private set; }
 

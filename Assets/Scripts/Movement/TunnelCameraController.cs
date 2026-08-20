@@ -189,11 +189,21 @@ namespace Burmalda.Movement
                 // Тумблер выключен по умолчанию — TrailingDistance тогда
                 // НЕ трогается вообще (сеттер даже не вызывается), Follow
                 // держит свой дефолт (TrailingRowsBehindPlayer·tileSize) —
-                // побайтово прежнее поведение, см. doc-комментарий класса.
+                // побайтово прежнее поведение, см. доc-комментарий класса.
                 if (_useScreenAnchor)
                 {
-                    _follow.TrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                    // Lerp по IntroTweenProgress01 — ЗАЩИЩАЕТ top-down интро
+                    // от этой правки (реально сломанный сценарий, найден на
+                    // устройстве при съёмке видео для issue #153: без Lerp'а
+                    // анкор-геометрия для устоявшегося Pitch применялась и во
+                    // время интро, на сильно другом Pitch — камеру уводило
+                    // мимо стартовой плиты, ConfirmRun-тап промахивался).
+                    // Пока твин не завершён (progress=0), TrailingDistance
+                    // остаётся РОВНО старой фиксированной формулой.
+                    var anchorTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
                         _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY);
+                    var fixedTrailingDistance = TunnelCameraFollow.TrailingRowsBehindPlayer * _input.Projection.TileSize;
+                    _follow.TrailingDistance = Mathf.Lerp(fixedTrailingDistance, anchorTrailingDistance, _follow.IntroTweenProgress01);
                 }
             }
 
