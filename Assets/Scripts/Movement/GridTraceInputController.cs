@@ -22,10 +22,24 @@ namespace Burmalda.Movement
     /// <see cref="IsPressed"/>/<see cref="CurrentScreenPosition"/>/
     /// <see cref="PressStarted"/> — публично читаемое состояние прижатия
     /// пальца, нужно смежным системам (см. <see cref="TunnelCameraController"/>:
-    /// тап сбрасывает накопленный эдж-скролл (без мгновенного снапа
-    /// позиции, см. doc-комментарий <see cref="PressStarted"/>), драг у
-    /// верхней границы нижней трети экрана — автоскролл вперёд), не
-    /// только этому классу для собственной логики хода.
+    /// тап сбрасывает накопленный эдж-скролл на каждый новый тап (см.
+    /// <see cref="TunnelCameraFollow.ResetManualForwardOffset"/>) — БЕЗ
+    /// мгновенного снапа позиции (убрано 2026-08-14, читалось на
+    /// устройстве как рывок камеры на несколько клеток, см.
+    /// doc-комментарий <see cref="TunnelCameraFollow.SnapToTarget"/>).
+    ///
+    /// <b>Issue #157, спайк "дискретный ввод" — ТОЛЬКО в этой ветке
+    /// (spike/discrete-input-dwell), НИКОГДА не мержится в main без
+    /// отдельного явного решения владельца продукта (PRD v5 4.1 явно
+    /// фиксирует протяжку как механику ввода — смена механиков это
+    /// PRD-уровневое решение, не инженерное).</b> <see cref="DwellEnabled"/>
+    /// переключает между двумя РАЗНЫМИ входными механиками на одном и том
+    /// же трейле: протяжка (как выше, оригинал) или "примеривание" —
+    /// удержание пальца на соседней плите показывает её (не двигая трейл),
+    /// отпускание фиксирует шаг, шаг занимает <see cref="StepDurationSeconds"/>
+    /// секунд, ввод на это время заблокирован. Обоснование и известные
+    /// проблемы — see issue #157 и `docs/evidence/issue-157/` (видео +
+    /// честный список).
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class GridTraceInputController : MonoBehaviour
@@ -34,11 +48,30 @@ namespace Burmalda.Movement
         [SerializeField] private float _tileSize = 1f;
         [SerializeField] private int _width = 5;
 
+        // Issue #157 — см. doc-комментарий класса. По умолчанию ВКЛЮЧЕН на
+        // этой ветке (смысл спайка — дать пощупать именно дискретный ввод),
+        // в отличие от обычных тумблеров этого проекта (которые по
+        // умолчанию выключены для побайтовой совместимости) — здесь
+        // совместимость не нужна, ветка никогда не мержится.
+        [SerializeField] private bool _dwellEnabled = true;
+        [SerializeField] private float _stepDurationSeconds = 0.32f; // середина требуемого диапазона 0.25-0.4с
+
+        private const float MinStepDurationSeconds = 0.25f;
+        private const float MaxStepDurationSeconds = 0.4f;
+
         private readonly PointerPositionChangeFilter _positionChangeFilter = new PointerPositionChangeFilter();
 
         private TunnelGrid _grid;
         private GridTraceTrail _trail;
         private WorldGridProjection _projection;
+
+        // Issue #157 — состояние "примеривания".
+        private GridCoordinate? _dwellTarget;
+        private bool _confirmFiredForCurrentDwell;
+        private float _stepLockRemainingSeconds;
+        private Renderer _highlightedRenderer;
+        private Color _highlightedRendererOriginalColor;
+        private static readonly Color DwellHighlightColor = new Color(1f, 0.95f, 0.4f, 1f); // тёплый жёлтый — отличим от игровых цветов (зелёный/фиолетовый/чёрный)
 
         /// <summary>Трейл текущего забега — для чтения смежными системами (визуал трейла, камера).</summary>
         public GridTraceTrail Trail => _trail;
@@ -62,6 +95,44 @@ namespace Burmalda.Movement
 
         /// <summary>Последняя известная экранная позиция пальца/курсора — валидна, пока <see cref="IsPressed"/>.</summary>
         public Vector2 CurrentScreenPosition { get; private set; }
+
+        /// <summary>
+        /// Issue #157: тумблер механики ввода — публично для debug-панели
+        /// (<c>DiscreteInputDebugPanel</c>). true = "примеривание" (дефолт на
+        /// этой ветке), false = протяжка оригинала issue #60/#61.
+        /// </summary>
+        public bool DwellEnabled
+        {
+            get => _dwellEnabled;
+            set
+            {
+                if (_dwellEnabled == value) return;
+                _dwellEnabled = value;
+                CancelDwell(); // смена механики на лету — не оставляем зависший превью/лок от другого режима
+            }
+        }
+
+        /// <summary>Issue #157: длительность шага (сек), публично для debug-панели. Зажимается в [0.25, 0.4].</summary>
+        public float StepDurationSeconds
+        {
+            get => _stepDurationSeconds;
+            set => _stepDurationSeconds = Mathf.Clamp(value, MinStepDurationSeconds, MaxStepDurationSeconds);
+        }
+
+        /// <summary>
+        /// Issue #157: плита, которую сейчас "примеривает" игрок (палец
+        /// зажат на соседней валидной плите, шаг ещё НЕ зафиксирован) — null,
+        /// если палец не зажат, зажат мимо валидной цели, или идёт
+        /// <see cref="IsStepLocked"/>. Публично для HUD (decay/содержимое
+        /// плиты — <see cref="TunnelGrid.TryGetTile"/>).
+        /// </summary>
+        public GridCoordinate? DwellTarget => _dwellTarget;
+
+        /// <summary>Issue #157: true, пока идёт фиксация шага (<see cref="StepDurationSeconds"/> после отпускания) — ввод заблокирован.</summary>
+        public bool IsStepLocked => _stepLockRemainingSeconds > 0f;
+
+        /// <summary>Issue #157 — HUD/дебаг: сколько ещё секунд заблокирован ввод.</summary>
+        public float StepLockRemainingSeconds => _stepLockRemainingSeconds;
 
         /// <summary>
         /// Срабатывает сразу после того, как <see cref="Grid"/>/<see cref="Trail"/>
@@ -111,6 +182,11 @@ namespace Burmalda.Movement
             InitializeRun();
         }
 
+        private void OnDisable()
+        {
+            CancelDwell(); // не оставляем подсветку висящей на выключенном компоненте
+        }
+
         /// <summary>
         /// Помечает игрока мёртвым — дальнейший ввод игнорируется (см.
         /// <see cref="Update"/>) до вызова <see cref="Restart"/>. Вызывается
@@ -138,6 +214,7 @@ namespace Burmalda.Movement
             var start = new GridCoordinate(0, _width / 2);
             _trail = new GridTraceTrail(_grid, start);
             _positionChangeFilter.Reset();
+            CancelDwell();
             IsAlive = true;
 
             RunStarted?.Invoke();
@@ -147,6 +224,18 @@ namespace Burmalda.Movement
         {
             if (!IsAlive) return;
 
+            if (!_dwellEnabled)
+            {
+                UpdateDragMode();
+                return;
+            }
+
+            UpdateDwellMode();
+        }
+
+        /// <summary>Оригинальная механика протяжки (issue #60/#61) — без изменений, для A/B через <see cref="DwellEnabled"/>.</summary>
+        private void UpdateDragMode()
+        {
             var pointer = Pointer.current;
             var pressed = pointer != null && pointer.press.isPressed;
 
@@ -166,6 +255,121 @@ namespace Burmalda.Movement
             if (!hasChanged) return;
 
             TryAdvanceAtScreenPosition(screenPosition);
+        }
+
+        /// <summary>
+        /// Issue #157 — "примеривание": удержание на соседней плите её
+        /// показывает (не двигая трейл), отпускание фиксирует шаг на
+        /// <see cref="StepDurationSeconds"/> секунд заблокированного ввода.
+        /// Время (<see cref="Burmalda.Decay.TrailDecaySystem"/>) не
+        /// останавливается на время примеривания — тикает независимо от
+        /// этого контроллера (см. doc-комментарий TrailDecaySystem).
+        /// </summary>
+        private void UpdateDwellMode()
+        {
+            if (_stepLockRemainingSeconds > 0f)
+            {
+                _stepLockRemainingSeconds = Mathf.Max(0f, _stepLockRemainingSeconds - Time.deltaTime);
+                return; // ввод заблокирован на время фиксации шага
+            }
+
+            var pointer = Pointer.current;
+            var pressed = pointer != null && pointer.press.isPressed;
+
+            if (pressed && !IsPressed) PressStarted?.Invoke();
+            var wasPressed = IsPressed;
+            IsPressed = pressed;
+
+            if (!pressed)
+            {
+                if (wasPressed) CommitOrCancelDwell(); // переход "прижат" -> "не прижат" — момент фиксации/отмены
+                return;
+            }
+
+            var screenPosition = pointer.position.ReadValue();
+            CurrentScreenPosition = screenPosition;
+
+            var candidate = ResolveTappedTile(_camera, screenPosition);
+            SetDwellTarget(candidate);
+
+            // Тап по своей же текущей позиции — сигнал ConfirmRun, не шаг
+            // (см. doc-комментарий RunConfirmed). Не завязан на отпускание —
+            // это не ход по трейлу, фиксировать нечего.
+            if (candidate.HasValue && candidate.Value == _trail.CurrentPosition && !_confirmFiredForCurrentDwell)
+            {
+                RunConfirmed?.Invoke();
+                _confirmFiredForCurrentDwell = true;
+            }
+        }
+
+        private void CommitOrCancelDwell()
+        {
+            var target = _dwellTarget;
+            ClearHighlight();
+            _dwellTarget = null;
+            _confirmFiredForCurrentDwell = false;
+
+            if (!target.HasValue) return; // отпущено мимо валидной цели — отмена, трейл не трогаем
+            if (target.Value == _trail.CurrentPosition) return; // тап по своей же позиции уже обработан в UpdateDwellMode
+
+            var advanced = _trail.TryAdvanceTo(target.Value);
+            if (advanced) _stepLockRemainingSeconds = _stepDurationSeconds; // шаг занял время — ввод в лок, ловушка/смерть не запускают лок (ход не засчитан)
+        }
+
+        private void CancelDwell()
+        {
+            ClearHighlight();
+            _dwellTarget = null;
+            _confirmFiredForCurrentDwell = false;
+            _stepLockRemainingSeconds = 0f;
+        }
+
+        private void SetDwellTarget(GridCoordinate? candidate)
+        {
+            // Валидная цель примеривания — соседняя плита, на которую МОЖНО
+            // шагнуть (не своя позиция, не препятствие/ловушка/закрытые
+            // ворота — та же проверка, что и реальный ход, см.
+            // GridTraceTrail.CanAdvanceTo). Невалидная/пустая цель — превью
+            // снимается, палец может тащить дальше в поисках валидной.
+            var isValidStepTarget = candidate.HasValue
+                && candidate.Value != _trail.CurrentPosition
+                && _trail.CanAdvanceTo(candidate.Value);
+
+            if (!isValidStepTarget) candidate = null;
+
+            if (_dwellTarget == candidate) return; // без изменений — не дёргаем подсветку/флаг подтверждения каждый кадр
+
+            _confirmFiredForCurrentDwell = false; // цель сменилась — если это была плита ConfirmRun, разрешаем сигнал заново при возврате на неё
+            ClearHighlight();
+            _dwellTarget = candidate;
+            if (candidate.HasValue) ApplyHighlight(candidate.Value);
+        }
+
+        private void ApplyHighlight(GridCoordinate coordinate)
+        {
+            // Раздельный raycast от ResolveTappedTile — тому нужна только
+            // координата (переиспользуется и протяжкой, и confirm-веткой
+            // выше), подсветке нужен сам Renderer, не стоит утяжелять общий
+            // метод под один вызывающий сценарий.
+            if (_camera == null) return;
+            var ray = _camera.ScreenPointToRay(CurrentScreenPosition);
+            if (!Physics.Raycast(ray, out var hit)) return;
+            var marker = hit.collider.GetComponent<TileVisualMarker>();
+            if (marker == null || marker.Coordinate != coordinate) return;
+
+            var renderer = hit.collider.GetComponent<Renderer>();
+            if (renderer == null) return;
+
+            _highlightedRenderer = renderer;
+            _highlightedRendererOriginalColor = renderer.material.color;
+            renderer.material.color = DwellHighlightColor;
+        }
+
+        private void ClearHighlight()
+        {
+            if (_highlightedRenderer == null) return;
+            _highlightedRenderer.material.color = _highlightedRendererOriginalColor;
+            _highlightedRenderer = null;
         }
 
         private void TryAdvanceAtScreenPosition(Vector2 screenPosition)
