@@ -42,6 +42,11 @@ namespace Burmalda.Movement
     /// тап по собственной текущей позиции игрока) запускает короткий
     /// time-based твин, который этот класс продвигает каждый кадр через
     /// <see cref="TunnelCameraFollow.AdvanceIntroTween"/>.
+    ///
+    /// <b>Заморозка на время примеривания (issue #157, перенос схемы A):</b>
+    /// пока <see cref="GridTraceInputController.IsPressed"/> истинно,
+    /// <see cref="Update"/> не трогает камеру вообще — часть механики ввода
+    /// (PRD 4.1: "камера обновляется только между шагами"), не оптимизация.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TunnelCameraController : MonoBehaviour
@@ -172,6 +177,16 @@ namespace Burmalda.Movement
                 if (_input == null || _input.Trail == null) return;
                 RebuildFollow();
             }
+
+            // Issue #157 (перенос схемы A в продукт): камера обновляется
+            // ТОЛЬКО между шагами — часть механики ("плита под пальцем
+            // гарантированно та, на которую игрок смотрит", PRD 4.1), не
+            // оптимизация. Пока палец на экране (примеривание ИЛИ ожидание
+            // лока сразу после нажатия — GridTraceInputController.IsPressed
+            // отражает сырое состояние пальца, см. её doc-комментарий), эта
+            // функция не трогает ни FOV, ни позицию/поворот, ни твин интро —
+            // полный ранний выход, ничего не читается и не пишется дальше.
+            if (_input != null && _input.IsPressed) return;
 
             // Прокидываем текущие значения инспектора в Follow каждый кадр —
             // без этого правка HeightOffset/Pitch/IntroPitch во время Play

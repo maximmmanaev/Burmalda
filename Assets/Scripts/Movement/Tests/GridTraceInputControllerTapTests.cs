@@ -7,30 +7,17 @@ using UnityEngine;
 namespace Burmalda.Movement.Tests
 {
     /// <summary>
-    /// Регресс-тесты на баг (2026-08-14, не гипотеза): тап по пустому месту
-    /// экрана (где нет физически отрендеренной плитки) двигал камеру/трейл —
-    /// причина была в <see cref="GridTraceInputController.TryAdvanceAtScreenPosition"/>,
-    /// кастовавшем луч на абстрактную математическую плоскость пола
-    /// (<c>Plane(Vector3.up, Vector3.zero)</c>), а не на реальные объекты
-    /// плиток. ЛЮБАЯ точка тапа давала какую-то мировую точку → какую-то
-    /// GridCoordinate, и если она проходила <c>grid.Contains</c>/
-    /// <c>IsAdjacentTo</c> (а не факт материализации/рендера), ход
-    /// засчитывался.
+    /// Issue #157 (перенос схемы A "удержание/отпускание" из спайка в
+    /// продукт, PRD 4.1 переработка §4.1): полная связка
+    /// нажатие→примеривание→ведение→отпускание/отмена, ход событий
+    /// (RunConfirmed/PositionChanged) и правила хода (соседство, повторный
+    /// шаг на пройденную плиту #61 — не менялись, здесь только регрессия).
     ///
-    /// Фикс — <see cref="GridTraceInputController.ResolveTappedTile"/>:
-    /// Physics.Raycast против реальных коллайдеров
-    /// (<see cref="TileVisualMarker"/>), координата читается прямо с
-    /// попавшего коллайдера. <see cref="GridTraceTrail.CanAdvanceTo"/>/
-    /// <see cref="GridTraceTrail.TryAdvanceTo"/> не менялись — здесь
-    /// проверяется только то, как координата попадает туда со стороны
-    /// инпута.
-    ///
-    /// <see cref="GridTraceInputController.TryAdvanceAtScreenPosition"/> —
-    /// приватный (Update()/реальный Input System по-прежнему не покрыты
-    /// тестами, см. <see cref="GridTraceInputControllerTests"/>), поэтому
-    /// вызывается через рефлексию — единственный способ проверить полную
-    /// связку "тап -> трейл/PositionChanged/RunConfirmed" без переписывания
-    /// доступа production-кода ради тестируемости.
+    /// <see cref="GridTraceInputController.HandlePointerPressed"/>/
+    /// <see cref="GridTraceInputController.HandlePointerReleased"/> —
+    /// приватные (реальный Input System/Update() тестами не покрыт, как и
+    /// раньше) — вызываются рефлексией, тот же паттерн, что и у прежней
+    /// TryAdvanceAtScreenPosition в этом файле до переноса схемы A.
     /// </summary>
     public class GridTraceInputControllerTapTests
     {
@@ -40,61 +27,134 @@ namespace Burmalda.Movement.Tests
         private GameObject _cameraObject;
         private GameObject _inputObject;
         private GridTraceInputController _controller;
-        private GameObject _tileObject;
+        private GameObject _tileObjectA;
+        private GameObject _tileObjectB;
 
         [TearDown]
         public void TearDown()
         {
-            if (_tileObject != null) UnityEngine.Object.DestroyImmediate(_tileObject);
+            if (_tileObjectA != null) UnityEngine.Object.DestroyImmediate(_tileObjectA);
+            if (_tileObjectB != null) UnityEngine.Object.DestroyImmediate(_tileObjectB);
             if (_inputObject != null) UnityEngine.Object.DestroyImmediate(_inputObject);
             if (_cameraObject != null) UnityEngine.Object.DestroyImmediate(_cameraObject);
         }
 
+        // PRD 4.1 п.1: касание соседней плиты — примеривание, не шаг.
         [Test]
-        public void TapOnEmptySpace_NoTileThere_DoesNotAdvanceTrailOrRaisePositionChanged()
-        {
-            // Соседняя (0,2)->(1,3) координата — валидна по adjacency, но
-            // здесь намеренно НЕ создаём ни данные (GetOrCreateTile), ни
-            // визуальный объект — ровно баговый сценарий: "пустое место".
-            var emptyCoordinate = new GridCoordinate(1, Width / 2 + 1);
-            SetUpController(out var positionChangedCount);
-            var screenPosition = ScreenPositionOf(emptyCoordinate);
-
-            InvokeTryAdvanceAtScreenPosition(screenPosition);
-
-            Assert.AreEqual(StartCoordinate, _controller.Trail.CurrentPosition, "трейл не должен был продвинуться");
-            Assert.AreEqual(0, positionChangedCount(), "PositionChanged не должен был подняться");
-        }
-
-        [Test]
-        public void TapOnAdjacentMaterializedTile_AdvancesTrail()
+        public void PressOnAdjacentValidTile_SetsPreviewTarget_DoesNotAdvanceTrail()
         {
             var target = new GridCoordinate(1, Width / 2);
             SetUpController(out var positionChangedCount);
-            _controller.Grid.GetOrCreateTile(target); // как TunnelGridReveal материализует данные заранее
-            _tileObject = CreateTileVisual(target);
-            var screenPosition = ScreenPositionOf(target);
+            _controller.Grid.GetOrCreateTile(target);
+            _tileObjectA = CreateTileVisual(target);
 
-            InvokeTryAdvanceAtScreenPosition(screenPosition);
+            InvokePointerPressed(ScreenPositionOf(target));
 
-            Assert.AreEqual(target, _controller.Trail.CurrentPosition, "тап на существующую соседнюю плитку должен засчитаться ходом");
-            Assert.AreEqual(1, positionChangedCount());
+            Assert.AreEqual(target, _controller.PreviewTarget, "касание соседней валидной плиты должно примеривать её");
+            Assert.AreEqual(StartCoordinate, _controller.Trail.CurrentPosition, "примеривание не должно двигать трейл");
+            Assert.AreEqual(0, positionChangedCount());
         }
 
+        // PRD 4.1 п.2: ведение пальцем без отрыва переносит примеривание.
         [Test]
-        public void TapOnOwnCurrentTile_DoesNotAdvance_ButRaisesRunConfirmed()
+        public void DragToAnotherAdjacentTile_WithoutRelease_MovesPreviewTarget()
+        {
+            var targetA = new GridCoordinate(1, Width / 2);
+            var targetB = new GridCoordinate(0, Width / 2 + 1);
+            SetUpController(out _);
+            _controller.Grid.GetOrCreateTile(targetA);
+            _controller.Grid.GetOrCreateTile(targetB);
+            _tileObjectA = CreateTileVisual(targetA);
+            _tileObjectB = CreateTileVisual(targetB);
+
+            InvokePointerPressed(ScreenPositionOf(targetA));
+            Assert.AreEqual(targetA, _controller.PreviewTarget);
+
+            InvokePointerPressed(ScreenPositionOf(targetB)); // не отпуская — тот же непрерывный жест
+
+            Assert.AreEqual(targetB, _controller.PreviewTarget, "ведение без отрыва должно перенести примеривание на новую плиту");
+            Assert.AreEqual(StartCoordinate, _controller.Trail.CurrentPosition, "трейл всё ещё не должен был продвинуться");
+        }
+
+        // PRD 4.1 п.3: отпускание совершает шаг.
+        [Test]
+        public void ReleaseWhilePreviewingValidTile_AdvancesTrail_AndLocksInput()
+        {
+            var target = new GridCoordinate(1, Width / 2);
+            SetUpController(out var positionChangedCount);
+            _controller.Grid.GetOrCreateTile(target);
+            _tileObjectA = CreateTileVisual(target);
+
+            InvokePointerPressed(ScreenPositionOf(target));
+            InvokePointerReleased();
+
+            Assert.AreEqual(target, _controller.Trail.CurrentPosition, "отпускание над валидной примериваемой плитой должно засчитаться шагом");
+            Assert.AreEqual(1, positionChangedCount());
+            Assert.IsNull(_controller.PreviewTarget, "примеривание должно сброситься после шага");
+            Assert.IsTrue(_controller.IsInputLocked, "сразу после шага ввод должен быть заблокирован на StepDurationSeconds");
+        }
+
+        // PRD 4.1 п.4: отпускание вне валидной соседней плиты — отмена.
+        [Test]
+        public void ReleaseOutsideValidAdjacentTile_CancelsWithoutStep()
         {
             SetUpController(out var positionChangedCount);
-            _tileObject = CreateTileVisual(StartCoordinate); // стартовая плита уже материализована конструктором трейла
+            // Ничего не примеривали (палец никогда не был над валидной
+            // плитой) — отпускание "в никуда".
+
+            InvokePointerReleased();
+
+            Assert.AreEqual(StartCoordinate, _controller.Trail.CurrentPosition, "отмена не должна сдвигать трейл");
+            Assert.AreEqual(0, positionChangedCount());
+            Assert.IsFalse(_controller.IsInputLocked, "отмена не анимирует шаг — блокировки ввода быть не должно");
+        }
+
+        // PRD 4.1 п.3: блокировка ввода настраиваема и лежит в заданном
+        // задачей диапазоне 0.15-0.5с по умолчанию (сам гейт — в Update(),
+        // читающем IsInputLocked; Update()/реальный Input System тестами не
+        // покрыты по тем же причинам, что и раньше, см. doc-комментарий
+        // класса — здесь фиксируем именно публичный контракт длительности).
+        [Test]
+        public void StepDurationSeconds_DefaultsWithinTaskRange()
+        {
+            SetUpController(out _);
+            Assert.GreaterOrEqual(_controller.StepDurationSeconds, 0.15f);
+            Assert.LessOrEqual(_controller.StepDurationSeconds, 0.5f);
+        }
+
+        // PRD 4.1: тап по своей же текущей позиции — кнопка (RunConfirmed), не примеривание.
+        [Test]
+        public void PressOnOwnCurrentTile_DoesNotPreview_ButRaisesRunConfirmed()
+        {
+            SetUpController(out var positionChangedCount);
+            _tileObjectA = CreateTileVisual(StartCoordinate);
             var runConfirmedCount = 0;
             _controller.RunConfirmed += () => runConfirmedCount++;
-            var screenPosition = ScreenPositionOf(StartCoordinate);
 
-            InvokeTryAdvanceAtScreenPosition(screenPosition);
+            InvokePointerPressed(ScreenPositionOf(StartCoordinate));
 
-            Assert.AreEqual(StartCoordinate, _controller.Trail.CurrentPosition, "тап на собственную позицию не должен считаться ходом");
-            Assert.AreEqual(0, positionChangedCount(), "PositionChanged не должен подниматься для тапа на свою же плитку");
+            Assert.IsNull(_controller.PreviewTarget, "тап на собственную позицию не должен считаться примериванием");
+            Assert.AreEqual(StartCoordinate, _controller.Trail.CurrentPosition);
+            Assert.AreEqual(0, positionChangedCount());
             Assert.AreEqual(1, runConfirmedCount, "тап на свою же плитку — сигнал RunConfirmed (кнопка)");
+        }
+
+        // Issue #61 — регрессия: повторный шаг на пройденную, но не разрушенную плиту разрешён.
+        [Test]
+        public void ReleaseOnVisitedUndestroyedTile_StepAllowed()
+        {
+            var firstStep = new GridCoordinate(1, Width / 2);
+            SetUpController(out _);
+            _controller.Grid.GetOrCreateTile(firstStep);
+            _tileObjectA = CreateTileVisual(firstStep);
+            InvokePointerPressed(ScreenPositionOf(firstStep));
+            InvokePointerReleased(); // первый шаг вперёд, плита firstStep теперь посещена
+
+            // Второй шаг — назад, на стартовую плиту (уже посещена, не разрушена).
+            _tileObjectB = CreateTileVisual(StartCoordinate);
+            InvokePointerPressed(ScreenPositionOf(StartCoordinate));
+
+            Assert.AreEqual(StartCoordinate, _controller.PreviewTarget, "повторный шаг на пройденную целую плиту должен быть доступен для примеривания (#61)");
         }
 
         [Test]
@@ -113,7 +173,7 @@ namespace Burmalda.Movement.Tests
         {
             SetUpController(out _);
             var target = new GridCoordinate(1, Width / 2);
-            _tileObject = CreateTileVisual(target);
+            _tileObjectA = CreateTileVisual(target);
             var screenPosition = ScreenPositionOf(target);
 
             var resolved = GridTraceInputController.ResolveTappedTile(_cameraObject.GetComponent<Camera>(), screenPosition);
@@ -140,7 +200,7 @@ namespace Burmalda.Movement.Tests
             // Вне Play Mode Unity НЕ вызывает Awake() автоматически (нет
             // [ExecuteInEditMode]/[ExecuteAlways] — и не должно быть, это
             // обычный игровой MonoBehaviour) — вызываем вручную рефлексией,
-            // как и приватный TryAdvanceAtScreenPosition ниже.
+            // как и приватные обработчики ниже.
             InvokePrivate(_controller, "Awake");
 
             var count = 0;
@@ -168,18 +228,21 @@ namespace Burmalda.Movement.Tests
             // Вне Play Mode нет FixedUpdate-тика физики, который обычно
             // синхронизирует Transform -> физическую сцену — без явного
             // вызова свежепереставленный коллайдер Physics.Raycast ниже не
-            // видит (проверено эмпирически: без этой строки все три теста,
-            // ожидающих реальное попадание в плитку, падали с "null"/"не
+            // видит (проверено эмпирически: без этой строки тесты,
+            // ожидающие реальное попадание в плитку, падали с "null"/"не
             // продвинулся", хотя геометрия луча была верной).
             Physics.SyncTransforms();
 
             return tile;
         }
 
-        private void InvokeTryAdvanceAtScreenPosition(Vector2 screenPosition) =>
-            InvokePrivate(_controller, "TryAdvanceAtScreenPosition", screenPosition);
+        private void InvokePointerPressed(Vector2 screenPosition) =>
+            InvokePrivate(_controller, "HandlePointerPressed", screenPosition);
 
-        /// <summary>Вызывает приватный метод рефлексией — единственный способ прогнать Awake()/TryAdvanceAtScreenPosition вне Play Mode без переписывания доступа production-кода ради тестируемости.</summary>
+        private void InvokePointerReleased() =>
+            InvokePrivate(_controller, "HandlePointerReleased");
+
+        /// <summary>Вызывает приватный метод рефлексией — единственный способ прогнать Awake()/обработчики ввода вне Play Mode без переписывания доступа production-кода ради тестируемости.</summary>
         private static void InvokePrivate(object target, string methodName, params object[] args)
         {
             var method = target.GetType().GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);

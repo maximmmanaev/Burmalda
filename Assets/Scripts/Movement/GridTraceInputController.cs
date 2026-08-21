@@ -6,26 +6,37 @@ using UnityEngine.InputSystem;
 namespace Burmalda.Movement
 {
     /// <summary>
-    /// Приём трейс-ввода пальцем (PRD 4.1): пока палец/курсор прижат,
-    /// каждая новая плита под ним, соседняя текущей позиции, продвигает
-    /// трейл игрока вперёд по тоннелю. Механика ввода не меняется
-    /// относительно HTML-прототипа (legacy/burmolda_demo.html). Позиция
-    /// курсора обрабатывается только при реальном изменении с прошлого
-    /// обработанного кадра (#60) — иначе статичный зажатый клик, опрашиваемый
-    /// каждый кадр, мог засчитать несколько шагов подряд на одной и той же
-    /// позиции. Владеет жизненным циклом забега: <see cref="Grid"/>/<see cref="Trail"/>
+    /// Приём ввода (PRD 4.1, переработка §4.1 v8, issue #157 — перенос
+    /// схемы A из спайка): удержание пальца на соседней ВАЛИДНОЙ плите —
+    /// примеривание, трейл не двигается, только показывает
+    /// <see cref="PreviewTarget"/> (подсветка/инфо — см.
+    /// <c>Burmalda.DebugVisuals.TilePreviewController</c>); ведение пальцем
+    /// без отрыва переносит примеривание на другую соседнюю плиту, сколько
+    /// угодно раз, бесплатно; отпускание фиксирует шаг
+    /// (<see cref="GridTraceTrail.TryAdvanceTo"/>) и блокирует ввод на
+    /// <see cref="StepDurationSeconds"/> (0.15–0.5с, см. её doc-комментарий);
+    /// отпускание вне валидной соседней плиты — отмена, шага нет, лока нет
+    /// (отменять нечего анимировать). Отменяет непрерывную протяжку (PRD v5
+    /// 4.1) прямым решением владельца продукта после спайка (issue #157).
+    ///
+    /// <b>Распад НЕ гейтится этим контроллером</b> — <c>Decay.TrailDecaySystem.Tick</c>
+    /// вызывается независимо, каждый кадр, вне зависимости от того,
+    /// удерживает ли игрок примеривание или ждёт лока после шага (PRD:
+    /// "время не останавливается никогда", "стоимость информации — время").
+    /// Раздумье прогорает под ногами буквально — как и раньше, только
+    /// теперь раздумье имеет явную механическую форму (удержание).
+    ///
+    /// Владеет жизненным циклом забега: <see cref="Grid"/>/<see cref="Trail"/>
     /// пересоздаются в <see cref="Restart"/> (мир перегенерируется заново, по
     /// прямому запросу владельца продукта) — зависимые системы (Decay,
     /// камера, debug-визуал, Burmalda.RunLifecycle) подписываются на
     /// <see cref="RunStarted"/>, чтобы пересобрать себя под новый забег.
     ///
-    /// <see cref="IsPressed"/>/<see cref="CurrentScreenPosition"/>/
-    /// <see cref="PressStarted"/> — публично читаемое состояние прижатия
-    /// пальца, нужно смежным системам (см. <see cref="TunnelCameraController"/>:
-    /// тап сбрасывает накопленный эдж-скролл (без мгновенного снапа
-    /// позиции, см. doc-комментарий <see cref="PressStarted"/>), драг у
-    /// верхней границы нижней трети экрана — автоскролл вперёд), не
-    /// только этому классу для собственной логики хода.
+    /// <see cref="IsPressed"/> — публично читаемое состояние прижатия
+    /// пальца, нужно <see cref="TunnelCameraController"/>: камера обновляется
+    /// ТОЛЬКО между шагами (issue #157, часть механики, не оптимизация) —
+    /// пока <see cref="IsPressed"/> истинно, <see cref="TunnelCameraController.Update"/>
+    /// не трогает ни FOV, ни позицию/поворот вообще.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class GridTraceInputController : MonoBehaviour
@@ -34,11 +45,18 @@ namespace Burmalda.Movement
         [SerializeField] private float _tileSize = 1f;
         [SerializeField] private int _width = 5;
 
-        private readonly PointerPositionChangeFilter _positionChangeFilter = new PointerPositionChangeFilter();
+        // Issue #157 (перенос схемы A): анимация шага/блокировка ввода после
+        // отпускания, секунды. Диапазон 0.15-0.5 задан задачей — тюнинг
+        // владельца продукта, не переносится в отдельный дебаг-слайдер
+        // (задача Part 2 его не просит, в отличие от Part 1/issue #158).
+        [SerializeField] private float _stepDurationSeconds = 0.3f;
 
         private TunnelGrid _grid;
         private GridTraceTrail _trail;
         private WorldGridProjection _projection;
+
+        private bool _wasPressed;
+        private float _lockedUntilTime;
 
         /// <summary>Трейл текущего забега — для чтения смежными системами (визуал трейла, камера).</summary>
         public GridTraceTrail Trail => _trail;
@@ -57,11 +75,27 @@ namespace Burmalda.Movement
         /// </summary>
         public bool IsAlive { get; private set; } = true;
 
-        /// <summary>Прижат ли сейчас палец/курсор. Обновляется каждый кадр в <see cref="Update"/>.</summary>
+        /// <summary>Прижат ли сейчас палец/курсор. Обновляется каждый кадр в <see cref="Update"/> — см. doc-комментарий класса насчёт того, зачем это публично.</summary>
         public bool IsPressed { get; private set; }
 
         /// <summary>Последняя известная экранная позиция пальца/курсора — валидна, пока <see cref="IsPressed"/>.</summary>
         public Vector2 CurrentScreenPosition { get; private set; }
+
+        /// <summary>
+        /// Плита, которую сейчас примеривают — соседняя текущей позиции и
+        /// проходимая (<see cref="GridTraceTrail.CanAdvanceTo"/>), под
+        /// пальцем прямо сейчас. Null, если палец не прижат, или прижат, но
+        /// не над валидной соседней плитой (в т.ч. над собственной текущей
+        /// позицией — тап-кнопка, не примеривание, см. <see cref="RunConfirmed"/>).
+        /// Публично — для визуала подсветки/инфо (issue #157, PRD 4.1 п.1).
+        /// </summary>
+        public GridCoordinate? PreviewTarget { get; private set; }
+
+        /// <summary>Длительность анимации шага/блокировки ввода после отпускания, секунды (0.15–0.5, PRD 4.1 п.3) — публично для чтения debug-визуалом/HUD.</summary>
+        public float StepDurationSeconds => _stepDurationSeconds;
+
+        /// <summary>Истинно, пока ввод заблокирован после недавнего шага (см. <see cref="StepDurationSeconds"/>) — публично для HUD.</summary>
+        public bool IsInputLocked => Time.time < _lockedUntilTime;
 
         /// <summary>
         /// Срабатывает сразу после того, как <see cref="Grid"/>/<see cref="Trail"/>
@@ -73,33 +107,28 @@ namespace Burmalda.Movement
         public event Action RunStarted;
 
         /// <summary>
-        /// Срабатывает в момент перехода "не прижат" -> "прижат" — ровно
-        /// один раз на новое нажатие, не каждый кадр, пока палец удерживается
-        /// (для этого — <see cref="IsPressed"/>). Камера подписывается, чтобы
-        /// сбросить накопленный эдж-скролл на каждый новый тап (см.
-        /// <see cref="TunnelCameraFollow.ResetManualForwardOffset"/>) — БЕЗ
-        /// мгновенного снапа позиции (убрано 2026-08-14, читалось на
-        /// устройстве как рывок камеры на несколько клеток, см.
-        /// doc-комментарий <see cref="TunnelCameraFollow.SnapToTarget"/>).
+        /// Срабатывает в момент перехода "не прижат" -> "прижат" — ровно один
+        /// раз на новое нажатие, не каждый кадр, пока палец удерживается (для
+        /// этого — <see cref="IsPressed"/>). Срабатывает и во время
+        /// <see cref="IsInputLocked"/> (сам факт касания экрана не зависит от
+        /// того, засчитает ли игра его игровым действием) — на данный момент
+        /// без подписчиков в производственном коде (эдж-скролл, для которого
+        /// событие заводили, убран), оставлено для истории/возможных будущих
+        /// подписчиков.
         /// </summary>
         public event Action PressStarted;
 
         /// <summary>
-        /// Срабатывает, когда тап попадает ровно на ТЕКУЩУЮ позицию игрока
+        /// Срабатывает, когда палец прижат ровно над ТЕКУЩЕЙ позицией игрока
         /// (<c>Trail.CurrentPosition</c>) — на практике это в первую очередь
         /// самый первый тап по стартовой плите, ДО того, как игрок реально
-        /// сдвинулся (прямой запрос владельца продукта, 2026-08-14): смена
-        /// архитектуры камеры-интро с row-based интерполяции на явный
-        /// тап-триггер + time-based твин (см. <see cref="TunnelCameraFollow.ConfirmRun"/>).
+        /// сдвинулся: тап-триггер камеры-интро (см. <see cref="TunnelCameraFollow.ConfirmRun"/>).
         /// Тап по своей же текущей позиции сам по себе НЕ засчитывается как
-        /// обычный ход (см. <see cref="TryAdvanceAtScreenPosition"/> —
-        /// <c>IsAdjacentTo</c> и так вернула бы false для координаты,
-        /// равной самой себе, это не меняет обычное поведение трейла,
-        /// только добавляет сигнал для случая, который раньше молча
-        /// игнорировался). Камера подписывается, чтобы запустить твин в
-        /// устоявшийся игровой режим, минуя top-down интро — без него
-        /// игроку было бы обязательно свайпать вперёд, чтобы вообще увидеть
-        /// обычный ракурс камеры.
+        /// примеривание/ход (<c>IsAdjacentTo</c> и так вернула бы false для
+        /// координаты, равной самой себе) — просто кнопка. Может сработать
+        /// повторно на каждом кадре, пока палец удерживается ровно над своей
+        /// позицией — безопасно, <see cref="TunnelCameraFollow.ConfirmRun"/>
+        /// идемпотентна.
         /// </summary>
         public event Action RunConfirmed;
 
@@ -137,7 +166,9 @@ namespace Burmalda.Movement
             _grid = new TunnelGrid(_width);
             var start = new GridCoordinate(0, _width / 2);
             _trail = new GridTraceTrail(_grid, start);
-            _positionChangeFilter.Reset();
+            PreviewTarget = null;
+            _wasPressed = false;
+            _lockedUntilTime = 0f;
             IsAlive = true;
 
             RunStarted?.Invoke();
@@ -150,38 +181,62 @@ namespace Burmalda.Movement
             var pointer = Pointer.current;
             var pressed = pointer != null && pointer.press.isPressed;
 
-            if (pressed && !IsPressed) PressStarted?.Invoke(); // переход "не прижат" -> "прижат"
+            // IsPressed/PressStarted — ДО проверки лока ниже: камера должна
+            // видеть реальное состояние пальца на экране (issue #157,
+            // "камера неподвижна, пока палец на экране") независимо от того,
+            // засчитает ли игровая логика это касание.
+            if (pressed && !IsPressed) PressStarted?.Invoke();
             IsPressed = pressed;
+            if (pressed) CurrentScreenPosition = pointer.position.ReadValue();
 
-            if (!pressed)
+            if (IsInputLocked)
             {
-                _positionChangeFilter.Reset();
+                // Ввод заблокирован на время анимации шага (PRD 4.1 п.3) —
+                // тачи игнорируются целиком, никакого нового примеривания.
+                // Не трогаем _wasPressed здесь: если палец отпустили ДО
+                // конца лока, HandlePointerReleased уже отработал в кадре
+                // самого отпускания (см. ниже — та ветка идёт ДО этой
+                // проверки для releasing-кадра, лок стартует только ПОСЛЕ
+                // него), так что здесь ничего досрочно завершать не нужно.
                 return;
             }
 
-            var screenPosition = pointer.position.ReadValue();
-            CurrentScreenPosition = screenPosition;
-            var hasChanged = _positionChangeFilter.HasChanged(screenPosition); // ЕДИНСТВЕННЫЙ вызов — метод мутирует состояние фильтра.
+            if (pressed)
+                HandlePointerPressed(CurrentScreenPosition);
+            else if (_wasPressed)
+                HandlePointerReleased();
 
-            if (!hasChanged) return;
-
-            TryAdvanceAtScreenPosition(screenPosition);
+            _wasPressed = pressed;
         }
 
-        private void TryAdvanceAtScreenPosition(Vector2 screenPosition)
+        private void HandlePointerPressed(Vector2 screenPosition)
         {
             if (_camera == null) return;
 
             var target = ResolveTappedTile(_camera, screenPosition);
-            if (!target.HasValue) return; // тап мимо любой отрендеренной плитки (пустой пол/за пределами сетки) — тихо ничего не делаем
 
-            if (target.Value == _trail.CurrentPosition)
+            if (target.HasValue && target.Value == _trail.CurrentPosition)
             {
                 RunConfirmed?.Invoke();
-                return; // тап по своей же текущей позиции — кнопка, не обычный ход
+                PreviewTarget = null;
+                return;
             }
 
-            _trail.TryAdvanceTo(target.Value);
+            PreviewTarget = target.HasValue && _trail.CanAdvanceTo(target.Value) ? target : (GridCoordinate?)null;
+        }
+
+        private void HandlePointerReleased()
+        {
+            if (PreviewTarget.HasValue)
+            {
+                var committed = _trail.TryAdvanceTo(PreviewTarget.Value);
+                if (committed) _lockedUntilTime = Time.time + _stepDurationSeconds;
+            }
+            // Иначе — отпускание вне валидной соседней плиты: отмена, шага
+            // нет (PRD 4.1 п.4). Лок НЕ ставим — отменять нечего анимировать,
+            // следующая попытка разрешена немедленно.
+
+            PreviewTarget = null;
         }
 
         /// <summary>
@@ -201,8 +256,8 @@ namespace Burmalda.Movement
         /// коллайдер без <see cref="TileVisualMarker"/>) — вызывающий код
         /// должен в этом случае тихо ничего не делать.
         ///
-        /// Статический и публичный — как и <see cref="PointerPositionChangeFilter"/>,
-        /// тестируется напрямую, без Update()/реального Input System.
+        /// Статический и публичный — тестируется напрямую, без Update()/
+        /// реального Input System.
         /// </summary>
         public static GridCoordinate? ResolveTappedTile(Camera camera, Vector2 screenPosition)
         {
@@ -213,37 +268,6 @@ namespace Burmalda.Movement
 
             var marker = hit.collider.GetComponent<TileVisualMarker>();
             return marker != null ? marker.Coordinate : (GridCoordinate?)null;
-        }
-
-        /// <summary>
-        /// Фильтр повторной обработки одной и той же позиции курсора за
-        /// соседние кадры (#60): пока палец зажат неподвижно, повторные кадры
-        /// с той же экранной позицией не должны продвигать трейл заново.
-        /// Выделен как отдельный проверяемый тип — сравнение позиций не
-        /// зависит от Input System/сцены.
-        /// </summary>
-        public sealed class PointerPositionChangeFilter
-        {
-            private Vector2? _lastProcessedPosition;
-
-            /// <summary>
-            /// True, если <paramref name="position"/> отличается от последней
-            /// обработанной позиции (или обработанной позиции ещё не было).
-            /// В любом случае запоминает её как последнюю обработанную.
-            /// </summary>
-            public bool HasChanged(Vector2 position)
-            {
-                if (_lastProcessedPosition.HasValue && _lastProcessedPosition.Value == position) return false;
-
-                _lastProcessedPosition = position;
-                return true;
-            }
-
-            /// <summary>Сбрасывает запомненную позицию — вызывать, когда палец отпущен.</summary>
-            public void Reset()
-            {
-                _lastProcessedPosition = null;
-            }
         }
     }
 }
