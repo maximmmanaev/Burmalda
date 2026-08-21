@@ -19,6 +19,13 @@ namespace Burmalda.DebugVisuals
     /// Самобутстрапится через <see cref="RuntimeInitializeOnLoadMethodAttribute"/> —
     /// не трогает .unity/.prefab (docs/rules/forbidden-actions.md), как и
     /// остальные Controller'ы этого уровня в проекте.
+    ///
+    /// <b>Issue #163 (скрытые ловушки):</b> сводка о плите теперь уважает
+    /// <see cref="Core.TrapSignature"/>/<see cref="TrapInsight"/> — скрытая
+    /// ловушка (яма/активированный взрыв) показывает общую сигнатуру
+    /// вместо точного типа, пока не раскрыта соответствующим крючком под
+    /// Идола (по умолчанию оба крючка выключены — базовая сигнатура
+    /// доступна без единого Идола, точный тип/содержимое — нет).
     /// </summary>
     public sealed class TilePreviewController : MonoBehaviour
     {
@@ -69,18 +76,47 @@ namespace Burmalda.DebugVisuals
             var lines = new List<string> { coordinate.ToString(), $"Распад: {Mathf.RoundToInt(tile.DecayProgress01 * 100f)}%" };
 
             if (tile.IsBlocked) lines.Add("Препятствие (заблокирована)");
-            if (tile.LethalTrap.HasValue) lines.Add($"Смертельная ловушка: {tile.LethalTrap.Value}");
+
+            // Issue #163: скрытые ловушки (яма/активированный взрыв) — базовая
+            // сигнатура ВСЕГДА (без единого Идола, см. TrapInsight), точный
+            // тип только с Идолом Чутья. Лава — вне этого правила, видна как раньше.
+            var isHiddenTrap = TrapSignature.IsHiddenLethalTrap(tile);
+            if (tile.LethalTrap.HasValue && !isHiddenTrap)
+                lines.Add($"Смертельная ловушка: {tile.LethalTrap.Value}"); // Lava
+            else if (isHiddenTrap)
+            {
+                lines.Add("Сигнатура опасности: с этой плитой что-то не так");
+                if (TrapInsight.HasTrapTypeInsight) lines.Add($"(Идол Чутья) Точный тип: {tile.LethalTrap.Value}");
+            }
+
             if (tile.ExplosiveTrapTarget.HasValue) lines.Add("Триггер взрывной ловушки");
             if (tile.TimedTrapTarget.HasValue) lines.Add($"Триггер ловушки с таймингом: {tile.TimedTrapKind}");
-            if (tile.IsTimedTrapActive) lines.Add("Ловушка с таймингом СЕЙЧАС активна");
+            if (tile.IsTimedTrapActive) lines.Add("Ловушка с таймингом СЕЙЧАС активна"); // реальная угроза прямо сейчас — не скрывается, см. TrapSignature
             if (tile.IsLever) lines.Add("Рычаг");
             if (tile.IsGated) lines.Add(tile.IsLeverGateOpen ? "Ворота (открыты)" : "Ворота (закрыты)");
-            if (tile.IsManaSource) lines.Add("Источник Кристаллов Маны");
-            if (tile.IsKeySource) lines.Add("Источник Ключей");
+
+            // Issue #163, Идол Жадности: "что ценного скрыто под плитой" — на
+            // скрытой ловушке ценность видна, только если она раскрыта
+            // Идолом; на обычной (не скрытой) плите валюта была видна и
+            // остаётся видна всегда, это не предмет issue #163. Сейчас
+            // сегментная генерация не совмещает ловушку и валюту на одной
+            // плите — веткой ниже владелец продукта воспользуется, когда
+            // такой контент появится.
+            AppendValueLine(lines, tile.IsManaSource, "Источник Кристаллов Маны", isHiddenTrap);
+            AppendValueLine(lines, tile.IsKeySource, "Источник Ключей", isHiddenTrap);
+
             if (tile.IsAltar) lines.Add("Алтарь");
             if (tile.IsBoss) lines.Add("Точка Босса");
 
             return string.Join("\n", lines);
+        }
+
+        private static void AppendValueLine(List<string> lines, bool hasValue, string label, bool isHiddenTrap)
+        {
+            if (!hasValue) return;
+            if (isHiddenTrap && !TrapInsight.HasTrapContentsInsight) return; // скрыто, пока не раскрыто Идолом Жадности
+
+            lines.Add(isHiddenTrap ? $"{label} (Идол Жадности)" : label);
         }
     }
 }
