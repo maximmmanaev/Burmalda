@@ -86,6 +86,12 @@ namespace Burmalda.Movement
         // как и anchor (issue #155 явно просит обе).
         [SerializeField] private float _toleranceViewportFraction = 0.12f;
 
+        // Issue #158: точка начала нарастания мягкой границы, доля полосы
+        // [anchor, anchor+tolerance] — единственный новый настраиваемый
+        // параметр (см. TunnelCameraSoftBoundary). anchor/tolerance выше
+        // сама механика не трогает.
+        [SerializeField] private float _softBoundaryStartFraction = TunnelCameraSoftBoundary.DefaultStartFraction;
+
         private TunnelCameraFollow _follow;
 
         /// <summary>Тумблер (якорь по вьюпорту + непрерывное следование + кламп) — публично для debug-панели.</summary>
@@ -107,6 +113,13 @@ namespace Burmalda.Movement
         {
             get => _toleranceViewportFraction;
             set => _toleranceViewportFraction = value;
+        }
+
+        /// <summary>Точка начала нарастания мягкой границы (issue #158), доля полосы [anchor, anchor+tolerance] — публично для debug-панели.</summary>
+        public float SoftBoundaryStartFraction
+        {
+            get => _softBoundaryStartFraction;
+            set => _softBoundaryStartFraction = value;
         }
 
         private void Awake()
@@ -254,7 +267,7 @@ namespace Burmalda.Movement
             // кадре, это два независимых способа продвинуть ОДНО и то же
             // CurrentPosition.
             if (_useScreenAnchor && _follow.IntroTweenProgress01 >= 1f)
-                _follow.AdvanceContinuousAnchorFollow(Time.deltaTime, anchorTrailingDistance, toleranceTrailingDistance);
+                _follow.AdvanceContinuousAnchorFollow(Time.deltaTime, anchorTrailingDistance, toleranceTrailingDistance, _softBoundaryStartFraction);
             else
                 _follow.Tick();
 
