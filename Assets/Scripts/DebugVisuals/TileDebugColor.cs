@@ -35,6 +35,12 @@ namespace Burmalda.DebugVisuals
         public static readonly Color BlockedColor = new Color(20f / 255f, 10f / 255f, 6f / 255f);
 
         // legacy/burmolda_demo.html, draw(): t.type==='pit' — #000 (+внутренний круг #300)
+        // Issue #163: больше НЕ используется для яма-ловушки в Resolve() —
+        // яма скрыта (см. HiddenTrapSignatureColor), сама плита физически
+        // непроходима только через игровую логику, не через её debug-цвет.
+        // Константа оставлена (не удалена) — пригодится для будущего
+        // экрана "точный тип раскрыт Идолом Чутья", который рисует владелец
+        // продукта (issue #163 явно не просит финальный арт здесь).
         public static readonly Color PitColor = Color.black;
 
         // Новый тип из PRD v5 (раздел 4.2) — аналога в прототипе нет (там только 'pit'/'spike').
@@ -44,7 +50,21 @@ namespace Burmalda.DebugVisuals
         // Issue #10, PRD 4.2 — динамическая мгновенная ловушка после срабатывания
         // триггера. Ярко-жёлтый со вспышкой (условно "взрыв"), не пересекается
         // с остальными тревожными цветами (лава — оранжевый, яма — чёрный).
+        // Issue #163: как и PitColor, больше не используется в Resolve() —
+        // после активации взрыв тоже скрыт (см. HiddenTrapSignatureColor).
         public static readonly Color ExplosionColor = new Color(1f, 230f / 255f, 0f);
+
+        // Issue #163: единая сигнатура опасности для ВСЕХ скрытых ловушек
+        // (яма и активированный взрыв, см. Core.TrapSignature) — намеренно
+        // ОДИН цвет на оба типа, не два разных: сигнатура обязана не
+        // выдавать точный тип ("видно, что не так, не видно, что именно").
+        // Мутный сизо-фиолетовый — тревожный, но не пересекается ни с одним
+        // уже занятым цветом палитры (зелёный/оранжевый/красный — распад,
+        // жёлтый/магента — уже активные/раскрытые ловушки, чёрный/тёмный —
+        // препятствия/лава). НЕ финальный арт — сигнатуру (цвет/форму/звук)
+        // дорисует владелец продукта (issue #163 явно это исключает из
+        // скоупа), это функциональная заглушка "плита выглядит иначе".
+        public static readonly Color HiddenTrapSignatureColor = new Color(90f / 255f, 70f / 255f, 110f / 255f);
 
         // Не финальный арт: плита-триггер (issue #10) сама по себе безопасна,
         // цвет — только чтобы при ручном тестировании видеть, где она есть.
@@ -76,9 +96,13 @@ namespace Burmalda.DebugVisuals
             if (state.IsStart) return StartColor;
             if (state.IsBoss) return BossColor;
             if (state.IsBlocked) return BlockedColor;
-            if (state.LethalTrap == LethalTrapType.Pit) return PitColor;
+            // Issue #163: лава остаётся видимой как раньше (PRD v8 §4.2)
+            // — единственный LethalTrapType, для которого Resolve() всё ещё
+            // возвращает его собственный цвет напрямую.
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
-            if (state.LethalTrap == LethalTrapType.Explosion) return ExplosionColor;
+            // Яма и активированный взрыв — скрыты (см. Core.TrapSignature):
+            // ОДИН общий цвет на оба типа, не выдающий, какой именно.
+            if (state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) return HiddenTrapSignatureColor;
             if (state.ActiveTimedTrap.HasValue) return TimedTrapActiveColor;
             if (state.IsExplosiveTrapTrigger) return ExplosiveTriggerColor;
             if (state.IsTimedTrapTrigger) return TimedTrapTriggerColor;
