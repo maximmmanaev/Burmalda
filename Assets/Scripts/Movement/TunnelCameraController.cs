@@ -74,7 +74,40 @@ namespace Burmalda.Movement
         // на самом старте забега уводит камеру мимо стартовой плиты.
         [SerializeField] private float _introHeightOffsetZ = TunnelCameraFollow.DefaultIntroHeightOffsetZ;
 
+        // Issue #153/#155: якорь по вьюпорту вместо TrailingRowsBehindPlayer
+        // (TunnelCameraAnchor) + непрерывное следование с компенсацией
+        // скорости (TunnelCameraFollow.AdvanceContinuousAnchorFollow) + жёсткий
+        // кламп доли экрана в [anchor, anchor+tolerance]. По умолчанию
+        // ВЫКЛЮЧЕН — выключенное состояние обязано давать побайтово прежнее
+        // поведение (Tick()/SmoothingFactor), см. doc-комментарий Update() ниже.
+        [SerializeField] private bool _useScreenAnchor;
+        [SerializeField] private float _anchorViewportY = 0.32f;
+        // issue A.3: верхняя граница клампа — anchor+tolerance. Настраиваемая,
+        // как и anchor (issue #155 явно просит обе).
+        [SerializeField] private float _toleranceViewportFraction = 0.12f;
+
         private TunnelCameraFollow _follow;
+
+        /// <summary>Тумблер (якорь по вьюпорту + непрерывное следование + кламп) — публично для debug-панели.</summary>
+        public bool UseScreenAnchor
+        {
+            get => _useScreenAnchor;
+            set => _useScreenAnchor = value;
+        }
+
+        /// <summary>Доля высоты кадра (снизу) для якоря игрока — публично для debug-панели.</summary>
+        public float AnchorViewportY
+        {
+            get => _anchorViewportY;
+            set => _anchorViewportY = value;
+        }
+
+        /// <summary>Допуск сверху над anchor для жёсткого клампа (issue A.3) — публично для debug-панели.</summary>
+        public float ToleranceViewportFraction
+        {
+            get => _toleranceViewportFraction;
+            set => _toleranceViewportFraction = value;
+        }
 
         private void Awake()
         {
@@ -136,6 +169,62 @@ namespace Burmalda.Movement
             _follow.IntroPitchDegrees = _introPitchDegrees;
             _follow.IntroHeightOffsetZ = _introHeightOffsetZ;
 
+            // Пересчитывается каждый кадр — покрывает не только смену
+            // разрешения/ориентации, но и ход твина интро (текущий pitch
+            // меняется кадр к кадру, см. doc-комментарий класса).
+            // groundDistanceToRow от pitch не зависит (только от
+            // HeightOffset.Z), пересчёт этой части каждый кадр — не
+            // необходимость, а просто следствие того, что вся формула
+            // теперь считается заново, не кэшируется.
+            //
+            // Issue #153/#155: перенесено ВЫШЕ Tick()/AdvanceContinuousAnchorFollow
+            // (раньше считалось в конце Update(), после применения позиции) —
+            // анкор-производным дистанциям ниже нужен ГОТОВЫЙ vFOV этого
+            // кадра ДО того, как позиция камеры пересчитается на этом же кадре.
+            var anchorTrailingDistance = 0f;
+            var toleranceTrailingDistance = 0f;
+            if (_camera != null)
+            {
+                // Калибровка ШИРИНЫ (не якоря!) намеренно остаётся на
+                // ФИКСИРОВАННОМ TrailingRowsBehindPlayer, а не на
+                // анкор-производных дистанциях ниже — иначе FOV входил бы в
+                // их вычисление, а они обратно в FOV (через vFOV), зацикливая
+                // калибровку без явной необходимости (см. doc-комментарий
+                // TunnelCameraAnchor).
+                var groundDistanceToRow = TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow(
+                    _heightOffset.z, _input.Projection.TileSize, TunnelCameraFollow.TrailingRowsBehindPlayer);
+                var desiredHorizontalFovDeg = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(
+                    _heightOffset.y, groundDistanceToRow, _follow.CurrentPitchDegrees, _input.Projection.TileSize);
+
+                var aspect = (float)Screen.width / Screen.height;
+                var vFov = TunnelCameraFraming.ComputeVerticalFovDegrees(desiredHorizontalFovDeg, aspect);
+                _camera.fieldOfView = vFov;
+
+                if (_useScreenAnchor)
+                {
+                    // issue A.3: дистанция на нижней границе клампа (anchor) —
+                    // цель, к которой стремится непрерывное следование, И
+                    // одновременно нижняя граница самого клампа. Дистанция на
+                    // верхней границе (anchor+tolerance) — только кап клампа.
+                    anchorTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                        _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY);
+                    toleranceTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                        _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY + _toleranceViewportFraction);
+
+                    // Lerp по IntroTweenProgress01 — ЗАЩИЩАЕТ top-down интро от
+                    // этой правки (реально сломанный сценарий, найден на
+                    // устройстве при съёмке видео для issue #153: без Lerp'а
+                    // анкор-геометрия для устоявшегося Pitch применялась и во
+                    // время интро, на сильно другом Pitch — камеру уводило
+                    // мимо стартовой плиты). Питается в СТАРЫЙ Tick()-путь
+                    // (TrailingDistance) — во время интро камера всё ещё едет
+                    // через AdvanceIntroTween/Tick(), не через новый
+                    // непрерывный метод, см. ветвление ниже.
+                    var fixedTrailingDistance = TunnelCameraFollow.TrailingRowsBehindPlayer * _input.Projection.TileSize;
+                    _follow.TrailingDistance = Mathf.Lerp(fixedTrailingDistance, anchorTrailingDistance, _follow.IntroTweenProgress01);
+                }
+            }
+
             // Твин интро -> устоявшийся режим (см. doc-комментарий класса) —
             // не-op, пока ConfirmRun не вызван, и не-op после того, как твин
             // уже отыграл целиком.
@@ -155,26 +244,21 @@ namespace Burmalda.Movement
             // TunnelCameraFollow не удалены — не вызываются отсюда, история/
             // потенциальный будущий возврат, как и SnapToTarget.
 
-            _follow.Tick();
+            // Issue #153/#155: выключенный тумблер ИЛИ ещё идущее top-down
+            // интро → Tick()/SmoothingFactor как раньше, побайтово (во время
+            // интро AdvanceIntroTween уже хард-синкает CurrentPosition, Tick()
+            // здесь фактический не-op, см. её docstring). Тумблер включён И
+            // интро полностью отыграло → непрерывное следование с
+            // компенсацией скорости + жёсткий кламп (см. doc-комментарий
+            // AdvanceContinuousAnchorFollow) — НИКОГДА не оба сразу на одном
+            // кадре, это два независимых способа продвинуть ОДНО и то же
+            // CurrentPosition.
+            if (_useScreenAnchor && _follow.IntroTweenProgress01 >= 1f)
+                _follow.AdvanceContinuousAnchorFollow(Time.deltaTime, anchorTrailingDistance, toleranceTrailingDistance);
+            else
+                _follow.Tick();
+
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
-
-            // Пересчитывается каждый кадр, как и aspect ниже — дёшево, и
-            // покрывает не только смену разрешения/ориентации, но и ход
-            // твина интро (текущий pitch меняется кадр к кадру, см.
-            // doc-комментарий класса). groundDistanceToRow от pitch не
-            // зависит (только от HeightOffset.Z), пересчёт этой части
-            // каждый кадр — не необходимость, а просто следствие того, что
-            // вся формула теперь считается заново, не кэшируется.
-            if (_camera != null)
-            {
-                var groundDistanceToRow = TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow(
-                    _heightOffset.z, _input.Projection.TileSize, TunnelCameraFollow.TrailingRowsBehindPlayer);
-                var desiredHorizontalFovDeg = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(
-                    _heightOffset.y, groundDistanceToRow, _follow.CurrentPitchDegrees, _input.Projection.TileSize);
-
-                var aspect = (float)Screen.width / Screen.height;
-                _camera.fieldOfView = TunnelCameraFraming.ComputeVerticalFovDegrees(desiredHorizontalFovDeg, aspect);
-            }
         }
 
         private void HandleRunStarted() => RebuildFollow();

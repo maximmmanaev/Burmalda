@@ -1,0 +1,436 @@
+using Burmalda.Core;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace Burmalda.Movement.Tests
+{
+    /// <summary>
+    /// Issue #155: непрерывное покадровое следование с компенсацией скорости
+    /// (<see cref="TunnelCameraFollow.AdvanceContinuousAnchorFollow"/>) —
+    /// замена твина фиксированной длительности (#153, тумблер 1, запрещён —
+    /// давал стоп-старт) и экспоненциального сглаживания (устоявшееся
+    /// отставание пропорционально скорости). Проверяет реальными
+    /// <see cref="Camera.WorldToViewportPoint"/>/покадровой симуляцией с
+    /// настоящим deltaTime (1/60с) — тот же паттерн реальной Camera, что и
+    /// <see cref="TunnelCameraViewportFramingTests"/>, но теперь с временной
+    /// динамикой, не только статикой.
+    /// </summary>
+    public class TunnelCameraContinuousFollowTests
+    {
+        private const float TileSize = 1f;
+        private const int Width = 5;
+        private const float PortraitAspect = 0.5625f;
+        private const float AnchorViewportY = 0.32f;
+        private const float ToleranceViewportFraction = 0.12f;
+        private const float FrameDeltaSeconds = 1f / 60f;
+
+        private static readonly Vector3 HeightOffset = new Vector3(0f, 6f, 0f);
+
+        private static float ComputeSteadyVerticalFov(WorldGridProjection projection, float pitchDeg)
+        {
+            var groundDistanceToRow = TunnelCameraFraming.ComputeSteadyStateGroundDistanceToReferenceRow(
+                HeightOffset.z, projection.TileSize, TunnelCameraFollow.TrailingRowsBehindPlayer);
+            var desiredHorizontalFovDeg = TunnelCameraFraming.ComputeDesiredHorizontalFovDegrees(
+                HeightOffset.y, groundDistanceToRow, pitchDeg, projection.TileSize);
+            return TunnelCameraFraming.ComputeVerticalFovDegrees(desiredHorizontalFovDeg, PortraitAspect);
+        }
+
+        private readonly struct Setup
+        {
+            public readonly GridTraceTrail Trail;
+            public readonly WorldGridProjection Projection;
+            public readonly TunnelCameraFollow Follow;
+            public readonly float VFov;
+            public readonly float MinDistance; // дистанция на anchor — цель следования И нижняя граница клампа
+            public readonly float MaxDistance; // дистанция на anchor+tolerance — верхняя граница клампа
+
+            public Setup(GridTraceTrail trail, WorldGridProjection projection, TunnelCameraFollow follow, float vFov, float minDistance, float maxDistance)
+            {
+                Trail = trail;
+                Projection = projection;
+                Follow = follow;
+                VFov = vFov;
+                MinDistance = minDistance;
+                MaxDistance = maxDistance;
+            }
+        }
+
+        private static Setup CreateSetup()
+        {
+            var grid = new TunnelGrid(Width);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, Width / 2));
+            var projection = new WorldGridProjection(TileSize, Width);
+            var follow = new TunnelCameraFollow(trail, projection, HeightOffset);
+            follow.ConfirmRun();
+            follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds); // интро полностью отыграно — устоявшийся режим
+
+            var vFov = ComputeSteadyVerticalFov(projection, TunnelCameraFollow.DefaultPitchDegrees);
+            var minDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                HeightOffset.y, TunnelCameraFollow.DefaultPitchDegrees, vFov, AnchorViewportY);
+            var maxDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                HeightOffset.y, TunnelCameraFollow.DefaultPitchDegrees, vFov, AnchorViewportY + ToleranceViewportFraction);
+
+            return new Setup(trail, projection, follow, vFov, minDistance, maxDistance);
+        }
+
+        private static GameObject CreateCamera(string name, TunnelCameraFollow follow, float vFov)
+        {
+            var cameraObject = new GameObject(name);
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.transform.SetPositionAndRotation(follow.CurrentPosition, follow.CurrentRotation);
+            camera.aspect = PortraitAspect;
+            camera.fieldOfView = vFov;
+            return cameraObject;
+        }
+
+        private static float ViewportYOfPlayerTile(Setup s, GameObject cameraObject)
+        {
+            var camera = cameraObject.GetComponent<Camera>();
+            camera.transform.SetPositionAndRotation(s.Follow.CurrentPosition, s.Follow.CurrentRotation);
+            var playerWorld = s.Projection.ToWorldPosition(s.Trail.CurrentPosition);
+            return camera.WorldToViewportPoint(playerWorld).y;
+        }
+
+        /// <summary>Прогоняет устойчивое движение с постоянным темпом (ходов/с), тикая AdvanceContinuousAnchorFollow каждый симулированный кадр (1/60с).</summary>
+        private static void RunSteadyMovement(Setup s, float movesPerSecond, float totalSeconds)
+        {
+            var stepIntervalSeconds = 1f / movesPerSecond;
+            var secondsSinceLastStep = 0f;
+            var elapsed = 0f;
+            while (elapsed < totalSeconds)
+            {
+                secondsSinceLastStep += FrameDeltaSeconds;
+                if (secondsSinceLastStep >= stepIntervalSeconds)
+                {
+                    s.Trail.TryAdvanceTo(new GridCoordinate(s.Trail.CurrentPosition.Row + 1, Width / 2));
+                    secondsSinceLastStep -= stepIntervalSeconds;
+                }
+                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                elapsed += FrameDeltaSeconds;
+            }
+        }
+
+        /// <summary>
+        /// Прогоняет устойчивое движение ровно на <paramref name="cycles"/>
+        /// полных шаг-циклов (шаг → ровно framesPerCycle кадров), последний
+        /// кадр — прямо ПЕРЕД тем, что было бы следующим ходом. Скачок
+        /// дистанции D на ~1 плитку в момент хода — неизбежное следствие
+        /// "без предсказания, непрерывная камера, дискретный игрок" (см. PR
+        /// issue #155), а не ошибка слежения: при фиксированном wall-clock
+        /// сэмплинге (<see cref="RunSteadyMovement"/>) тест ловит СЛУЧАЙНУЮ
+        /// фазу этого скачка, разную для разных темпов из-за округления
+        /// числа кадров — отсюда ложный разброс между темпами. Фиксация
+        /// фазы (сравнение "перед следующим ходом" со "перед следующим
+        /// ходом") даёт сопоставимый результат независимо от темпа.
+        /// </summary>
+        private static void RunSteadyMovementPhaseConsistent(Setup s, float movesPerSecond, int cycles)
+        {
+            var stepIntervalSeconds = 1f / movesPerSecond;
+            var framesPerCycle = Mathf.RoundToInt(stepIntervalSeconds / FrameDeltaSeconds);
+            for (var cycle = 0; cycle < cycles; cycle++)
+            {
+                s.Trail.TryAdvanceTo(new GridCoordinate(s.Trail.CurrentPosition.Row + 1, Width / 2));
+                for (var frame = 0; frame < framesPerCycle; frame++)
+                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+            }
+        }
+
+        // Issue #155, инвариант A: доля высоты кадра, на которой находится
+        // игрок в устоявшемся движении, отличается не более чем на ±3% между
+        // темпами. 1/2/4.6 хода/с — от комфортного до максимально
+        // достижимого пальцем (см. историю issue #153). Сэмплируем
+        // фазово-согласованно (см. RunSteadyMovementPhaseConsistent) — иначе
+        // тест ловит фазу неизбежного скачка D на шаге, а не саму точность
+        // слежения.
+        [TestCase(1f, TestName = "SlowPace")]
+        [TestCase(2f, TestName = "MediumPace")]
+        [TestCase(4.6f, TestName = "FastPace")]
+        public void SteadyMovement_ThreePaces_PlayerAnchorWithinThreePercent(float movesPerSecond)
+        {
+            var s = CreateSetup();
+            RunSteadyMovementPhaseConsistent(s, movesPerSecond, cycles: 15); // достаточно циклов для выхода на установившийся режим
+
+            GameObject cameraObject = null;
+            try
+            {
+                cameraObject = CreateCamera("TestCamera_Pace", s.Follow, s.VFov);
+                var viewportY = ViewportYOfPlayerTile(s, cameraObject);
+
+                Assert.AreEqual(AnchorViewportY, viewportY, 0.03f, $"movesPerSecond={movesPerSecond}: доля кадра под игроком должна быть в пределах ±3% от якоря на любом темпе");
+            }
+            finally
+            {
+                if (cameraObject != null) Object.DestroyImmediate(cameraObject);
+                s.Follow.Dispose();
+            }
+        }
+
+        // Issue #155, инвариант B: указатель зажат, шага нет → камера не
+        // двигается ни на йоту. Даём устояться (быстрый темп, чтобы
+        // накопить и скорость, и любую остаточную ошибку клампа), потом
+        // ходы прекращаются — после полного затухания скорости и схождения
+        // коррекции дальнейшие вызовы БЕЗ нового хода не должны менять
+        // CurrentPosition/TargetPosition/CurrentRotation вообще.
+        [Test]
+        public void Rest_NoNewStepAfterSettling_CameraStaysAbsolutelyStill()
+        {
+            var s = CreateSetup();
+            RunSteadyMovement(s, movesPerSecond: 4f, totalSeconds: 3f);
+
+            // Ждём дольше VelocityDecaySeconds без единого хода — скорость
+            // затухает до нуля, коррекция сходится к идеальной дистанции.
+            for (var i = 0; i < 120; i++) // 2с — заведомо больше 250мс затухания
+                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+
+            var settledPosition = s.Follow.CurrentPosition;
+            var settledTarget = s.Follow.TargetPosition;
+            var settledRotation = s.Follow.CurrentRotation;
+
+            for (var i = 0; i < 300; i++) // ~5с удержания без хода
+                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+
+            Assert.AreEqual(settledPosition, s.Follow.CurrentPosition, "камера не должна была сдвинуться ни на йоту без нового хода");
+            Assert.AreEqual(settledTarget, s.Follow.TargetPosition);
+            Assert.AreEqual(settledRotation, s.Follow.CurrentRotation);
+
+            s.Follow.Dispose();
+        }
+
+        // Issue #155, инвариант C: на каждом тике, при любом темпе включая
+        // резкий старт/стоп/шаг назад, доля экрана плитки игрока лежит в
+        // [anchor, anchor+tolerance] и НИКОГДА не опускается ниже anchor —
+        // это и есть жёсткий ограничитель (A.3), не тюнинг.
+        [Test]
+        public void EveryFrame_ThroughStartStopAndStepBack_ScreenFractionNeverBelowAnchorAndNeverAboveTolerance()
+        {
+            var s = CreateSetup();
+            GameObject cameraObject = null;
+            try
+            {
+                cameraObject = CreateCamera("TestCamera_ClampBand", s.Follow, s.VFov);
+                const float epsilon = 0.001f; // допуск на float-накопление за тысячи кадров
+
+                void AssertBandOnThisFrame(string phase)
+                {
+                    var viewportY = ViewportYOfPlayerTile(s, cameraObject);
+                    Assert.GreaterOrEqual(viewportY, AnchorViewportY - epsilon, $"{phase}: плитка игрока ушла НИЖЕ anchor — кламп не сработал");
+                    Assert.LessOrEqual(viewportY, AnchorViewportY + ToleranceViewportFraction + epsilon, $"{phase}: плитка игрока ушла ВЫШЕ anchor+tolerance — кламп не сработал");
+                }
+
+                // Резкий старт: сразу быстрый темп с нуля.
+                for (var cycle = 0; cycle < 60; cycle++)
+                {
+                    s.Trail.TryAdvanceTo(new GridCoordinate(s.Trail.CurrentPosition.Row + 1, Width / 2));
+                    for (var t = 0; t < 8; t++) // ~7.5 хода/с — быстрее, чем FastPace теста инварианта A, намеренно на грани/за гранью реалистичного
+                    {
+                        s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                        AssertBandOnThisFrame($"резкий старт, цикл {cycle}");
+                    }
+                }
+
+                // Резкая остановка посреди быстрой серии — держим кадры без хода.
+                for (var i = 0; i < 180; i++)
+                {
+                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                    AssertBandOnThisFrame("резкая остановка");
+                }
+
+                // Шаг назад на уже посещённую плитку.
+                var current = s.Trail.CurrentPosition;
+                s.Trail.TryAdvanceTo(new GridCoordinate(current.Row - 1, Width / 2));
+                for (var t = 0; t < 30; t++)
+                {
+                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                    AssertBandOnThisFrame("шаг назад");
+                }
+            }
+            finally
+            {
+                if (cameraObject != null) Object.DestroyImmediate(cameraObject);
+                s.Follow.Dispose();
+            }
+        }
+
+        // Issue #155, инвариант D — новый тест, именно он поймал бы провал
+        // #153 (стоп-старт твина): при равномерном темпе ходов максимальный
+        // интервал, в течение которого смещение камеры равно нулю, не
+        // превышает 50мс.
+        [TestCase(1f, TestName = "OneMovePerSecond")]
+        [TestCase(2f, TestName = "TwoMovesPerSecond")]
+        [TestCase(4f, TestName = "FourMovesPerSecond")]
+        public void SteadyMovement_NoStopStart_MaxZeroMovementGapUnder50Ms(float movesPerSecond)
+        {
+            var s = CreateSetup();
+            // Прогреваем до устойчивого режима до начала замера — первые
+            // несколько кадров после самого первого хода не показательны.
+            RunSteadyMovement(s, movesPerSecond, totalSeconds: 2f);
+
+            var stepIntervalSeconds = 1f / movesPerSecond;
+            var secondsSinceLastStep = 0f;
+            var maxZeroGapSeconds = 0f;
+            var currentZeroGapSeconds = 0f;
+            var previousZ = s.Follow.CurrentPosition.z;
+
+            var measuredSeconds = 0f;
+            while (measuredSeconds < 3f)
+            {
+                secondsSinceLastStep += FrameDeltaSeconds;
+                if (secondsSinceLastStep >= stepIntervalSeconds)
+                {
+                    s.Trail.TryAdvanceTo(new GridCoordinate(s.Trail.CurrentPosition.Row + 1, Width / 2));
+                    secondsSinceLastStep -= stepIntervalSeconds;
+                }
+
+                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+
+                var currentZ = s.Follow.CurrentPosition.z;
+                if (currentZ == previousZ)
+                {
+                    currentZeroGapSeconds += FrameDeltaSeconds;
+                    maxZeroGapSeconds = Mathf.Max(maxZeroGapSeconds, currentZeroGapSeconds);
+                }
+                else
+                {
+                    currentZeroGapSeconds = 0f;
+                }
+                previousZ = currentZ;
+                measuredSeconds += FrameDeltaSeconds;
+            }
+
+            Assert.LessOrEqual(maxZeroGapSeconds, 0.05f, $"movesPerSecond={movesPerSecond}: камера простаивала {maxZeroGapSeconds * 1000f:0}мс подряд без движения — стоп-старт");
+
+            s.Follow.Dispose();
+        }
+
+        [Test]
+        public void SteadyState_AtAnchor_AtLeastTwoRowsBehindPlayerRemainVisible()
+        {
+            // Та же геометрическая честная оговорка, что и в #153: при
+            // неизменных Pitch=50°/HeightOffset.y=6/DesiredVisibleTiles=4
+            // достижимый максимум — 2 ряда, не 4 (см. PR issue #155 для
+            // разбора чисел и альтернатив). Регрессионный барьер.
+            var s = CreateSetup();
+            RunSteadyMovement(s, movesPerSecond: 2f, totalSeconds: 5f);
+
+            GameObject cameraObject = null;
+            try
+            {
+                cameraObject = CreateCamera("TestCamera_RowsBehind", s.Follow, s.VFov);
+                var camera = cameraObject.GetComponent<Camera>();
+                camera.transform.SetPositionAndRotation(s.Follow.CurrentPosition, s.Follow.CurrentRotation);
+
+                var visibleRowsBehind = 0;
+                for (var offset = 1; offset <= 8; offset++)
+                {
+                    var row = s.Trail.CurrentPosition.Row - offset;
+                    var worldPosition = s.Projection.ToWorldPosition(new GridCoordinate(row, Width / 2));
+                    var viewport = camera.WorldToViewportPoint(worldPosition);
+                    if (viewport.z > 0f && viewport.y >= 0f && viewport.y <= 1f) visibleRowsBehind = offset;
+                    else break;
+                }
+
+                Assert.GreaterOrEqual(visibleRowsBehind, 2, "минимум 2 ряда позади должны оставаться в кадре — геометрический предел, см. doc-комментарий теста");
+            }
+            finally
+            {
+                if (cameraObject != null) Object.DestroyImmediate(cameraObject);
+                s.Follow.Dispose();
+            }
+        }
+
+        [Test]
+        public void MaterializedRowsAheadOfPlayer_StillAllLandInFrame()
+        {
+            var s = CreateSetup();
+            RunSteadyMovement(s, movesPerSecond: 2f, totalSeconds: 5f);
+
+            GameObject cameraObject = null;
+            try
+            {
+                cameraObject = CreateCamera("TestCamera_ForwardVisibility", s.Follow, s.VFov);
+                var camera = cameraObject.GetComponent<Camera>();
+                camera.transform.SetPositionAndRotation(s.Follow.CurrentPosition, s.Follow.CurrentRotation);
+
+                for (var offset = 0; offset <= 8; offset++)
+                {
+                    var row = s.Trail.CurrentPosition.Row + offset;
+                    var worldPosition = s.Projection.ToWorldPosition(new GridCoordinate(row, Width / 2));
+                    var viewport = camera.WorldToViewportPoint(worldPosition);
+
+                    Assert.Greater(viewport.z, 0f, $"ряд +{offset} должен быть перед камерой");
+                    Assert.GreaterOrEqual(viewport.y, 0f, $"ряд +{offset} не должен быть за нижним краем");
+                    Assert.LessOrEqual(viewport.y, 1f, $"ряд +{offset} не должен быть за верхним краем");
+                }
+            }
+            finally
+            {
+                if (cameraObject != null) Object.DestroyImmediate(cameraObject);
+                s.Follow.Dispose();
+            }
+        }
+
+        [Test]
+        public void IntroThenFirstSixMoves_PlayerTileStaysInFrameThroughout()
+        {
+            // Интро-твин (#140/#144) + Lerp якоря по прогрессу интро (#153)
+            // не должны сломаться этой задачей. Во время интро контроллер
+            // использует Tick() (см. TunnelCameraController — новый метод
+            // включается только после IntroTweenProgress01>=1), здесь
+            // проверяем именно эту границу: первые ходы приходятся на само
+            // интро, AdvanceContinuousAnchorFollow не вызывается до его
+            // завершения.
+            var grid = new TunnelGrid(Width);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, Width / 2));
+            var projection = new WorldGridProjection(TileSize, Width);
+            var follow = new TunnelCameraFollow(trail, projection, HeightOffset);
+            follow.ConfirmRun();
+
+            GameObject cameraObject = null;
+            try
+            {
+                cameraObject = new GameObject("TestCamera_IntroThenMoves");
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.aspect = PortraitAspect;
+
+                for (var row = 1; row <= 6; row++)
+                {
+                    follow.AdvanceIntroTween(0.05f);
+
+                    var vFov = ComputeSteadyVerticalFov(projection, follow.CurrentPitchDegrees);
+                    var minDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                        HeightOffset.y, follow.CurrentPitchDegrees, vFov, AnchorViewportY);
+                    var fixedTrailingDistance = TunnelCameraFollow.TrailingRowsBehindPlayer * TileSize;
+                    follow.TrailingDistance = Mathf.Lerp(fixedTrailingDistance, minDistance, follow.IntroTweenProgress01);
+
+                    trail.TryAdvanceTo(new GridCoordinate(row, Width / 2));
+
+                    if (follow.IntroTweenProgress01 >= 1f)
+                    {
+                        var maxDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                            HeightOffset.y, follow.CurrentPitchDegrees, vFov, AnchorViewportY + ToleranceViewportFraction);
+                        follow.AdvanceContinuousAnchorFollow(0.05f, minDistance, maxDistance);
+                    }
+                    else
+                    {
+                        follow.Tick();
+                    }
+
+                    camera.transform.SetPositionAndRotation(follow.CurrentPosition, follow.CurrentRotation);
+                    camera.fieldOfView = vFov > 0f ? vFov : 60f;
+
+                    var playerWorld = projection.ToWorldPosition(trail.CurrentPosition);
+                    var viewport = camera.WorldToViewportPoint(playerWorld);
+
+                    Assert.Greater(viewport.z, 0f, $"ход {row}: плитка игрока должна быть перед камерой");
+                    Assert.GreaterOrEqual(viewport.y, 0f, $"ход {row}: плитка игрока не должна быть за нижним краем");
+                    Assert.LessOrEqual(viewport.y, 1f, $"ход {row}: плитка игрока не должна быть за верхним краем");
+                }
+            }
+            finally
+            {
+                if (cameraObject != null) Object.DestroyImmediate(cameraObject);
+                follow.Dispose();
+            }
+        }
+    }
+}
