@@ -302,6 +302,59 @@ namespace Burmalda.Movement.Tests
             s.Follow.Dispose();
         }
 
+        // Issue #158 (продолжение #155): мягкая граница жёсткого клампа
+        // (A.3) должна наблюдаемо сгладить ПОДХОД к anchor+tolerance —
+        // сравниваем максимальный скачок дистанции камера-игрок за кадр при
+        // резком старте с дефолтной точкой начала нарастания (0.6) против
+        // той же самой сцены, где мягкая коррекция фактически выключена
+        // (startFraction=0.999 — зона нарастания почти нулевой ширины,
+        // ближайшее возможное приближение к старому поведению "голый
+        // хард-кламп" без деления на ноль). Прямое доказательство того, что
+        // изменение действительно убирает толчок, а не просто не ломает
+        // инварианты.
+        [Test]
+        public void SoftBoundary_HardStart_SmallerMaxFrameJumpThanWithoutSoftening()
+        {
+            var withSoftening = MeasureMaxTrailingDistanceJumpOnHardStart(TunnelCameraSoftBoundary.DefaultStartFraction);
+            var withoutSoftening = MeasureMaxTrailingDistanceJumpOnHardStart(0.999f);
+
+            Assert.Less(withSoftening, withoutSoftening,
+                $"мягкая граница (startFraction={TunnelCameraSoftBoundary.DefaultStartFraction}) должна давать меньший максимальный скачок дистанции за кадр, чем почти-выключенная мягкая граница (max jump: {withSoftening} vs {withoutSoftening})");
+        }
+
+        // Дистанция камера-игрок восстанавливается из публичного CurrentPosition.z
+        // (приватная _continuousCameraZ недоступна тестам) — корректно, пока
+        // HeightOffset.z=0 и ручной эдж-скролл не используется (оба верны в
+        // этом Setup, см. CreateSetup/HeightOffset наверху файла): тогда
+        // CurrentPosition.z == _continuousCameraZ буквально, см.
+        // AdvanceContinuousAnchorFollow — effectiveOffsetZ сворачивается в 0.
+        private static float MeasureMaxTrailingDistanceJumpOnHardStart(float softBoundaryStartFraction)
+        {
+            var s = CreateSetup();
+            var maxJump = 0f;
+            var previousDistance = (s.Trail.CurrentPosition.Row + 0.5f) * TileSize - s.Follow.CurrentPosition.z;
+
+            // Тот же "резкий старт" профиль, что и в инварианте C — темп,
+            // заведомо толкающий дистанцию к anchor+tolerance с первых кадров.
+            for (var cycle = 0; cycle < 60; cycle++)
+            {
+                s.Trail.TryAdvanceTo(new GridCoordinate(s.Trail.CurrentPosition.Row + 1, Width / 2));
+                for (var t = 0; t < 8; t++)
+                {
+                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance, softBoundaryStartFraction);
+
+                    var playerWorldZ = (s.Trail.CurrentPosition.Row + 0.5f) * TileSize;
+                    var currentDistance = playerWorldZ - s.Follow.CurrentPosition.z;
+                    var jump = Mathf.Abs(currentDistance - previousDistance);
+                    if (jump > maxJump) maxJump = jump;
+                    previousDistance = currentDistance;
+                }
+            }
+
+            s.Follow.Dispose();
+            return maxJump;
+        }
+
         [Test]
         public void SteadyState_AtAnchor_AtLeastTwoRowsBehindPlayerRemainVisible()
         {

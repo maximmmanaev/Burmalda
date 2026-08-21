@@ -614,7 +614,7 @@ namespace Burmalda.Movement
         /// уход плитки из-под пальца вниз (провалы #151/#153-тумблер3),
         /// верхняя — физически невозможным уползание вверх (исходная жалоба).
         /// </summary>
-        public void AdvanceContinuousAnchorFollow(float deltaSeconds, float minTrailingDistance, float maxTrailingDistance)
+        public void AdvanceContinuousAnchorFollow(float deltaSeconds, float minTrailingDistance, float maxTrailingDistance, float softBoundaryStartFraction = TunnelCameraSoftBoundary.DefaultStartFraction)
         {
             var playerWorldZ = (_trail.CurrentPosition.Row + 0.5f) * _projection.TileSize;
 
@@ -645,7 +645,17 @@ namespace Burmalda.Movement
             const float ResidualSnapEpsilon = 1e-5f;
             _continuousCameraZ += Mathf.Abs(residual) < ResidualSnapEpsilon ? residual : residual * FeedbackCorrectionRatePerSecond * deltaSeconds; // 2. мягкая коррекция
 
-            // Жёсткий ограничитель — см. doc-комментарий метода.
+            // 3. Мягкая граница (issue #158) — гасит скорость подхода к
+            // anchor+tolerance ПЕРЕД хард-клампом ниже, см. doc-комментарий
+            // TunnelCameraSoftBoundary. Ноль в состоянии покоя (distance==
+            // minTrailingDistance) и везде до startFraction — не мешает
+            // инварианту B.
+            var preClampDistance = playerWorldZ - _continuousCameraZ;
+            _continuousCameraZ += TunnelCameraSoftBoundary.ComputeCorrection(preClampDistance, minTrailingDistance, maxTrailingDistance, deltaSeconds, softBoundaryStartFraction);
+
+            // Жёсткий ограничитель — см. doc-комментарий метода. Остаётся
+            // страховкой инварианта C буквально как раньше — мягкая граница
+            // выше только смягчает подход, не отменяет сам предел.
             var distance = playerWorldZ - _continuousCameraZ;
             var clampedDistance = Mathf.Clamp(distance, minTrailingDistance, maxTrailingDistance);
             _continuousCameraZ = playerWorldZ - clampedDistance;

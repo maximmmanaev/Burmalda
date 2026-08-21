@@ -9,10 +9,12 @@ namespace Burmalda.DebugVisuals
     /// <summary>
     /// Issue #155: единственный оставшийся тумблер камеры — непрерывное
     /// следование с компенсацией скорости + жёсткий кламп
-    /// (<see cref="TunnelCameraController.UseScreenAnchor"/>), плюс два его
-    /// настраиваемых параметра — доля якоря и допуск клампа сверху
+    /// (<see cref="TunnelCameraController.UseScreenAnchor"/>), плюс три его
+    /// настраиваемых параметра — доля якоря, допуск клампа сверху и (issue
+    /// #158) точка начала нарастания мягкой границы
     /// (<see cref="TunnelCameraController.AnchorViewportY"/>,
-    /// <see cref="TunnelCameraController.ToleranceViewportFraction"/>).
+    /// <see cref="TunnelCameraController.ToleranceViewportFraction"/>,
+    /// <see cref="TunnelCameraController.SoftBoundaryStartFraction"/>).
     ///
     /// Прямой потомок <c>CameraTuningDebugPanel</c> из #153 (закрытый PR
     /// #154, тумблеры 1/step-tween и 3/cursor-offset запрещены — см. историю
@@ -126,7 +128,7 @@ namespace Burmalda.DebugVisuals
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
-            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 2f + Margin * 2f);
+            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 3f + Margin * 2f);
             rect.anchoredPosition = new Vector2(Margin, -(Margin + ToggleButtonSize + Margin));
 
             BuildRow(_panelRoot.transform, 0,
@@ -139,6 +141,16 @@ namespace Burmalda.DebugVisuals
                 "Tolerance (%)", 0f, 30f, 12f,
                 on => { }, // управляется тем же тумблером, что и Anchor — второй тумблер не нужен
                 v => { if (_camera != null) _camera.ToleranceViewportFraction = v / 100f; },
+                v => v.ToString("0") + "%");
+
+            // Issue #158: точка начала нарастания мягкой границы — доля
+            // полосы [anchor, anchor+tolerance], не своя отдельная величина,
+            // поэтому тоже управляется тем же тумблером Anchor, без третьего
+            // тумблера.
+            BuildRow(_panelRoot.transform, 2,
+                "Soft boundary start (%)", 20f, 95f, TunnelCameraSoftBoundary.DefaultStartFraction * 100f,
+                on => { },
+                v => { if (_camera != null) _camera.SoftBoundaryStartFraction = v / 100f; },
                 v => v.ToString("0") + "%");
         }
 
