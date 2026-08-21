@@ -35,12 +35,16 @@ namespace Burmalda.EditorTools
             FixRenderingConfiguration();
             DisableSplashScreenForTesting();
 
+            // Development build — задача явно требует диагностики через
+            // adb logcat -s Unity: в non-development сборке Debug.Log почти
+            // не долетает до logcat. Только BuildAndroid() (тестовая сборка
+            // на подключённое устройство) — реальный релиз собирается отдельно.
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = scenes,
                 locationPathName = "Builds/Android/Burmalda.apk",
                 target = BuildTarget.Android,
-                options = BuildOptions.None
+                options = BuildOptions.Development
             });
 
             if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
