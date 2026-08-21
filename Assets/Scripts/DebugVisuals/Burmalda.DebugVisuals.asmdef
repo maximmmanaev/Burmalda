@@ -9,7 +9,11 @@
         "Burmalda.Artifacts",
         "Burmalda.RunModifiers",
         "Burmalda.RunLifecycle",
-        "Burmalda.Progression"
+        "Burmalda.Progression",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

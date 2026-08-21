@@ -146,8 +146,11 @@ namespace Burmalda.Movement.Tests
             // Черновой тюнинг темпа по запросу владельца продукта (без issue,
             // см. changelog) — камера ощущалась слишком резкой/дёрганой,
             // константа дважды замедлена относительно буквального значения
-            // из прототипа (0.045 -> 0.02 -> 0.01); не масштабируется на deltaTime.
-            var expectedZ = -2.5f + (3.5f - -2.5f) * 0.01f;
+            // из прототипа (0.045 -> 0.02 -> 0.01), затем ВРЕМЕННО удвоена
+            // обратно до 0.02 (2026-08-18, "так лучше", подтверждено
+            // владельцем продукта на билде — уже не временно, закоммичено).
+            // Не масштабируется на deltaTime.
+            var expectedZ = -2.5f + (3.5f - -2.5f) * 0.02f;
             Assert.AreEqual(new Vector3(0f, 0f, expectedZ), follow.CurrentPosition);
         }
 
@@ -224,14 +227,21 @@ namespace Burmalda.Movement.Tests
         [Test]
         public void HeightOffset_SetAfterConstruction_RecomputesTargetPositionImmediately()
         {
+            // Issue #109 B.2: интро восстановлено — Z до ConfirmRun берётся
+            // из IntroHeightOffsetZ, не из HeightOffset.Z напрямую (см.
+            // TargetPosition_BeforeConfirmRun_ZUsesIntroHeightOffsetZNotHeightOffsetZ).
+            // Этот тест — про устоявшийся режим (после ConfirmRun+полного
+            // твина), где HeightOffset.Z уже применяется напрямую, поэтому
+            // явно доводим твин до конца перед проверкой, а не полагаемся
+            // на совпадение интро-дефолта со значением теста.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero);
+            follow.ConfirmRun();
+            follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds);
 
             follow.HeightOffset = new Vector3(0f, 4f, -1f);
 
-            // Интро выключено целиком — Z ВСЕГДА берётся напрямую из
-            // HeightOffset.Z, независимо от ConfirmRun: база -2.5
-            // (трейлинг-ряд без клампа, row0-3=-3, TrailingRowsBehindPlayer=3,
+            // База -2.5 (трейлинг-ряд без клампа, row0-3=-3, TrailingRowsBehindPlayer=3,
             // см. Constructor-тест выше) + только что установленный
             // HeightOffset.Z(-1) = -3.5.
             Assert.AreEqual(new Vector3(0f, 4f, -3.5f), follow.TargetPosition);

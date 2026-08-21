@@ -100,6 +100,12 @@ namespace Burmalda.EditorTools
         private static void FixRenderingConfiguration()
         {
             EnsureAlwaysIncludedShader("Universal Render Pipeline/Lit");
+            // 2026-08-18: процедурное небо (DebugVisuals.ScenePostProcessing)
+            // и партиклы сбора (DebugVisuals.PickupFeedback) — тот же риск
+            // шейдер-стриппинга, что уже ловили на "Universal Render
+            // Pipeline/Lit". PickupFeedback материал шейдер не запрашивает
+            // (дефолт ParticleSystemRenderer) — добавлять нечего.
+            EnsureAlwaysIncludedShader("Skybox/Procedural");
             DisableBrokenRendererFeature("Assets/Settings/PC_Renderer.asset", "ScreenSpaceAmbientOcclusion");
         }
 
