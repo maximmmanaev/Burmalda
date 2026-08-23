@@ -7,11 +7,12 @@ using UnityEngine.UI;
 namespace Burmalda.DebugVisuals
 {
     /// <summary>
-    /// Три настраиваемых параметра непрерывного следования камеры с
+    /// Четыре настраиваемых параметра непрерывного следования камеры с
     /// компенсацией скорости + жёсткий/мягкий кламп (issue #155/#158) — доля
-    /// якоря, допуск клампа сверху и точка начала нарастания мягкой границы
-    /// (<see cref="TunnelCameraController.AnchorViewportY"/>,
+    /// якоря, допуски клампа сверху/снизу и точка начала нарастания мягкой
+    /// границы (<see cref="TunnelCameraController.AnchorViewportY"/>,
     /// <see cref="TunnelCameraController.ToleranceViewportFraction"/>,
+    /// <see cref="TunnelCameraController.BackToleranceViewportFraction"/>,
     /// <see cref="TunnelCameraController.SoftBoundaryStartFraction"/>).
     ///
     /// <b>Задача 1 (владелец продукта принял на записи с устройства):</b>
@@ -19,9 +20,11 @@ namespace Burmalda.DebugVisuals
     /// единственный оставшийся после #153, закрытый PR #154, тумблеры
     /// 1/step-tween и 3/cursor-offset запрещены) убран вместе со старым
     /// путём, который он выбирал (см. doc-комментарий
-    /// <c>Movement.TunnelCameraFollow</c>). Панель — только три ползунка,
-    /// без чекбокса. Тот же принцип: Canvas/Slider вместо OnGUI,
-    /// самобутстрапится через
+    /// <c>Movement.TunnelCameraFollow</c>). Панель — только ползунки, без
+    /// чекбокса. Полоса клампа стала двусторонней (anchor подтверждён на
+    /// устройстве на 46%, backTolerance — новый ползунок, дефолт 10%) — см.
+    /// doc-комментарий <c>Movement.TunnelCameraSoftBoundary</c>. Тот же
+    /// принцип: Canvas/Slider вместо OnGUI, самобутстрапится через
     /// <see cref="RuntimeInitializeOnLoadMethodAttribute"/>, ничего не
     /// трогает в .unity/.prefab (docs/rules/forbidden-actions.md). Нужна для
     /// тонкой подстройки на устройстве — дефолты уже дают принятое на записи
@@ -129,11 +132,11 @@ namespace Burmalda.DebugVisuals
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
-            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 3f + Margin * 2f);
+            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 4f + Margin * 2f);
             rect.anchoredPosition = new Vector2(Margin, -(Margin + ToggleButtonSize + Margin));
 
             BuildRow(_panelRoot.transform, 0,
-                "Anchor (%)", 10f, 60f, 32f,
+                "Anchor (%)", 10f, 60f, 46f,
                 v => { if (_camera != null) _camera.AnchorViewportY = v / 100f; },
                 v => v.ToString("0") + "%");
 
@@ -142,7 +145,15 @@ namespace Burmalda.DebugVisuals
                 v => { if (_camera != null) _camera.ToleranceViewportFraction = v / 100f; },
                 v => v.ToString("0") + "%");
 
+            // Задача 1: допуск СНИЗУ от anchor — вместе с Tolerance выше
+            // делает полосу клампа двусторонней ([anchor-backTolerance,
+            // anchor+tolerance], см. doc-комментарий класса).
             BuildRow(_panelRoot.transform, 2,
+                "Back tolerance (%)", 0f, 30f, 10f,
+                v => { if (_camera != null) _camera.BackToleranceViewportFraction = v / 100f; },
+                v => v.ToString("0") + "%");
+
+            BuildRow(_panelRoot.transform, 3,
                 "Soft boundary start (%)", 20f, 95f, TunnelCameraSoftBoundary.DefaultStartFraction * 100f,
                 v => { if (_camera != null) _camera.SoftBoundaryStartFraction = v / 100f; },
                 v => v.ToString("0") + "%");
