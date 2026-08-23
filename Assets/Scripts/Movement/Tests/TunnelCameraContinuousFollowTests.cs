@@ -426,12 +426,12 @@ namespace Burmalda.Movement.Tests
         public void IntroThenFirstSixMoves_PlayerTileStaysInFrameThroughout()
         {
             // Интро-твин (#140/#144) + Lerp якоря по прогрессу интро (#153)
-            // не должны сломаться этой задачей. Во время интро контроллер
-            // использует Tick() (см. TunnelCameraController — новый метод
-            // включается только после IntroTweenProgress01>=1), здесь
-            // проверяем именно эту границу: первые ходы приходятся на само
-            // интро, AdvanceContinuousAnchorFollow не вызывается до его
-            // завершения.
+            // не должны сломаться этой задачей. Во время интро CurrentPosition
+            // двигает только AdvanceIntroTween — AdvanceContinuousAnchorFollow
+            // (единственный механизм устоявшегося следования, задача 1) не
+            // вызывается до его завершения (см. TunnelCameraController —
+            // тот же порог IntroTweenProgress01>=1), здесь проверяем именно
+            // эту границу.
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, Width / 2));
             var projection = new WorldGridProjection(TileSize, Width);
@@ -463,10 +463,8 @@ namespace Burmalda.Movement.Tests
                             HeightOffset.y, follow.CurrentPitchDegrees, vFov, AnchorViewportY + ToleranceViewportFraction);
                         follow.AdvanceContinuousAnchorFollow(0.05f, minDistance, maxDistance);
                     }
-                    else
-                    {
-                        follow.Tick();
-                    }
+                    // Иначе — ничего: AdvanceIntroTween выше уже хард-синкнул
+                    // CurrentPosition=TargetPosition на этом кадре.
 
                     camera.transform.SetPositionAndRotation(follow.CurrentPosition, follow.CurrentRotation);
                     camera.fieldOfView = vFov > 0f ? vFov : 60f;
