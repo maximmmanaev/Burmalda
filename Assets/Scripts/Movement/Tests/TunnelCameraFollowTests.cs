@@ -422,7 +422,7 @@ namespace Burmalda.Movement.Tests
             // Широкий кламп (0..1000) — эта проверка не про геометрию якоря,
             // только про то, что движение вообще происходит через штатный
             // механизм следования, а не мгновенным снапом.
-            follow.AdvanceContinuousAnchorFollow(1f / 60f, minTrailingDistance: 0f, maxTrailingDistance: 1000f);
+            follow.AdvanceContinuousAnchorFollow(1f / 60f, targetTrailingDistance: 500f, minTrailingDistance: 0f, maxTrailingDistance: 1000f);
             Assert.AreNotEqual(positionBeforeRealMove, follow.CurrentPosition, "AdvanceContinuousAnchorFollow должен был сдвинуть камеру хоть немного к новой цели");
         }
 

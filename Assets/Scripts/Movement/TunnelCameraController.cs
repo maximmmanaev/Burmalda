@@ -93,21 +93,31 @@ namespace Burmalda.Movement
         // Issue #153/#155: якорь по вьюпорту вместо TrailingRowsBehindPlayer
         // (TunnelCameraAnchor) + непрерывное следование с компенсацией
         // скорости (TunnelCameraFollow.AdvanceContinuousAnchorFollow) + жёсткий
-        // кламп доли экрана в [anchor, anchor+tolerance]. Задача 1 (владелец
-        // продукта принял на записи с устройства) сделала это единственным
-        // механизмом устоявшегося следования — тумблер-переключатель на
-        // старый экспоненциально-сглаженный путь убран вместе с самим этим
-        // путём (см. doc-комментарий TunnelCameraFollow), значения ниже —
-        // просто настройки, не предмет вкл/выкл.
-        [SerializeField] private float _anchorViewportY = 0.32f;
+        // кламп доли экрана в двусторонней полосе [anchor-backTolerance,
+        // anchor+tolerance] (задача 1, переформулировка issue A.3). Задача 1
+        // (владелец продукта принял на записи с устройства) сделала это
+        // единственным механизмом устоявшегося следования — тумблер-
+        // переключатель на старый экспоненциально-сглаженный путь убран
+        // вместе с самим этим путём (см. doc-комментарий TunnelCameraFollow),
+        // значения ниже — просто настройки, не предмет вкл/выкл.
+        //
+        // 32% -> 46% (задача 1, подтверждено владельцем продукта на
+        // устройстве вместе с двусторонней полосой ниже).
+        [SerializeField] private float _anchorViewportY = 0.46f;
         // issue A.3: верхняя граница клампа — anchor+tolerance. Настраиваемая,
         // как и anchor (issue #155 явно просит обе).
         [SerializeField] private float _toleranceViewportFraction = 0.12f;
+        // Задача 1: нижняя граница клампа СНИЗУ от anchor — anchor-backTolerance.
+        // Раньше нижней границей был сам anchor (плитка не могла опуститься
+        // ниже — защита от ухода из-под пальца при протяжке в старой схеме
+        // ввода), в схеме A (issue #157) палец между шагами поднимается,
+        // защита не нужна — см. doc-комментарий TunnelCameraFollow.AdvanceContinuousAnchorFollow.
+        [SerializeField] private float _backToleranceViewportFraction = 0.10f;
 
-        // Issue #158: точка начала нарастания мягкой границы, доля полосы
-        // [anchor, anchor+tolerance] — единственный новый настраиваемый
-        // параметр (см. TunnelCameraSoftBoundary). anchor/tolerance выше
-        // сама механика не трогает.
+        // Issue #158: точка начала нарастания мягкой границы, доля расстояния
+        // от anchor до КАЖДОГО края полосы (задача 1: теперь применяется к
+        // обеим сторонам, не только к верхней) — единственный настраиваемый
+        // параметр самой кривой (см. TunnelCameraSoftBoundary).
         [SerializeField] private float _softBoundaryStartFraction = TunnelCameraSoftBoundary.DefaultStartFraction;
 
         private TunnelCameraFollow _follow;
@@ -119,14 +129,21 @@ namespace Burmalda.Movement
             set => _anchorViewportY = value;
         }
 
-        /// <summary>Допуск сверху над anchor для жёсткого клампа (issue A.3) — публично для debug-панели.</summary>
+        /// <summary>Допуск СВЕРХУ над anchor для жёсткого клампа (issue A.3) — публично для debug-панели.</summary>
         public float ToleranceViewportFraction
         {
             get => _toleranceViewportFraction;
             set => _toleranceViewportFraction = value;
         }
 
-        /// <summary>Точка начала нарастания мягкой границы (issue #158), доля полосы [anchor, anchor+tolerance] — публично для debug-панели.</summary>
+        /// <summary>Допуск СНИЗУ от anchor для жёсткого клампа (задача 1, issue A.3) — публично для debug-панели.</summary>
+        public float BackToleranceViewportFraction
+        {
+            get => _backToleranceViewportFraction;
+            set => _backToleranceViewportFraction = value;
+        }
+
+        /// <summary>Точка начала нарастания мягкой границы (issue #158), доля расстояния от anchor до каждого края полосы — публично для debug-панели.</summary>
         public float SoftBoundaryStartFraction
         {
             get => _softBoundaryStartFraction;
@@ -215,8 +232,9 @@ namespace Burmalda.Movement
             // (раньше считалось в конце Update(), после применения позиции) —
             // анкор-производным дистанциям ниже нужен ГОТОВЫЙ vFOV этого
             // кадра ДО того, как позиция камеры пересчитается на этом же кадре.
-            var anchorTrailingDistance = 0f;
-            var toleranceTrailingDistance = 0f;
+            var targetTrailingDistance = 0f;
+            var minTrailingDistance = 0f;
+            var maxTrailingDistance = 0f;
             if (_camera != null)
             {
                 // Калибровка ШИРИНЫ (не якоря!) намеренно остаётся на
@@ -234,13 +252,15 @@ namespace Burmalda.Movement
                 var vFov = TunnelCameraFraming.ComputeVerticalFovDegrees(desiredHorizontalFovDeg, aspect);
                 _camera.fieldOfView = vFov;
 
-                // issue A.3: дистанция на нижней границе клампа (anchor) —
-                // цель, к которой стремится непрерывное следование, И
-                // одновременно нижняя граница самого клампа. Дистанция на
-                // верхней границе (anchor+tolerance) — только кап клампа.
-                anchorTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                // Задача 1: точка покоя (anchor) — цель, к которой стремится
+                // непрерывное следование, СТРОГО ВНУТРИ двусторонней полосы
+                // клампа (уже не сама нижняя граница, см. doc-комментарий
+                // TunnelCameraFollow.AdvanceContinuousAnchorFollow).
+                targetTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
                     _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY);
-                toleranceTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                minTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                    _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY - _backToleranceViewportFraction);
+                maxTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
                     _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY + _toleranceViewportFraction);
 
                 // Lerp по IntroTweenProgress01 — ЗАЩИЩАЕТ top-down интро от
@@ -253,7 +273,7 @@ namespace Burmalda.Movement
                 // читает её через ComputeTargetPosition) — после интро её
                 // тут же перезаписывает AdvanceContinuousAnchorFollow.
                 var fixedTrailingDistance = TunnelCameraFollow.TrailingRowsBehindPlayer * _input.Projection.TileSize;
-                _follow.TrailingDistance = Mathf.Lerp(fixedTrailingDistance, anchorTrailingDistance, _follow.IntroTweenProgress01);
+                _follow.TrailingDistance = Mathf.Lerp(fixedTrailingDistance, targetTrailingDistance, _follow.IntroTweenProgress01);
             }
 
             // Твин интро -> устоявшийся режим (см. doc-комментарий класса) —
@@ -283,7 +303,7 @@ namespace Burmalda.Movement
             // подхватывает CurrentPosition — единственный путь устоявшегося
             // следования (задача 1, старый альтернативный путь удалён).
             if (_follow.IntroTweenProgress01 >= 1f)
-                _follow.AdvanceContinuousAnchorFollow(Time.deltaTime, anchorTrailingDistance, toleranceTrailingDistance, _softBoundaryStartFraction);
+                _follow.AdvanceContinuousAnchorFollow(Time.deltaTime, targetTrailingDistance, minTrailingDistance, maxTrailingDistance, _softBoundaryStartFraction);
 
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
         }

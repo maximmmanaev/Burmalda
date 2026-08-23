@@ -562,9 +562,9 @@ namespace Burmalda.Movement
         /// каждый кадр после завершения интро-твина, без альтернативного пути.
         ///
         /// Цель — ТЕКУЩАЯ (не предсказанная) плитка игрока на дистанции
-        /// <paramref name="minTrailingDistance"/> (якорь). Механика —
-        /// комбинация двух слагаемых, оба применяются к "живой" Z-позиции
-        /// трейлинг-точки (<c>_continuousCameraZ</c>):
+        /// <paramref name="targetTrailingDistance"/> (якорь, точка покоя).
+        /// Механика — комбинация двух слагаемых, оба применяются к "живой"
+        /// Z-позиции трейлинг-точки (<c>_continuousCameraZ</c>):
         ///
         /// 1. <b>Компенсация скорости (feedforward)</b> — камера движется с
         ///    той же (недавно оценённой) средней скоростью, что и игрок,
@@ -583,19 +583,30 @@ namespace Burmalda.Movement
         /// 2. <b>Мягкая коррекция (feedback)</b> — вторичная подтяжка
         ///    остаточной ошибки (неточность оценки скорости на переходных
         ///    процессах — старт/стоп/смена темпа) к идеальной дистанции
-        ///    (<paramref name="minTrailingDistance"/>), см.
+        ///    (<paramref name="targetTrailingDistance"/>), см.
         ///    <see cref="FeedbackCorrectionRatePerSecond"/>.
         ///
-        /// <b>Жёсткий ограничитель (issue A.3)</b> — ПОСЛЕ обоих слагаемых,
-        /// дистанция камера-игрок зажимается в
+        /// <b>Жёсткий ограничитель (issue A.3, переформулирован задачей 1)</b>
+        /// — ПОСЛЕ обоих слагаемых, дистанция камера-игрок зажимается в
         /// [<paramref name="minTrailingDistance"/>, <paramref name="maxTrailingDistance"/>] —
         /// инвариант, не тюнинг: не завязан на корректность контроллера
         /// выше, работает даже если оценка скорости на каком-то переходном
-        /// процессе ошиблась. Нижняя граница делает физически невозможным
-        /// уход плитки из-под пальца вниз (провалы #151/#153-тумблер3),
-        /// верхняя — физически невозможным уползание вверх (исходная жалоба).
+        /// процессе ошиблась.
+        ///
+        /// <b>Задача 1 (владелец продукта подтвердил на устройстве):</b>
+        /// полоса двусторонняя вокруг <paramref name="targetTrailingDistance"/>
+        /// — раньше <paramref name="minTrailingDistance"/> совпадал с самим
+        /// anchor (точкой покоя), физически запрещая плитке опускаться НИЖЕ
+        /// anchor (это защищало от ухода плитки из-под пальца при протяжке
+        /// в старой схеме ввода — провалы #151/#153-тумблер3). В схеме A
+        /// (issue #157) палец между шагами поднимается — уходить не из-под
+        /// чего, запрет снят: теперь <paramref name="minTrailingDistance"/> —
+        /// самостоятельная нижняя граница (anchor-backTolerance), СТРОГО
+        /// меньше <paramref name="targetTrailingDistance"/>. Верхняя граница
+        /// (anchor+tolerance) физически невозможным уползание вверх —
+        /// исходная жалоба, не поменялась.
         /// </summary>
-        public void AdvanceContinuousAnchorFollow(float deltaSeconds, float minTrailingDistance, float maxTrailingDistance, float softBoundaryStartFraction = TunnelCameraSoftBoundary.DefaultStartFraction)
+        public void AdvanceContinuousAnchorFollow(float deltaSeconds, float targetTrailingDistance, float minTrailingDistance, float maxTrailingDistance, float softBoundaryStartFraction = TunnelCameraSoftBoundary.DefaultStartFraction)
         {
             var playerWorldZ = (_trail.CurrentPosition.Row + 0.5f) * _projection.TileSize;
 
@@ -615,7 +626,7 @@ namespace Burmalda.Movement
             var velocityRowsPerSecond = EstimateVelocityRowsPerSecond();
             _continuousCameraZ += velocityRowsPerSecond * _projection.TileSize * deltaSeconds; // 1. компенсация скорости
 
-            var idealCameraZ = playerWorldZ - minTrailingDistance;
+            var idealCameraZ = playerWorldZ - targetTrailingDistance;
             var residual = idealCameraZ - _continuousCameraZ;
             // Экспоненциальная в непрерывном времени коррекция асимптотически
             // приближается к нулю, но никогда не достигает его ТОЧНО — без
@@ -626,17 +637,17 @@ namespace Burmalda.Movement
             const float ResidualSnapEpsilon = 1e-5f;
             _continuousCameraZ += Mathf.Abs(residual) < ResidualSnapEpsilon ? residual : residual * FeedbackCorrectionRatePerSecond * deltaSeconds; // 2. мягкая коррекция
 
-            // 3. Мягкая граница (issue #158) — гасит скорость подхода к
-            // anchor+tolerance ПЕРЕД хард-клампом ниже, см. doc-комментарий
-            // TunnelCameraSoftBoundary. Ноль в состоянии покоя (distance==
-            // minTrailingDistance) и везде до startFraction — не мешает
-            // инварианту B.
+            // 3. Мягкая граница (issue #158, двусторонняя с задачи 1) —
+            // гасит скорость подхода к ЛЮБОМУ краю полосы ПЕРЕД хард-клампом
+            // ниже, см. doc-комментарий TunnelCameraSoftBoundary. Ноль в
+            // состоянии покоя (distance==targetTrailingDistance) и везде до
+            // startFraction от target к каждому краю — не мешает инварианту B.
             var preClampDistance = playerWorldZ - _continuousCameraZ;
-            _continuousCameraZ += TunnelCameraSoftBoundary.ComputeCorrection(preClampDistance, minTrailingDistance, maxTrailingDistance, deltaSeconds, softBoundaryStartFraction);
+            _continuousCameraZ += TunnelCameraSoftBoundary.ComputeCorrection(preClampDistance, targetTrailingDistance, minTrailingDistance, maxTrailingDistance, deltaSeconds, softBoundaryStartFraction);
 
             // Жёсткий ограничитель — см. doc-комментарий метода. Остаётся
-            // страховкой инварианта C буквально как раньше — мягкая граница
-            // выше только смягчает подход, не отменяет сам предел.
+            // страховкой инварианта C буквально как раньше (теперь двусторонней) —
+            // мягкая граница выше только смягчает подход, не отменяет сам предел.
             var distance = playerWorldZ - _continuousCameraZ;
             var clampedDistance = Mathf.Clamp(distance, minTrailingDistance, maxTrailingDistance);
             _continuousCameraZ = playerWorldZ - clampedDistance;
