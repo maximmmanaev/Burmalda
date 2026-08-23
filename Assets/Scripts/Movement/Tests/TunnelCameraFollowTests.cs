@@ -133,45 +133,6 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void Tick_AppliesSmoothingFactorOncePerCall()
-        {
-            var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
-
-            for (var row = 1; row <= 6; row++)
-                trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Target=(0,0,3.5), Current всё ещё (0,0,-2.5) — старт без клампа, см. Constructor-тест выше
-
-            follow.Tick();
-
-            // Черновой тюнинг темпа по запросу владельца продукта (без issue,
-            // см. changelog) — камера ощущалась слишком резкой/дёрганой,
-            // константа дважды замедлена относительно буквального значения
-            // из прототипа (0.045 -> 0.02 -> 0.01), затем ВРЕМЕННО удвоена
-            // обратно до 0.02 (2026-08-18, "так лучше", подтверждено
-            // владельцем продукта на билде — уже не временно, закоммичено).
-            // Не масштабируется на deltaTime.
-            var expectedZ = -2.5f + (3.5f - -2.5f) * 0.02f;
-            Assert.AreEqual(new Vector3(0f, 0f, expectedZ), follow.CurrentPosition);
-        }
-
-        [Test]
-        public void Tick_RepeatedCalls_ConvergesTowardsTarget()
-        {
-            var (_, trail, projection) = CreateTrail();
-            var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
-
-            for (var row = 1; row <= 6; row++)
-                trail.TryAdvanceTo(new GridCoordinate(row, 2));
-
-            // Без клампа старт (row0) заметно дальше от Target (z=-2.5 против
-            // прежних 0.5) — больше кадров нужно, чтобы экспоненциальное
-            // сглаживание (0.99^n) сошлось в те же 1e-4 допуска.
-            for (var i = 0; i < 2000; i++) follow.Tick();
-
-            Assert.AreEqual(follow.TargetPosition.z, follow.CurrentPosition.z, 1e-4f);
-        }
-
-        [Test]
         public void TargetRotation_NoYawOrRoll_OnlyPitch()
         {
             var (_, trail, projection) = CreateTrail();
@@ -350,7 +311,7 @@ namespace Burmalda.Movement.Tests
         public void ConfirmRun_ThenAdvanceIntroTweenFullDuration_CurrentPositionMatchesTargetInstantly()
         {
             // Во время твина CurrentPosition держится РОВНО TargetPosition —
-            // без экспоненциального сглаживания Tick() поверх твина.
+            // без дополнительного сглаживания поверх твина.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, new Vector3(0f, 6f, 2f));
 
@@ -434,11 +395,12 @@ namespace Burmalda.Movement.Tests
             // шагнул (непрерывный жест: тап по своей плите -> сразу свайп
             // вперёд, без отрыва пальца) — TargetPosition в этот момент уже
             // отражает новый ряд (см. OnPositionChanged), и хард-синк
-            // телепортировал камеру на несколько клеток БЕЗ Tick()/
-            // SmoothingFactor. Теперь: реальный ход трейла посреди твина
+            // телепортировал камеру на несколько клеток без какого-либо
+            // сглаживания. Теперь: реальный ход трейла посреди твина
             // завершает твин немедленно (без хард-синка на этом кадре) —
             // CurrentPosition после этого догоняет TargetPosition ТОЛЬКО
-            // через обычный Tick()/SmoothingFactor, как любое другое
+            // через AdvanceContinuousAnchorFollow (задача 1 — единственный
+            // оставшийся механизм устоявшегося следования), как любое другое
             // продвижение, а не мгновенным скачком.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
@@ -453,12 +415,15 @@ namespace Burmalda.Movement.Tests
             follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds * 0.1f); // кадр ПОСЛЕ реального хода, внутри исходного окна твина
 
             Assert.AreEqual(positionBeforeRealMove, follow.CurrentPosition,
-                "CurrentPosition не должна мгновенно телепортироваться на TargetPosition — только через Tick()");
+                "CurrentPosition не должна мгновенно телепортироваться на TargetPosition — только через AdvanceContinuousAnchorFollow");
             Assert.AreNotEqual(targetAfterRealMove, follow.CurrentPosition,
-                "CurrentPosition ещё не должна совпадать с новым TargetPosition сразу после хода без Tick()");
+                "CurrentPosition ещё не должна совпадать с новым TargetPosition сразу после хода без AdvanceContinuousAnchorFollow");
 
-            follow.Tick(); // обычное сглаживание — единственный путь, которым CurrentPosition теперь имеет право двигаться после реального хода
-            Assert.AreNotEqual(positionBeforeRealMove, follow.CurrentPosition, "Tick() должен был сдвинуть камеру хоть немного к новой цели");
+            // Широкий кламп (0..1000) — эта проверка не про геометрию якоря,
+            // только про то, что движение вообще происходит через штатный
+            // механизм следования, а не мгновенным снапом.
+            follow.AdvanceContinuousAnchorFollow(1f / 60f, minTrailingDistance: 0f, maxTrailingDistance: 1000f);
+            Assert.AreNotEqual(positionBeforeRealMove, follow.CurrentPosition, "AdvanceContinuousAnchorFollow должен был сдвинуть камеру хоть немного к новой цели");
         }
 
         [Test]
@@ -466,7 +431,7 @@ namespace Burmalda.Movement.Tests
         {
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
-            for (var row = 1; row <= 20; row++) trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Current сильно отстаёт от Target без Tick()
+            for (var row = 1; row <= 20; row++) trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Current сильно отстаёт от Target — ничего, кроме этого цикла, ещё не двигало CurrentPosition
 
             follow.SnapToTarget();
 
@@ -495,18 +460,19 @@ namespace Burmalda.Movement.Tests
             // Регресс-тест на реально сломанный сценарий (2026-08-14, не
             // гипотеза): SnapToTarget вызывался на КАЖДЫЙ новый тап
             // (HandlePressStarted) — при заметном разрыве Current/Target
-            // (SmoothingFactor=0.01 очень медленный) это читалось как рывок
-            // камеры на несколько клеток. ResetManualForwardOffset — замена
-            // в HandlePressStarted, которая НЕ трогает CurrentPosition.
+            // (старое экспоненциальное сглаживание было очень медленным)
+            // это читалось как рывок камеры на несколько клеток.
+            // ResetManualForwardOffset — замена в HandlePressStarted, которая
+            // НЕ трогает CurrentPosition.
             var (_, trail, projection) = CreateTrail();
             var follow = new TunnelCameraFollow(trail, projection, Vector3.zero, introHeightOffsetZ: 0f);
-            for (var row = 1; row <= 20; row++) trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Current сильно отстаёт от Target без Tick()
+            for (var row = 1; row <= 20; row++) trail.TryAdvanceTo(new GridCoordinate(row, 2)); // Current сильно отстаёт от Target — ничего, кроме этого цикла, ещё не двигало CurrentPosition
             var currentBeforeReset = follow.CurrentPosition;
 
             follow.ResetManualForwardOffset();
 
             Assert.AreEqual(currentBeforeReset, follow.CurrentPosition, "ResetManualForwardOffset не должен мгновенно снапать позицию — это и был рывок камеры");
-            Assert.AreNotEqual(follow.TargetPosition, follow.CurrentPosition, "Current должен по-прежнему отставать от Target — снапа больше нет, только плавный Tick() наверстает разрыв");
+            Assert.AreNotEqual(follow.TargetPosition, follow.CurrentPosition, "Current должен по-прежнему отставать от Target — снапа больше нет, только AdvanceContinuousAnchorFollow наверстает разрыв");
         }
 
         [Test]
@@ -536,7 +502,7 @@ namespace Burmalda.Movement.Tests
             follow.NudgeForward(3f);
 
             Assert.AreEqual(targetBefore.z + 3f, follow.TargetPosition.z, 1e-5f);
-            Assert.AreEqual(currentBefore.z + 3f, follow.CurrentPosition.z, 1e-5f, "смещение мгновенное, не через сглаживание Tick()");
+            Assert.AreEqual(currentBefore.z + 3f, follow.CurrentPosition.z, 1e-5f, "смещение мгновенное, не через постепенное сглаживание");
         }
 
         [Test]

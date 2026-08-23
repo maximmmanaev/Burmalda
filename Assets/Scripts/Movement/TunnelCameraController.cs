@@ -47,6 +47,17 @@ namespace Burmalda.Movement
     /// пока <see cref="GridTraceInputController.IsPressed"/> истинно,
     /// <see cref="Update"/> не трогает камеру вообще — часть механики ввода
     /// (PRD 4.1: "камера обновляется только между шагами"), не оптимизация.
+    ///
+    /// <b>Дефолт камеры/ввода, задача 1 (владелец продукта принял запись с
+    /// устройства):</b> якорь по вьюпорту + непрерывное следование с
+    /// компенсацией скорости + жёсткий/мягкий кламп (issue #153/#155/#158)
+    /// — единственный механизм устоявшегося следования, включён ВСЕГДА, без
+    /// тумблера-переключателя на старый экспоненциально-сглаженный путь
+    /// (тот путь удалён из <see cref="TunnelCameraFollow"/> целиком — см. её
+    /// doc-комментарий). <see cref="AnchorViewportY"/>/<see cref="ToleranceViewportFraction"/>/
+    /// <see cref="SoftBoundaryStartFraction"/> остаются настраиваемыми из
+    /// debug-панели (<c>DebugVisuals.CameraAnchorDebugPanel</c>) — меняются
+    /// только их дефолты (32%/12%/60%), не сам факт применения.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TunnelCameraController : MonoBehaviour
@@ -82,10 +93,12 @@ namespace Burmalda.Movement
         // Issue #153/#155: якорь по вьюпорту вместо TrailingRowsBehindPlayer
         // (TunnelCameraAnchor) + непрерывное следование с компенсацией
         // скорости (TunnelCameraFollow.AdvanceContinuousAnchorFollow) + жёсткий
-        // кламп доли экрана в [anchor, anchor+tolerance]. По умолчанию
-        // ВЫКЛЮЧЕН — выключенное состояние обязано давать побайтово прежнее
-        // поведение (Tick()/SmoothingFactor), см. doc-комментарий Update() ниже.
-        [SerializeField] private bool _useScreenAnchor;
+        // кламп доли экрана в [anchor, anchor+tolerance]. Задача 1 (владелец
+        // продукта принял на записи с устройства) сделала это единственным
+        // механизмом устоявшегося следования — тумблер-переключатель на
+        // старый экспоненциально-сглаженный путь убран вместе с самим этим
+        // путём (см. doc-комментарий TunnelCameraFollow), значения ниже —
+        // просто настройки, не предмет вкл/выкл.
         [SerializeField] private float _anchorViewportY = 0.32f;
         // issue A.3: верхняя граница клампа — anchor+tolerance. Настраиваемая,
         // как и anchor (issue #155 явно просит обе).
@@ -98,13 +111,6 @@ namespace Burmalda.Movement
         [SerializeField] private float _softBoundaryStartFraction = TunnelCameraSoftBoundary.DefaultStartFraction;
 
         private TunnelCameraFollow _follow;
-
-        /// <summary>Тумблер (якорь по вьюпорту + непрерывное следование + кламп) — публично для debug-панели.</summary>
-        public bool UseScreenAnchor
-        {
-            get => _useScreenAnchor;
-            set => _useScreenAnchor = value;
-        }
 
         /// <summary>Доля высоты кадра (снизу) для якоря игрока — публично для debug-панели.</summary>
         public float AnchorViewportY
@@ -205,7 +211,7 @@ namespace Burmalda.Movement
             // необходимость, а просто следствие того, что вся формула
             // теперь считается заново, не кэшируется.
             //
-            // Issue #153/#155: перенесено ВЫШЕ Tick()/AdvanceContinuousAnchorFollow
+            // Issue #153/#155: перенесено ВЫШЕ AdvanceContinuousAnchorFollow
             // (раньше считалось в конце Update(), после применения позиции) —
             // анкор-производным дистанциям ниже нужен ГОТОВЫЙ vFOV этого
             // кадра ДО того, как позиция камеры пересчитается на этом же кадре.
@@ -228,29 +234,26 @@ namespace Burmalda.Movement
                 var vFov = TunnelCameraFraming.ComputeVerticalFovDegrees(desiredHorizontalFovDeg, aspect);
                 _camera.fieldOfView = vFov;
 
-                if (_useScreenAnchor)
-                {
-                    // issue A.3: дистанция на нижней границе клампа (anchor) —
-                    // цель, к которой стремится непрерывное следование, И
-                    // одновременно нижняя граница самого клампа. Дистанция на
-                    // верхней границе (anchor+tolerance) — только кап клампа.
-                    anchorTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
-                        _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY);
-                    toleranceTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
-                        _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY + _toleranceViewportFraction);
+                // issue A.3: дистанция на нижней границе клампа (anchor) —
+                // цель, к которой стремится непрерывное следование, И
+                // одновременно нижняя граница самого клампа. Дистанция на
+                // верхней границе (anchor+tolerance) — только кап клампа.
+                anchorTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                    _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY);
+                toleranceTrailingDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                    _heightOffset.y, _follow.CurrentPitchDegrees, vFov, _anchorViewportY + _toleranceViewportFraction);
 
-                    // Lerp по IntroTweenProgress01 — ЗАЩИЩАЕТ top-down интро от
-                    // этой правки (реально сломанный сценарий, найден на
-                    // устройстве при съёмке видео для issue #153: без Lerp'а
-                    // анкор-геометрия для устоявшегося Pitch применялась и во
-                    // время интро, на сильно другом Pitch — камеру уводило
-                    // мимо стартовой плиты). Питается в СТАРЫЙ Tick()-путь
-                    // (TrailingDistance) — во время интро камера всё ещё едет
-                    // через AdvanceIntroTween/Tick(), не через новый
-                    // непрерывный метод, см. ветвление ниже.
-                    var fixedTrailingDistance = TunnelCameraFollow.TrailingRowsBehindPlayer * _input.Projection.TileSize;
-                    _follow.TrailingDistance = Mathf.Lerp(fixedTrailingDistance, anchorTrailingDistance, _follow.IntroTweenProgress01);
-                }
+                // Lerp по IntroTweenProgress01 — ЗАЩИЩАЕТ top-down интро от
+                // этой правки (реально сломанный сценарий, найден на
+                // устройстве при съёмке видео для issue #153: без Lerp'а
+                // анкор-геометрия для устоявшегося Pitch применялась и во
+                // время интро, на сильно другом Pitch — камеру уводило мимо
+                // стартовой плиты). Питается TrailingDistance, которая
+                // управляет геометрией во время интро (AdvanceIntroTween
+                // читает её через ComputeTargetPosition) — после интро её
+                // тут же перезаписывает AdvanceContinuousAnchorFollow.
+                var fixedTrailingDistance = TunnelCameraFollow.TrailingRowsBehindPlayer * _input.Projection.TileSize;
+                _follow.TrailingDistance = Mathf.Lerp(fixedTrailingDistance, anchorTrailingDistance, _follow.IntroTweenProgress01);
             }
 
             // Твин интро -> устоявшийся режим (см. doc-комментарий класса) —
@@ -272,19 +275,15 @@ namespace Burmalda.Movement
             // TunnelCameraFollow не удалены — не вызываются отсюда, история/
             // потенциальный будущий возврат, как и SnapToTarget.
 
-            // Issue #153/#155: выключенный тумблер ИЛИ ещё идущее top-down
-            // интро → Tick()/SmoothingFactor как раньше, побайтово (во время
-            // интро AdvanceIntroTween уже хард-синкает CurrentPosition, Tick()
-            // здесь фактический не-op, см. её docstring). Тумблер включён И
-            // интро полностью отыграло → непрерывное следование с
-            // компенсацией скорости + жёсткий кламп (см. doc-комментарий
-            // AdvanceContinuousAnchorFollow) — НИКОГДА не оба сразу на одном
-            // кадре, это два независимых способа продвинуть ОДНО и то же
-            // CurrentPosition.
-            if (_useScreenAnchor && _follow.IntroTweenProgress01 >= 1f)
+            // Пока top-down интро ещё идёт, AdvanceIntroTween выше уже
+            // хард-синкает CurrentPosition=TargetPosition каждый кадр —
+            // ничего больше делать не нужно. Как только твин отыграл целиком,
+            // непрерывное следование с компенсацией скорости + жёсткий/мягкий
+            // кламп (см. doc-комментарий AdvanceContinuousAnchorFollow)
+            // подхватывает CurrentPosition — единственный путь устоявшегося
+            // следования (задача 1, старый альтернативный путь удалён).
+            if (_follow.IntroTweenProgress01 >= 1f)
                 _follow.AdvanceContinuousAnchorFollow(Time.deltaTime, anchorTrailingDistance, toleranceTrailingDistance, _softBoundaryStartFraction);
-            else
-                _follow.Tick();
 
             transform.SetPositionAndRotation(_follow.CurrentPosition, _follow.CurrentRotation);
         }
@@ -297,7 +296,7 @@ namespace Burmalda.Movement
         // каждом новом тапе читался как рывок камеры на несколько клеток —
         // см. doc-комментарии SnapToTarget/ResetManualForwardOffset в
         // TunnelCameraFollow). Обычное продвижение теперь всегда идёт через
-        // плавный Tick()/SmoothingFactor, без исключения на новый тап.
+        // плавный AdvanceContinuousAnchorFollow, без исключения на новый тап.
         private void HandlePressStarted() => _follow?.ResetManualForwardOffset();
 
         // Тап по собственной текущей позиции игрока ("кнопка") — запускает

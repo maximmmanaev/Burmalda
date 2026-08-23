@@ -7,24 +7,25 @@ using UnityEngine.UI;
 namespace Burmalda.DebugVisuals
 {
     /// <summary>
-    /// Issue #155: единственный оставшийся тумблер камеры — непрерывное
-    /// следование с компенсацией скорости + жёсткий кламп
-    /// (<see cref="TunnelCameraController.UseScreenAnchor"/>), плюс три его
-    /// настраиваемых параметра — доля якоря, допуск клампа сверху и (issue
-    /// #158) точка начала нарастания мягкой границы
+    /// Три настраиваемых параметра непрерывного следования камеры с
+    /// компенсацией скорости + жёсткий/мягкий кламп (issue #155/#158) — доля
+    /// якоря, допуск клампа сверху и точка начала нарастания мягкой границы
     /// (<see cref="TunnelCameraController.AnchorViewportY"/>,
     /// <see cref="TunnelCameraController.ToleranceViewportFraction"/>,
     /// <see cref="TunnelCameraController.SoftBoundaryStartFraction"/>).
     ///
-    /// Прямой потомок <c>CameraTuningDebugPanel</c> из #153 (закрытый PR
-    /// #154, тумблеры 1/step-tween и 3/cursor-offset запрещены — см. историю
-    /// issue #155) — тот показывал три независимых тумблера, этот только
-    /// один, оставшийся после ревизии. Тот же принцип: Canvas/Toggle/Slider
-    /// вместо OnGUI, самобутстрапится через
+    /// <b>Задача 1 (владелец продукта принял на записи с устройства):</b>
+    /// само следование теперь ВСЕГДА включено — тумблер вкл/выкл (раньше
+    /// единственный оставшийся после #153, закрытый PR #154, тумблеры
+    /// 1/step-tween и 3/cursor-offset запрещены) убран вместе со старым
+    /// путём, который он выбирал (см. doc-комментарий
+    /// <c>Movement.TunnelCameraFollow</c>). Панель — только три ползунка,
+    /// без чекбокса. Тот же принцип: Canvas/Slider вместо OnGUI,
+    /// самобутстрапится через
     /// <see cref="RuntimeInitializeOnLoadMethodAttribute"/>, ничего не
-    /// трогает в .unity/.prefab (docs/rules/forbidden-actions.md). Нужен
-    /// исключительно для проверки на устройстве (A.5) — без панели тумблер
-    /// нечем включить в билде (по умолчанию OFF, побайтово старое поведение).
+    /// трогает в .unity/.prefab (docs/rules/forbidden-actions.md). Нужна для
+    /// тонкой подстройки на устройстве — дефолты уже дают принятое на записи
+    /// поведение без единого движения по панели.
     ///
     /// Свёрнута по умолчанию (кнопка CAM в углу).
     /// </summary>
@@ -133,30 +134,23 @@ namespace Burmalda.DebugVisuals
 
             BuildRow(_panelRoot.transform, 0,
                 "Anchor (%)", 10f, 60f, 32f,
-                on => { if (_camera != null) _camera.UseScreenAnchor = on; },
                 v => { if (_camera != null) _camera.AnchorViewportY = v / 100f; },
                 v => v.ToString("0") + "%");
 
             BuildRow(_panelRoot.transform, 1,
                 "Tolerance (%)", 0f, 30f, 12f,
-                on => { }, // управляется тем же тумблером, что и Anchor — второй тумблер не нужен
                 v => { if (_camera != null) _camera.ToleranceViewportFraction = v / 100f; },
                 v => v.ToString("0") + "%");
 
-            // Issue #158: точка начала нарастания мягкой границы — доля
-            // полосы [anchor, anchor+tolerance], не своя отдельная величина,
-            // поэтому тоже управляется тем же тумблером Anchor, без третьего
-            // тумблера.
             BuildRow(_panelRoot.transform, 2,
                 "Soft boundary start (%)", 20f, 95f, TunnelCameraSoftBoundary.DefaultStartFraction * 100f,
-                on => { },
                 v => { if (_camera != null) _camera.SoftBoundaryStartFraction = v / 100f; },
                 v => v.ToString("0") + "%");
         }
 
-        /// <summary>Строка "тумблер + подпись + слайдер + текущее значение" — общий layout для всех строк.</summary>
+        /// <summary>Строка "подпись + слайдер + текущее значение" — общий layout для всех строк.</summary>
         private void BuildRow(Transform parent, int rowIndex, string label, float min, float max, float initialValue,
-            System.Action<bool> onToggleChanged, System.Action<float> onValueChanged, System.Func<float, string> format)
+            System.Action<float> onValueChanged, System.Func<float, string> format)
         {
             var rowHost = new GameObject($"Row_{rowIndex}");
             rowHost.transform.SetParent(parent, worldPositionStays: false);
@@ -167,52 +161,11 @@ namespace Burmalda.DebugVisuals
             rowRect.sizeDelta = new Vector2(-Margin * 2f, RowHeight);
             rowRect.anchoredPosition = new Vector2(Margin, -Margin - rowIndex * RowHeight);
 
-            GameObject labelHost;
-            if (rowIndex == 0)
-            {
-                // Только первая строка несёт тумблер (единственный оставшийся
-                // после #155 — Screen anchor). Tolerance управляется тем же
-                // тумблером, у неё только слайдер.
-                var toggleHost = new GameObject("Toggle");
-                toggleHost.transform.SetParent(rowHost.transform, worldPositionStays: false);
-                var toggleRect = toggleHost.AddComponent<RectTransform>();
-                toggleRect.anchorMin = new Vector2(0f, 1f);
-                toggleRect.anchorMax = new Vector2(0f, 1f);
-                toggleRect.pivot = new Vector2(0f, 1f);
-                toggleRect.sizeDelta = new Vector2(36f, 36f);
-                toggleRect.anchoredPosition = new Vector2(0f, 0f);
-
-                var toggleBg = toggleHost.AddComponent<Image>();
-                toggleBg.color = new Color(0.3f, 0.3f, 0.3f, 1f);
-
-                var checkHost = new GameObject("Checkmark");
-                checkHost.transform.SetParent(toggleHost.transform, worldPositionStays: false);
-                var checkImage = checkHost.AddComponent<Image>();
-                checkImage.color = new Color(0.3f, 0.9f, 0.4f, 1f);
-                var checkRect = checkHost.GetComponent<RectTransform>();
-                checkRect.anchorMin = new Vector2(0.15f, 0.15f);
-                checkRect.anchorMax = new Vector2(0.85f, 0.85f);
-                checkRect.offsetMin = Vector2.zero;
-                checkRect.offsetMax = Vector2.zero;
-
-                var toggle = toggleHost.AddComponent<Toggle>();
-                toggle.targetGraphic = toggleBg;
-                toggle.graphic = checkImage;
-                toggle.isOn = false; // выключен по умолчанию — см. doc-комментарий класса
-                toggle.onValueChanged.AddListener(v => onToggleChanged(v));
-
-                labelHost = rowHost;
-            }
-            else
-            {
-                labelHost = rowHost;
-            }
-
-            var labelText = AddLabel(labelHost.transform, label, 20, TextAnchor.UpperLeft);
+            var labelText = AddLabel(rowHost.transform, label, 20, TextAnchor.UpperLeft);
             var labelRect = labelText.GetComponent<RectTransform>();
             labelRect.anchorMin = new Vector2(0f, 0.5f);
             labelRect.anchorMax = new Vector2(0.65f, 1f);
-            labelRect.offsetMin = new Vector2(48f, 0f);
+            labelRect.offsetMin = Vector2.zero; // без тумблера слева — не нужен отступ 48px под него
             labelRect.offsetMax = Vector2.zero;
 
             var valueText = AddLabel(rowHost.transform, format(initialValue), 20, TextAnchor.UpperRight);
