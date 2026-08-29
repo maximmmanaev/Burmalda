@@ -75,7 +75,7 @@ namespace Burmalda.Boss
 
         private bool IsReady() =>
             _input != null && _input.Grid != null && _input.Trail != null &&
-            _currency != null && _currency.RunManaCrystals != null && _currency.RunCoins != null &&
+            _currency != null && _currency.RunManaCrystals != null &&
             _altar != null && _altar.Pool != null &&
             _runController != null;
 
@@ -90,7 +90,7 @@ namespace Burmalda.Boss
             _depthTier.Advanced += _depthRecord.ReportTier;
 
             _bossEncounter = new BossEncounterSystem(
-                _input.Grid, _input.Trail, _currency.RunManaCrystals, _currency.RunCoins,
+                _input.Grid, _input.Trail, _currency.RunManaCrystals,
                 _altar.Pool, _tracker, _depthTier, ReportBossDefeat, RequiredEnergyForTier);
             _bossEncounter.EncounterResolved += OnEncounterResolved;
         }

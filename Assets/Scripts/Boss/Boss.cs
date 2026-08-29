@@ -11,13 +11,19 @@ namespace Burmalda.Boss
     /// готовое число (см. <c>BossEncounterSystem</c>), как и у
     /// <c>Altar.ManaToBossIndicator</c>.
     ///
-    /// <see cref="OverflowToCoinsRate"/>/<see cref="OverflowRelicBonusMultiplier"/>
-    /// (PRD v7 §8.2, issue #82) — черновые значения, предмет баланса
-    /// (Спринт 10).
+    /// <b>Перелив энергии в Монеты удалён</b> (v9, задача по экономике "Мана
+    /// как доход забега"): PRD v8 уже объявляла его отменённым ("Перелив
+    /// энергии в Монеты... отменяются", v8 §1), <c>OverflowToCoinsRate</c> и
+    /// связанное с ним поле <c>CoinsFromOverflow</c> в
+    /// <see cref="BossEncounterOutcome"/> были неудалённым хвостом v7 — эта
+    /// правка закрывает расхождение между кодом и уже принятым дизайном.
+    /// <see cref="OverflowRelicBonusMultiplier"/> (PRD v7 §8.2, issue #82) не
+    /// затронут — повышенный шанс редкого исхода Реликвии не является
+    /// частью отменённого перелива в Монеты, продолжает действовать как
+    /// черновое значение, предмет баланса (Спринт 10).
     /// </summary>
     public sealed class Boss
     {
-        public const double OverflowToCoinsRate = 0.1;
         public const double OverflowRelicBonusMultiplier = 1.5;
 
         public Boss(int requiredEnergy)
@@ -35,10 +41,8 @@ namespace Burmalda.Boss
             if (accumulatedMana < RequiredEnergy)
                 return BossEncounterOutcome.Defeat(accumulatedMana, RequiredEnergy);
 
-            var overflow = accumulatedMana - RequiredEnergy;
-            var coinsFromOverflow = (int)(overflow * OverflowToCoinsRate);
             var hasBoostedRareRelicChance = accumulatedMana >= RequiredEnergy * OverflowRelicBonusMultiplier;
-            return BossEncounterOutcome.Victory(coinsFromOverflow, hasBoostedRareRelicChance, accumulatedMana, RequiredEnergy);
+            return BossEncounterOutcome.Victory(hasBoostedRareRelicChance, accumulatedMana, RequiredEnergy);
         }
     }
 }
