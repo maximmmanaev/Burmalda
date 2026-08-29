@@ -52,7 +52,7 @@ namespace Burmalda.Persistence
         {
             if (!IsReady()) return;
 
-            var data = ProgressSnapshot.Capture(_currency.Coins, _currency.Crystals, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker);
+            var data = ProgressSnapshot.Capture(_currency.Coins, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker);
             try
             {
                 File.WriteAllText(SavePath, JsonUtility.ToJson(data));
@@ -81,11 +81,11 @@ namespace Burmalda.Persistence
                 return; // повреждённый файл сохранения — не роняем игру, прогресс не восстановлен
             }
 
-            ProgressSnapshot.Apply(data, _currency.Coins, _currency.Crystals, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker);
+            ProgressSnapshot.Apply(data, _currency.Coins, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker);
         }
 
         private bool IsReady() =>
-            _currency != null && _currency.Coins != null && _currency.Crystals != null &&
+            _currency != null && _currency.Coins != null &&
             _altar != null && _altar.Collection != null && _altar.Pool != null &&
             _boss != null && _boss.DepthRecord != null && _boss.Tracker != null;
     }

@@ -5,9 +5,13 @@ namespace Burmalda.Persistence
 {
     /// <summary>
     /// Сохраняемый прогресс (PRD "не в разделе" — сквозная инфраструктура,
-    /// issue #107): "Прогресс (Идолы, Тотем, Руны, Монеты, Кристаллы,
-    /// Коллекция, разблокированный пул артефактов, Ярусы Глубины)
-    /// сохраняется локально". <see cref="Serializable"/> для <c>UnityEngine.JsonUtility</c>.
+    /// issue #107): "Прогресс (Идолы, Тотем, Руны, Монеты, Коллекция,
+    /// разблокированный пул артефактов, Ярусы Глубины) сохраняется
+    /// локально". <see cref="Serializable"/> для <c>UnityEngine.JsonUtility</c>.
+    ///
+    /// <b>Кристаллы удалены из игры полностью</b> (PRD v9 раздел 5, задача
+    /// по экономике "Мана как доход забега") — поле <c>crystalsBalance</c>
+    /// убрано без замены.
     ///
     /// <b>Идолы/Тотем/Руны намеренно не сохраняются</b> — в проекте пока
     /// нет каталога конкретных Идолов/Тотемов (только их классы, ни одного
@@ -23,7 +27,6 @@ namespace Burmalda.Persistence
     public sealed class SaveData
     {
         public int coinsBalance;
-        public int crystalsBalance;
         public List<string> collectionRecordedIds = new List<string>();
         public List<string> poolUnlockedIds = new List<string>();
         public int depthRecordBestTier;

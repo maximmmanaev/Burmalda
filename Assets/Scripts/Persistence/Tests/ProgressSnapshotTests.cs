@@ -11,15 +11,14 @@ namespace Burmalda.Persistence.Tests
         private sealed class Fixture
         {
             public PersistentWallet Coins = new PersistentWallet();
-            public PersistentWallet Crystals = new PersistentWallet();
             public ArtifactCollection Collection = new ArtifactCollection();
             public ArtifactPool Pool = new ArtifactPool();
             public DepthRecord DepthRecord = new DepthRecord();
             public FirstBossVictoryTracker Tracker = new FirstBossVictoryTracker();
 
-            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Crystals, Collection, Pool, DepthRecord, Tracker);
+            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Collection, Pool, DepthRecord, Tracker);
 
-            public void Apply(SaveData data) => ProgressSnapshot.Apply(data, Coins, Crystals, Collection, Pool, DepthRecord, Tracker);
+            public void Apply(SaveData data) => ProgressSnapshot.Apply(data, Coins, Collection, Pool, DepthRecord, Tracker);
         }
 
         [Test]
@@ -27,7 +26,6 @@ namespace Burmalda.Persistence.Tests
         {
             var f = new Fixture();
             f.Coins.Deposit(100);
-            f.Crystals.Deposit(50);
             f.Collection.Record("a1");
             f.Pool.Unlock("a1");
             f.DepthRecord.ReportTier(2);
@@ -36,7 +34,6 @@ namespace Burmalda.Persistence.Tests
             var data = f.Capture();
 
             Assert.AreEqual(100, data.coinsBalance);
-            Assert.AreEqual(50, data.crystalsBalance);
             CollectionAssert.Contains(data.collectionRecordedIds, "a1");
             CollectionAssert.Contains(data.poolUnlockedIds, "a1");
             Assert.AreEqual(2, data.depthRecordBestTier);
@@ -44,15 +41,14 @@ namespace Burmalda.Persistence.Tests
         }
 
         [Test]
-        public void Apply_RestoresWalletBalances()
+        public void Apply_RestoresWalletBalance()
         {
             var f = new Fixture();
-            var data = new SaveData { coinsBalance = 70, crystalsBalance = 30 };
+            var data = new SaveData { coinsBalance = 70 };
 
             f.Apply(data);
 
             Assert.AreEqual(70, f.Coins.Balance);
-            Assert.AreEqual(30, f.Crystals.Balance);
         }
 
         [Test]
@@ -108,7 +104,6 @@ namespace Burmalda.Persistence.Tests
         {
             var source = new Fixture();
             source.Coins.Deposit(250);
-            source.Crystals.Deposit(40);
             source.Collection.Record("x1");
             source.Collection.Record("x2");
             source.Pool.Unlock("x1");
@@ -120,7 +115,6 @@ namespace Burmalda.Persistence.Tests
             target.Apply(data);
 
             Assert.AreEqual(250, target.Coins.Balance);
-            Assert.AreEqual(40, target.Crystals.Balance);
             Assert.IsTrue(target.Collection.Contains("x1"));
             Assert.IsTrue(target.Collection.Contains("x2"));
             Assert.IsTrue(target.Pool.IsUnlocked("x1"));
