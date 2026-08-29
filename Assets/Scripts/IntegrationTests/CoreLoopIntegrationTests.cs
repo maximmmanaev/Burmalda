@@ -35,6 +35,15 @@ namespace Burmalda.IntegrationTests
     /// и т.п., черновые/предмет Спринта 10) — тест проверяет ПРОВОДКУ систем
     /// друг к другу, а не баланс, поэтому использует маленькие
     /// детерминированные значения, устойчивые к будущей балансировке.
+    ///
+    /// <b>Переработан задачей по экономике "Мана как доход забега, Монеты
+    /// только в Лагере" (PRD v9)</b>: в забеге больше нет отдельного
+    /// накопителя Монет (обычные плиты тоже начисляют Ману через
+    /// <see cref="TrailManaIncomeSystem"/>) и нет постоянного кошелька
+    /// Кристаллов — точные числа Маны/Ключей ПОСЛЕ обхода ловушки намеренно
+    /// не проверяются равенством (зависят от множителя на каждом шаге,
+    /// который сам по себе не предмет этого теста) — только тем, что они
+    /// выросли.
     /// </summary>
     public class CoreLoopIntegrationTests
     {
@@ -45,7 +54,6 @@ namespace Burmalda.IntegrationTests
         {
             // --- Персистентные объекты (переживают "забег") ---
             var coinsWallet = new PersistentWallet();
-            var crystalsWallet = new PersistentWallet();
             var collection = new ArtifactCollection();
             var pool = new ArtifactPool();
             var depthRecord = new DepthRecord();
@@ -72,21 +80,20 @@ namespace Burmalda.IntegrationTests
             grid.GetOrCreateTile(boss).MarkBoss();
 
             // --- Забеговые системы (порядок конструирования — как в CurrencyController.RebuildRunSystems) ---
-            var runCoins = new RunCurrencyAccumulator();
             var runMana = new RunCurrencyAccumulator();
             var runKeys = new RunCurrencyAccumulator();
             using var multiplier = new TrailMultiplierSystem(trail);
-            using var coinSystem = new TrailCoinSystem(trail, multiplier, runCoins);
+            using var manaIncomeSystem = new TrailManaIncomeSystem(trail, multiplier, runMana); // обычные плиты — база Маны (v9, было Монеты)
             using var manaSystem = new TrailTileCurrencySystem(grid, trail, t => t.IsManaSource, 1, runMana);
             using var keySystem = new TrailTileCurrencySystem(grid, trail, t => t.IsKeySource, 1, runKeys);
             using var decay = new TrailDecaySystem(grid, trail);
             using var altarTrigger = new AltarTriggerSystem(grid, trail, runKeys, pool, () => 0f);
             var depthTier = new RunDepthTier();
             depthTier.Advanced += depthRecord.ReportTier;
-            using var bossEncounter = new BossEncounterSystem(grid, trail, runMana, runCoins, pool, tracker, depthTier,
+            using var bossEncounter = new BossEncounterSystem(grid, trail, runMana, pool, tracker, depthTier,
                 _ => Assert.Fail("Босс не должен был поражать игрока в этом сценарии — недостаточно Маны."), _ => 50);
-            using var cashOut = new CashOutSystem(grid, trail, runCoins, runMana, runKeys);
-            using var journey = new ReturnJourneySystem(trail, runCoins, runMana, runKeys, coinsWallet);
+            using var cashOut = new CashOutSystem(grid, trail, runMana, runKeys);
+            using var journey = new ReturnJourneySystem(trail, runMana, runKeys, coinsWallet);
             var loadout = new RunArtifactLoadout(collection);
 
             Ritual ritualOpened = null;
@@ -120,7 +127,8 @@ namespace Burmalda.IntegrationTests
 
             // === Множитель (PRD 4.3) ===
             Assert.Greater(multiplier.CurrentMultiplier, 0, "Множитель должен расти по мере прохождения уникальных плит.");
-            Assert.AreEqual(1, runMana.Total, "Кристалл Маны должен был собраться с плитки-источника.");
+            // v9: обычные плиты тоже дают Ману (TrailManaIncomeSystem) — точное число зависит от множителя на каждом шаге, не предмет этого теста.
+            Assert.Greater(runMana.Total, 0, "Мана должна была накопиться — и с обычных плит, и с плитки-источника.");
             Assert.AreEqual(1, runKeys.Total, "Ключ должен был собраться с плитки-источника.");
 
             // Топ-ап валют — тест проверяет проводку систем, а не баланс: обеспечиваем гарантированную платёжеспособность на Алтаре/Боссе независимо от черновых чисел Спринта 10.
@@ -137,22 +145,19 @@ namespace Burmalda.IntegrationTests
             Assert.AreEqual(1, loadout.Acquired.Count);
             Assert.IsTrue(collection.Contains(loadout.Acquired[0].Id), "Покупка должна была зафиксировать артефакт в постоянной Коллекции (issue #18).");
 
-            // CashOutSystem фиксирует чекпоинт безусловно при достижении Алтаря (issue #25).
-            var coinsAtCheckpoint = runCoins.Total;
-
             // === Босс ("Зал Реликвии" v4/v5 → Босс v6+, PRD раздел 8) ===
             Assert.IsTrue(trail.TryAdvanceTo(boss));
-            Assert.IsTrue(bossOutcome.IsVictory, "С 1000 Маны и требуемой энергией 50 Босс должен быть побеждён.");
+            Assert.IsTrue(bossOutcome.IsVictory, "С 1000+ Маны и требуемой энергией 50 Босс должен быть побеждён.");
             Assert.AreEqual(1, depthTier.CurrentTier, "Победа над Боссом должна продвинуть Ярус Глубины забега.");
             Assert.AreEqual(1, depthRecord.BestTier, "Постоянный рекорд глубины должен обновиться вслед за Ярусом.");
             Assert.IsTrue(tracker.HasWonBefore);
             Assert.IsTrue(pool.IsUnlocked(ArtifactCatalog.Talismans[0].Id), "Первая победа над Боссом должна разблокировать Талисманы/Амулеты каталога в общем Пуле.");
-            Assert.Greater(runCoins.Total, coinsAtCheckpoint, "Перелив энергии Босса должен был добавить Монеты в накопитель забега.");
+            // v9: Перелив энергии Босса в Монеты удалён — Босс больше не трогает никакую валюту напрямую.
 
             // === Возврат и кэш-аут (PRD раздел 10) ===
             journey.BeginReturn();
-            int? returnedCoins = null;
-            journey.Returned += amount => returnedCoins = amount;
+            ReturnConversionResult? returnResult = null;
+            journey.Returned += r => returnResult = r;
             // Путь назад — тем же безопасным маршрутом, в обход ловушки.
             Assert.IsTrue(trail.TryAdvanceTo(altar));
             Assert.IsTrue(trail.TryAdvanceTo(safeDetour));
@@ -160,9 +165,9 @@ namespace Burmalda.IntegrationTests
             Assert.IsTrue(trail.TryAdvanceTo(manaSource));
             Assert.IsTrue(trail.TryAdvanceTo(start));
 
-            Assert.IsNotNull(returnedCoins, "Достижение стартового ряда во время возврата должно было зафиксировать Монеты.");
-            Assert.AreEqual(returnedCoins.Value, coinsWallet.Balance);
-            Assert.AreEqual(runCoins.Total, coinsWallet.Balance);
+            Assert.IsNotNull(returnResult, "Достижение стартового ряда во время возврата должно было сконвертировать Ману/Ключи в Монеты.");
+            Assert.AreEqual(returnResult.Value.TotalCoins, coinsWallet.Balance);
+            Assert.Greater(coinsWallet.Balance, 0, "Конвертация Маны/Ключей должна была дать хотя бы 1 Монету при таких запасах.");
 
             // === Лагерь (PRD раздел 11) ===
             // Полное имя обязательно: простое "Camp" в этом контексте
@@ -170,7 +175,7 @@ namespace Burmalda.IntegrationTests
             // Burmalda.Camp (сиблинг Burmalda.IntegrationTests под общим
             // Burmalda), а не в импортированный `using Burmalda.Camp;`
             // класс — вылезло только на реальной компиляции (CS0118).
-            var camp = new Burmalda.Camp.Camp(coinsWallet, crystalsWallet, pool);
+            var camp = new Burmalda.Camp.Camp(coinsWallet, pool);
             var totem = new Totem("totem-test", "Тестовый Тотем", TotemAbilityType.Breach);
             var coinsBeforeUpgrade = coinsWallet.Balance;
             var upgraded = camp.TryUpgradeTotem(totem, cost: 1);
@@ -209,13 +214,12 @@ namespace Burmalda.IntegrationTests
             grid.GetOrCreateTile(boss).MarkBoss();
 
             var runMana = new RunCurrencyAccumulator(); // 0 Маны — заведомо недостаточно
-            var runCoins = new RunCurrencyAccumulator();
             var pool = new ArtifactPool();
             var tracker = new FirstBossVictoryTracker();
             var depthTier = new RunDepthTier();
 
             string defeatReason = null;
-            using var bossEncounter = new BossEncounterSystem(grid, trail, runMana, runCoins, pool, tracker, depthTier,
+            using var bossEncounter = new BossEncounterSystem(grid, trail, runMana, pool, tracker, depthTier,
                 reason => defeatReason = reason, _ => 50);
 
             trail.TryAdvanceTo(boss);
