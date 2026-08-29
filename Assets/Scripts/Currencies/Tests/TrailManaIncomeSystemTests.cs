@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace Burmalda.Currencies.Tests
 {
-    public class TrailCoinSystemTests
+    public class TrailManaIncomeSystemTests
     {
         private const int Width = 5;
 
@@ -12,65 +12,66 @@ namespace Burmalda.Currencies.Tests
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
-            var multiplier = new TrailMultiplierSystem(trail); // сконструирован ДО TrailCoinSystem — критично для порядка подписки на Advanced
+            var multiplier = new TrailMultiplierSystem(trail); // сконструирован ДО TrailManaIncomeSystem — критично для порядка подписки на Advanced
             return (grid, trail, multiplier);
         }
 
         [Test]
-        public void Advanced_FirstMove_AddsBaseCoinsTimesMultiplierOne()
+        public void Advanced_FirstMove_AddsBaseManaTimesMultiplierOne()
         {
             var (_, trail, multiplier) = CreateTrail();
-            var runCoins = new RunCurrencyAccumulator();
-            using var coinSystem = new TrailCoinSystem(trail, multiplier, runCoins);
+            var runMana = new RunCurrencyAccumulator();
+            using var manaSystem = new TrailManaIncomeSystem(trail, multiplier, runMana);
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
 
-            Assert.AreEqual(TrailCoinSystem.BaseCoinsPerTile * 1, runCoins.Total);
+            Assert.AreEqual(TrailManaIncomeSystem.BaseManaPerTile * 1, runMana.Total);
         }
 
         [Test]
         public void Advanced_StraightPathAcrossMultiplierBoundary_UsesFreshMultiplierEachMove()
         {
             // Порт формулы из legacy/burmolda_demo.html: multi пересчитывается
-            // ДО начисления runCoins для того же хода — а не с предыдущего.
+            // ДО начисления runMana для того же хода — а не с предыдущего.
             // 9 ходов по прямой: эффективная длина растёт 2..10, curve[2..9]=1,
-            // curve[10]=2 => ходы 1-8 дают 1 монету, ход 9 даёт 2. Итого 10.
+            // curve[10]=2 => ходы 1-8 дают BaseManaPerTile(10), ход 9 даёт 2×10=20.
+            // Итого 8×10 + 20 = 100.
             var (_, trail, multiplier) = CreateTrail();
-            var runCoins = new RunCurrencyAccumulator();
-            using var coinSystem = new TrailCoinSystem(trail, multiplier, runCoins);
+            var runMana = new RunCurrencyAccumulator();
+            using var manaSystem = new TrailManaIncomeSystem(trail, multiplier, runMana);
 
             for (var row = 1; row <= 9; row++)
                 trail.TryAdvanceTo(new GridCoordinate(row, 2));
 
             Assert.AreEqual(2, multiplier.CurrentMultiplier);
-            Assert.AreEqual(10, runCoins.Total);
+            Assert.AreEqual(100, runMana.Total);
         }
 
         [Test]
-        public void Advanced_RevisitingAlreadyVisitedTile_DoesNotAddCoins()
+        public void Advanced_RevisitingAlreadyVisitedTile_DoesNotAddMana()
         {
             var (_, trail, multiplier) = CreateTrail();
-            var runCoins = new RunCurrencyAccumulator();
-            using var coinSystem = new TrailCoinSystem(trail, multiplier, runCoins);
+            var runMana = new RunCurrencyAccumulator();
+            using var manaSystem = new TrailManaIncomeSystem(trail, multiplier, runMana);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            var totalAfterFirstMove = runCoins.Total;
+            var totalAfterFirstMove = runMana.Total;
 
             trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад, уже пройденная целая плита
 
-            Assert.AreEqual(totalAfterFirstMove, runCoins.Total);
+            Assert.AreEqual(totalAfterFirstMove, runMana.Total);
         }
 
         [Test]
         public void Dispose_StopsReactingToFurtherAdvances()
         {
             var (_, trail, multiplier) = CreateTrail();
-            var runCoins = new RunCurrencyAccumulator();
-            var coinSystem = new TrailCoinSystem(trail, multiplier, runCoins);
-            coinSystem.Dispose();
+            var runMana = new RunCurrencyAccumulator();
+            var manaSystem = new TrailManaIncomeSystem(trail, multiplier, runMana);
+            manaSystem.Dispose();
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
 
-            Assert.AreEqual(0, runCoins.Total);
+            Assert.AreEqual(0, runMana.Total);
         }
     }
 }
