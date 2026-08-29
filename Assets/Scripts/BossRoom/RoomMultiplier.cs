@@ -29,7 +29,7 @@ namespace Burmalda.BossRoom
             CurrentMultiplier += RiftResonancePerSecond * deltaSeconds;
         }
 
-        /// <summary>Доход с плиты-Жилы (или тика Разлома подтипа Жила) с текущим множителем, округление вниз — как Boss.OverflowToCoinsRate.</summary>
+        /// <summary>Доход с плиты-Жилы (или тика Разлома подтипа Жила) с текущим множителем, округление вниз (простое приведение к int).</summary>
         public int ApplyToIncome(int baseAmount) => (int)(baseAmount * CurrentMultiplier);
     }
 }

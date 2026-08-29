@@ -4,12 +4,26 @@ using UnityEngine;
 namespace Burmalda.Currencies
 {
     /// <summary>
-    /// Интеграция валют с забегом (PRD раздел 5, issues #12–#14). Временные
-    /// (в забеге) накопители — <see cref="RunCoins"/>, <see cref="RunManaCrystals"/>,
-    /// <see cref="RunKeys"/> — пересобираются на каждый <see cref="GridTraceInputController.RunStarted"/>,
-    /// как и остальные run-системы. Постоянные кошельки — <see cref="Coins"/>,
-    /// <see cref="Crystals"/> — создаются один раз в <see cref="Awake"/> и
-    /// живут, пока жив этот компонент (переживают рестарт забега).
+    /// Интеграция валют с забегом (PRD v9 раздел 5, issues #12–#14, задача
+    /// по экономике "Мана как доход забега, Монеты только в Лагере").
+    /// Временные (в забеге) накопители — <see cref="RunManaCrystals"/>,
+    /// <see cref="RunKeys"/> — пересобираются на каждый
+    /// <see cref="GridTraceInputController.RunStarted"/>, как и остальные
+    /// run-системы. Постоянный кошелёк — <see cref="Coins"/> — создаётся один
+    /// раз в <see cref="Awake"/> и живёт, пока жив этот компонент (переживает
+    /// рестарт забега).
+    ///
+    /// <b>В забеге Монеты больше не копятся и не показываются</b> (v9): в v8
+    /// здесь был отдельный <c>RunCoins</c>-накопитель и <c>TrailCoinSystem</c>
+    /// — оба удалены. Обычная плита теперь начисляет Ману через
+    /// <see cref="TrailManaIncomeSystem"/> (переименованный
+    /// <c>TrailCoinSystem</c>, формула не менялась). Монеты появляются
+    /// только один раз — конвертацией Маны/Ключей при успешном возврате в
+    /// Лагерь (<c>ReturnJourneySystem</c>), в постоянный <see cref="Coins"/>.
+    ///
+    /// <b>Кристаллы (донат-валюта) удалены из игры полностью</b> (v9,
+    /// Блокер 2 задачи по экономике) — постоянного кошелька <c>Crystals</c>
+    /// в этом классе больше нет.
     ///
     /// Строит СОБСТВЕННЫЙ приватный <see cref="TrailMultiplierSystem"/>, а не
     /// использует значение из <see cref="TrailMultiplierController"/> — оба
@@ -21,17 +35,31 @@ namespace Burmalda.Currencies
     /// вычисляют одно и то же от одного и того же трейла — избыточность
     /// дешёвая и безопасная, взамен на надёжность.
     ///
-    /// <b>Нет автоматической фиксации в постоянные кошельки</b>: "возврат в
-    /// лагерь" (Спринт 8, #25/#26) как источник Монет и Реликвия/донат
-    /// (Спринт 7/11) как источник Кристаллов ещё не реализованы — методы
-    /// <see cref="PersistentWallet.Deposit"/> публичны специально, чтобы эти
-    /// будущие спринты могли вызвать их напрямую, без переделки этого класса.
+    /// <b>Нет автоматической фиксации в постоянный кошелёк</b>: "возврат в
+    /// лагерь" (Спринт 8, #25/#26) как источник Монет реализован в
+    /// <c>ReturnJourneySystem</c>, не здесь — метод
+    /// <see cref="PersistentWallet.Deposit"/> публичен специально, чтобы этот
+    /// спринт мог вызвать его напрямую, без переделки этого класса.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class CurrencyController : MonoBehaviour
     {
-        /// <summary>Кристаллов Маны за одну плиту-источник (порт <c>runManaCrystals++</c> из прототипа).</summary>
-        public const int ManaPerSource = 1;
+        /// <summary>
+        /// Кристаллов Маны за одну плиту-источник (порт
+        /// <c>runManaCrystals++</c> из прототипа, значение поднято с 1 до
+        /// 100 задачей по экономике v9 — источник должен быть на порядок
+        /// щедрее обычной плиты (<see cref="TrailManaIncomeSystem.BaseManaPerTile"/> = 10),
+        /// иначе крюк к нему не окупается и маршрутное решение "к источнику
+        /// или напрямик" исчезает — PRD v9 §4/§5).
+        ///
+        /// Стартовое значение, уточняется на плейтесте — намеренно НЕ
+        /// <c>const</c>, а изменяемое статическое поле: живой рычаг для
+        /// debug-панели (<c>DebugVisuals.EconomyDebugPanel</c>). Читается
+        /// заново в <see cref="RebuildRunSystems"/> при каждой пересборке
+        /// (каждый забег) — изменение применяется со следующего забега, не
+        /// внутри уже идущего (тот же грануляр, что у <c>KeysPerSource</c>).
+        /// </summary>
+        public static int ManaPerSource = 100;
 
         /// <summary>Ключей за одну плиту-источник — нет прецедента в прототипе (Ключи введены только в PRD v6), черновое значение. Предмет баланса (Спринт 10, docs/rules/forbidden-actions.md).</summary>
         public const int KeysPerSource = 1;
@@ -39,30 +67,23 @@ namespace Burmalda.Currencies
         [SerializeField] private GridTraceInputController _input;
 
         private TrailMultiplierSystem _multiplier;
-        private TrailCoinSystem _coinSystem;
+        private TrailManaIncomeSystem _manaIncomeSystem;
         private TrailTileCurrencySystem _manaSystem;
         private TrailTileCurrencySystem _keySystem;
 
-        /// <summary>Монеты, собранные за текущий забег — ещё не зафиксированы в <see cref="Coins"/>.</summary>
-        public RunCurrencyAccumulator RunCoins { get; private set; }
-
-        /// <summary>Кристаллы Маны текущего забега (очки рекорда/множителя, будущий урон боссу — PRD раздел 8).</summary>
+        /// <summary>Кристаллы Маны текущего забега — рабочий доход забега (v9): обычные плиты + плиты-источники.</summary>
         public RunCurrencyAccumulator RunManaCrystals { get; private set; }
 
         /// <summary>Ключи текущего забега.</summary>
         public RunCurrencyAccumulator RunKeys { get; private set; }
 
-        /// <summary>Постоянный баланс Монет — переживает рестарт забега.</summary>
+        /// <summary>Постоянный баланс Монет — переживает рестарт забега. Пополняется только конвертацией при возврате в Лагерь (v9).</summary>
         public PersistentWallet Coins { get; private set; }
-
-        /// <summary>Постоянный баланс Кристаллов (донат-валюта) — переживает рестарт забега.</summary>
-        public PersistentWallet Crystals { get; private set; }
 
         private void Awake()
         {
             if (_input == null) _input = GetComponent<GridTraceInputController>();
             Coins = new PersistentWallet();
-            Crystals = new PersistentWallet();
         }
 
         private void OnEnable()
@@ -78,7 +99,7 @@ namespace Burmalda.Currencies
 
         private void Update()
         {
-            if (_coinSystem == null)
+            if (_manaIncomeSystem == null)
             {
                 if (_input == null || _input.Grid == null || _input.Trail == null) return;
                 RebuildRunSystems();
@@ -92,13 +113,12 @@ namespace Burmalda.Currencies
             DisposeRunSystems();
             if (_input == null || _input.Grid == null || _input.Trail == null) return;
 
-            RunCoins = new RunCurrencyAccumulator();
             RunManaCrystals = new RunCurrencyAccumulator();
             RunKeys = new RunCurrencyAccumulator();
 
-            // Порядок конструирования критичен — см. докстроку TrailCoinSystem.
+            // Порядок конструирования критичен — см. докстроку TrailManaIncomeSystem.
             _multiplier = new TrailMultiplierSystem(_input.Trail);
-            _coinSystem = new TrailCoinSystem(_input.Trail, _multiplier, RunCoins);
+            _manaIncomeSystem = new TrailManaIncomeSystem(_input.Trail, _multiplier, RunManaCrystals);
             _manaSystem = new TrailTileCurrencySystem(_input.Grid, _input.Trail, t => t.IsManaSource, ManaPerSource, RunManaCrystals);
             _keySystem = new TrailTileCurrencySystem(_input.Grid, _input.Trail, t => t.IsKeySource, KeysPerSource, RunKeys);
         }
@@ -109,8 +129,8 @@ namespace Burmalda.Currencies
             _keySystem = null;
             _manaSystem?.Dispose();
             _manaSystem = null;
-            _coinSystem?.Dispose();
-            _coinSystem = null;
+            _manaIncomeSystem?.Dispose();
+            _manaIncomeSystem = null;
             _multiplier?.Dispose();
             _multiplier = null;
         }

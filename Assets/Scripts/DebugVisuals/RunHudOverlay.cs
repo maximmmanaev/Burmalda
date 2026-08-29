@@ -75,24 +75,47 @@ namespace Burmalda.DebugVisuals
         {
             if (!RunHudToggles.ShowRunHud) return;
             if (_input == null || _currency == null) return;
-            if (_currency.RunManaCrystals == null || _currency.RunKeys == null || _currency.RunCoins == null) return; // ещё не пересобраны на этот забег
+            if (_currency.RunManaCrystals == null || _currency.RunKeys == null) return; // ещё не пересобраны на этот забег
 
             DrawCurrencyBlock();
+            DrawLastReturnResultBlock();
             DrawArtifactLoadoutBlock();
             DrawBossRoomBlock();
         }
 
         // Верхняя треть экрана слева — числа валют, всегда видны в забеге.
-        // Fallback-текст вместо спрайта (issue допускает, см. doc-комментарий
-        // класса — на этой ветке спрайтов нет вообще).
+        // Только Мана и Ключи (PRD v9 раздел 5, задача по экономике "Мана
+        // как доход забега, Монеты только в Лагере") — Монеты в забеге
+        // больше не начисляются и не показываются вовсе, строка удалена без
+        // замены. Fallback-текст вместо спрайта (issue допускает, см.
+        // doc-комментарий класса — на этой ветке спрайтов нет вообще).
         private void DrawCurrencyBlock()
         {
             var style = new GUIStyle(GUI.skin.box) { fontSize = 30, alignment = TextAnchor.MiddleLeft, wordWrap = false };
             var text =
                 $"Кристаллы Маны: {_currency.RunManaCrystals.Total}\n" +
-                $"Ключи: {_currency.RunKeys.Total}\n" +
-                $"Монеты: {_currency.RunCoins.Total}";
-            GUI.Box(new Rect(20f, 130f, 420f, 150f), text, style);
+                $"Ключи: {_currency.RunKeys.Total}";
+            GUI.Box(new Rect(20f, 130f, 420f, 110f), text, style);
+        }
+
+        // Разбивка конвертации последнего успешного возврата в Лагерь
+        // (PRD v9 раздел 5/10) — "Мана × курс = Монеты" отдельной строкой от
+        // "Ключи × курс = Монеты". Пусто, пока ни одного возврата за сессию
+        // не было (см. RunHudDataSources.LastReturnResult) — не за текущий
+        // забег: значение намеренно переживает рестарт, чтобы результат
+        // последнего похода оставался виден.
+        private void DrawLastReturnResultBlock()
+        {
+            var result = RunHudDataSources.LastReturnResult;
+            if (result == null) return;
+
+            var style = new GUIStyle(GUI.skin.box) { fontSize = 24, alignment = TextAnchor.MiddleLeft, wordWrap = false };
+            var text =
+                $"Возврат в Лагерь:\n" +
+                $"Мана → Монеты: {result.Value.ManaCoins}\n" +
+                $"Ключи → Монеты: {result.Value.KeysCoins}\n" +
+                $"Итого: {result.Value.TotalCoins}";
+            GUI.Box(new Rect(460f, 130f, 340f, 150f), text, style);
         }
 
         // Состав билда — пусто, пока RunHudDataSources.ActiveArtifactLoadout

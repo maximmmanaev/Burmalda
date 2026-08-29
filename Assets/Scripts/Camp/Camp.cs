@@ -5,28 +5,29 @@ using Burmalda.Currencies;
 namespace Burmalda.Camp
 {
     /// <summary>
-    /// Лагерь (PRD раздел 11, issue #27) — перманентный шоп: "Апгрейды
-    /// Идолов и Тотема за монеты (постоянные)", "разлок топовых амулетов/
-    /// талисманов/идолов и лучших тотемов за кристаллы", "расширение
-    /// общего пула артефактов через принесённые реликвии". Не хранит
-    /// собственное состояние — оперирует уже существующими постоянными
-    /// кошельками/пулом (см. <c>Currencies.CurrencyController</c>,
-    /// <c>Altar.AltarController.Pool</c>).
+    /// Лагерь (PRD v9 раздел 11, issue #27) — перманентный шоп: "Апгрейды
+    /// Идолов и Тотема за монеты (постоянные)", "расширение общего пула
+    /// артефактов через принесённые реликвии". Не хранит собственное
+    /// состояние — оперирует уже существующим постоянным кошельком/пулом
+    /// (см. <c>Currencies.CurrencyController</c>, <c>Altar.AltarController.Pool</c>).
     ///
-    /// PRD не называет конкретные "топовые" артефакты — <see cref="TryUnlockArtifact"/>
-    /// принимает Id и цену внешне, механизм общий для любого вида
-    /// артефакта, а не привязан к заранее захардкоженному списку.
+    /// <b>Разлок топовых артефактов больше не покупается ни за какую
+    /// валюту</b> (v9, задача по экономике "Мана как доход забега, Монеты
+    /// только в Лагере", Блокер 1): в v8 здесь был <c>TryUnlockArtifact</c>,
+    /// тративший Кристаллы — вместе с удалением Кристаллов из игры метод
+    /// удалён без замены. Разлок теперь выдаётся исключительно двумя уже
+    /// существующими путями, оба безусловны и не требуют валюты:
+    /// доставкой Реликвии (<see cref="OpenRelic"/>) и выполнением
+    /// Достижения (<c>Achievements.AchievementTracker.Evaluate</c>).
     /// </summary>
     public sealed class Camp
     {
         private readonly PersistentWallet _coins;
-        private readonly PersistentWallet _crystals;
         private readonly ArtifactPool _pool;
 
-        public Camp(PersistentWallet coins, PersistentWallet crystals, ArtifactPool pool)
+        public Camp(PersistentWallet coins, ArtifactPool pool)
         {
             _coins = coins ?? throw new ArgumentNullException(nameof(coins));
-            _crystals = crystals ?? throw new ArgumentNullException(nameof(crystals));
             _pool = pool ?? throw new ArgumentNullException(nameof(pool));
         }
 
@@ -51,16 +52,6 @@ namespace Burmalda.Camp
         {
             if (!_coins.Spend(cost)) return false;
             totem.UpgradeLevel();
-            return true;
-        }
-
-        /// <summary>Разлокирует вид артефакта в общем пуле за Кристаллы. False, если уже разлочен или Кристаллов не хватило.</summary>
-        public bool TryUnlockArtifact(string artifactId, int cost)
-        {
-            if (_pool.IsUnlocked(artifactId)) return false;
-            if (!_crystals.Spend(cost)) return false;
-
-            _pool.Unlock(artifactId);
             return true;
         }
 

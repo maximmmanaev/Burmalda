@@ -18,25 +18,23 @@ namespace Burmalda.Persistence
     /// </summary>
     public static class ProgressSnapshot
     {
-        public static SaveData Capture(PersistentWallet coins, PersistentWallet crystals, ArtifactCollection collection,
+        public static SaveData Capture(PersistentWallet coins, ArtifactCollection collection,
             ArtifactPool pool, DepthRecord depthRecord, FirstBossVictoryTracker tracker) =>
             new SaveData
             {
                 coinsBalance = coins.Balance,
-                crystalsBalance = crystals.Balance,
                 collectionRecordedIds = new List<string>(collection.RecordedIds),
                 poolUnlockedIds = new List<string>(pool.UnlockedIds),
                 depthRecordBestTier = depthRecord.BestTier,
                 hasWonBossBefore = tracker.HasWonBefore
             };
 
-        public static void Apply(SaveData data, PersistentWallet coins, PersistentWallet crystals, ArtifactCollection collection,
+        public static void Apply(SaveData data, PersistentWallet coins, ArtifactCollection collection,
             ArtifactPool pool, DepthRecord depthRecord, FirstBossVictoryTracker tracker)
         {
             if (data == null) return;
 
             coins.Deposit(data.coinsBalance);
-            crystals.Deposit(data.crystalsBalance);
             foreach (var id in data.collectionRecordedIds) collection.Record(id);
             foreach (var id in data.poolUnlockedIds) pool.Unlock(id);
             depthRecord.ReportTier(data.depthRecordBestTier);
