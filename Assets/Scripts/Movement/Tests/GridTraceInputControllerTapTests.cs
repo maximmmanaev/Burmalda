@@ -181,6 +181,123 @@ namespace Burmalda.Movement.Tests
             Assert.AreEqual(target, resolved);
         }
 
+        // Регресс-тест (issue "ввод не реагирует на тап без движения"):
+        // подтверждено логированием на устройстве, что короткий adb-тап и,
+        // судя по всему, часть реальных быстрых тапов на тачскрине без
+        // единого мазка пальцем укладываются в ОДИН кадр обработки Input
+        // System — pointer.press.isPressed на конец кадра остаётся false
+        // всю дорогу, ни разу не был замечен true при наивном опросе раз за
+        // кадр, хотя событие press-then-release реально произошло.
+        // ProcessInputFrame принимает уже прочитанные wasPressedThisFrame/
+        // wasReleasedThisFrame — этот тест ровно тот сценарий: оба true в
+        // одном вызове, pressedNow (итоговое состояние на конец кадра) false.
+        [Test]
+        public void PressAndReleaseInSameFrame_WithoutMovement_AdvancesTrail()
+        {
+            var target = new GridCoordinate(1, Width / 2);
+            SetUpController(out var positionChangedCount);
+            _controller.Grid.GetOrCreateTile(target);
+            _tileObjectA = CreateTileVisual(target);
+
+            InvokeProcessInputFrame(pressedNow: false, pressStartedThisFrame: true, releasedThisFrame: true, ScreenPositionOf(target));
+
+            Assert.AreEqual(target, _controller.Trail.CurrentPosition, "тап без единого кадра удержания (press и release в одном кадре) должен засчитаться шагом");
+            Assert.AreEqual(1, positionChangedCount());
+            Assert.IsTrue(_controller.IsInputLocked, "шаг засчитан — должна включиться обычная блокировка ввода");
+        }
+
+        // Тот же сценарий, но с pressedNow=true на момент опроса (на случай,
+        // если конкретная платформа/устройство донесёт кадр иначе) — оба
+        // варианта итогового pressedNow должны давать одинаковый результат,
+        // раз wasPressedThisFrame/wasReleasedThisFrame оба true.
+        [Test]
+        public void PressAndReleaseInSameFrame_PressedNowStillTrue_AdvancesTrail()
+        {
+            var target = new GridCoordinate(1, Width / 2);
+            SetUpController(out var positionChangedCount);
+            _controller.Grid.GetOrCreateTile(target);
+            _tileObjectA = CreateTileVisual(target);
+
+            InvokeProcessInputFrame(pressedNow: true, pressStartedThisFrame: true, releasedThisFrame: true, ScreenPositionOf(target));
+
+            Assert.AreEqual(target, _controller.Trail.CurrentPosition);
+            Assert.AreEqual(1, positionChangedCount());
+        }
+
+        // Регресс на issue #60 (в НОВОЙ форме — через ProcessInputFrame, а не
+        // старую непрерывную протяжку): удержание без отпускания через много
+        // кадров не должно давать серию шагов — HandlePointerReleased
+        // вызывается ТОЛЬКО когда releasedThisFrame истинно.
+        [Test]
+        public void HeldAcrossManyFrames_WithoutRelease_DoesNotAdvanceRepeatedly()
+        {
+            var target = new GridCoordinate(1, Width / 2);
+            SetUpController(out var positionChangedCount);
+            _controller.Grid.GetOrCreateTile(target);
+            _tileObjectA = CreateTileVisual(target);
+            var screenPosition = ScreenPositionOf(target);
+
+            InvokeProcessInputFrame(pressedNow: true, pressStartedThisFrame: true, releasedThisFrame: false, screenPosition);
+            for (var i = 0; i < 10; i++)
+                InvokeProcessInputFrame(pressedNow: true, pressStartedThisFrame: false, releasedThisFrame: false, screenPosition);
+
+            Assert.AreEqual(StartCoordinate, _controller.Trail.CurrentPosition, "удержание без отпускания не должно двигать трейл ни разу");
+            Assert.AreEqual(0, positionChangedCount());
+
+            InvokeProcessInputFrame(pressedNow: false, pressStartedThisFrame: false, releasedThisFrame: true, screenPosition);
+
+            Assert.AreEqual(target, _controller.Trail.CurrentPosition, "отпускание после удержания должно засчитаться РОВНО одним шагом");
+            Assert.AreEqual(1, positionChangedCount());
+        }
+
+        // Обычный растянутый на несколько кадров жест (нажатие в одном
+        // кадре, отпускание в другом) — через ProcessInputFrame должен вести
+        // себя так же, как раньше через прямые вызовы HandlePointerPressed/
+        // HandlePointerReleased (регрессия на PRD 4.1 п.1-3).
+        [Test]
+        public void PressOneFrame_ReleaseAnotherFrame_AdvancesTrailOnRelease()
+        {
+            var target = new GridCoordinate(1, Width / 2);
+            SetUpController(out var positionChangedCount);
+            _controller.Grid.GetOrCreateTile(target);
+            _tileObjectA = CreateTileVisual(target);
+            var screenPosition = ScreenPositionOf(target);
+
+            InvokeProcessInputFrame(pressedNow: true, pressStartedThisFrame: true, releasedThisFrame: false, screenPosition);
+            Assert.AreEqual(target, _controller.PreviewTarget);
+            Assert.AreEqual(StartCoordinate, _controller.Trail.CurrentPosition);
+
+            InvokeProcessInputFrame(pressedNow: false, pressStartedThisFrame: false, releasedThisFrame: true, screenPosition);
+
+            Assert.AreEqual(target, _controller.Trail.CurrentPosition);
+            Assert.AreEqual(1, positionChangedCount());
+        }
+
+        // Тач, целиком уложившийся в один кадр, ПОКА активна блокировка
+        // ввода после предыдущего шага — должен быть проигнорирован
+        // полностью, как и любой другой тач во время лока (PRD 4.1 п.3).
+        [Test]
+        public void PressAndReleaseInSameFrame_WhileInputLocked_DoesNothing()
+        {
+            var firstTarget = new GridCoordinate(1, Width / 2);
+            var secondTarget = new GridCoordinate(0, Width / 2 + 1);
+            SetUpController(out var positionChangedCount);
+            _controller.Grid.GetOrCreateTile(firstTarget);
+            _tileObjectA = CreateTileVisual(firstTarget);
+            InvokeProcessInputFrame(pressedNow: false, pressStartedThisFrame: true, releasedThisFrame: true, ScreenPositionOf(firstTarget));
+            Assert.IsTrue(_controller.IsInputLocked, "предпосылка теста — только что случился шаг, лок должен быть активен");
+
+            _controller.Grid.GetOrCreateTile(secondTarget);
+            _tileObjectB = CreateTileVisual(secondTarget);
+            InvokeProcessInputFrame(pressedNow: false, pressStartedThisFrame: true, releasedThisFrame: true, ScreenPositionOf(secondTarget));
+
+            Assert.AreEqual(firstTarget, _controller.Trail.CurrentPosition, "тач во время лока не должен был засчитаться");
+            Assert.AreEqual(1, positionChangedCount(), "должен быть учтён только первый (до лока) шаг");
+        }
+
+        private void InvokeProcessInputFrame(bool pressedNow, bool pressStartedThisFrame, bool releasedThisFrame, Vector2 screenPosition) =>
+            InvokePrivate(_controller, "ProcessInputFrame", pressedNow, pressStartedThisFrame, releasedThisFrame, screenPosition);
+
         private void SetUpController(out Func<int> positionChangedCount)
         {
             _cameraObject = new GameObject("TapTest_Camera") { tag = "MainCamera" };
