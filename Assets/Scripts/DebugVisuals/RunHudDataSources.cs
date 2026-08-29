@@ -1,4 +1,5 @@
 using Burmalda.Artifacts;
+using Burmalda.Camp;
 
 namespace Burmalda.DebugVisuals
 {
@@ -41,5 +42,20 @@ namespace Burmalda.DebugVisuals
         public static Burmalda.BossRoom.BossRoom ActiveBossRoom { get; set; }
 
         public static RunArtifactLoadout ActiveArtifactLoadout { get; set; }
+
+        /// <summary>
+        /// Разбивка последней конвертации Маны/Ключей в Монеты при успешном
+        /// возврате в Лагерь (PRD v9 раздел 5/10, задача по экономике "Мана
+        /// как доход забега"). В отличие от <see cref="ActiveBossRoom"/>/
+        /// <see cref="ActiveArtifactLoadout"/> — источник ЖИВОЙ:
+        /// <c>Camp.CampController</c> уже создаёт и владеет
+        /// <c>Camp.ReturnJourneySystem</c> на каждый забег, только само
+        /// событие <c>Returned</c> раньше никто не слушал. Присваивается
+        /// <see cref="ReturnConversionHudBridge"/> при каждом успешном
+        /// возврате; null до первого возврата за сессию (не за забег —
+        /// значение намеренно НЕ сбрасывается на новый забег, чтобы
+        /// результат последнего похода оставался виден на экране Лагеря).
+        /// </summary>
+        public static ReturnConversionResult? LastReturnResult { get; set; }
     }
 }

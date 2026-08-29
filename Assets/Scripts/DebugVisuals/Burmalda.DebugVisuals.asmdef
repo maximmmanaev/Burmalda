@@ -9,6 +9,7 @@
         "Burmalda.BossRoom",
         "Burmalda.Artifacts",
         "Burmalda.Currencies",
+        "Burmalda.Camp",
         "Burmalda.RunModifiers",
         "Burmalda.RunLifecycle",
         "Burmalda.Progression",
