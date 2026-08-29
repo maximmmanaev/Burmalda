@@ -55,7 +55,6 @@ namespace Burmalda.DebugVisuals.HudDesign
         private RectTransform _canvasRect;
         private CanvasGroup _dimGroup;
         private HudCounterAnimator _manaAnimator;
-        private HudCounterAnimator _coinsAnimator;
         private HudCounterAnimator _keysAnimator;
         private Text _tierText;
 
@@ -97,7 +96,6 @@ namespace Burmalda.DebugVisuals.HudDesign
         {
             if (_currency == null) return;
             if (_currency.RunManaCrystals != null) _manaAnimator.SetTarget(_currency.RunManaCrystals.Total);
-            if (_currency.RunCoins != null) _coinsAnimator.SetTarget(_currency.RunCoins.Total);
             if (_currency.RunKeys != null) _keysAnimator.SetTarget(_currency.RunKeys.Total);
 
             // Ярус (design-spec.md: "подключи к RunDepthTier") — RunDepthTier
@@ -182,16 +180,17 @@ namespace Burmalda.DebugVisuals.HudDesign
             dimHost.offsetMax = Vector2.zero;
             _dimGroup = dimHost.gameObject.AddComponent<CanvasGroup>();
 
-            var coinsCounter = HudUiPrimitives.CreateCurrencyCounter(dimHost, "CoinsCounter", BurmaldaHudPalette.GoldAccent, HudUiPrimitives.CurrencyIconShape.Circle);
-            AnchorTopLeft((RectTransform)coinsCounter.ValueText.transform.parent, new Vector2(24f, -TopMargin - 44f), new Vector2(160f, 40f));
-            _coinsAnimator = coinsCounter.ValueText.gameObject.AddComponent<HudCounterAnimator>();
-
+            // Монеты убраны из этого HUD (PRD v9 раздел 5, задача по экономике
+            // "Мана как доход забега, Монеты только в Лагере", issue #180) —
+            // в забеге эта валюта больше не существует вовсе, ни начисления,
+            // ни отображения. Раньше здесь был CoinsCounter, читавший
+            // CurrencyController.RunCoins — само поле удалено этой задачей.
             var keysCounter = HudUiPrimitives.CreateCurrencyCounter(dimHost, "KeysCounter", BurmaldaHudPalette.CopperCoin, HudUiPrimitives.CurrencyIconShape.Circle);
-            AnchorTopLeft((RectTransform)keysCounter.ValueText.transform.parent, new Vector2(24f, -TopMargin - 88f), new Vector2(160f, 40f));
+            AnchorTopLeft((RectTransform)keysCounter.ValueText.transform.parent, new Vector2(24f, -TopMargin - 44f), new Vector2(160f, 40f));
             _keysAnimator = keysCounter.ValueText.gameObject.AddComponent<HudCounterAnimator>();
 
-            BuildLoadoutSlotsRow(dimHost, new Vector2(24f, -TopMargin - 150f));
-            BuildWeightPlaceholder(dimHost, new Vector2(24f, -TopMargin - 226f));
+            BuildLoadoutSlotsRow(dimHost, new Vector2(24f, -TopMargin - 106f));
+            BuildWeightPlaceholder(dimHost, new Vector2(24f, -TopMargin - 182f));
         }
 
         // issue: "здесь стоп — в коде нет понятия «активная сборка на забег», собери визуальный ряд, данные не подставляй".
