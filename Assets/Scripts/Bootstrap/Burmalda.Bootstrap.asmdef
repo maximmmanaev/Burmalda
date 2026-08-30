@@ -1,0 +1,25 @@
+{
+    "name": "Burmalda.Bootstrap",
+    "rootNamespace": "Burmalda.Bootstrap",
+    "references": [
+        "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Currencies",
+        "Burmalda.Altar",
+        "Burmalda.Boss",
+        "Burmalda.Camp",
+        "Burmalda.Generation",
+        "Burmalda.Artifacts",
+        "Burmalda.Progression",
+        "Burmalda.RunLifecycle"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
