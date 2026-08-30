@@ -13,6 +13,7 @@
         "Burmalda.RunModifiers",
         "Burmalda.RunLifecycle",
         "Burmalda.Progression",
+        "Burmalda.Bootstrap",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.RenderPipelines.Core.Runtime",
         "UnityEngine.UI",
