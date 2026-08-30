@@ -174,6 +174,54 @@ namespace Burmalda.Core.Tests
             Assert.IsTrue(tile.IsBlocked);
         }
 
+        // Разграничение по рядам с Generation.SegmentRowProvider (переходное
+        // состояние сосуществования двух генераторов, docs/wiki/roadmap.md) —
+        // проверка по конструкции: даже с бросками, которые ВСЕГДА требуют
+        // "заблокировано", заявленный ряд остаётся нетронутым. Не полагается
+        // на "договорённость" — это прямая проверка условия в OnTileMaterialized.
+        [Test]
+        public void TileMaterialized_RowClaimed_TileStaysUntouchedRegardlessOfRoll()
+        {
+            var grid = new TunnelGrid(5);
+            grid.ClaimRow(1);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(0f, 0f, 0f, 0f, 0f)); // 0f — гарантированно ниже любого порога
+
+            var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+
+            Assert.IsFalse(tile.IsBlocked);
+            Assert.IsFalse(tile.LethalTrap.HasValue);
+            Assert.IsFalse(tile.ExplosiveTrapTarget.HasValue);
+            Assert.IsFalse(tile.TimedTrapTarget.HasValue);
+        }
+
+        [Test]
+        public void TileMaterialized_RowClaimed_DoesNotConsumeRandomRoll()
+        {
+            // Если бы заявленный ряд всё равно бросал кубик, второй Dequeue() на пустой очереди упал бы с исключением.
+            var grid = new TunnelGrid(5);
+            grid.ClaimRow(1);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(0f));
+
+            grid.GetOrCreateTile(new GridCoordinate(1, 0)); // заявленный ряд — не должен тронуть очередь
+            var tile = grid.GetOrCreateTile(new GridCoordinate(2, 0)); // незаявленный — тратит единственное значение очереди
+
+            Assert.IsTrue(tile.IsBlocked);
+        }
+
+        [Test]
+        public void TileMaterialized_OnlySpecificRowClaimed_OtherRowsStillRollNormally()
+        {
+            var grid = new TunnelGrid(5);
+            grid.ClaimRow(1);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(0f)); // только для незаявленного ряда 2
+
+            var claimedTile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+            var normalTile = grid.GetOrCreateTile(new GridCoordinate(2, 0));
+
+            Assert.IsFalse(claimedTile.IsBlocked, "Заявленный ряд не трогается генератором");
+            Assert.IsTrue(normalTile.IsBlocked, "Незаявленный ряд по-прежнему засеивается генератором");
+        }
+
         [Test]
         public void Dispose_StopsReactingToFurtherMaterializedTiles()
         {

@@ -21,6 +21,15 @@ namespace Burmalda.Generation
     /// (<see cref="GridTraceTrail"/> материализует его как обычную плиту) —
     /// первый применённый здесь шаблон всегда начинается со следующего ряда,
     /// см. <see cref="_appliedThroughRow"/>.
+    ///
+    /// <b>Сосуществование с Core.TunnelObstacleGenerator (переходное
+    /// состояние, docs/wiki/roadmap.md)</b>: каждый применённый ряд шаблона
+    /// заявляется через <see cref="TunnelGrid.ClaimRow"/> ДО материализации
+    /// его плит (см. <see cref="ApplyTemplate"/>) — это единственный
+    /// источник claim в проекте, и именно порядок "заявить, потом
+    /// материализовать" делает двойную запись в одну плиту невозможной по
+    /// конструкции, а не по факту, что оба генератора "договорились" не
+    /// мешать друг другу.
     /// </summary>
     public sealed class SegmentRowProvider : IDisposable
     {
@@ -86,6 +95,17 @@ namespace Burmalda.Generation
 
         private void ApplyTemplate(SegmentTemplate template, int baseRow)
         {
+            // Заявляем ВСЕ ряды шаблона ДО первого GetOrCreateTile ниже —
+            // TunnelGrid.TileMaterialized стреляет синхронно внутри
+            // GetOrCreateTile, и если Core.TunnelObstacleGenerator тоже
+            // подписан (переходное состояние сосуществования двух
+            // генераторов, docs/wiki/roadmap.md), он должен УЖЕ увидеть ряд
+            // заявленным в момент своего обработчика — иначе успел бы
+            // откликнуться первым и записать в плиту случайный тип раньше,
+            // чем этот метод применит настоящий тип шаблона.
+            for (var localRow = 0; localRow < template.RowCount; localRow++)
+                _grid.ClaimRow(baseRow + localRow);
+
             // Первый проход — собрать координату рычага и все координаты его
             // ворот (в абсолютных координатах сетки): Tile.MarkLever нужен
             // весь список целей сразу, а расположение Lever/LeverGate в

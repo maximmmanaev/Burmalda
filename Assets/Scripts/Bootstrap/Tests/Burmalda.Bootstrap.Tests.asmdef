@@ -1,19 +1,19 @@
 {
-    "name": "Burmalda.IntegrationTests",
-    "rootNamespace": "Burmalda.IntegrationTests",
+    "name": "Burmalda.Bootstrap.Tests",
+    "rootNamespace": "Burmalda.Bootstrap.Tests",
     "references": [
         "Burmalda.Core",
         "Burmalda.Movement",
         "Burmalda.Decay",
         "Burmalda.Currencies",
-        "Burmalda.Artifacts",
         "Burmalda.Altar",
         "Burmalda.Boss",
         "Burmalda.Camp",
+        "Burmalda.Generation",
+        "Burmalda.Artifacts",
         "Burmalda.Progression",
         "Burmalda.RunLifecycle",
         "Burmalda.Bootstrap",
-        "Burmalda.Generation",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

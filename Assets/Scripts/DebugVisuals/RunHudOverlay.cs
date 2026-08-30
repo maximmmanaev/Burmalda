@@ -1,4 +1,5 @@
 using Burmalda.Artifacts;
+using Burmalda.Bootstrap;
 using Burmalda.Currencies;
 using Burmalda.Movement;
 using UnityEngine;
@@ -26,17 +27,16 @@ namespace Burmalda.DebugVisuals
     /// <b>Не занимает нижнюю треть экрана</b> (там палец игрока) — все Rect
     /// ниже лежат в верхних 2/3 (Screen.height*2/3).
     ///
-    /// <b>Три из шести запрошенных задачей элементов сейчас не имеют живого
+    /// <b>Два из шести запрошенных задачей элементов сейчас не имеют живого
     /// источника данных</b> (расхождение с предпосылкой задачи, установлено
-    /// на этой ветке, а не только для явно оговорённой Комнаты Босса):
+    /// на этой ветке, а не только для явно оговорённой Комнаты Босса).
+    /// Состав билда (Амулеты/Талисманы) больше НЕ в этом списке — задача
+    /// "композиционный корень RunBootstrap" завела реальный живой
+    /// <c>RunArtifactLoadout</c> (см. <see cref="RunBootstrap.Loadout"/>),
+    /// строка ниже читает его напрямую.
     /// - Множитель Комнаты / дистанция до волны — см. <see cref="RunHudDataSources.ActiveBossRoom"/>,
     ///   задача сама предупреждает про это ("элементов Комнаты Босса в коде
     ///   ещё нет").
-    /// - Состав билда (Амулеты/Талисманы) — <c>RunArtifactLoadout</c>
-    ///   существует и полностью рабочий, но НИ ОДИН Controller в проекте не
-    ///   создаёт его экземпляр на забег (см. doc-комментарий
-    ///   <see cref="RunHudDataSources"/>) — задача не предупреждала про этот
-    ///   конкретный пробел, но тот же принцип применён: пусто, без заглушки.
     /// - <b>Несомые Реликвии и суммарный Вес НЕ реализованы вообще</b> — в
     ///   коде нет ни одного поля/класса под "Вес" (PRD v8 §6.3 описывает
     ///   механику, ничего из неё не построено, даже Relic.cs без Weight).
@@ -65,10 +65,13 @@ namespace Burmalda.DebugVisuals
 
         private void Update()
         {
-            // Ленивый поиск — тот же паттерн, что у остальных debug-driver'ов
-            // проекта (порядок Awake между объектами сцены не гарантирован).
-            if (_input == null) _input = FindFirstObjectByType<GridTraceInputController>();
-            if (_currency == null) _currency = FindFirstObjectByType<CurrencyController>();
+            // Читаем из RunBootstrap (задача "композиционный корень
+            // RunBootstrap") — единственный источник живых игровых систем,
+            // не создаём и не ищем собственные экземпляры. Null, пока
+            // RunBootstrap ещё не нашёл сцену/не пересобрал системы —
+            // OnGUI ниже уже гейтит именно на этот случай.
+            _input = RunBootstrap.Instance?.Input;
+            _currency = RunBootstrap.Instance?.Currency;
         }
 
         private void OnGUI()
@@ -118,11 +121,12 @@ namespace Burmalda.DebugVisuals
             GUI.Box(new Rect(460f, 130f, 340f, 150f), text, style);
         }
 
-        // Состав билда — пусто, пока RunHudDataSources.ActiveArtifactLoadout
-        // не присвоен (сейчас никогда, см. doc-комментарий класса).
+        // Состав билда — читаем RunBootstrap.Loadout (задача "композиционный
+        // корень RunBootstrap"), пусто, пока он ещё не создан (лоадаут
+        // появляется только после того, как RunBootstrap пересобрал Алтарь).
         private void DrawArtifactLoadoutBlock()
         {
-            var loadout = RunHudDataSources.ActiveArtifactLoadout;
+            var loadout = RunBootstrap.Instance?.Loadout;
             if (loadout == null) return;
 
             var amulets = RunHudFormatting.FormatArtifactIds(loadout.Acquired, ArtifactCategory.Amulet);

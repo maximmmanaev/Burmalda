@@ -1,7 +1,7 @@
+using Burmalda.Bootstrap;
 using Burmalda.Core;
 using Burmalda.Currencies;
 using Burmalda.Movement;
-using Burmalda.Progression;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -50,8 +50,6 @@ namespace Burmalda.DebugVisuals.HudDesign
         private CurrencyController _currency;
         private Camera _mainCamera;
 
-        private RunDepthTier _depthTier; // задача просит подключить к RunDepthTier — сам класс ни к чему больше не привязан, см. doc-комментарий BuildTierLabel
-
         private RectTransform _canvasRect;
         private CanvasGroup _dimGroup;
         private HudCounterAnimator _manaAnimator;
@@ -70,7 +68,6 @@ namespace Burmalda.DebugVisuals.HudDesign
         {
             EnsureEventSystemExists();
             BuildUi();
-            _depthTier = new RunDepthTier();
         }
 
         private static void EnsureEventSystemExists()
@@ -84,8 +81,10 @@ namespace Burmalda.DebugVisuals.HudDesign
 
         private void Update()
         {
-            if (_input == null) _input = FindFirstObjectByType<GridTraceInputController>();
-            if (_currency == null) _currency = FindFirstObjectByType<CurrencyController>();
+            // Читаем из RunBootstrap (задача "композиционный корень
+            // RunBootstrap") — единственный источник живых игровых систем.
+            _input = RunBootstrap.Instance?.Input;
+            _currency = RunBootstrap.Instance?.Currency;
             if (_mainCamera == null) _mainCamera = Camera.main;
 
             UpdateCurrencyCounters();
@@ -98,16 +97,18 @@ namespace Burmalda.DebugVisuals.HudDesign
             if (_currency.RunManaCrystals != null) _manaAnimator.SetTarget(_currency.RunManaCrystals.Total);
             if (_currency.RunKeys != null) _keysAnimator.SetTarget(_currency.RunKeys.Total);
 
-            // Ярус (design-spec.md: "подключи к RunDepthTier") — RunDepthTier
-            // существует, но ни один Controller в проекте не создаёт и не
-            // продвигает его экземпляр на живой забег (BossController,
-            // единственное место, где он раньше создавался, не размещён на
-            // сцене — тот же класс пробела, что был у CurrencyController до
-            // задачи 2). Здесь держим СОБСТВЕННЫЙ пустой экземпляр — честно
-            // показывает 0, а не выдуманное число, и не трогает
-            // BossController/Boss-модуль, которые сейчас обсуждаются отдельно
-            // (задача про переработку валют).
-            if (_tierText != null) _tierText.text = $"ЯРУС {_depthTier.CurrentTier}";
+            // Ярус (design-spec.md: "подключи к RunDepthTier") — читаем ЖИВОЙ
+            // экземпляр через RunBootstrap (задача "композиционный корень
+            // RunBootstrap"), тот же, что реально продвигается победой над
+            // Боссом (BossController.DepthTier) — раньше здесь держался
+            // собственный пустой RunDepthTier, никогда не продвигавшийся
+            // (честно показывал 0, но не тот 0, что в игре). Нет живого
+            // источника — прочерк, не ноль (см. doc-комментарий задачи).
+            if (_tierText != null)
+            {
+                var depthTier = RunBootstrap.Instance?.DepthTier;
+                _tierText.text = depthTier != null ? $"ЯРУС {depthTier.CurrentTier}" : "ЯРУС —";
+            }
         }
 
         private void UpdateAimState()

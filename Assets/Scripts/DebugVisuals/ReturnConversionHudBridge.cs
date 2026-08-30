@@ -11,10 +11,13 @@ namespace Burmalda.DebugVisuals
     /// раздел 5/10) требует показать разбивку конвертации на результатах
     /// забега, а событие раньше никто не слушал.
     ///
-    /// Тот же принцип, что <see cref="CurrencyControllerBootstrap"/>:
-    /// ленивый поиск в <see cref="Update"/>, DebugVisuals читает Camp, а не
+    /// Ленивый поиск в <see cref="Update"/> — DebugVisuals читает Camp, а не
     /// наоборот (см. <c>Burmalda.DebugVisuals.asmdef</c> — ссылка на
-    /// <c>Burmalda.Camp</c> добавлена для этого моста).
+    /// <c>Burmalda.Camp</c> добавлена для этого моста). До задачи
+    /// "композиционный корень RunBootstrap" тем же принципом (ленивый поиск
+    /// + самобутстрап) закрывали и обычные игровые системы (см. удалённый
+    /// <c>CurrencyControllerBootstrap</c>) — теперь так остаётся только у
+    /// debug-мостов вроде этого, сами системы собирает RunBootstrap.
     ///
     /// <b>Отдельно от <see cref="CampController"/>, а не подписка внутри
     /// него</b>: <see cref="CampController"/> — не-Debug класс, не должен
