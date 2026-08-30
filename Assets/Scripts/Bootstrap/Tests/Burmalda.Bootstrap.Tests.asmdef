@@ -1,0 +1,35 @@
+{
+    "name": "Burmalda.Bootstrap.Tests",
+    "rootNamespace": "Burmalda.Bootstrap.Tests",
+    "references": [
+        "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Decay",
+        "Burmalda.Currencies",
+        "Burmalda.Altar",
+        "Burmalda.Boss",
+        "Burmalda.Camp",
+        "Burmalda.Generation",
+        "Burmalda.Artifacts",
+        "Burmalda.Progression",
+        "Burmalda.RunLifecycle",
+        "Burmalda.Bootstrap",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
