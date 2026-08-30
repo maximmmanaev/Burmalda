@@ -105,6 +105,7 @@ namespace Burmalda.IntegrationTests
             // класса), затем ещё раз Update() бутстрапа, чтобы лоадаут
             // (EnsureLoadoutReady) увидел уже готовую Altar.Collection.
             InvokePrivate(_bootstrap, "Update");
+            InvokePrivate(_bootstrap.Segments, "Awake");
             InvokePrivate(_bootstrap.Currency, "Awake");
             InvokePrivate(_bootstrap.Altar, "Awake");
             InvokePrivate(_bootstrap.Boss, "Awake");

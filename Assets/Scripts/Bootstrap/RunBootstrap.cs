@@ -41,7 +41,9 @@ namespace Burmalda.Bootstrap
     /// её приватное поле `_currency` останется null навсегда — не разово,
     /// не до следующего кадра. Порядок здесь ровно тот, что уже
     /// зарекомендовал себя в <c>IntegrationTests.CoreLoopIntegrationTests</c>
-    /// (эталон конструирования, см. задачу): валюты → Алтарь (пул/коллекция
+    /// (эталон конструирования, см. задачу): генерация сегментов (ни от кого
+    /// из перечисленных не зависит, только от уже существующего
+    /// <see cref="GridTraceInputController"/>) → валюты → Алтарь (пул/коллекция
     /// нужны и лоадауту, и Боссу) → Босс (Ярус Глубины) → Лагерь → рычаги.
     ///
     /// <b>Что уже было на сцене и не требует вмешательства</b> (проверено по
@@ -52,19 +54,20 @@ namespace Burmalda.Bootstrap
     /// <c>Movement.TimedTrapController</c>, <c>Movement.TunnelObstacleController</c> —
     /// все уже реально размещены и работают, RunBootstrap их не трогает.
     ///
-    /// <b>Блокер — генерация сегментов сознательно НЕ включена.</b>
-    /// <c>Generation.SegmentGenerationController</c> — тоже система из списка
-    /// задачи, но её собственный doc-комментарий прямо предупреждает:
-    /// заменяет <c>Movement.TunnelObstacleController</c> и "использовать оба
-    /// одновременно на одном забеге не нужно — они конкурируют за одни и те
-    /// же плиты". <c>TunnelObstacleController</c> уже реально размещён на
-    /// сцене (см. выше) — добавление <c>SegmentGenerationController</c> через
-    /// этот композиционный корень создало бы РЕАЛЬНЫЙ баг задваивания
-    /// расстановки препятствий/ловушек, не просто пропуск. Замена одного
-    /// компонента на другой в сцене требует правки .unity вручную владельцем
-    /// продукта (docs/rules/forbidden-actions.md) — здесь останавливаюсь и
-    /// не включаю ни один из двух, чтобы не трогать то, что уже работает.
-    /// См. отчёт по задаче.
+    /// <b>Генерация сегментов подключена наряду с уже размещённым на сцене
+    /// TunnelObstacleController (переходное состояние, docs/wiki/roadmap.md).</b>
+    /// Раньше здесь была задокументирована сознательная блокировка: собственный
+    /// doc-комментарий <see cref="Generation.SegmentGenerationController"/>
+    /// предупреждал, что он "конкурирует за одни и те же плиты" с уже
+    /// размещённым на сцене <c>Movement.TunnelObstacleController</c>. Это
+    /// разграничено по рядам по конструкции — <c>Generation.SegmentRowProvider</c>
+    /// заявляет ряды применяемого шаблона (<c>Core.TunnelGrid.ClaimRow</c>)
+    /// раньше, чем <c>Core.TunnelObstacleGenerator</c> успевает откликнуться
+    /// на материализацию их плит, поэтому оба контроллера теперь безопасно
+    /// сосуществуют на одном GameObject. <c>TunnelObstacleController</c>
+    /// остаётся на сцене и продолжает засеивать ряды, до которых сегменты ещё
+    /// не дошли — уберёт его владелец продукта вручную (.unity не трогаем),
+    /// когда каталог шаблонов покроет тоннель целиком (см. docs/wiki/roadmap.md).
     ///
     /// <b>Артефактный лоадаут забега</b> (<see cref="Loadout"/>) — по своей же
     /// доккомментарии <see cref="RunArtifactLoadout"/>, "новый экземпляр
@@ -87,7 +90,16 @@ namespace Burmalda.Bootstrap
         /// <summary>Контроллер ввода/трейла текущего забега — тот же, что уже был на сцене.</summary>
         public GridTraceInputController Input => _input;
 
-        /// <summary>Интеграция валют — создаётся первой, от неё зависят Алтарь/Босс/Лагерь.</summary>
+        /// <summary>
+        /// Целевая генерация содержимого тоннеля целыми сегментами (PRD v7
+        /// §21) — сосуществует с уже размещённым на сцене
+        /// <c>Movement.TunnelObstacleController</c> по разграничению рядов
+        /// (переходное состояние, docs/wiki/roadmap.md), ни от кого из
+        /// остальных контроллеров этого класса не зависит.
+        /// </summary>
+        public SegmentGenerationController Segments { get; private set; }
+
+        /// <summary>Интеграция валют — от неё зависят Алтарь/Босс/Лагерь.</summary>
         public CurrencyController Currency { get; private set; }
 
         /// <summary>Интеграция Алтаря/Ритуала — постоянные Пул/Коллекция нужны и лоадауту, и первой победе над Боссом.</summary>
@@ -152,8 +164,9 @@ namespace Burmalda.Bootstrap
             EnsureLoadoutReady(); // тот же паттерн, что у Decay/Altar/Boss: ловим самый первый RunStarted, поднятый GridTraceInputController.Awake() ДО того, как этот компонент вообще появился
         }
 
-        // Явный порядок (см. doc-комментарий класса) — валюты первыми (ни от
-        // кого не зависят, кроме уже существующего GridTraceInputController),
+        // Явный порядок (см. doc-комментарий класса) — генерация сегментов
+        // первой (ни от кого из перечисленных не зависит), затем валюты (ни
+        // от кого не зависят, кроме уже существующего GridTraceInputController),
         // затем Алтарь (нужен Currency), затем Босс и Лагерь (нужны и
         // Currency, и Altar, и уже существующий на сцене RunController),
         // рычаги — независимы, могут быть где угодно, оставлены последними
@@ -163,6 +176,7 @@ namespace Burmalda.Bootstrap
             if (_controllersWired) return;
 
             var host = _input.gameObject;
+            if (Segments == null) Segments = GetOrAddComponent<SegmentGenerationController>(host);
             if (Currency == null) Currency = GetOrAddComponent<CurrencyController>(host);
             if (Altar == null) Altar = GetOrAddComponent<AltarController>(host);
             if (Boss == null) Boss = GetOrAddComponent<BossController>(host);

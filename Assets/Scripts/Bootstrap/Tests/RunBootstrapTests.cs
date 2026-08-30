@@ -90,6 +90,7 @@ namespace Burmalda.Bootstrap.Tests
         private void WireAndAwakeControllers()
         {
             InvokePrivate(_bootstrap, "Update");
+            InvokePrivate(_bootstrap.Segments, "Awake");
             InvokePrivate(_bootstrap.Currency, "Awake");
             InvokePrivate(_bootstrap.Altar, "Awake");
             InvokePrivate(_bootstrap.Boss, "Awake");
@@ -105,6 +106,7 @@ namespace Burmalda.Bootstrap.Tests
 
             WireAndAwakeControllers();
 
+            Assert.IsNotNull(_inputObject.GetComponent<SegmentGenerationController>());
             Assert.IsNotNull(_inputObject.GetComponent<CurrencyController>());
             Assert.IsNotNull(_inputObject.GetComponent<AltarController>());
             Assert.IsNotNull(_inputObject.GetComponent<BossController>());
@@ -119,11 +121,22 @@ namespace Burmalda.Bootstrap.Tests
 
             WireAndAwakeControllers();
 
+            Assert.AreSame(_inputObject.GetComponent<SegmentGenerationController>(), _bootstrap.Segments);
             Assert.AreSame(_inputObject.GetComponent<CurrencyController>(), _bootstrap.Currency);
             Assert.AreSame(_inputObject.GetComponent<AltarController>(), _bootstrap.Altar);
             Assert.AreSame(_inputObject.GetComponent<BossController>(), _bootstrap.Boss);
             Assert.AreSame(_inputObject.GetComponent<CampController>(), _bootstrap.Camp);
             Assert.AreSame(_inputObject.GetComponent<LeverActivationController>(), _bootstrap.Lever);
+        }
+
+        [Test]
+        public void Update_SegmentGenerationController_SeesInputAlreadyWired()
+        {
+            SetUpMinimal();
+
+            WireAndAwakeControllers();
+
+            Assert.AreSame(_input, GetPrivateField(_bootstrap.Segments, "_input"));
         }
 
         // Порядок AddComponent — не косметика (см. doc-комментарий класса):
@@ -176,6 +189,7 @@ namespace Burmalda.Bootstrap.Tests
                 for (var i = 0; i < 5; i++) InvokePrivate(_bootstrap, "Update");
             });
 
+            Assert.AreEqual(1, _inputObject.GetComponents<SegmentGenerationController>().Length);
             Assert.AreEqual(1, _inputObject.GetComponents<CurrencyController>().Length);
             Assert.AreEqual(1, _inputObject.GetComponents<AltarController>().Length);
             Assert.AreEqual(1, _inputObject.GetComponents<BossController>().Length);
