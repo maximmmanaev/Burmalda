@@ -126,5 +126,42 @@ namespace Burmalda.Core.Tests
 
             Assert.AreEqual(1, firedCount);
         }
+
+        // Разграничение по рядам между Core.TunnelObstacleGenerator и
+        // Generation.SegmentRowProvider (переходное состояние сосуществования
+        // двух генераторов, docs/wiki/roadmap.md) — сам механизм claim, без
+        // привязки к конкретным генераторам (TunnelGrid о них не знает).
+        [Test]
+        public void IsRowClaimed_RowNeverClaimed_ReturnsFalse()
+        {
+            var grid = new TunnelGrid(5);
+
+            Assert.IsFalse(grid.IsRowClaimed(3));
+        }
+
+        [Test]
+        public void ClaimRow_ThenIsRowClaimed_ReturnsTrueForThatRowOnly()
+        {
+            var grid = new TunnelGrid(5);
+
+            grid.ClaimRow(3);
+
+            Assert.IsTrue(grid.IsRowClaimed(3));
+            Assert.IsFalse(grid.IsRowClaimed(2), "Claim не должен затрагивать соседние ряды");
+            Assert.IsFalse(grid.IsRowClaimed(4), "Claim не должен затрагивать соседние ряды");
+        }
+
+        [Test]
+        public void ClaimRow_CalledTwiceForSameRow_IsIdempotent()
+        {
+            var grid = new TunnelGrid(5);
+
+            Assert.DoesNotThrow(() =>
+            {
+                grid.ClaimRow(3);
+                grid.ClaimRow(3);
+            });
+            Assert.IsTrue(grid.IsRowClaimed(3));
+        }
     }
 }
