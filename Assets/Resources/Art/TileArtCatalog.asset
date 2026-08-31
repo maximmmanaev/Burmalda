@@ -21,5 +21,4 @@ MonoBehaviour:
   _lava: {fileID: 2800000, guid: 494b5c80825924fc4bf4d84946a31eb3, type: 3}
   _hiddenTrapSignature: {fileID: 2800000, guid: 2d601df6480c44accb5b6f2ff2a028b7, type: 3}
   _timedTrapActive: {fileID: 2800000, guid: d82a68028efc24e74983c0d735a35f86, type: 3}
-  _explosiveTrigger: {fileID: 2800000, guid: 986909852365f4139a5099082a0ceb74, type: 3}
-  _timedTrapTrigger: {fileID: 2800000, guid: 43d2ca920a1cd4b91a450f9aa4925321, type: 3}
+  _triggerSignature: {fileID: 2800000, guid: 986909852365f4139a5099082a0ceb74, type: 3}

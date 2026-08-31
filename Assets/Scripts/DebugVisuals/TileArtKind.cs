@@ -37,7 +37,15 @@ namespace Burmalda.DebugVisuals
 
         /// <summary>Общая текстура для обеих разновидностей (стрела/лезвие) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.</summary>
         TimedTrapActive,
-        ExplosiveTrigger,
-        TimedTrapTrigger
+
+        /// <summary>
+        /// Задача «сделать тоннель играбельным», часть 3: единая сигнатура
+        /// для ОБОИХ видов триггера (взрывной и с таймингом) — тот же
+        /// принцип, что <see cref="HiddenTrapSignature"/>: факт "здесь
+        /// механизм" виден всегда, тип — нет (см.
+        /// <see cref="TileArtKindResolver"/>/<see cref="TileDebugColor.TriggerSignatureColor"/>).
+        /// Заменяет прежние раздельные ExplosiveTrigger/TimedTrapTrigger.
+        /// </summary>
+        TriggerSignature
     }
 }

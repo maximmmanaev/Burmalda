@@ -99,11 +99,22 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
-        public void Resolve_ExplosiveTrapTrigger_NotArmedYet_ReturnsExplosiveTrigger()
+        public void Resolve_ExplosiveTrapTrigger_NotArmedYet_ReturnsTriggerSignature()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: true, isTimedTrapTrigger: false, activeTimedTrap: null);
 
-            Assert.AreEqual(TileArtKind.ExplosiveTrigger, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.TriggerSignature, TileArtKindResolver.Resolve(state));
+        }
+
+        // Задача «сделать тоннель играбельным», часть 3: единая сигнатура —
+        // тот же принцип, что уже есть для Pit/Explosion (issue #163).
+        [Test]
+        public void Resolve_ExplosiveTrigger_AndTimedTrapTrigger_ProduceIdenticalKind()
+        {
+            var explosiveState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: true, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var timedState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: true, activeTimedTrap: null);
+
+            Assert.AreEqual(TileArtKindResolver.Resolve(explosiveState), TileArtKindResolver.Resolve(timedState));
         }
 
         [Test]
@@ -123,11 +134,11 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
-        public void Resolve_TimedTrapTrigger_NotActiveYet_ReturnsTimedTrapTrigger()
+        public void Resolve_TimedTrapTrigger_NotActiveYet_ReturnsTriggerSignature()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: true, activeTimedTrap: null);
 
-            Assert.AreEqual(TileArtKind.TimedTrapTrigger, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.TriggerSignature, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
@@ -176,6 +187,26 @@ namespace Burmalda.DebugVisuals.Tests
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: -1f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
 
             Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
+        }
+
+        // Задача «сделать тоннель играбельным», часть 1: нет тайл-текстур под
+        // источники валюты в текущем пакете — None, TunnelDebugVisual падает
+        // на цветной фолбэк (TileDebugColor.ManaSourceColor/KeySourceColor),
+        // не на градиент распада.
+        [Test]
+        public void Resolve_ManaSource_ReturnsNone_NotDecayGradient()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isManaSource: true);
+
+            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_KeySource_ReturnsNone_NotDecayGradient()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isKeySource: true);
+
+            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
         }
     }
 }

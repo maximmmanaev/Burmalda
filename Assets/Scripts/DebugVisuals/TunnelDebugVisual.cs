@@ -114,7 +114,9 @@ namespace Burmalda.DebugVisuals
                     isExplosiveTrapTrigger: tile.ExplosiveTrapTarget.HasValue,
                     isTimedTrapTrigger: tile.TimedTrapTarget.HasValue,
                     activeTimedTrap: tile.IsTimedTrapActive ? tile.TimedTrapKind : null,
-                    isBoss: tile.IsBoss);
+                    isBoss: tile.IsBoss,
+                    isManaSource: tile.IsManaSource,
+                    isKeySource: tile.IsKeySource);
 
                 ApplyVisual(pair.Value, state);
             }
@@ -192,7 +194,14 @@ namespace Burmalda.DebugVisuals
             if (texture != null)
             {
                 material.mainTexture = texture;
-                material.color = Color.white;
+                // Задача «сделать тоннель играбельным», часть 3: tile-pit.png
+                // (кислотно-зелёная мозаика с чёрной дырой) читается как
+                // однозначная ловушка, не как "с плитой что-то не так" — см.
+                // TileDebugColor.HiddenTrapSignatureTextureTint. Единственное
+                // состояние, где текстура не показывается как есть.
+                material.color = kind == TileArtKind.HiddenTrapSignature
+                    ? TileDebugColor.HiddenTrapSignatureTextureTint
+                    : Color.white;
                 if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.35f);
                 if (material.HasProperty("_EmissionColor")) material.DisableKeyword("_EMISSION");
                 return;
