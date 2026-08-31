@@ -8,11 +8,15 @@ namespace Burmalda.DebugVisuals
 {
     /// <summary>
     /// Debug-визуализация плит тоннеля в рантайме (issue #58): примитивная
-    /// геометрия, создаваемая кодом (без .prefab), с цветом по
-    /// <see cref="TileDebugColor"/>. Не финальный арт, не анимации/партиклы —
-    /// только чтобы видеть механики Core/Movement/Decay глазами, а не только
-    /// через Test Runner. По паттерну <c>Decay.TrailDecaySystem</c>: обычный
-    /// C#-класс с логикой, тикается тонким driver'ом (<see cref="TunnelDebugVisualController"/>).
+    /// геометрия, создаваемая кодом (без .prefab). С первой генерации арта
+    /// ("Завести арт в игру") плита получает текстуру из
+    /// <see cref="TileArtCatalog"/> по <see cref="TileArtKindResolver"/>,
+    /// если она для её состояния есть — иначе однотонный fallback-цвет по
+    /// <see cref="TileDebugColor"/> (см. <see cref="ApplyVisual"/>). Не всё
+    /// ещё финальный арт (анимации/партиклы отсутствуют), только чтобы
+    /// видеть механики Core/Movement/Decay глазами, а не только через Test
+    /// Runner. По паттерну <c>Decay.TrailDecaySystem</c>: обычный C#-класс
+    /// с логикой, тикается тонким driver'ом (<see cref="TunnelDebugVisualController"/>).
     ///
     /// <b>Найдено на реальном Android-билде (2026-08-14):</b> <c>Shader.Find</c>
     /// надёжен только в Editor — на устройстве шейдер-страппинг может урезать
@@ -37,6 +41,10 @@ namespace Burmalda.DebugVisuals
         private readonly Transform _parent;
         private readonly Dictionary<GridCoordinate, GameObject> _tileObjects = new Dictionary<GridCoordinate, GameObject>();
         private readonly Material _templateMaterial;
+        // Issue "Завести арт в игру": может быть null (ассет ещё не создан
+        // Editor-скриптом/удалён) — в этом случае ApplyVisual падает
+        // обратно на TileDebugColor для ВСЕХ плит, не только для None.
+        private readonly TileArtCatalog _artCatalog;
         private bool _disposed;
 
         /// <summary>Ложь, если ни один шейдер не найден в этой сборке — визуал не создаёт геометрию и ничего не делает.</summary>
@@ -49,6 +57,7 @@ namespace Burmalda.DebugVisuals
             _projection = projection;
             _parent = parent;
             _templateMaterial = CreateTemplateMaterial();
+            _artCatalog = TileArtCatalog.Load();
 
             if (!IsEnabled)
             {
@@ -107,7 +116,7 @@ namespace Burmalda.DebugVisuals
                     activeTimedTrap: tile.IsTimedTrapActive ? tile.TimedTrapKind : null,
                     isBoss: tile.IsBoss);
 
-                ApplyColor(pair.Value, TileDebugColor.Resolve(state));
+                ApplyVisual(pair.Value, state);
             }
         }
 
@@ -156,15 +165,41 @@ namespace Burmalda.DebugVisuals
         // 2026-08-18 ("ещё больше процедурного полиша без арта"): лёгкая
         // эмиссия поверх базового цвета — плитки заметно "светятся" под
         // Bloom (DebugVisuals.ScenePostProcessing) независимо от угла
-        // падения света, не только от прямого освещения сцены.
+        // падения света, не только от прямого освещения сцены. Оставлена
+        // только для цветного fallback-режима (см. ApplyVisual) — поверх
+        // настоящей текстуры равномерное белое свечение искажает сам арт,
+        // а не подсвечивает его, как было задумано для плоского debug-цвета.
         private const float EmissionIntensity = 0.35f;
 
-        private static void ApplyColor(GameObject tileObject, Color color)
+        /// <summary>
+        /// Issue "Завести арт в игру": текстура из <see cref="_artCatalog"/>
+        /// по <see cref="TileArtKindResolver"/>, если она есть — иначе
+        /// прежний однотонный <see cref="TileDebugColor"/> (тот же
+        /// оборонительный fallback, что и на отсутствующий шейдер, см.
+        /// doc-комментарий класса). Ветвление "что показывать когда" не
+        /// менялось — только источник (текстура вместо Color) для тех
+        /// состояний, для которых в пакете есть готовый арт.
+        /// </summary>
+        private void ApplyVisual(GameObject tileObject, TileVisualState state)
         {
             var renderer = tileObject.GetComponent<Renderer>();
             if (renderer == null) return;
 
+            var kind = TileArtKindResolver.Resolve(state);
+            var texture = kind != TileArtKind.None && _artCatalog != null ? _artCatalog.Get(kind) : null;
+
             var material = renderer.material;
+            if (texture != null)
+            {
+                material.mainTexture = texture;
+                material.color = Color.white;
+                if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.35f);
+                if (material.HasProperty("_EmissionColor")) material.DisableKeyword("_EMISSION");
+                return;
+            }
+
+            var color = TileDebugColor.Resolve(state);
+            material.mainTexture = null;
             material.color = color;
 
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.55f);

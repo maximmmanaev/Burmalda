@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72365af052bcd4d4fbbd54231056048c, type: 3}
+  m_Name: TileArtCatalog
+  m_EditorClassIdentifier: Burmalda.DebugVisuals::Burmalda.DebugVisuals.TileArtCatalog
+  _fresh: {fileID: 2800000, guid: 11cd5c506318d474d9a7d3c9a874159f, type: 3}
+  _halfDecayed: {fileID: 2800000, guid: f792eae4af4484190b1d0a0ae1cd4c1d, type: 3}
+  _aboutToDecay: {fileID: 2800000, guid: 6490d5e59b59b49dbac248be8d88cf2e, type: 3}
+  _destroyed: {fileID: 2800000, guid: 5747fb1b418cc4520a42d54ebc3c6996, type: 3}
+  _start: {fileID: 2800000, guid: cd06847bda104472b9e677621c90be92, type: 3}
+  _blocked: {fileID: 2800000, guid: 815ee27b2d4194f0eb4e5cabd0b8f84c, type: 3}
+  _lava: {fileID: 2800000, guid: 494b5c80825924fc4bf4d84946a31eb3, type: 3}
+  _hiddenTrapSignature: {fileID: 2800000, guid: 2d601df6480c44accb5b6f2ff2a028b7, type: 3}
+  _timedTrapActive: {fileID: 2800000, guid: d82a68028efc24e74983c0d735a35f86, type: 3}
+  _explosiveTrigger: {fileID: 2800000, guid: 986909852365f4139a5099082a0ceb74, type: 3}
+  _timedTrapTrigger: {fileID: 2800000, guid: 43d2ca920a1cd4b91a450f9aa4925321, type: 3}
