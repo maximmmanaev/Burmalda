@@ -4,6 +4,7 @@
     "references": [
         "Burmalda.Core",
         "Burmalda.Movement",
+        "Burmalda.Generation",
         "Burmalda.D20",
         "Burmalda.Boss",
         "Burmalda.BossRoom",

@@ -1,4 +1,5 @@
 using Burmalda.Core;
+using Burmalda.Generation;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -16,6 +17,15 @@ namespace Burmalda.DebugVisuals
     /// подбирает владелец здесь, на устройстве, а не агент вслепую (см.
     /// doc-комментарий <see cref="TunnelObstacleGenerator"/>).
     ///
+    /// <b>Задача «партии 1 и 2 + правила отбора» (плейтест владельца,
+    /// 2026-08-31):</b> добавлены два ползунка окна тиров сегментов
+    /// (<see cref="SegmentSelector.TierWindowBelow"/>/<see cref="SegmentSelector.TierWindowAbove"/>)
+    /// — "рядом с плотностью генерации", как прямо просит задача. Диагноз
+    /// был не в плотности ловушек (крутить её дальше бесполезно), а в том,
+    /// что селектор сегментов кумулятивно держал самые пустые тир-1
+    /// раскладки доступными весь забег — окно вокруг цели вытесняет их по
+    /// мере роста Яруса, точные границы подбирает владелец здесь же.
+    ///
     /// Тот же принцип, что <see cref="EconomyDebugPanel"/>/<see cref="CameraAnchorDebugPanel"/>:
     /// Canvas/Slider вместо OnGUI, самобутстрап через
     /// <see cref="RuntimeInitializeOnLoadMethodAttribute"/>, ничего не
@@ -23,12 +33,12 @@ namespace Burmalda.DebugVisuals
     /// по умолчанию (кнопка GEN в углу).
     ///
     /// Позиция — НИЖНИЙ ЛЕВЫЙ угол: верхняя строка занята CAM (левый)/HUD
-    /// (центр)/RESTART+ECO (правый), шесть строк этой панели туда physически
+    /// (центр)/RESTART+ECO (правый), восемь строк этой панели туда физически
     /// не поместились бы без перекрытия.
     ///
-    /// <b>Только процедурный генератор</b> — плотность содержимого
-    /// авторских сегментов (<c>Generation.SegmentTemplateCatalog</c>) сюда
-    /// не входит: это контент, не параметр (docs/rules/forbidden-actions.md).
+    /// <b>Только процедурный генератор и правила отбора шаблонов</b> —
+    /// содержимое авторских сегментов (<c>Generation.SegmentTemplateCatalog</c>)
+    /// сюда не входит: это контент, не параметр (docs/rules/forbidden-actions.md).
     /// </summary>
     public sealed class TrapDensityDebugPanel : MonoBehaviour
     {
@@ -37,6 +47,7 @@ namespace Burmalda.DebugVisuals
         private const float RowHeight = 100f;
         private const float ToggleButtonSize = 72f;
         private const float MaxShare = 0.3f; // 30% на один тип — щедрый запас над стартовыми значениями для ручного подбора
+        private const float MaxTierWindow = 4f; // шире некуда — весь диапазон тиров 1..5
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -123,7 +134,7 @@ namespace Burmalda.DebugVisuals
             rect.anchorMin = new Vector2(0f, 0f);
             rect.anchorMax = new Vector2(0f, 0f);
             rect.pivot = new Vector2(0f, 0f);
-            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 6f + Margin * 2f);
+            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 8f + Margin * 2f);
             rect.anchoredPosition = new Vector2(Margin, Margin + ToggleButtonSize + Margin);
 
             BuildRow(_panelRoot.transform, 0, "Заблокировано", 0f, MaxShare, TunnelObstacleGenerator.BlockedShare,
@@ -138,9 +149,17 @@ namespace Burmalda.DebugVisuals
                 v => TunnelObstacleGenerator.TimedTrapArrowShare = v, FormatPercent);
             BuildRow(_panelRoot.transform, 5, "Триггер лезвия", 0f, MaxShare, TunnelObstacleGenerator.TimedTrapBladeShare,
                 v => TunnelObstacleGenerator.TimedTrapBladeShare = v, FormatPercent);
+
+            // Задача «партии 1 и 2 + правила отбора», часть 3: окно тиров
+            // сегментов — "рядом с плотностью генерации".
+            BuildRow(_panelRoot.transform, 6, "Окно тиров: ниже", 0f, MaxTierWindow, SegmentSelector.TierWindowBelow,
+                v => SegmentSelector.TierWindowBelow = Mathf.RoundToInt(v), FormatTierCount);
+            BuildRow(_panelRoot.transform, 7, "Окно тиров: выше", 0f, MaxTierWindow, SegmentSelector.TierWindowAbove,
+                v => SegmentSelector.TierWindowAbove = Mathf.RoundToInt(v), FormatTierCount);
         }
 
         private static string FormatPercent(float v) => (v * 100f).ToString("0.0") + "%";
+        private static string FormatTierCount(float v) => Mathf.RoundToInt(v).ToString();
 
         /// <summary>Строка "подпись + слайдер + текущее значение" — та же разметка, что EconomyDebugPanel.BuildRow/CameraAnchorDebugPanel.BuildRow.</summary>
         private void BuildRow(Transform parent, int rowIndex, string label, float min, float max, float initialValue,
