@@ -120,12 +120,29 @@ namespace Burmalda.DebugVisuals.HudDesign
             _wiredPreviewTarget = target;
 
             var aiming = target.HasValue;
-            _dimGroup.alpha = aiming ? 0.55f : 1f;
-            _aimHighlight.SetActive(aiming);
-            _aimTooltipRoot.SetActive(aiming);
+            _dimGroup.alpha = aiming ? 0.55f : 1f; // притушение — общая обратная связь на ЛЮБОЕ примеривание (PRD 4.1 п.1), не только опасное
 
-            if (aiming) PositionAimVisuals(target.Value);
+            // Задача «сделать тоннель играбельным», часть 4 (баг с плейтеста
+            // владельца): раньше рамка+подсказка показывались на КАЖДОЙ
+            // примериваемой плите (aiming == target.HasValue, без проверки
+            // содержимого) — "непонятный тултип при наведении на каждую
+            // плитку". Подсказка "с этой плитой что-то не так" осмысленна
+            // только для скрытой ловушки (Core.TrapSignature.IsHiddenLethalTrap,
+            // тот же признак, что уже гейтит текстовую строку в
+            // TilePreviewController) — активная ловушка с таймингом
+            // (Tile.IsTimedTrapActive) уже видна собственным цветом/текстурой
+            // на полу (TrapSignature намеренно не считает её скрытой, см. её
+            // doc-комментарий), повторный неспецифичный тултип по ней был бы
+            // избыточен и путал бы с реальной сигнатурой.
+            var showDangerSignature = aiming && IsHiddenTrapTile(target.Value);
+            _aimHighlight.SetActive(showDangerSignature);
+            _aimTooltipRoot.SetActive(showDangerSignature);
+
+            if (showDangerSignature) PositionAimVisuals(target.Value);
         }
+
+        private bool IsHiddenTrapTile(GridCoordinate coordinate) =>
+            _input.Grid != null && _input.Grid.TryGetTile(coordinate, out var tile) && TrapSignature.IsHiddenLethalTrap(tile);
 
         private void PositionAimVisuals(GridCoordinate coordinate)
         {

@@ -17,16 +17,32 @@ namespace Burmalda.Core
     /// Стартовый ряд (Row == 0) всегда безопасен — как и в прототипе
     /// (genTileType: "if(r===0)return 'safe'").
     ///
-    /// Пороговые значения (5% заблокировано, 3% суммарно яма/лава, 3%
-    /// триггер взрыва, 1.5%/1.5% триггер стрелы/лезвия) взяты буквально из
-    /// прототипа там, где есть аналог (genTileType: rnd&lt;0.05 → 'block',
-    /// rnd&lt;0.08 → 'pit', rnd&lt;0.11 → 'spike'), либо оценены агентом по
-    /// аналогии там, где аналога нет (лава — новая в PRD v5; ловушки с
-    /// таймингом — тоже новые в PRD v5, частота взята вдвое меньше взрыва,
-    /// т.к. это более сложная в реализации будущая механика с окном
-    /// тайминга, а не мгновенная смерть). Все эти числа — предмет плейтеста
-    /// баланса (Спринт 10, см. docs/rules/forbidden-actions.md) — не менять
-    /// молча.
+    /// Пороговые значения — изначально взяты буквально из прототипа там, где
+    /// есть аналог (genTileType: rnd&lt;0.05 → 'block', rnd&lt;0.08 → 'pit',
+    /// rnd&lt;0.11 → 'spike'), либо оценены агентом по аналогии там, где
+    /// аналога нет (лава — новая в PRD v5; ловушки с таймингом — тоже новые
+    /// в PRD v5, частота взята вдвое меньше взрыва). Все эти числа — предмет
+    /// плейтеста баланса (Спринт 10, см. docs/rules/forbidden-actions.md) —
+    /// не менять молча.
+    ///
+    /// <b>Задача «сделать тоннель играбельным», часть 2 (плейтест владельца,
+    /// 2026-08-31):</b> прототип вёлся протяжкой пальца (десятки плит в
+    /// минуту), продукт — дискретным шагом с примериванием (PRD v9 §4.1) —
+    /// плит в минуту в разы меньше при той же вероятности на плиту, отсюда
+    /// ощущение пустого тоннеля. Шесть <c>*Share</c>-полей ниже — доли
+    /// вероятности на КАЖДЫЙ тип (ширина полосы, не кумулятивный порог) —
+    /// раздельные доли вместо прямых порогов специально: иначе слайдер
+    /// одного типа на дебаг-панели ломал бы диапазон всех типов после него.
+    /// Теперь изменяемые (не <c>const</c>) и выведены на дебаг-панель
+    /// <see cref="DebugVisuals.TrapDensityDebugPanel"/> ("GEN" в углу) —
+    /// точную плотность подбирает владелец на устройстве, здесь только
+    /// подняты стартовые значения (сохранена прежняя пропорция между
+    /// типами) с ориентиром "хотя бы одна ситуация на 5-8 шагов" по задаче,
+    /// не как окончательный баланс. Кумулятивные <c>*Threshold</c> ниже (те
+    /// же имена, что использовали существующий код и тесты до этой задачи)
+    /// — computed-свойства поверх долей, не самостоятельные поля: переход
+    /// не потребовал переписывать ни <see cref="OnTileMaterialized"/>, ни
+    /// один существующий тест.
     ///
     /// <b>УСТАРЕЛО (PRD v7 §21, issue #78)</b> — заменён сегментной
     /// генерацией (<c>Burmalda.Generation</c>). См.
@@ -44,12 +60,29 @@ namespace Burmalda.Core
     /// </summary>
     public sealed class TunnelObstacleGenerator : IDisposable
     {
-        public const float BlockedThreshold = 0.05f;
-        public const float PitThreshold = 0.065f;
-        public const float LavaThreshold = 0.08f;
-        public const float ExplosiveTriggerThreshold = 0.11f;
-        public const float TimedTrapArrowThreshold = 0.125f;
-        public const float TimedTrapBladeThreshold = 0.14f;
+        // Доли вероятности каждого типа (ширина полосы, не кумулятивный
+        // порог) — редактируются с TrapDensityDebugPanel в рантайме.
+        // Прежние значения (до задачи "сделать тоннель играбельным"): 5% /
+        // 1.5% / 1.5% / 3% / 1.5% / 1.5% (сумма 14%) — подняты примерно в
+        // 1.5 раза с сохранением той же пропорции между типами, не выдуманы
+        // заново (см. doc-комментарий класса).
+        public static float BlockedShare = 0.08f;
+        public static float PitShare = 0.02f;
+        public static float LavaShare = 0.02f;
+        public static float ExplosiveTriggerShare = 0.045f;
+        public static float TimedTrapArrowShare = 0.02f;
+        public static float TimedTrapBladeShare = 0.02f;
+
+        // Кумулятивные пороги для роллов в OnTileMaterialized — вычисляются
+        // из долей выше при каждом обращении (значения меняются на лету с
+        // дебаг-панели, следующего забега ждать не нужно). Имена и порядок
+        // — те же, что были у прежних const-полей.
+        public static float BlockedThreshold => BlockedShare;
+        public static float PitThreshold => BlockedThreshold + PitShare;
+        public static float LavaThreshold => PitThreshold + LavaShare;
+        public static float ExplosiveTriggerThreshold => LavaThreshold + ExplosiveTriggerShare;
+        public static float TimedTrapArrowThreshold => ExplosiveTriggerThreshold + TimedTrapArrowShare;
+        public static float TimedTrapBladeThreshold => TimedTrapArrowThreshold + TimedTrapBladeShare;
 
         private readonly TunnelGrid _grid;
         private readonly Func<float> _random01;

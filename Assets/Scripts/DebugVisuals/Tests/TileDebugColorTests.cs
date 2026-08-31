@@ -127,11 +127,11 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
-        public void Resolve_ExplosiveTrapTrigger_NotArmedYet_ReturnsExplosiveTriggerColor()
+        public void Resolve_ExplosiveTrapTrigger_NotArmedYet_ReturnsTriggerSignatureColor()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: true, isTimedTrapTrigger: false, activeTimedTrap: null);
 
-            Assert.AreEqual(TileDebugColor.ExplosiveTriggerColor, TileDebugColor.Resolve(state));
+            Assert.AreEqual(TileDebugColor.TriggerSignatureColor, TileDebugColor.Resolve(state));
         }
 
         [Test]
@@ -139,7 +139,18 @@ namespace Burmalda.DebugVisuals.Tests
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.9f, isExplosiveTrapTrigger: true, isTimedTrapTrigger: false, activeTimedTrap: null);
 
-            Assert.AreEqual(TileDebugColor.ExplosiveTriggerColor, TileDebugColor.Resolve(state));
+            Assert.AreEqual(TileDebugColor.TriggerSignatureColor, TileDebugColor.Resolve(state));
+        }
+
+        // Задача «сделать тоннель играбельным», часть 3: единая сигнатура —
+        // игрок не должен читать тип ловушки по цвету триггера, как раньше.
+        [Test]
+        public void Resolve_ExplosiveTrigger_AndTimedTrapTrigger_ProduceIdenticalColor_SignatureDoesNotRevealExactType()
+        {
+            var explosiveState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: true, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var timedState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: true, activeTimedTrap: null);
+
+            Assert.AreEqual(TileDebugColor.Resolve(explosiveState), TileDebugColor.Resolve(timedState));
         }
 
         [Test]
@@ -168,11 +179,11 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
-        public void Resolve_TimedTrapTrigger_NotActiveYet_ReturnsTimedTrapTriggerColor()
+        public void Resolve_TimedTrapTrigger_NotActiveYet_ReturnsTriggerSignatureColor()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: true, activeTimedTrap: null);
 
-            Assert.AreEqual(TileDebugColor.TimedTrapTriggerColor, TileDebugColor.Resolve(state));
+            Assert.AreEqual(TileDebugColor.TriggerSignatureColor, TileDebugColor.Resolve(state));
         }
 
         [Test]
@@ -180,7 +191,7 @@ namespace Burmalda.DebugVisuals.Tests
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.9f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: true, activeTimedTrap: null);
 
-            Assert.AreEqual(TileDebugColor.TimedTrapTriggerColor, TileDebugColor.Resolve(state));
+            Assert.AreEqual(TileDebugColor.TriggerSignatureColor, TileDebugColor.Resolve(state));
         }
 
         [Test]
@@ -252,6 +263,70 @@ namespace Burmalda.DebugVisuals.Tests
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: -1f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
 
             Assert.AreEqual(TileDebugColor.FreshColor, TileDebugColor.Resolve(state));
+        }
+
+        // Задача «сделать тоннель играбельным», часть 1: источники Маны/Ключей
+        // видны всегда — маршрутное решение "идти за Маной или за Ключами".
+        [Test]
+        public void Resolve_ManaSource_NotStartNotCurrentNotDestroyed_ReturnsManaSourceColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isManaSource: true);
+
+            Assert.AreEqual(TileDebugColor.ManaSourceColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_KeySource_NotStartNotCurrentNotDestroyed_ReturnsKeySourceColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isKeySource: true);
+
+            Assert.AreEqual(TileDebugColor.KeySourceColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_ManaSource_IgnoresDecayProgress()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.9f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isManaSource: true);
+
+            Assert.AreEqual(TileDebugColor.ManaSourceColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_ManaSource_DiffersFromKeySourceColor()
+        {
+            Assert.AreNotEqual(TileDebugColor.ManaSourceColor, TileDebugColor.KeySourceColor);
+        }
+
+        [Test]
+        public void Resolve_ManaSource_DiffersFromHiddenTrapSignatureColor()
+        {
+            Assert.AreNotEqual(TileDebugColor.ManaSourceColor, TileDebugColor.HiddenTrapSignatureColor);
+        }
+
+        [Test]
+        public void Resolve_KeySource_DiffersFromHiddenTrapSignatureColor()
+        {
+            Assert.AreNotEqual(TileDebugColor.KeySourceColor, TileDebugColor.HiddenTrapSignatureColor);
+        }
+
+        [Test]
+        public void Resolve_ManaSource_DiffersFromDecayGradientColors()
+        {
+            Assert.AreNotEqual(TileDebugColor.ManaSourceColor, TileDebugColor.FreshColor);
+            Assert.AreNotEqual(TileDebugColor.ManaSourceColor, TileDebugColor.HalfDecayedColor);
+            Assert.AreNotEqual(TileDebugColor.ManaSourceColor, TileDebugColor.AboutToDecayColor);
+        }
+
+        [Test]
+        public void Resolve_ManaSource_TakesPriorityOverDecayGradient_ButNotOverBlocked()
+        {
+            // Ни один генератор сейчас не совмещает источник с препятствием
+            // (см. doc-комментарий Resolve) — проверяем приоритет ветвления явно.
+            var blockedManaSource = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isManaSource: true);
+            var plainManaSource = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.9f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isManaSource: true);
+
+            Assert.AreEqual(TileDebugColor.BlockedColor, TileDebugColor.Resolve(blockedManaSource));
+            Assert.AreEqual(TileDebugColor.ManaSourceColor, TileDebugColor.Resolve(plainManaSource));
         }
     }
 }

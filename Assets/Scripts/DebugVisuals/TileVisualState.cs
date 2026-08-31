@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -22,6 +22,8 @@ namespace Burmalda.DebugVisuals
             IsTimedTrapTrigger = isTimedTrapTrigger;
             ActiveTimedTrap = activeTimedTrap;
             IsBoss = isBoss;
+            IsManaSource = isManaSource;
+            IsKeySource = isKeySource;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -72,5 +74,18 @@ namespace Burmalda.DebugVisuals
         /// сейчас, иначе на неё не встать.
         /// </summary>
         public bool IsBoss { get; }
+
+        /// <summary>
+        /// Плита — источник Кристаллов Маны (PRD раздел 5, issue #12, см.
+        /// <c>Core.Tile.IsManaSource</c>). Маршрутная задача «идти за Маной
+        /// или за Ключами» требует, чтобы источник был виден игроку ВСЕГДА,
+        /// не только в момент подбора (playtest владельца, задача «сделать
+        /// тоннель играбельным») — в отличие от сигнатуры опасности, это
+        /// награда, не подлежит сокрытию.
+        /// </summary>
+        public bool IsManaSource { get; }
+
+        /// <summary>Плита — источник Ключей (PRD раздел 5, issue #12, см. <c>Core.Tile.IsKeySource</c>). Тот же принцип видимости, что и <see cref="IsManaSource"/>.</summary>
+        public bool IsKeySource { get; }
     }
 }

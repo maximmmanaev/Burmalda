@@ -80,6 +80,18 @@ namespace Burmalda.EditorTools
         /// explosion/tile-gate-closed/tile-gate-open не подключены — нет
         /// игрового состояния, которое бы на них маппилось (взрыв слит с
         /// ямой намеренно, ворота ещё не реализованы в Core.Tile).
+        ///
+        /// <b>Задача «сделать тоннель играбельным», часть 3:</b> триггеры
+        /// (взрывной и с таймингом) тоже слиты в одну текстуру
+        /// (<see cref="TileArtKind.TriggerSignature"/>) — выбран
+        /// tile-explosive-trigger (серо-мятная база, совпадает с палитрой
+        /// остальных тайлов; tile-timed-trap-idle уже в тёплой палитре
+        /// будущего рестайла и визуально не сочетался бы с остальным
+        /// набором до issue #191). Источники Маны/Ключей
+        /// (<c>TileArtKind.None</c> для обоих — см. <see cref="TileArtKindResolver"/>)
+        /// сюда не заведены: в пакете нет отдельных тайл-текстур под них,
+        /// только иконки <c>Icons/Currencies/</c>, не подходящие как текстура
+        /// пола — читается цветом (<c>TileDebugColor.ManaSourceColor</c>/<c>KeySourceColor</c>).
         /// </summary>
         private static void BuildTileArtCatalog()
         {
@@ -102,8 +114,7 @@ namespace Burmalda.EditorTools
                 lava: LoadTile("tile-lava"),
                 hiddenTrapSignature: LoadTile("tile-pit"),
                 timedTrapActive: LoadTile("tile-timed-trap-active"),
-                explosiveTrigger: LoadTile("tile-explosive-trigger"),
-                timedTrapTrigger: LoadTile("tile-timed-trap-idle"));
+                triggerSignature: LoadTile("tile-explosive-trigger"));
 
             EditorUtility.SetDirty(catalog);
         }

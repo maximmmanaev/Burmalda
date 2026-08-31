@@ -33,8 +33,16 @@ namespace Burmalda.DebugVisuals
             // так, не видно, что именно" из issue #163.
             if (state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) return TileArtKind.HiddenTrapSignature;
             if (state.ActiveTimedTrap.HasValue) return TileArtKind.TimedTrapActive;
-            if (state.IsExplosiveTrapTrigger) return TileArtKind.ExplosiveTrigger;
-            if (state.IsTimedTrapTrigger) return TileArtKind.TimedTrapTrigger;
+            // Единая сигнатура триггера (задача «сделать тоннель играбельным»,
+            // часть 3) — то же слияние, что уже сделано для HiddenTrapSignature.
+            if (state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) return TileArtKind.TriggerSignature;
+
+            // Источники валюты (часть 1 той же задачи): в текущем пакете нет
+            // отдельных тайл-текстур под них (проверено — есть только иконки
+            // Icons/Currencies/, не тайлы пола) — None, как и для остальных
+            // состояний без готового арта (см. doc-комментарий TileArtKind.None).
+            // TileDebugColor.Resolve всё равно различает Ману/Ключи цветом.
+            if (state.IsManaSource || state.IsKeySource) return TileArtKind.None;
 
             return ResolveDecayGradient(state.DecayProgress01);
         }

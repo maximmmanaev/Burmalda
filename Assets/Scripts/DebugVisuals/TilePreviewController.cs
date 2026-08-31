@@ -101,8 +101,23 @@ namespace Burmalda.DebugVisuals
                 if (TrapInsight.HasTrapTypeInsight) lines.Add($"(Идол Чутья) Точный тип: {tile.LethalTrap.Value}");
             }
 
-            if (tile.ExplosiveTrapTarget.HasValue) lines.Add("Триггер взрывной ловушки");
-            if (tile.TimedTrapTarget.HasValue) lines.Add($"Триггер ловушки с таймингом: {tile.TimedTrapKind}");
+            // Задача «сделать тоннель играбельным», часть 3: раньше эти две
+            // строки выдавали точный тип триггера безусловно (тем самым
+            // TileDebugColor/TileArtKindResolver гейтили цвет/текстуру
+            // единой сигнатурой, а эта строка — нет, несогласованность).
+            // Теперь тот же гейт, что и у скрытой ловушки ниже — базовая
+            // строка ("здесь механизм") видна всегда, точный тип только с
+            // Идолом Чутья.
+            if (tile.ExplosiveTrapTarget.HasValue || tile.TimedTrapTarget.HasValue)
+            {
+                lines.Add("Триггер механизма");
+                if (TrapInsight.HasTrapTypeInsight)
+                {
+                    lines.Add(tile.ExplosiveTrapTarget.HasValue
+                        ? "(Идол Чутья) Точный тип: взрывная ловушка"
+                        : $"(Идол Чутья) Точный тип: {tile.TimedTrapKind}");
+                }
+            }
             if (tile.IsTimedTrapActive) lines.Add("Ловушка с таймингом СЕЙЧАС активна"); // реальная угроза прямо сейчас — не скрывается, см. TrapSignature
             if (tile.IsLever) lines.Add("Рычаг");
             if (tile.IsGated) lines.Add(tile.IsLeverGateOpen ? "Ворота (открыты)" : "Ворота (закрыты)");

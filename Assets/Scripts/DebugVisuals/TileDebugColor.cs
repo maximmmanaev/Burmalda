@@ -1,4 +1,5 @@
 using Burmalda.Core;
+using Burmalda.DebugVisuals.HudDesign;
 using UnityEngine;
 
 namespace Burmalda.DebugVisuals
@@ -66,9 +67,38 @@ namespace Burmalda.DebugVisuals
         // скоупа), это функциональная заглушка "плита выглядит иначе".
         public static readonly Color HiddenTrapSignatureColor = new Color(90f / 255f, 70f / 255f, 110f / 255f);
 
+        /// <summary>
+        /// Задача «сделать тоннель играбельным», часть 3: плейтест владельца
+        /// показал, что <see cref="HiddenTrapSignatureColor"/> в текстуре
+        /// (<c>tile-pit.png</c> — кислотно-зелёная мозаика с чёрной дырой)
+        /// читается как однозначная ловушка, а не как "с плитой что-то не
+        /// так" (PRD v9 §4.2 — сигнатура обязана оставлять сомнение).
+        /// Перерисовать саму текстуру не в скоупе этой задачи (палитра
+        /// целиком — issue #191, Спринт 12b) — вместо этого
+        /// <see cref="TunnelDebugVisual.ApplyVisual"/> умножает текстуру на
+        /// этот приглушающий тон (снижает яркость и насыщенность), а не
+        /// показывает её как есть (<c>material.color = Color.white</c>, как
+        /// для остальных текстур). Временная мера до перегенерации палитры.
+        /// </summary>
+        public static readonly Color HiddenTrapSignatureTextureTint = new Color(0.55f, 0.5f, 0.62f);
+
+        // Issue #10/#45, задача «сделать тоннель играбельным» часть 3:
+        // раньше ExplosiveTriggerColor (жёлтый) и TimedTrapTriggerColor
+        // (магента) были РАЗНЫМИ цветами — игрок читал тип ловушки прямо с
+        // пола, без примеривания и без Идола Чутья (см. TilePreviewController).
+        // Единая сигнатура: факт "здесь механизм" виден всем (см. Trigger*
+        // ниже — плита-триггер сама по себе безопасна), какой именно —
+        // уровень Идола Чутья (TrapInsight.HasTrapTypeInsight), как и для
+        // HiddenTrapSignatureColor. Старые константы оставлены (не удалены,
+        // как и PitColor/ExplosionColor выше) — в Resolve() больше не
+        // используются.
+        public static readonly Color TriggerSignatureColor = new Color(200f / 255f, 180f / 255f, 40f / 255f);
+
         // Не финальный арт: плита-триггер (issue #10) сама по себе безопасна,
         // цвет — только чтобы при ручном тестировании видеть, где она есть.
-        // Приглушённый жёлтый — отличим и от ExplosionColor, и от градиента распада.
+        // УСТАРЕЛО (задача «сделать тоннель играбельным» часть 3) — заменён
+        // единой TriggerSignatureColor, см. её комментарий. Оставлена для
+        // истории/возможного будущего экрана "точный тип раскрыт Идолом".
         public static readonly Color ExplosiveTriggerColor = new Color(200f / 255f, 180f / 255f, 40f / 255f);
 
         // Issue #45, PRD v5 4.2 — плита-цель ловушки с таймингом, пока снаряд/
@@ -78,9 +108,24 @@ namespace Burmalda.DebugVisuals
         public static readonly Color TimedTrapActiveColor = new Color(1f, 0f, 200f / 255f);
 
         // Не финальный арт: плита-триггер (issue #45), как и ExplosiveTriggerColor,
-        // сама по себе безопасна. Приглушённая магента — узнаваемо парная к
-        // TimedTrapActiveColor, но не путается с ExplosiveTriggerColor (жёлтый).
+        // сама по себе безопасна. УСТАРЕЛО (задача «сделать тоннель играбельным»
+        // часть 3) — заменён единой TriggerSignatureColor. Оставлена для истории.
         public static readonly Color TimedTrapTriggerColor = new Color(160f / 255f, 60f / 255f, 140f / 255f);
+
+        /// <summary>
+        /// Задача «сделать тоннель играбельным», часть 1: источник Кристаллов
+        /// Маны (<c>Core.Tile.IsManaSource</c>) — видим ВСЕГДА, это награда, не
+        /// опасность (см. doc-комментарий <see cref="TileVisualState.IsManaSource"/>).
+        /// То же значение, что фиолетовый ромб Маны в HUD
+        /// (<see cref="BurmaldaHudPalette.ManaPurple"/>) — единый цвет "это
+        /// Мана" на полу и в счётчике, не два независимо подобранных.
+        /// Светлый/яркий фиолетовый — не пересекается с тёмным сизо-фиолетовым
+        /// HiddenTrapSignatureColor (см. соответствующий тест).
+        /// </summary>
+        public static readonly Color ManaSourceColor = BurmaldaHudPalette.ManaPurple;
+
+        /// <summary>Источник Ключей — то же значение, что медный кружок Ключей в HUD (<see cref="BurmaldaHudPalette.CopperCoin"/>), тот же принцип, что <see cref="ManaSourceColor"/>.</summary>
+        public static readonly Color KeySourceColor = BurmaldaHudPalette.CopperCoin;
 
         // Вход в Комнату Босса (Tile.IsBoss, PRD v8 §8.1) — единственная
         // строка debug-визуала под механику Босса, которая переживает v8
@@ -104,11 +149,21 @@ namespace Burmalda.DebugVisuals
             // ОДИН общий цвет на оба типа, не выдающий, какой именно.
             if (state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) return HiddenTrapSignatureColor;
             if (state.ActiveTimedTrap.HasValue) return TimedTrapActiveColor;
-            if (state.IsExplosiveTrapTrigger) return ExplosiveTriggerColor;
-            if (state.IsTimedTrapTrigger) return TimedTrapTriggerColor;
+            // Единая сигнатура для обоих видов триггера (см. TriggerSignatureColor) —
+            // факт "здесь механизм" виден всем, тип — не отсюда.
+            if (state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) return TriggerSignatureColor;
 
-            // Остальной тип плиты (валюта/артефакт) добавит сюда же
-            // ветвление до градиента распада — препятствие/ловушка уже не
+            // Источники валюты — награда, видна всегда (см. doc-комментарий
+            // TileVisualState.IsManaSource), проверяются после
+            // опасностей/механизмов и до градиента распада: ни один
+            // генератор сейчас не совмещает источник с ловушкой на одной
+            // плите, но если бы совместил — опасность всё равно важнее для
+            // выживания, чем то, что под ней ценного.
+            if (state.IsManaSource) return ManaSourceColor;
+            if (state.IsKeySource) return KeySourceColor;
+
+            // Остальной тип плиты (артефакт) добавит сюда же ветвление до
+            // градиента распада — препятствие/ловушка/валюта уже не
             // участвуют в градиенте, т.к. никогда не начинают распад.
             return ResolveDecayGradient(state.DecayProgress01);
         }
