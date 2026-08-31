@@ -36,8 +36,9 @@ namespace Burmalda.DebugVisuals
         [SerializeField] private Texture2D _lava;
         [SerializeField] private Texture2D _hiddenTrapSignature;
         [SerializeField] private Texture2D _timedTrapActive;
-        [SerializeField] private Texture2D _explosiveTrigger;
-        [SerializeField] private Texture2D _timedTrapTrigger;
+        // Задача «сделать тоннель играбельным», часть 3: единое поле вместо
+        // прежних _explosiveTrigger/_timedTrapTrigger — см. TileArtKind.TriggerSignature.
+        [SerializeField] private Texture2D _triggerSignature;
 
         private static TileArtCatalog _cached;
         private static bool _loadAttempted;
@@ -71,8 +72,7 @@ namespace Burmalda.DebugVisuals
                 case TileArtKind.Lava: return _lava;
                 case TileArtKind.HiddenTrapSignature: return _hiddenTrapSignature;
                 case TileArtKind.TimedTrapActive: return _timedTrapActive;
-                case TileArtKind.ExplosiveTrigger: return _explosiveTrigger;
-                case TileArtKind.TimedTrapTrigger: return _timedTrapTrigger;
+                case TileArtKind.TriggerSignature: return _triggerSignature;
                 default: return null;
             }
         }
@@ -82,7 +82,7 @@ namespace Burmalda.DebugVisuals
         // рантайм-код катaлог только читает через Get().
         public void EditorAssign(Texture2D fresh, Texture2D halfDecayed, Texture2D aboutToDecay, Texture2D destroyed,
             Texture2D start, Texture2D blocked, Texture2D lava, Texture2D hiddenTrapSignature,
-            Texture2D timedTrapActive, Texture2D explosiveTrigger, Texture2D timedTrapTrigger)
+            Texture2D timedTrapActive, Texture2D triggerSignature)
         {
             _fresh = fresh;
             _halfDecayed = halfDecayed;
@@ -93,8 +93,7 @@ namespace Burmalda.DebugVisuals
             _lava = lava;
             _hiddenTrapSignature = hiddenTrapSignature;
             _timedTrapActive = timedTrapActive;
-            _explosiveTrigger = explosiveTrigger;
-            _timedTrapTrigger = timedTrapTrigger;
+            _triggerSignature = triggerSignature;
         }
 #endif
     }

@@ -5,6 +5,34 @@ namespace Burmalda.Core.Tests
 {
     public class TunnelObstacleGeneratorTests
     {
+        // Задача «сделать тоннель играбельным», часть 2: *Share — изменяемые
+        // static-поля (дебаг-панель их трогает в рантайме), снимок/восстановление
+        // вокруг КАЖДОГО теста — иначе тест, меняющий долю, отравил бы дефолты
+        // для остальных тестов файла (порядок выполнения NUnit не гарантирован).
+        private float _savedBlockedShare, _savedPitShare, _savedLavaShare, _savedExplosiveTriggerShare, _savedTimedTrapArrowShare, _savedTimedTrapBladeShare;
+
+        [SetUp]
+        public void SaveShares()
+        {
+            _savedBlockedShare = TunnelObstacleGenerator.BlockedShare;
+            _savedPitShare = TunnelObstacleGenerator.PitShare;
+            _savedLavaShare = TunnelObstacleGenerator.LavaShare;
+            _savedExplosiveTriggerShare = TunnelObstacleGenerator.ExplosiveTriggerShare;
+            _savedTimedTrapArrowShare = TunnelObstacleGenerator.TimedTrapArrowShare;
+            _savedTimedTrapBladeShare = TunnelObstacleGenerator.TimedTrapBladeShare;
+        }
+
+        [TearDown]
+        public void RestoreShares()
+        {
+            TunnelObstacleGenerator.BlockedShare = _savedBlockedShare;
+            TunnelObstacleGenerator.PitShare = _savedPitShare;
+            TunnelObstacleGenerator.LavaShare = _savedLavaShare;
+            TunnelObstacleGenerator.ExplosiveTriggerShare = _savedExplosiveTriggerShare;
+            TunnelObstacleGenerator.TimedTrapArrowShare = _savedTimedTrapArrowShare;
+            TunnelObstacleGenerator.TimedTrapBladeShare = _savedTimedTrapBladeShare;
+        }
+
         private static System.Func<float> Sequence(params float[] rolls)
         {
             var queue = new Queue<float>(rolls);
@@ -220,6 +248,53 @@ namespace Burmalda.Core.Tests
 
             Assert.IsFalse(claimedTile.IsBlocked, "Заявленный ряд не трогается генератором");
             Assert.IsTrue(normalTile.IsBlocked, "Незаявленный ряд по-прежнему засеивается генератором");
+        }
+
+        // Задача «сделать тоннель играбельным», часть 2.
+        [Test]
+        public void CumulativeThresholds_AreComputedFromSharesInOrder()
+        {
+            TunnelObstacleGenerator.BlockedShare = 0.10f;
+            TunnelObstacleGenerator.PitShare = 0.05f;
+            TunnelObstacleGenerator.LavaShare = 0.03f;
+            TunnelObstacleGenerator.ExplosiveTriggerShare = 0.04f;
+            TunnelObstacleGenerator.TimedTrapArrowShare = 0.02f;
+            TunnelObstacleGenerator.TimedTrapBladeShare = 0.01f;
+
+            Assert.AreEqual(0.10f, TunnelObstacleGenerator.BlockedThreshold, 1e-6f);
+            Assert.AreEqual(0.15f, TunnelObstacleGenerator.PitThreshold, 1e-6f);
+            Assert.AreEqual(0.18f, TunnelObstacleGenerator.LavaThreshold, 1e-6f);
+            Assert.AreEqual(0.22f, TunnelObstacleGenerator.ExplosiveTriggerThreshold, 1e-6f);
+            Assert.AreEqual(0.24f, TunnelObstacleGenerator.TimedTrapArrowThreshold, 1e-6f);
+            Assert.AreEqual(0.25f, TunnelObstacleGenerator.TimedTrapBladeThreshold, 1e-6f);
+        }
+
+        [Test]
+        public void ChangingBlockedShare_AtRuntime_AffectsNextRoll_WithoutWaitingForNewRun()
+        {
+            // Тот же принцип живого применения, что у ползунков EconomyDebugPanel
+            // для курсов конвертации (см. её doc-комментарий) — не "со следующего забега".
+            TunnelObstacleGenerator.BlockedShare = 0.5f;
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(0.4f)); // ниже нового порога 0.5, выше старого дефолта
+
+            var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+
+            Assert.IsTrue(tile.IsBlocked);
+        }
+
+        [Test]
+        public void ZeroShare_ForAGivenType_NeverRollsThatType()
+        {
+            // Ширина полосы 0 — тип пропускается полностью, следующий начинается сразу на том же пороге.
+            TunnelObstacleGenerator.PitShare = 0f;
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BlockedThreshold));
+
+            var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+
+            Assert.IsFalse(tile.IsBlocked);
+            Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap); // не Pit — полоса нулевой ширины
         }
 
         [Test]
