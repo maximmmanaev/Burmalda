@@ -68,9 +68,14 @@ jobs:
       - name: Run Unity tests
         if: steps.check-unity-project.outputs.exists == 'true'
         uses: game-ci/unity-test-runner@v4
+        # Только UNITY_LICENSE (готовый .ulf) — без UNITY_EMAIL/UNITY_PASSWORD.
+        # game-ci активирует по .ulf напрямую, без обращения к Unity Cloud;
+        # UNITY_EMAIL/UNITY_PASSWORD без UNITY_SERIAL включают отдельный сценарий
+        # логина через UnityConnect ("[UnityConnect::TryLogin] Authentication
+        # Retry" в логе), который не нужен при готовом .ulf и падал с
+        # "Request couldn't be Processed ... HTTP error code 400" /
+        # "Access token is unavailable" / "Failed to activate ULF license".
         env:
           UNITY_LICENSE: ${{ env.UNITY_LICENSE_CONTENT }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           testMode: all
