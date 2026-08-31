@@ -17,8 +17,12 @@ namespace Burmalda.DebugVisuals
     /// <see cref="RuntimeInitializeOnLoadMethodAttribute"/>, не трогает
     /// .unity/.prefab (docs/rules/forbidden-actions.md).
     ///
-    /// Гейтится <see cref="RunHudToggles.ShowRunHud"/> (дефолт ВКЛ, панель —
-    /// <see cref="RunHudTogglePanel"/>). Все значения — СТРОГО чтение уже
+    /// Гейтится <see cref="RunHudToggles.ShowRunHud"/> (дефолт ВЫКЛ с задачи
+    /// «HUD накладывается сам на себя» — см. её doc-комментарий: этот
+    /// оверлей и Canvas-based <see cref="HudDesign.RunHudDesignOverlay"/>
+    /// рисовали дублирующие числа валют одновременно, оба default-ВКЛ,
+    /// владелец продукта увидел на устройстве буквально перечёркнутые друг
+    /// другом цифры; панель — <see cref="RunHudTogglePanel"/>). Все значения — СТРОГО чтение уже
     /// существующих публичных свойств (<see cref="CurrencyController"/>/
     /// <see cref="RunCurrencyAccumulator"/>/<see cref="RunHudDataSources"/>),
     /// ничего не пересчитывается и не хранится здесь — задача явно это

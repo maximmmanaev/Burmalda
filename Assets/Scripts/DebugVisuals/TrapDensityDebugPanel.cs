@@ -43,9 +43,12 @@ namespace Burmalda.DebugVisuals
     public sealed class TrapDensityDebugPanel : MonoBehaviour
     {
         private const float PanelWidth = 460f;
-        private const float Margin = 24f;
+        // Margin/ToggleButtonSize — из DebugPanelLayout (единый владелец
+        // раскладки отладочных кнопок, задача «рычаг и ворота невидимы,
+        // HUD накладывается сам на себя»).
+        private const float Margin = DebugPanelLayout.Margin;
         private const float RowHeight = 100f;
-        private const float ToggleButtonSize = 72f;
+        private const float ToggleButtonSize = DebugPanelLayout.GenButtonSize;
         private const float MaxShare = 0.3f; // 30% на один тип — щедрый запас над стартовыми значениями для ручного подбора
         private const float MaxTierWindow = 4f; // шире некуда — весь диапазон тиров 1..5
 
