@@ -32,3 +32,6 @@
 
 # Scenario: подписанные URL с токенами доступа, протухают ~через 24ч
 scripts/scenario_downloads.tsv
+
+# Unity CI: декодированный файл лицензии, пишется во время workflow, не коммитить
+Unity_lic.ulf

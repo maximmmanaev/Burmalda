@@ -24,11 +24,22 @@ jobs:
             echo "ProjectSettings/ProjectVersion.txt не найден — Unity-проект ещё не создан, тесты пропускаются."
           fi
 
+      - name: Decode Unity license
+        if: steps.check-unity-project.outputs.exists == 'true'
+        # UNITY_LICENSE напрямую переменной окружения ломался: многострочный
+        # .ulf через env иногда портит кодировку/переносы строк, и Unity
+        # отказывает в активации ("Access token is unavailable", "Failed to
+        # activate ULF license") — задокументированная проблема game.ci,
+        # см. https://game.ci/docs/troubleshooting/common-issues#the-digital-signature-is-invalid
+        # Секрет UNITY_LICENSE_BASE64 хранит содержимое .ulf в base64 (одна
+        # строка) — декодируем в файл прямо тут, без промежуточной переменной.
+        run: echo "${{ secrets.UNITY_LICENSE_BASE64 }}" | base64 -d > "$GITHUB_WORKSPACE/Unity_lic.ulf"
+
       - name: Run Unity tests
         if: steps.check-unity-project.outputs.exists == 'true'
         uses: game-ci/unity-test-runner@v4
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_LICENSE_FILE: /github/workspace/Unity_lic.ulf
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
