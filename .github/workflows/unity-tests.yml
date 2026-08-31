@@ -34,14 +34,35 @@ jobs:
         # game-ci/unity-test-runner проверяет именно UNITY_LICENSE (содержимое),
         # UNITY_LICENSE_FILE как признак лицензии НЕ распознаёт ("Missing Unity
         # License File and no Serial was found" — проверено на этом репо).
-        # Секрет UNITY_LICENSE_BASE64 хранит .ulf в base64 (одна строка) —
-        # декодируем и кладём в UNITY_LICENSE через multiline-синтаксис
-        # $GITHUB_ENV (heredoc), а не через inline-подстановку в run:.
+        # Секрет UNITY_LICENSE_BASE64 хранит .ulf в base64 (одна строка).
+        # Секрет идёт через env:, а не inline ${{ }} прямо в тексте скрипта —
+        # инлайн-подстановка в тело run: сама по себе рискованная (текстовая
+        # подмена до парсинга bash/YAML). Явные проверки на каждом шаге —
+        # чтобы при следующем сбое лог показывал причину, а не тихий обрыв
+        # под set -e ("Matching delimiter not found" — было ровно это: base64
+        # упал, скрипт оборвался до строки с закрывающим EOF).
+        env:
+          UNITY_LICENSE_B64: ${{ secrets.UNITY_LICENSE_BASE64 }}
         run: |
+          set -uo pipefail
+          if [ -z "${UNITY_LICENSE_B64:-}" ]; then
+            echo "::error::Секрет UNITY_LICENSE_BASE64 пуст или не задан"
+            exit 1
+          fi
+          if ! DECODED=$(printf '%s' "$UNITY_LICENSE_B64" | base64 -d 2>&1); then
+            echo "::error::base64 -d упал — секрет не является валидным base64. Вывод: $DECODED"
+            exit 1
+          fi
+          if [ -z "$DECODED" ]; then
+            echo "::error::Декодированный .ulf пуст"
+            exit 1
+          fi
+          echo "Декодировано байт: ${#DECODED}"
+          DELIM="UNITY_LICENSE_EOF_${GITHUB_RUN_ID}"
           {
-            echo "UNITY_LICENSE_CONTENT<<UNITY_LICENSE_EOF"
-            echo "${{ secrets.UNITY_LICENSE_BASE64 }}" | base64 -d
-            echo "UNITY_LICENSE_EOF"
+            echo "UNITY_LICENSE_CONTENT<<${DELIM}"
+            printf '%s\n' "$DECODED"
+            echo "${DELIM}"
           } >> "$GITHUB_ENV"
 
       - name: Run Unity tests
