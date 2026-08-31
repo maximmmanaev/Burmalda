@@ -119,9 +119,10 @@ namespace Burmalda.DebugVisuals
                     isKeySource: tile.IsKeySource,
                     isLever: tile.IsLever,
                     isGated: tile.IsGated,
-                    isLeverGateOpen: tile.IsLeverGateOpen);
+                    isLeverGateOpen: tile.IsLeverGateOpen,
+                    isAltar: tile.IsAltar);
 
-                ApplyVisual(pair.Value, state);
+                ApplyVisual(pair.Value, coordinate, state);
             }
         }
 
@@ -165,6 +166,53 @@ namespace Burmalda.DebugVisuals
             if (renderer != null) renderer.material = new Material(_templateMaterial);
 
             _tileObjects[tile.Coordinate] = primitive;
+            // Задача «тёплый набор плит»: выбор фиксируется один раз здесь,
+            // не в ApplyVisual — иначе вариант/поворот "плавали" бы каждый
+            // кадр, пока плита ещё Fresh (см. PickFreshVariant/ApplyVisual).
+            _freshVariants[tile.Coordinate] = PickFreshVariant();
+        }
+
+        // Задача «тёплый набор плит»: три рисунка обычной плиты — бесплатное
+        // визуальное разнообразие пола, иначе троекратное чередование трёх
+        // картинок само становится читаемым ритмом. tile-fresh-c (золотая
+        // прожилка) — реже остальных по просьбе владельца: "если начнёт
+        // путаться с золотым Ключом на плейтесте, убрать" — вес 2 из 12 даёт
+        // ровно 1/6, вдвое реже, чем tile-fresh/tile-fresh-b (по 5/12 каждая).
+        private static readonly int[] FreshVariantWeights = { 5, 5, 2 };
+
+        private readonly struct FreshTileVariant
+        {
+            public FreshTileVariant(int textureIndex, Quaternion rotation)
+            {
+                TextureIndex = textureIndex;
+                Rotation = rotation;
+            }
+
+            public int TextureIndex { get; }
+            public Quaternion Rotation { get; }
+        }
+
+        private readonly Dictionary<GridCoordinate, FreshTileVariant> _freshVariants = new Dictionary<GridCoordinate, FreshTileVariant>();
+
+        private static FreshTileVariant PickFreshVariant()
+        {
+            var totalWeight = 0;
+            foreach (var weight in FreshVariantWeights) totalWeight += weight;
+
+            var roll = UnityEngine.Random.Range(0, totalWeight);
+            var cursor = 0;
+            var index = FreshVariantWeights.Length - 1;
+            for (var i = 0; i < FreshVariantWeights.Length; i++)
+            {
+                cursor += FreshVariantWeights[i];
+                if (roll < cursor) { index = i; break; }
+            }
+
+            // Случайный поворот на 0/90/180/270° (задача) — только у обычного
+            // пола; у плит со смыслом (источники/сигнатуры/ворота/рычаг/
+            // Алтарь/позиция игрока) ориентация постоянна, см. ApplyVisual.
+            var rotationSteps = UnityEngine.Random.Range(0, 4);
+            return new FreshTileVariant(index, Quaternion.Euler(0f, rotationSteps * 90f, 0f));
         }
 
         // 2026-08-18 ("ещё больше процедурного полиша без арта"): лёгкая
@@ -184,27 +232,45 @@ namespace Burmalda.DebugVisuals
         /// doc-комментарий класса). Ветвление "что показывать когда" не
         /// менялось — только источник (текстура вместо Color) для тех
         /// состояний, для которых в пакете есть готовый арт.
+        ///
+        /// <b>Задача «тёплый набор плит»:</b> прежний принудительный тон
+        /// поверх <c>tile-pit.png</c> (<c>TileDebugColor.HiddenTrapSignatureTextureTint</c>)
+        /// убран — тот компенсировал случайно подвернувшуюся холодную
+        /// текстуру, читавшуюся как однозначная яма-ловушка. Новый
+        /// <c>tile-hidden-trap-signature.png</c> нарисован для этой роли
+        /// специально (тонкие трещины/камешки, тон уже в общей палитре) —
+        /// показывается как есть, как и остальные текстуры; константа тона
+        /// оставлена в TileDebugColor на случай, если плейтест на устройстве
+        /// (задача, раздел 5) покажет, что новая текстура всё равно
+        /// бросается в глаза сильнее источников.
         /// </summary>
-        private void ApplyVisual(GameObject tileObject, TileVisualState state)
+        private void ApplyVisual(GameObject tileObject, GridCoordinate coordinate, TileVisualState state)
         {
             var renderer = tileObject.GetComponent<Renderer>();
             if (renderer == null) return;
 
             var kind = TileArtKindResolver.Resolve(state);
-            var texture = kind != TileArtKind.None && _artCatalog != null ? _artCatalog.Get(kind) : null;
+            Texture2D texture;
+            if (kind == TileArtKind.Fresh && _artCatalog != null)
+            {
+                var variant = _freshVariants.TryGetValue(coordinate, out var v) ? v : new FreshTileVariant(0, Quaternion.identity);
+                texture = _artCatalog.GetFreshVariant(variant.TextureIndex);
+                tileObject.transform.localRotation = variant.Rotation;
+            }
+            else
+            {
+                // Плиты со смыслом (источники/сигнатуры/ворота/рычаг/Алтарь/
+                // позиция игрока) — ориентация постоянна (задача), даже если
+                // эта же плита раньше была повёрнутым Fresh-полом.
+                tileObject.transform.localRotation = Quaternion.identity;
+                texture = kind != TileArtKind.None && _artCatalog != null ? _artCatalog.Get(kind) : null;
+            }
 
             var material = renderer.material;
             if (texture != null)
             {
                 material.mainTexture = texture;
-                // Задача «сделать тоннель играбельным», часть 3: tile-pit.png
-                // (кислотно-зелёная мозаика с чёрной дырой) читается как
-                // однозначная ловушка, не как "с плитой что-то не так" — см.
-                // TileDebugColor.HiddenTrapSignatureTextureTint. Единственное
-                // состояние, где текстура не показывается как есть.
-                material.color = kind == TileArtKind.HiddenTrapSignature
-                    ? TileDebugColor.HiddenTrapSignatureTextureTint
-                    : Color.white;
+                material.color = Color.white;
                 if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.35f);
                 if (material.HasProperty("_EmissionColor")) material.DisableKeyword("_EMISSION");
                 return;

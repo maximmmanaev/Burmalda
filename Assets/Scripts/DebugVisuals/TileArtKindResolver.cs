@@ -20,35 +20,46 @@ namespace Burmalda.DebugVisuals
         public static TileArtKind Resolve(TileVisualState state)
         {
             if (state.IsDestroyed) return TileArtKind.Destroyed;
-            if (state.IsCurrentPosition) return TileArtKind.None;
+            // Задача «тёплый набор плит»: раньше None (белый цветной
+            // фолбэк, самый невнятный объект на экране по плейтесту
+            // владельца) — теперь tile-current-position.png.
+            if (state.IsCurrentPosition) return TileArtKind.CurrentPosition;
             if (state.IsStart) return TileArtKind.Start;
+            // Комнаты Босса ещё нет в Unity (PRD v8) — под неё в тёплом
+            // наборе по-прежнему нет текстуры, остаётся на цветном фолбэке.
             if (state.IsBoss) return TileArtKind.None;
-            // Задача «рычаг и ворота невидимы»: tile-gate-closed.png/tile-gate-open.png
-            // существуют по имени, но не по содержимому — один лист мелких
-            // UI-иконок, другой полный рендер комнаты, ни один не тайл пола
-            // (проверено визуально перед этим решением). None — тот же
-            // честный цветной фолбэк, что и у источников Маны/Ключей.
-            if (state.IsGated || state.IsLever) return TileArtKind.None;
+            if (state.IsAltar) return TileArtKind.Altar;
+            // Задача «тёплый набор плит»: прежние tile-gate-closed.png/
+            // tile-gate-open.png (лист мелких UI-иконок и полный рендер
+            // комнаты — не тайлы пола) заменены настоящими плитами пола из
+            // тёплого набора; tile-lever.png — тоже новое. Момент открытия
+            // ворот обязан читаться мгновенно (задача) — раздельные
+            // GateClosed/GateOpen, не одна текстура на оба состояния.
+            if (state.IsGated) return state.IsLeverGateOpen ? TileArtKind.GateOpen : TileArtKind.GateClosed;
+            if (state.IsLever) return TileArtKind.Lever;
             if (state.IsBlocked) return TileArtKind.Blocked;
             if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
-            // Issue #163: яма и активированный взрыв — ОДНА категория, не
-            // выдающая точный тип (см. Core.TrapSignature). Пакет содержит
-            // отдельные tile-pit.png/tile-explosive-explosion.png, но сюда
-            // сознательно подключена только одна из них (TileArtCatalog) —
-            // подключить обе значило бы нарушить инвариант "видно, что не
-            // так, не видно, что именно" из issue #163.
+            // Issue #163/задача «тёплый набор плит»: яма и активированный
+            // взрыв — ОДНА категория, не выдающая точный тип (см.
+            // Core.TrapSignature) — теперь общий tile-hidden-trap-
+            // signature.png, выделенный под эту роль (раньше сюда
+            // подключался tile-pit.png по необходимости, без палитры под
+            // сигнатуру отдельно).
             if (state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) return TileArtKind.HiddenTrapSignature;
             if (state.ActiveTimedTrap.HasValue) return TileArtKind.TimedTrapActive;
             // Единая сигнатура триггера (задача «сделать тоннель играбельным»,
             // часть 3) — то же слияние, что уже сделано для HiddenTrapSignature.
+            // tile-trigger-signature.png — выделенный файл под эту роль
+            // (задача «тёплый набор плит»), раньше сюда подключался
+            // tile-explosive-trigger.png по необходимости.
             if (state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) return TileArtKind.TriggerSignature;
 
-            // Источники валюты (часть 1 той же задачи): в текущем пакете нет
-            // отдельных тайл-текстур под них (проверено — есть только иконки
-            // Icons/Currencies/, не тайлы пола) — None, как и для остальных
-            // состояний без готового арта (см. doc-комментарий TileArtKind.None).
-            // TileDebugColor.Resolve всё равно различает Ману/Ключи цветом.
-            if (state.IsManaSource || state.IsKeySource) return TileArtKind.None;
+            // Источники валюты (часть 1 задачи «сделать тоннель играбельным»):
+            // раньше None (в пакете были только иконки Icons/Currencies/, не
+            // тайлы пола) — задача «тёплый набор плит» добавила
+            // tile-mana-source.png/tile-key-source.png.
+            if (state.IsManaSource) return TileArtKind.ManaSource;
+            if (state.IsKeySource) return TileArtKind.KeySource;
 
             return ResolveDecayGradient(state.DecayProgress01);
         }

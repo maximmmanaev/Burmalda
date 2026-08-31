@@ -46,6 +46,27 @@ namespace Burmalda.DebugVisuals
         /// <see cref="TileArtKindResolver"/>/<see cref="TileDebugColor.TriggerSignatureColor"/>).
         /// Заменяет прежние раздельные ExplosiveTrigger/TimedTrapTrigger.
         /// </summary>
-        TriggerSignature
+        TriggerSignature,
+
+        /// <summary>Задача «тёплый набор плит»: плита, на которой стоит игрок — раньше белый цветной фолбэк, теперь <c>tile-current-position.png</c>.</summary>
+        CurrentPosition,
+
+        /// <summary>Задача «тёплый набор плит»: источник Кристаллов Маны — раньше только цвет (<see cref="TileDebugColor.ManaSourceColor"/>), теперь <c>tile-mana-source.png</c>.</summary>
+        ManaSource,
+
+        /// <summary>Задача «тёплый набор плит»: источник Ключей — раньше только цвет, теперь <c>tile-key-source.png</c>.</summary>
+        KeySource,
+
+        /// <summary>Задача «тёплый набор плит»: рычаг — раньше только цвет, теперь <c>tile-lever.png</c>.</summary>
+        Lever,
+
+        /// <summary>Задача «тёплый набор плит»: закрытые ворота — раньше только цвет (прежний <c>tile-gate-closed.png</c> оказался непригоден, см. историю <see cref="TileArtKindResolver"/>), теперь настоящая плита пола.</summary>
+        GateClosed,
+
+        /// <summary>Открытые ворота — <c>tile-gate-open.png</c>, собран владельцем из второго варианта решётки (рама сохранена, прутья убраны).</summary>
+        GateOpen,
+
+        /// <summary>Алтарь (<c>Core.Tile.IsAltar</c>) — <c>tile-altar.png</c>.</summary>
+        Altar
     }
 }
