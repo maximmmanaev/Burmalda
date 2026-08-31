@@ -106,5 +106,46 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("diagonal", 1, SegmentRewardTag.Coins, tiles);
             Assert.IsTrue(SegmentReachabilityValidator.IsTraversable(template));
         }
+
+        [Test]
+        public void LeverVaultIsReachable_NoGateInTemplate_ReturnsTrue()
+        {
+            var template = new SegmentTemplate("no-gate", 1, SegmentRewardTag.Coins, OpenRows(5));
+            Assert.IsTrue(SegmentReachabilityValidator.LeverVaultIsReachable(template));
+        }
+
+        [Test]
+        public void LeverVaultIsReachable_GateConnectedToRestOfSegmentWhenOpen_ReturnsTrue()
+        {
+            // Ворота примыкают к открытой плите сбоку — при открытых воротах карман доступен.
+            var tiles = OpenRows(5);
+            for (var c = 0; c < Width; c++) tiles[2, c] = SegmentTileType.Blocked;
+            tiles[2, 1] = SegmentTileType.LeverGate;
+            tiles[0, 0] = SegmentTileType.Lever;
+
+            var template = new SegmentTemplate("gate-connected", 1, SegmentRewardTag.Artifact, tiles);
+            Assert.IsTrue(SegmentReachabilityValidator.LeverVaultIsReachable(template));
+        }
+
+        [Test]
+        public void LeverVaultIsReachable_GateSealedOnEverySideExceptVault_ReturnsFalse()
+        {
+            // issue #208: клетка ворот окружена Blocked со всех сторон, кроме
+            // самой награды за ней — карман замкнут сам на себя, открытые
+            // ворота ничего не меняют, к ним физически неоткуда подойти.
+            var tiles = OpenRows(5);
+            for (var c = 0; c < Width; c++)
+            {
+                tiles[1, c] = SegmentTileType.Blocked;
+                tiles[3, c] = SegmentTileType.Blocked;
+            }
+            tiles[2, 0] = SegmentTileType.Blocked;
+            tiles[2, 1] = SegmentTileType.LeverGate;
+            tiles[2, 2] = SegmentTileType.KeySource; // "тайник" — недостижим даже при открытых воротах
+            tiles[0, 0] = SegmentTileType.Lever;
+
+            var template = new SegmentTemplate("sealed-vault", 1, SegmentRewardTag.Keys, tiles);
+            Assert.IsFalse(SegmentReachabilityValidator.LeverVaultIsReachable(template));
+        }
     }
 }

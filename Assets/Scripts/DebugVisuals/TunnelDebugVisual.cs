@@ -116,7 +116,10 @@ namespace Burmalda.DebugVisuals
                     activeTimedTrap: tile.IsTimedTrapActive ? tile.TimedTrapKind : null,
                     isBoss: tile.IsBoss,
                     isManaSource: tile.IsManaSource,
-                    isKeySource: tile.IsKeySource);
+                    isKeySource: tile.IsKeySource,
+                    isLever: tile.IsLever,
+                    isGated: tile.IsGated,
+                    isLeverGateOpen: tile.IsLeverGateOpen);
 
                 ApplyVisual(pair.Value, state);
             }

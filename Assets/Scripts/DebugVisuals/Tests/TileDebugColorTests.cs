@@ -328,5 +328,82 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileDebugColor.BlockedColor, TileDebugColor.Resolve(blockedManaSource));
             Assert.AreEqual(TileDebugColor.ManaSourceColor, TileDebugColor.Resolve(plainManaSource));
         }
+
+        // Задача «рычаг и ворота невидимы»: плейтест владельца — «рычагов
+        // поблизости не обнаружил», «недоступные ключи, окружённые стеной».
+        [Test]
+        public void Resolve_Lever_ReturnsLeverColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true);
+
+            Assert.AreEqual(TileDebugColor.LeverColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Lever_IgnoresDecayProgress()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.9f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true);
+
+            Assert.AreEqual(TileDebugColor.LeverColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_GatedClosed_ReturnsLeverGateClosedColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isGated: true, isLeverGateOpen: false);
+
+            Assert.AreEqual(TileDebugColor.LeverGateClosedColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_GatedOpen_ReturnsLeverGateOpenColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isGated: true, isLeverGateOpen: true);
+
+            Assert.AreEqual(TileDebugColor.LeverGateOpenColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_GatedOpen_DiffersFromGatedClosed()
+        {
+            // Момент открытия должен быть заметен (задача) — не тот же цвет.
+            Assert.AreNotEqual(TileDebugColor.LeverGateClosedColor, TileDebugColor.LeverGateOpenColor);
+        }
+
+        [Test]
+        public void Resolve_LeverGateClosed_DiffersFromBlockedColor()
+        {
+            // Blocked — "никогда", ворота — "пока нет" (задача): должны читаться по-разному.
+            Assert.AreNotEqual(TileDebugColor.BlockedColor, TileDebugColor.LeverGateClosedColor);
+        }
+
+        [Test]
+        public void Resolve_Lever_DiffersFromHiddenTrapSignatureAndTriggerSignature()
+        {
+            // Рычаг — механизм-приглашение, не должен путаться с сигнатурами опасности (задача).
+            Assert.AreNotEqual(TileDebugColor.LeverColor, TileDebugColor.HiddenTrapSignatureColor);
+            Assert.AreNotEqual(TileDebugColor.LeverColor, TileDebugColor.TriggerSignatureColor);
+        }
+
+        [Test]
+        public void Resolve_Gated_TakesPriorityOverLever_WhenSomehowBothTrue()
+        {
+            // Не должно случиться по построению генератора (одна плита — один
+            // символ шаблона) — проверяем приоритет ветвления явно, как и для
+            // других "не должно, но на всякий" кейсов в этом файле.
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isGated: true, isLeverGateOpen: false);
+
+            Assert.AreEqual(TileDebugColor.LeverGateClosedColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Boss_TakesPriorityOverGatedAndLever()
+        {
+            var gatedBoss = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true, isGated: true);
+            var leverBoss = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true, isLever: true);
+
+            Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(gatedBoss));
+            Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(leverBoss));
+        }
     }
 }

@@ -6,10 +6,13 @@ using UnityEngine.UI;
 namespace Burmalda.DebugVisuals
 {
     /// <summary>
-    /// Тумблеры для <see cref="RunHudToggles"/> (issue "Задача 2 —
-    /// отладочный HUD"): "Run HUD" (числа/множитель/билд, дефолт ВКЛ) и
-    /// "Tile debug" (координаты/% распада/тип ловушки примериваемой плиты,
-    /// ранее выводившиеся всегда — теперь под тумблером, дефолт ВЫКЛ).
+    /// Тумблеры для <see cref="RunHudToggles"/>: "Run HUD" (числа/множитель/
+    /// билд текстом, старый OnGUI-оверлей — дефолт ВЫКЛ с задачи «HUD
+    /// накладывается сам на себя», см. её doc-комментарий), "Tile debug"
+    /// (координаты/% распада/тип ловушки примериваемой плиты, дефолт ВЫКЛ)
+    /// и "Boss Room preview" (каркас Комнаты Босса, дефолт ВЫКЛ — раньше
+    /// кнопка висела прямо на игровом поле, задача «на поле не должно быть
+    /// ни одной отладочной кнопки»).
     ///
     /// Тот же принцип, что <see cref="CameraAnchorDebugPanel"/>: свёрнутая
     /// кнопка-кнопка в углу разворачивает панель, Canvas/Toggle вместо
@@ -21,11 +24,14 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public sealed class RunHudTogglePanel : MonoBehaviour
     {
+        // ButtonWidth/ButtonHeight/Margin — из DebugPanelLayout (единый
+        // владелец раскладки отладочных кнопок, задача «рычаг и ворота
+        // невидимы, HUD накладывается сам на себя»).
         private const float PanelWidth = 360f;
-        private const float Margin = 24f;
+        private const float Margin = DebugPanelLayout.Margin;
         private const float RowHeight = 90f;
-        private const float ButtonWidth = 160f;
-        private const float ButtonHeight = 72f;
+        private const float ButtonWidth = DebugPanelLayout.HudButtonWidth;
+        private const float ButtonHeight = DebugPanelLayout.HudButtonHeight;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -112,11 +118,15 @@ namespace Burmalda.DebugVisuals
             rect.anchorMin = new Vector2(0.5f, 1f);
             rect.anchorMax = new Vector2(0.5f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 2f + Margin * 2f);
+            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 3f + Margin * 2f);
             rect.anchoredPosition = new Vector2(0f, -(Margin + ButtonHeight + Margin));
 
             BuildToggleRow(_panelRoot.transform, 0, "Run HUD", RunHudToggles.ShowRunHud, v => RunHudToggles.ShowRunHud = v);
             BuildToggleRow(_panelRoot.transform, 1, "Tile debug", RunHudToggles.ShowTileDebugOverlay, v => RunHudToggles.ShowTileDebugOverlay = v);
+            // Задача «HUD накладывается сам на себя»/часть 3 («Preview Boss
+            // Room» посреди экрана, ровно там, куда игрок тапает при ходе) —
+            // кнопка убрана с игрового поля, теперь тумблер здесь, дефолт ВЫКЛ.
+            BuildToggleRow(_panelRoot.transform, 2, "Boss Room preview", RunHudToggles.ShowBossRoomPreview, v => RunHudToggles.ShowBossRoomPreview = v);
         }
 
         private void BuildToggleRow(Transform parent, int rowIndex, string label, bool initialValue, System.Action<bool> onValueChanged)

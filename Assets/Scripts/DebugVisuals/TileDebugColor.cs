@@ -127,6 +127,36 @@ namespace Burmalda.DebugVisuals
         /// <summary>Источник Ключей — то же значение, что медный кружок Ключей в HUD (<see cref="BurmaldaHudPalette.CopperCoin"/>), тот же принцип, что <see cref="ManaSourceColor"/>.</summary>
         public static readonly Color KeySourceColor = BurmaldaHudPalette.CopperCoin;
 
+        /// <summary>
+        /// Задача «рычаг и ворота невидимы»: плейтест владельца — «в игре
+        /// замечены недоступные ключи, окружённые стеной, рычагов поблизости
+        /// не обнаружил», потому что <c>Resolve()</c> раньше вообще не знал
+        /// про <see cref="TileVisualState.IsLever"/>. Рычаг — механизм-
+        /// приглашение («на это можно нажать»), не опасность — насыщенный
+        /// зелёный, не пересекается ни с приглушёнными зелёно-тёплыми
+        /// StartColor/FreshColor (те гораздо темнее/desaturated), ни с одним
+        /// из цветов ловушек/сигнатур в этой палитре.
+        /// </summary>
+        public static readonly Color LeverColor = new Color(60f / 255f, 235f / 255f, 90f / 255f);
+
+        /// <summary>
+        /// Закрытые ворота бокового прохода (<c>Tile.IsGated</c>, issue #51).
+        /// Тёмный бронзово-янтарный — читается как преграда (тёмный, как
+        /// BlockedColor), но другой ХОД (не почти-чёрный, а с явным тёплым
+        /// оттенком) — задача прямо требует отличить «никогда» (Blocked) от
+        /// «пока нет» (ворота): цвет похож по тону, но не совпадает.
+        /// </summary>
+        public static readonly Color LeverGateClosedColor = new Color(110f / 255f, 75f / 255f, 25f / 255f);
+
+        /// <summary>
+        /// Открытые ворота (<c>Tile.IsLeverGateOpen</c>) — тот же янтарный
+        /// оттенок, что <see cref="LeverGateClosedColor"/>, но яркий и
+        /// светлый, а не тёмный: момент открытия должен быть заметен
+        /// (задача) — тон один и тот же ("это те же ворота"), яркость
+        /// меняется кардинально ("но теперь они открыты").
+        /// </summary>
+        public static readonly Color LeverGateOpenColor = new Color(1f, 210f / 255f, 90f / 255f);
+
         // Вход в Комнату Босса (Tile.IsBoss, PRD v8 §8.1) — единственная
         // строка debug-визуала под механику Босса, которая переживает v8
         // (см. doc-комментарий TileVisualState.IsBoss). Синий — единственный
@@ -140,6 +170,13 @@ namespace Burmalda.DebugVisuals
             if (state.IsCurrentPosition) return CurrentPositionColor;
             if (state.IsStart) return StartColor;
             if (state.IsBoss) return BossColor;
+            // Ворота и рычаг — новые структурные состояния (задача «рычаг и
+            // ворота невидимы»), той же приоритетной группы, что Boss/Blocked:
+            // фиксированы на плите, не связаны с распадом, должны быть видны
+            // всегда. Открытые/закрытые ворота — один тон, разная яркость
+            // (см. LeverGateOpenColor/LeverGateClosedColor).
+            if (state.IsGated) return state.IsLeverGateOpen ? LeverGateOpenColor : LeverGateClosedColor;
+            if (state.IsLever) return LeverColor;
             if (state.IsBlocked) return BlockedColor;
             // Issue #163: лава остаётся видимой как раньше (PRD v8 §4.2)
             // — единственный LethalTrapType, для которого Resolve() всё ещё
