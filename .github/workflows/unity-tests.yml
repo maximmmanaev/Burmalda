@@ -26,20 +26,29 @@ jobs:
 
       - name: Decode Unity license
         if: steps.check-unity-project.outputs.exists == 'true'
-        # UNITY_LICENSE напрямую переменной окружения ломался: многострочный
-        # .ulf через env иногда портит кодировку/переносы строк, и Unity
-        # отказывает в активации ("Access token is unavailable", "Failed to
-        # activate ULF license") — задокументированная проблема game.ci,
-        # см. https://game.ci/docs/troubleshooting/common-issues#the-digital-signature-is-invalid
-        # Секрет UNITY_LICENSE_BASE64 хранит содержимое .ulf в base64 (одна
-        # строка) — декодируем в файл прямо тут, без промежуточной переменной.
-        run: echo "${{ secrets.UNITY_LICENSE_BASE64 }}" | base64 -d > "$GITHUB_WORKSPACE/Unity_lic.ulf"
+        # UNITY_LICENSE напрямую переменной окружения (raw XML в ${{ secrets.X }}
+        # прямо в run:) ломался — многострочное значение теряло переносы строк,
+        # активация падала ("Access token is unavailable", "Failed to activate
+        # ULF license") — задокументированная проблема game.ci, см.
+        # https://game.ci/docs/troubleshooting/common-issues#the-digital-signature-is-invalid
+        # game-ci/unity-test-runner проверяет именно UNITY_LICENSE (содержимое),
+        # UNITY_LICENSE_FILE как признак лицензии НЕ распознаёт ("Missing Unity
+        # License File and no Serial was found" — проверено на этом репо).
+        # Секрет UNITY_LICENSE_BASE64 хранит .ulf в base64 (одна строка) —
+        # декодируем и кладём в UNITY_LICENSE через multiline-синтаксис
+        # $GITHUB_ENV (heredoc), а не через inline-подстановку в run:.
+        run: |
+          {
+            echo "UNITY_LICENSE_CONTENT<<UNITY_LICENSE_EOF"
+            echo "${{ secrets.UNITY_LICENSE_BASE64 }}" | base64 -d
+            echo "UNITY_LICENSE_EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Run Unity tests
         if: steps.check-unity-project.outputs.exists == 'true'
         uses: game-ci/unity-test-runner@v4
         env:
-          UNITY_LICENSE_FILE: /github/workspace/Unity_lic.ulf
+          UNITY_LICENSE: ${{ env.UNITY_LICENSE_CONTENT }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
