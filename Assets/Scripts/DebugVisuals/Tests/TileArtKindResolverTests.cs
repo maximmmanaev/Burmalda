@@ -208,5 +208,26 @@ namespace Burmalda.DebugVisuals.Tests
 
             Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
         }
+
+        // Задача «рычаг и ворота невидимы»: tile-gate-closed.png/tile-gate-open.png
+        // существуют по имени, но не по содержимому (не тайлы пола, проверено
+        // визуально) — None, как и у источников валюты.
+        [Test]
+        public void Resolve_Lever_ReturnsNone_NotDecayGradient()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true);
+
+            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_GatedClosedOrOpen_ReturnsNone_NotDecayGradient()
+        {
+            var closed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isGated: true, isLeverGateOpen: false);
+            var open = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isGated: true, isLeverGateOpen: true);
+
+            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(closed));
+            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(open));
+        }
     }
 }

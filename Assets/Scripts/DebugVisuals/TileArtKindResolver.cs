@@ -23,6 +23,12 @@ namespace Burmalda.DebugVisuals
             if (state.IsCurrentPosition) return TileArtKind.None;
             if (state.IsStart) return TileArtKind.Start;
             if (state.IsBoss) return TileArtKind.None;
+            // Задача «рычаг и ворота невидимы»: tile-gate-closed.png/tile-gate-open.png
+            // существуют по имени, но не по содержимому — один лист мелких
+            // UI-иконок, другой полный рендер комнаты, ни один не тайл пола
+            // (проверено визуально перед этим решением). None — тот же
+            // честный цветной фолбэк, что и у источников Маны/Ключей.
+            if (state.IsGated || state.IsLever) return TileArtKind.None;
             if (state.IsBlocked) return TileArtKind.Blocked;
             if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
             // Issue #163: яма и активированный взрыв — ОДНА категория, не
