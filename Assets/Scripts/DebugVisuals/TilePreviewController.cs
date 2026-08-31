@@ -26,6 +26,17 @@ namespace Burmalda.DebugVisuals
     /// вместо точного типа, пока не раскрыта соответствующим крючком под
     /// Идола (по умолчанию оба крючка выключены — базовая сигнатура
     /// доступна без единого Идола, точный тип/содержимое — нет).
+    ///
+    /// <b>Задача 2 (отладочный HUD):</b> текстовая сводка (координаты/%
+    /// распада/тип ловушки) — единственный отладочный вывод в игре с точным
+    /// % распада и (при раскрытом Идолом) точным типом ловушки. Раньше
+    /// показывалась всегда, теперь — только при
+    /// <see cref="RunHudToggles.ShowTileDebugOverlay"/> (дефолт ВЫКЛ, тумблер
+    /// в <see cref="RunHudTogglePanel"/>) — по прямому требованию задачи:
+    /// этот уровень детализации не должен утекать в обычный (не отладочный)
+    /// HUD. Подсветка контура (<see cref="_highlighter"/>) тумблером НЕ
+    /// гейтится — это часть механики примеривания (PRD 4.1 п.1), не
+    /// диагностика.
     /// </summary>
     public sealed class TilePreviewController : MonoBehaviour
     {
@@ -60,6 +71,7 @@ namespace Burmalda.DebugVisuals
 
         private void OnGUI()
         {
+            if (!RunHudToggles.ShowTileDebugOverlay) return;
             if (_input == null || _input.Grid == null || !_input.PreviewTarget.HasValue) return;
 
             var text = BuildTileSummary(_input.PreviewTarget.Value);

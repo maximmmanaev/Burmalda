@@ -7,12 +7,12 @@ using UnityEngine;
 namespace Burmalda.Camp
 {
     /// <summary>
-    /// Интеграция Лагеря/Возврата/Кэш-аута с забегом (PRD разделы 10/11,
+    /// Интеграция Лагеря/Возврата/Кэш-аута с забегом (PRD v9 разделы 10/11,
     /// issues #25–27). <see cref="Camp"/> — постоянный (Awake), переиспользует
-    /// <see cref="CurrencyController.Coins"/>/<see cref="CurrencyController.Crystals"/>
-    /// и <see cref="AltarController.Pool"/> вместо своих инстансов (тот же
-    /// принцип, что у <c>Boss.BossController</c>). <see cref="CashOutSystem"/>/
-    /// <see cref="ReturnJourneySystem"/> — пересобираются на каждый забег.
+    /// <see cref="CurrencyController.Coins"/> и <see cref="AltarController.Pool"/>
+    /// вместо своих инстансов (тот же принцип, что у <c>Boss.BossController</c>).
+    /// <see cref="CashOutSystem"/>/<see cref="ReturnJourneySystem"/> —
+    /// пересобираются на каждый забег.
     ///
     /// Подписка <see cref="ReturnJourneySystem.HandleDeathDuringReturn"/> на
     /// <see cref="RunState.Died"/> сверяется каждый кадр
@@ -63,18 +63,18 @@ namespace Burmalda.Camp
 
         private void Update()
         {
-            if (_camp == null && CampIsReady()) _camp = new Camp(_currency.Coins, _currency.Crystals, _altar.Pool);
+            if (_camp == null && CampIsReady()) _camp = new Camp(_currency.Coins, _altar.Pool);
             if (_cashOut == null && RunSystemsReady()) RebuildRunSystems();
             SyncRunStateSubscription();
         }
 
         private bool CampIsReady() =>
-            _currency != null && _currency.Coins != null && _currency.Crystals != null &&
+            _currency != null && _currency.Coins != null &&
             _altar != null && _altar.Pool != null;
 
         private bool RunSystemsReady() =>
             _input != null && _input.Grid != null && _input.Trail != null &&
-            _currency != null && _currency.RunCoins != null && _currency.RunManaCrystals != null && _currency.RunKeys != null && _currency.Coins != null;
+            _currency != null && _currency.RunManaCrystals != null && _currency.RunKeys != null && _currency.Coins != null;
 
         private void HandleRunStarted() => RebuildRunSystems();
 
@@ -83,8 +83,8 @@ namespace Burmalda.Camp
             DisposeRunSystems();
             if (!RunSystemsReady()) return;
 
-            _cashOut = new CashOutSystem(_input.Grid, _input.Trail, _currency.RunCoins, _currency.RunManaCrystals, _currency.RunKeys);
-            _journey = new ReturnJourneySystem(_input.Trail, _currency.RunCoins, _currency.RunManaCrystals, _currency.RunKeys, _currency.Coins);
+            _cashOut = new CashOutSystem(_input.Grid, _input.Trail, _currency.RunManaCrystals, _currency.RunKeys);
+            _journey = new ReturnJourneySystem(_input.Trail, _currency.RunManaCrystals, _currency.RunKeys, _currency.Coins);
         }
 
         private void DisposeRunSystems()

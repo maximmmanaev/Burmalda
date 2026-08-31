@@ -9,7 +9,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void BuildMessage_Victory_MentionsTierAndRelicName_NotEnergyThreshold()
         {
-            var outcome = BossEncounterOutcome.Victory(coinsFromOverflow: 0, hasBoostedRareRelicChance: false, accumulatedMana: 12345, requiredEnergy: 6789);
+            var outcome = BossEncounterOutcome.Victory(hasBoostedRareRelicChance: false, accumulatedMana: 12345, requiredEnergy: 6789);
             var relic = new Relic("relic-1", "Идол Терпения");
 
             var message = BossVictoryDebugText.BuildMessage(outcome, relic, tier: 2);
@@ -35,7 +35,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void BuildMessage_VictoryWithoutRelic_DoesNotThrow()
         {
-            var outcome = BossEncounterOutcome.Victory(0, false, 100, 100);
+            var outcome = BossEncounterOutcome.Victory(false, 100, 100);
             Assert.DoesNotThrow(() => BossVictoryDebugText.BuildMessage(outcome, relic: null, tier: 0));
         }
 

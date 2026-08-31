@@ -11,9 +11,9 @@ namespace Burmalda.Boss
     /// Встреча с Боссом при достижении его точки (PRD раздел 8, issue #22):
     /// "Встреча происходит автоматически при достижении точки Босса".
     /// Реагирует на <see cref="GridTraceTrail.Advanced"/> — по-настоящему
-    /// новая плита (#61), как Алтарь/Рычаг. Победа: Перелив энергии сверх
-    /// порога → Монеты (PRD v7 §8.2), выдаётся Реликвия, первая победа за
-    /// прохождение разблокирует все Амулеты/Талисманы каталога в
+    /// новая плита (#61), как Алтарь/Рычаг. Победа: выдаётся Реликвия,
+    /// первая победа за прохождение разблокирует все Амулеты/Талисманы
+    /// каталога в
     /// <see cref="ArtifactPool"/> (PRD раздел 6), Ярус Глубины продвигается
     /// (<see cref="RunDepthTier.RecordBossVictory"/>, PRD v7 §22, issue
     /// #83) — победа над Боссом ГРАНИЦА Яруса, требуемая энергия следующего
@@ -32,13 +32,16 @@ namespace Burmalda.Boss
     /// Выбор "вернуться в лагерь или идти глубже" после победы — вне этой
     /// системы, зависит от Лагеря (Спринт 8); эта система только разрешает
     /// встречу и публикует результат.
+    ///
+    /// <b>Больше не начисляет Монеты</b> (v9, задача по экономике "Мана как
+    /// доход забега") — Перелив энергии в Монеты (PRD v7 §8.2) удалён вместе
+    /// с <c>Boss.OverflowToCoinsRate</c>, см. докстроку <see cref="Boss"/>.
     /// </summary>
     public sealed class BossEncounterSystem : IDisposable
     {
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private readonly RunCurrencyAccumulator _mana;
-        private readonly RunCurrencyAccumulator _coins;
         private readonly ArtifactPool _pool;
         private readonly FirstBossVictoryTracker _firstVictoryTracker;
         private readonly RunDepthTier _depthTier;
@@ -52,13 +55,12 @@ namespace Burmalda.Boss
         /// предмет баланса (Спринт 10).
         /// </param>
         /// <param name="reportBossDefeat">Вызывается с причиной при поражении — см. докстроку класса про причину колбэка вместо прямой ссылки на RunState.</param>
-        public BossEncounterSystem(TunnelGrid grid, GridTraceTrail trail, RunCurrencyAccumulator mana, RunCurrencyAccumulator coins,
+        public BossEncounterSystem(TunnelGrid grid, GridTraceTrail trail, RunCurrencyAccumulator mana,
             ArtifactPool pool, FirstBossVictoryTracker firstVictoryTracker, RunDepthTier depthTier, Action<string> reportBossDefeat, Func<int, int> requiredEnergyForTier)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
             _mana = mana ?? throw new ArgumentNullException(nameof(mana));
-            _coins = coins ?? throw new ArgumentNullException(nameof(coins));
             _pool = pool ?? throw new ArgumentNullException(nameof(pool));
             _firstVictoryTracker = firstVictoryTracker ?? throw new ArgumentNullException(nameof(firstVictoryTracker));
             _depthTier = depthTier ?? throw new ArgumentNullException(nameof(depthTier));
@@ -90,7 +92,6 @@ namespace Burmalda.Boss
 
             if (outcome.IsVictory)
             {
-                _coins.Add(outcome.CoinsFromOverflow);
                 relic = new Relic($"relic-boss-tier-{_depthTier.CurrentTier}-row-{coordinate.Row}", "Реликвия Босса");
                 _depthTier.RecordBossVictory();
 

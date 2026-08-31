@@ -11,6 +11,7 @@ namespace Burmalda.Core
     public sealed class TunnelGrid
     {
         private readonly Dictionary<GridCoordinate, Tile> _tiles = new Dictionary<GridCoordinate, Tile>();
+        private readonly HashSet<int> _claimedRows = new HashSet<int>();
 
         public TunnelGrid(int width)
         {
@@ -73,6 +74,27 @@ namespace Burmalda.Core
         /// вызывающий код сам параллельно вызывает <see cref="GetOrCreateTile"/>.
         /// </summary>
         public IReadOnlyCollection<Tile> MaterializedTiles => _tiles.Values.ToArray();
+
+        /// <summary>
+        /// Помечает ряд как заполненный целиком внешним генератором контента
+        /// (сейчас единственный вызывающий — <c>Generation.SegmentRowProvider</c>,
+        /// сегментная генерация PRD v7 §21) — по конструкции, не по
+        /// договорённости, не даёт <see cref="TunnelObstacleGenerator"/>
+        /// засеять тот же ряд собственным случайным броском, пока оба
+        /// генератора работают одновременно на одной сетке (переходное
+        /// состояние — см. <c>Movement.TunnelObstacleController</c> и
+        /// docs/wiki/roadmap.md). Вызывать ДО первого <see cref="GetOrCreateTile"/>
+        /// для любой плиты этого ряда — <see cref="TileMaterialized"/>
+        /// стреляет синхронно внутри <see cref="GetOrCreateTile"/>, и если
+        /// ряд ещё не помечен claimed на этот момент, <see cref="TunnelObstacleGenerator"/>
+        /// успеет откликнуться раньше, чем вызывающий код применит свой
+        /// собственный контент. Идемпотентно — повторный вызов для уже
+        /// помеченного ряда ничего не меняет.
+        /// </summary>
+        public void ClaimRow(int row) => _claimedRows.Add(row);
+
+        /// <summary>Ряд помечен через <see cref="ClaimRow"/> — см. её doc-комментарий.</summary>
+        public bool IsRowClaimed(int row) => _claimedRows.Contains(row);
 
         /// <summary>
         /// Соседние плиты для позиции — 8-направленно (PRD 4.1: "тянет палец

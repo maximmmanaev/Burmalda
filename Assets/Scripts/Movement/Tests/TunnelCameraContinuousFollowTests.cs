@@ -5,11 +5,11 @@ using UnityEngine;
 namespace Burmalda.Movement.Tests
 {
     /// <summary>
-    /// Issue #155: непрерывное покадровое следование с компенсацией скорости
-    /// (<see cref="TunnelCameraFollow.AdvanceContinuousAnchorFollow"/>) —
+    /// Issue #155/задача 1: непрерывное покадровое следование с компенсацией
+    /// скорости (<see cref="TunnelCameraFollow.AdvanceContinuousAnchorFollow"/>) —
     /// замена твина фиксированной длительности (#153, тумблер 1, запрещён —
-    /// давал стоп-старт) и экспоненциального сглаживания (устоявшееся
-    /// отставание пропорционально скорости). Проверяет реальными
+    /// давал стоп-старт) и экспоненциального сглаживания (устаревший метод
+    /// Tick(), удалён задачей 1). Проверяет реальными
     /// <see cref="Camera.WorldToViewportPoint"/>/покадровой симуляцией с
     /// настоящим deltaTime (1/60с) — тот же паттерн реальной Camera, что и
     /// <see cref="TunnelCameraViewportFramingTests"/>, но теперь с временной
@@ -20,8 +20,13 @@ namespace Burmalda.Movement.Tests
         private const float TileSize = 1f;
         private const int Width = 5;
         private const float PortraitAspect = 0.5625f;
-        private const float AnchorViewportY = 0.32f;
+
+        // Задача 1 (владелец продукта подтвердил на устройстве): anchor
+        // 32% -> 46%, полоса клампа стала двусторонней —
+        // [anchor-BackToleranceViewportFraction, anchor+ToleranceViewportFraction].
+        private const float AnchorViewportY = 0.46f;
         private const float ToleranceViewportFraction = 0.12f;
+        private const float BackToleranceViewportFraction = 0.10f;
         private const float FrameDeltaSeconds = 1f / 60f;
 
         private static readonly Vector3 HeightOffset = new Vector3(0f, 6f, 0f);
@@ -41,15 +46,17 @@ namespace Burmalda.Movement.Tests
             public readonly WorldGridProjection Projection;
             public readonly TunnelCameraFollow Follow;
             public readonly float VFov;
-            public readonly float MinDistance; // дистанция на anchor — цель следования И нижняя граница клампа
+            public readonly float TargetDistance; // дистанция на anchor — точка покоя (задача 1: строго ВНУТРИ полосы, не её граница)
+            public readonly float MinDistance; // дистанция на anchor-backTolerance — нижняя граница клампа (задача 1)
             public readonly float MaxDistance; // дистанция на anchor+tolerance — верхняя граница клампа
 
-            public Setup(GridTraceTrail trail, WorldGridProjection projection, TunnelCameraFollow follow, float vFov, float minDistance, float maxDistance)
+            public Setup(GridTraceTrail trail, WorldGridProjection projection, TunnelCameraFollow follow, float vFov, float targetDistance, float minDistance, float maxDistance)
             {
                 Trail = trail;
                 Projection = projection;
                 Follow = follow;
                 VFov = vFov;
+                TargetDistance = targetDistance;
                 MinDistance = minDistance;
                 MaxDistance = maxDistance;
             }
@@ -65,12 +72,14 @@ namespace Burmalda.Movement.Tests
             follow.AdvanceIntroTween(TunnelCameraFollow.TweenDurationSeconds); // интро полностью отыграно — устоявшийся режим
 
             var vFov = ComputeSteadyVerticalFov(projection, TunnelCameraFollow.DefaultPitchDegrees);
-            var minDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+            var targetDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
                 HeightOffset.y, TunnelCameraFollow.DefaultPitchDegrees, vFov, AnchorViewportY);
+            var minDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                HeightOffset.y, TunnelCameraFollow.DefaultPitchDegrees, vFov, AnchorViewportY - BackToleranceViewportFraction);
             var maxDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
                 HeightOffset.y, TunnelCameraFollow.DefaultPitchDegrees, vFov, AnchorViewportY + ToleranceViewportFraction);
 
-            return new Setup(trail, projection, follow, vFov, minDistance, maxDistance);
+            return new Setup(trail, projection, follow, vFov, targetDistance, minDistance, maxDistance);
         }
 
         private static GameObject CreateCamera(string name, TunnelCameraFollow follow, float vFov)
@@ -105,7 +114,7 @@ namespace Burmalda.Movement.Tests
                     s.Trail.TryAdvanceTo(new GridCoordinate(s.Trail.CurrentPosition.Row + 1, Width / 2));
                     secondsSinceLastStep -= stepIntervalSeconds;
                 }
-                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.TargetDistance, s.MinDistance, s.MaxDistance);
                 elapsed += FrameDeltaSeconds;
             }
         }
@@ -131,7 +140,7 @@ namespace Burmalda.Movement.Tests
             {
                 s.Trail.TryAdvanceTo(new GridCoordinate(s.Trail.CurrentPosition.Row + 1, Width / 2));
                 for (var frame = 0; frame < framesPerCycle; frame++)
-                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.TargetDistance, s.MinDistance, s.MaxDistance);
             }
         }
 
@@ -180,14 +189,14 @@ namespace Burmalda.Movement.Tests
             // Ждём дольше VelocityDecaySeconds без единого хода — скорость
             // затухает до нуля, коррекция сходится к идеальной дистанции.
             for (var i = 0; i < 120; i++) // 2с — заведомо больше 250мс затухания
-                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.TargetDistance, s.MinDistance, s.MaxDistance);
 
             var settledPosition = s.Follow.CurrentPosition;
             var settledTarget = s.Follow.TargetPosition;
             var settledRotation = s.Follow.CurrentRotation;
 
             for (var i = 0; i < 300; i++) // ~5с удержания без хода
-                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.TargetDistance, s.MinDistance, s.MaxDistance);
 
             Assert.AreEqual(settledPosition, s.Follow.CurrentPosition, "камера не должна была сдвинуться ни на йоту без нового хода");
             Assert.AreEqual(settledTarget, s.Follow.TargetPosition);
@@ -196,12 +205,21 @@ namespace Burmalda.Movement.Tests
             s.Follow.Dispose();
         }
 
-        // Issue #155, инвариант C: на каждом тике, при любом темпе включая
-        // резкий старт/стоп/шаг назад, доля экрана плитки игрока лежит в
-        // [anchor, anchor+tolerance] и НИКОГДА не опускается ниже anchor —
-        // это и есть жёсткий ограничитель (A.3), не тюнинг.
+        // Issue #155, инвариант C — задача 1 переформулировала: полоса
+        // клампа теперь ДВУСТОРОННЯЯ, [anchor-backTolerance, anchor+tolerance],
+        // а не [anchor, anchor+tolerance] с жёстким запретом опускаться ниже
+        // anchor. Старый запрет был защитой от ухода плитки из-под пальца
+        // при протяжке — в схеме A (issue #157) палец между шагами
+        // поднимается, защита не нужна (см. doc-комментарий
+        // TunnelCameraFollow.AdvanceContinuousAnchorFollow). Тест проверяет
+        // ОБА факта разом: (1) доля экрана всегда внутри новой двусторонней
+        // полосы — на каждом кадре, включая резкий старт/стоп/шаг назад;
+        // (2) старая граница на anchor реально снята — доля экрана хотя бы
+        // раз в сценарии "шаг назад" опускается СТРОГО ниже anchor (иначе
+        // тест 1 не отличил бы новое поведение от старого, если бы
+        // backTolerance был случайно не подключён).
         [Test]
-        public void EveryFrame_ThroughStartStopAndStepBack_ScreenFractionNeverBelowAnchorAndNeverAboveTolerance()
+        public void EveryFrame_ThroughStartStopAndStepBack_ScreenFractionAlwaysWithinTwoSidedBandAndCanDropBelowAnchor()
         {
             var s = CreateSetup();
             GameObject cameraObject = null;
@@ -209,11 +227,13 @@ namespace Burmalda.Movement.Tests
             {
                 cameraObject = CreateCamera("TestCamera_ClampBand", s.Follow, s.VFov);
                 const float epsilon = 0.001f; // допуск на float-накопление за тысячи кадров
+                var minViewportYSeen = float.MaxValue;
 
                 void AssertBandOnThisFrame(string phase)
                 {
                     var viewportY = ViewportYOfPlayerTile(s, cameraObject);
-                    Assert.GreaterOrEqual(viewportY, AnchorViewportY - epsilon, $"{phase}: плитка игрока ушла НИЖЕ anchor — кламп не сработал");
+                    minViewportYSeen = Mathf.Min(minViewportYSeen, viewportY);
+                    Assert.GreaterOrEqual(viewportY, AnchorViewportY - BackToleranceViewportFraction - epsilon, $"{phase}: плитка игрока ушла НИЖЕ anchor-backTolerance — кламп не сработал");
                     Assert.LessOrEqual(viewportY, AnchorViewportY + ToleranceViewportFraction + epsilon, $"{phase}: плитка игрока ушла ВЫШЕ anchor+tolerance — кламп не сработал");
                 }
 
@@ -223,7 +243,7 @@ namespace Burmalda.Movement.Tests
                     s.Trail.TryAdvanceTo(new GridCoordinate(s.Trail.CurrentPosition.Row + 1, Width / 2));
                     for (var t = 0; t < 8; t++) // ~7.5 хода/с — быстрее, чем FastPace теста инварианта A, намеренно на грани/за гранью реалистичного
                     {
-                        s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                        s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.TargetDistance, s.MinDistance, s.MaxDistance);
                         AssertBandOnThisFrame($"резкий старт, цикл {cycle}");
                     }
                 }
@@ -231,18 +251,27 @@ namespace Burmalda.Movement.Tests
                 // Резкая остановка посреди быстрой серии — держим кадры без хода.
                 for (var i = 0; i < 180; i++)
                 {
-                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.TargetDistance, s.MinDistance, s.MaxDistance);
                     AssertBandOnThisFrame("резкая остановка");
                 }
 
-                // Шаг назад на уже посещённую плитку.
-                var current = s.Trail.CurrentPosition;
-                s.Trail.TryAdvanceTo(new GridCoordinate(current.Row - 1, Width / 2));
-                for (var t = 0; t < 30; t++)
+                // Шаг назад на уже посещённую плитку — тот самый сценарий,
+                // который раньше упирался в жёсткий пол на anchor. Несколько
+                // шагов назад подряд, чтобы гарантированно дотолкать
+                // дистанцию до нижней половины новой полосы, а не поймать
+                // случайную недостаточную фазу.
+                for (var back = 0; back < 3; back++)
                 {
-                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
-                    AssertBandOnThisFrame("шаг назад");
+                    var current = s.Trail.CurrentPosition;
+                    s.Trail.TryAdvanceTo(new GridCoordinate(current.Row - 1, Width / 2));
+                    for (var t = 0; t < 10; t++)
+                    {
+                        s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.TargetDistance, s.MinDistance, s.MaxDistance);
+                        AssertBandOnThisFrame($"шаг назад #{back}");
+                    }
                 }
+
+                Assert.Less(minViewportYSeen, AnchorViewportY, "доля экрана должна была хотя бы раз опуститься СТРОГО ниже anchor — старая жёсткая граница на anchor снята задачей 1");
             }
             finally
             {
@@ -281,7 +310,7 @@ namespace Burmalda.Movement.Tests
                     secondsSinceLastStep -= stepIntervalSeconds;
                 }
 
-                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance);
+                s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.TargetDistance, s.MinDistance, s.MaxDistance);
 
                 var currentZ = s.Follow.CurrentPosition.z;
                 if (currentZ == previousZ)
@@ -341,7 +370,7 @@ namespace Burmalda.Movement.Tests
                 s.Trail.TryAdvanceTo(new GridCoordinate(s.Trail.CurrentPosition.Row + 1, Width / 2));
                 for (var t = 0; t < 8; t++)
                 {
-                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.MinDistance, s.MaxDistance, softBoundaryStartFraction);
+                    s.Follow.AdvanceContinuousAnchorFollow(FrameDeltaSeconds, s.TargetDistance, s.MinDistance, s.MaxDistance, softBoundaryStartFraction);
 
                     var playerWorldZ = (s.Trail.CurrentPosition.Row + 0.5f) * TileSize;
                     var currentDistance = playerWorldZ - s.Follow.CurrentPosition.z;
@@ -426,12 +455,12 @@ namespace Burmalda.Movement.Tests
         public void IntroThenFirstSixMoves_PlayerTileStaysInFrameThroughout()
         {
             // Интро-твин (#140/#144) + Lerp якоря по прогрессу интро (#153)
-            // не должны сломаться этой задачей. Во время интро контроллер
-            // использует Tick() (см. TunnelCameraController — новый метод
-            // включается только после IntroTweenProgress01>=1), здесь
-            // проверяем именно эту границу: первые ходы приходятся на само
-            // интро, AdvanceContinuousAnchorFollow не вызывается до его
-            // завершения.
+            // не должны сломаться этой задачей. Во время интро CurrentPosition
+            // двигает только AdvanceIntroTween — AdvanceContinuousAnchorFollow
+            // (единственный механизм устоявшегося следования, задача 1) не
+            // вызывается до его завершения (см. TunnelCameraController —
+            // тот же порог IntroTweenProgress01>=1), здесь проверяем именно
+            // эту границу.
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, Width / 2));
             var projection = new WorldGridProjection(TileSize, Width);
@@ -450,23 +479,23 @@ namespace Burmalda.Movement.Tests
                     follow.AdvanceIntroTween(0.05f);
 
                     var vFov = ComputeSteadyVerticalFov(projection, follow.CurrentPitchDegrees);
-                    var minDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                    var targetDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
                         HeightOffset.y, follow.CurrentPitchDegrees, vFov, AnchorViewportY);
                     var fixedTrailingDistance = TunnelCameraFollow.TrailingRowsBehindPlayer * TileSize;
-                    follow.TrailingDistance = Mathf.Lerp(fixedTrailingDistance, minDistance, follow.IntroTweenProgress01);
+                    follow.TrailingDistance = Mathf.Lerp(fixedTrailingDistance, targetDistance, follow.IntroTweenProgress01);
 
                     trail.TryAdvanceTo(new GridCoordinate(row, Width / 2));
 
                     if (follow.IntroTweenProgress01 >= 1f)
                     {
+                        var minDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
+                            HeightOffset.y, follow.CurrentPitchDegrees, vFov, AnchorViewportY - BackToleranceViewportFraction);
                         var maxDistance = TunnelCameraAnchor.ComputeTrailingDistanceForAnchor(
                             HeightOffset.y, follow.CurrentPitchDegrees, vFov, AnchorViewportY + ToleranceViewportFraction);
-                        follow.AdvanceContinuousAnchorFollow(0.05f, minDistance, maxDistance);
+                        follow.AdvanceContinuousAnchorFollow(0.05f, targetDistance, minDistance, maxDistance);
                     }
-                    else
-                    {
-                        follow.Tick();
-                    }
+                    // Иначе — ничего: AdvanceIntroTween выше уже хард-синкнул
+                    // CurrentPosition=TargetPosition на этом кадре.
 
                     camera.transform.SetPositionAndRotation(follow.CurrentPosition, follow.CurrentRotation);
                     camera.fieldOfView = vFov > 0f ? vFov : 60f;

@@ -9,11 +9,20 @@ namespace Burmalda.Movement
     /// Плавное следование 3D-камеры от третьего лица за трейлом (PRD 16):
     /// камера идёт сверху-сзади за <see cref="GridTraceTrail.CurrentPosition"/>
     /// (через <see cref="WorldGridProjection.ToWorldPosition"/>), а не
-    /// телепортируется на каждый ход. Портировано из camera-логики
-    /// legacy/burmolda_demo.html (cameraRow/cameraTargetRow, draw()) — офсет
-    /// отставания по ряду перенесён буквально, константа сглаживания
-    /// отличается от прототипа (замедлена по запросу владельца продукта, см.
-    /// <see cref="SmoothingFactor"/>).
+    /// телепортируется на каждый ход.
+    ///
+    /// <b>Дефолт камеры/ввода, задача 1 (владелец продукта принял запись с
+    /// устройства):</b> устоявшееся следование ВСЕГДА идёт через
+    /// <see cref="AdvanceContinuousAnchorFollow"/> — непрерывную компенсацию
+    /// скорости с жёстким клампом (issue #155). Старый путь — экспоненциальное
+    /// сглаживание, портированное буквально из camera-логики
+    /// legacy/burmolda_demo.html (cameraRow/cameraTargetRow, draw():
+    /// <c>cameraRow += (cameraTargetRow-cameraRow)*0.045</c>) — был методом
+    /// <c>Tick()</c>/константой <c>SmoothingFactor</c>, жил параллельно за
+    /// тумблером <see cref="TunnelCameraController"/>. Тумблер снят, метод
+    /// удалён целиком (не в пользу, а вместо него) — две параллельные ветки
+    /// следования расходились и ломали тесты на каждом шаге правки одной из
+    /// них. История/вывод формул — issue #155, PR того же issue.
     ///
     /// Хотфикс: держит устойчивую ширину обзора тоннеля не поворотом, а
     /// динамическим FOV — см. <see cref="TunnelCameraFraming"/> и
@@ -52,20 +61,6 @@ namespace Burmalda.Movement
     /// </summary>
     public sealed class TunnelCameraFollow : IDisposable
     {
-        // Было буквально из legacy/burmolda_demo.html, draw(): 0.045 (cameraRow
-        // += (cameraTargetRow-cameraRow)*0.045). Дважды замедлено по прямому
-        // запросу владельца продукта (0.045 -> 0.02 -> 0.01), затем ВРЕМЕННО
-        // удвоено обратно до 0.02 (2026-08-18, прямой запрос — "ускорить в 2
-        // раза", пощупать на билде) — камера ощущалась слишком резкой/
-        // дёрганой на 0.045, не давала игроку спокойно обдумать маршрут
-        // (черновой тюнинг «на глазок», без формального issue — финальное
-        // значение задаст плейтест баланса, Спринт 18). Не закоммичено в
-        // main — только для локального билда на щуп.
-        // Это сглаживание — про устоявшееся следование ПОСЛЕ интро (реальное
-        // продвижение игрока по рядам), не про сам твин интро — см.
-        // AdvanceIntroTween, у которого своя, не экспоненциальная анимация.
-        private const float SmoothingFactor = 0.02f;
-
         // legacy/burmolda_demo.html, tryAct()/returnToAltar(): cameraTargetRow = r-5
         // (прототип клампил к Math.max(0, ...) — здесь кламп убран, см.
         // ComputeTargetPosition: на 2D top-down прототипе клампинг был не
@@ -92,8 +87,7 @@ namespace Burmalda.Movement
         // плиты — см. doc-комментарий класса. Было -1 (подобрано численно
         // через WorldToViewportPoint), ВРЕМЕННО выставлено в 1 (2026-08-18,
         // прямой запрос владельца продукта, пощупать на билде). Не
-        // закоммичено в main — только для локального билда на щуп, как и
-        // SmoothingFactor выше.
+        // закоммичено в main — только для локального билда на щуп.
         public const float DefaultIntroHeightOffsetZ = 4f;
 
         // Прямой запрос владельца продукта (2026-08-14): "быстро, не 2-3
@@ -127,18 +121,22 @@ namespace Burmalda.Movement
 
         // Issue #153/#155, якорь по вьюпорту: мировой эквивалент
         // TrailingRowsBehindPlayer — дефолт СОВПАДАЕТ со старой формулой
-        // (TrailingRowsBehindPlayer·tileSize), TrailingDistance ниже полностью
-        // обратно совместима, пока её никто явно не переопределил.
-        // TunnelCameraController переопределяет её каждый кадр анкор-
-        // производным значением, только пока тумблер включён — Follow сам о
-        // тумблере/вьюпорте/Camera ничего не знает, только хранит число.
+        // (TrailingRowsBehindPlayer·tileSize), только начальная точка отсчёта
+        // для интро/самого первого кадра (см. AdvanceContinuousAnchorFollow —
+        // инициализация _continuousCameraZ). TunnelCameraController
+        // переопределяет её каждый кадр анкор-производным значением — Follow
+        // сам о вьюпорте/Camera ничего не знает, только хранит число.
         private float _trailingDistance;
 
         // Issue #155: покадровое непрерывное следование с компенсацией
-        // скорости вместо твина фиксированной длительности (#153, тумблер 1,
-        // запрещён — давал стоп-старт) и вместо экспоненциального сглаживания
-        // (Tick()/SmoothingFactor — установившееся отставание пропорционально
-        // скорости, корень исходной жалобы). См. AdvanceContinuousAnchorFollow.
+        // скорости — задача 1 (владелец продукта принял на записи с
+        // устройства) сделала его ЕДИНСТВЕННЫМ механизмом устоявшегося
+        // следования, заменив собой твин фиксированной длительности (#153,
+        // тумблер 1, запрещён — давал стоп-старт) и экспоненциальное
+        // сглаживание (было методом Tick()/константой SmoothingFactor —
+        // установившееся отставание пропорционально скорости, корень
+        // исходной жалобы; метод удалён целиком, см. doc-комментарий класса).
+        // См. AdvanceContinuousAnchorFollow.
         //
         // Окно оценки скорости — последние 3 хода (см. EstimateVelocityRowsPerSecond),
         // рядов в секунду, со знаком (шаг назад даёт отрицательную скорость,
@@ -182,9 +180,9 @@ namespace Burmalda.Movement
 
         // Issue #155 — "живая" Z-позиция трейлинг-точки для непрерывного
         // следования (AdvanceContinuousAnchorFollow), отдельная от
-        // CurrentPosition/TargetPosition экспоненциального пути (Tick()) —
-        // они читаются только пока этот новый метод НЕ вызывается (тумблер
-        // выключен), см. её docstring.
+        // CurrentPosition/TargetPosition — те читаются напрямую (интро-твин
+        // синкает их жёстко, этот метод пишет их из _continuousCameraZ), см.
+        // её docstring.
         private float _continuousCameraZ;
         private bool _continuousCameraZInitialized;
 
@@ -346,23 +344,6 @@ namespace Burmalda.Movement
         public float CurrentPitchDegrees => ComputeCurrentPitchDegrees();
 
         /// <summary>
-        /// Продвигает сглаживание позиции на один тик — устоявшееся
-        /// следование за РЕАЛЬНЫМ продвижением игрока по рядам (после того,
-        /// как твин интро уже завершён), не про сам твин (см.
-        /// <see cref="AdvanceIntroTween"/>). Константа сглаживания
-        /// применяется за вызов, а не масштабируется на deltaTime (как и в
-        /// прототипе, где draw() вызывается раз за кадр). Безопасно
-        /// вызывать каждый кадр в любой момент, включая во время твина
-        /// интро — там разрыв между Target/CurrentPosition всегда 0
-        /// (<see cref="AdvanceIntroTween"/> держит их синхронными
-        /// напрямую), так что Tick() в этот момент — фактический не-op.
-        /// </summary>
-        public void Tick()
-        {
-            CurrentPosition += (TargetPosition - CurrentPosition) * SmoothingFactor;
-        }
-
-        /// <summary>
         /// Запускает твин интро -> устоявшийся режим (см. doc-комментарий
         /// класса) — вызывать на <see cref="GridTraceInputController.RunConfirmed"/>
         /// (тап по собственной текущей позиции игрока, до первого реального
@@ -395,7 +376,7 @@ namespace Burmalda.Movement
         /// одновременно"). Пока твин идёт И игрок ещё не сдвинулся с
         /// позиции, зафиксированной в <see cref="ConfirmRun"/>, держит
         /// <see cref="CurrentPosition"/> НАПРЯМУЮ равной <see cref="TargetPosition"/>
-        /// (без экспоненциального сглаживания <see cref="Tick"/>) — сам твин
+        /// (без дополнительного сглаживания) — сам твин
         /// уже даёт нужную плавность через easing (см. <see cref="EaseOutCubic"/>),
         /// дополнительное сглаживание поверх него ощущалось бы медленнее
         /// заявленных 0.35с.
@@ -408,20 +389,20 @@ namespace Burmalda.Movement
         /// TargetPosition завязана на РЯД игрока (см. ComputeTargetPosition/
         /// OnPositionChanged) — реальный ход двигает её независимо от твина,
         /// и безусловный хард-синк тогда мгновенно телепортировал камеру на
-        /// новый ряд БЕЗ Tick()/SmoothingFactor, что на устройстве читалось
+        /// новый ряд без какого-либо сглаживания, что на устройстве читалось
         /// как рывок на несколько клеток около 3-4 хода (ранние ходы забега
         /// чаще всего попадают в это окно). Раньше этот путь ошибочно не
         /// подозревался — предыдущие два захода чинили FOV и снап-на-тапе
         /// (SnapToTarget/ResetManualForwardOffset), ни один не трогал этот
         /// метод. Теперь: если ряд игрока успел измениться с момента
         /// ConfirmRun, твин считается завершённым немедленно (без хард-синка
-        /// на этом кадре) — дальше обычный Tick()/SmoothingFactor подхватывает
-        /// CurrentPosition как для любого обычного продвижения.
+        /// на этом кадре) — дальше <see cref="AdvanceContinuousAnchorFollow"/>
+        /// подхватывает CurrentPosition как для любого обычного продвижения.
         /// </summary>
         public void AdvanceIntroTween(float deltaSeconds)
         {
             if (!_hasConfirmedRun) return;
-            if (_introTweenElapsedSeconds >= TweenDurationSeconds) return; // уже завершён — дальше обычный Tick()
+            if (_introTweenElapsedSeconds >= TweenDurationSeconds) return; // уже завершён — дальше AdvanceContinuousAnchorFollow
 
             if (!_trail.CurrentPosition.Equals(_confirmRunPlayerPosition))
             {
@@ -429,7 +410,7 @@ namespace Burmalda.Movement
                 // doc-комментарий выше. Завершаем твин немедленно, без
                 // хард-синка на этом кадре: TargetPosition уже пересчитана
                 // подпиской OnPositionChanged на реальный ход, CurrentPosition
-                // догонит её как обычно, через Tick()/SmoothingFactor.
+                // догонит её как обычно, через AdvanceContinuousAnchorFollow.
                 _introTweenElapsedSeconds = TweenDurationSeconds;
                 return;
             }
@@ -449,15 +430,15 @@ namespace Burmalda.Movement
         /// гипотеза) — раньше вызывалась из
         /// <see cref="TunnelCameraController"/> на каждый переход "не
         /// прижат"->"прижат" (см. <see cref="GridTraceInputController.PressStarted"/>),
-        /// но <see cref="SmoothingFactor"/>=0.01 очень медленный: если между
-        /// подряд идущими тапами (палец отрывался/прижимался заново, не
-        /// один непрерывный свайп) между <see cref="CurrentPosition"/> и
-        /// <see cref="TargetPosition"/> накапливался заметный разрыв,
-        /// мгновенный снап на КАЖДОМ новом тапе читался на устройстве как
-        /// рывок камеры на несколько клеток вперёд. Обычное продвижение
-        /// теперь ВСЕГДА идёт только через <see cref="Tick"/>/
-        /// <see cref="SmoothingFactor"/>, без исключений на новый тап — см.
-        /// <see cref="ResetManualForwardOffset"/> (тот же сброс эдж-скролла,
+        /// но старое экспоненциальное сглаживание (константа 0.01) было
+        /// очень медленным: если между подряд идущими тапами (палец
+        /// отрывался/прижимался заново, не один непрерывный свайп) между
+        /// <see cref="CurrentPosition"/> и <see cref="TargetPosition"/>
+        /// накапливался заметный разрыв, мгновенный снап на КАЖДОМ новом
+        /// тапе читался на устройстве как рывок камеры на несколько клеток
+        /// вперёд. Обычное продвижение теперь ВСЕГДА идёт только через
+        /// <see cref="AdvanceContinuousAnchorFollow"/>, без исключений на
+        /// новый тап — см. <see cref="ResetManualForwardOffset"/> (тот же сброс эдж-скролла,
         /// но без снапа позиции — им теперь и заменён вызов на
         /// PressStarted). Метод оставлен публичным (не удалён) — годится
         /// для места, где мгновенный снап РЕАЛЬНО нужен (например, самый
@@ -484,9 +465,9 @@ namespace Burmalda.Movement
         /// TargetPosition на следующем тапе стартовал бы с прежнего, уже
         /// неактуального накопленного смещения (см. doc-комментарий
         /// <see cref="NudgeForward"/>) — просто без сопутствующего снапа
-        /// <see cref="CurrentPosition"/>: она по-прежнему плавно, тиком,
+        /// <see cref="CurrentPosition"/>: она по-прежнему плавно
         /// доедет до нового <see cref="TargetPosition"/> через
-        /// <see cref="Tick"/>/<see cref="SmoothingFactor"/>, как и любое
+        /// <see cref="AdvanceContinuousAnchorFollow"/>, как и любое
         /// обычное продвижение.
         /// </summary>
         public void ResetManualForwardOffset()
@@ -496,8 +477,8 @@ namespace Burmalda.Movement
         }
 
         /// <summary>
-        /// Двигает камеру вперёд НАПРЯМУЮ (без сглаживания <see cref="Tick"/>)
-        /// на <paramref name="worldDistance"/> мировых единиц — эдж-скролл,
+        /// Двигает камеру вперёд НАПРЯМУЮ (без сглаживания) на
+        /// <paramref name="worldDistance"/> мировых единиц — эдж-скролл,
         /// пока палец у верхней границы нижней трети экрана (см.
         /// <see cref="TunnelCameraController"/>): отклик должен быть
         /// мгновенным, а не запаздывающим через экспоненциальное сглаживание
@@ -534,11 +515,10 @@ namespace Burmalda.Movement
         private void OnPositionChanged(GridCoordinate coordinate)
         {
             // Issue #155 — история ходов для оценки скорости, см.
-            // EstimateVelocityRowsPerSecond. Поддерживается ВСЕГДА
-            // (независимо от того, вызывается ли AdvanceContinuousAnchorFollow) —
-            // тот же принцип, что и у _stepTween-подобных полей раньше:
-            // безвредно, если новый метод не вызывается (тумблер выключен,
-            // Tick()/SmoothingFactor-путь этих полей не читает).
+            // EstimateVelocityRowsPerSecond. Поддерживается ВСЕГДА, даже до
+            // первого вызова AdvanceContinuousAnchorFollow (например, во
+            // время интро-твина) — безвредно копить историю заранее, дешевле,
+            // чем инициализировать её отдельным путём на первом вызове.
             _recentSteps.Add((coordinate.Row, _totalElapsedSeconds));
             while (_recentSteps.Count > VelocityWindowMaxSteps) _recentSteps.RemoveAt(0);
             _secondsSinceLastStep = 0f;
@@ -574,16 +554,17 @@ namespace Burmalda.Movement
         /// Issue #155: непрерывное покадровое следование с компенсацией
         /// скорости — замена твина фиксированной длительности (#153,
         /// тумблер 1, запрещён — давал стоп-старт при 2-4 ходах/с) И
-        /// экспоненциального сглаживания (<see cref="Tick"/> — установившееся
-        /// отставание пропорционально скорости, корень исходной жалобы,
-        /// см. историю провалов в PR). Параллельный, независимый от Tick()
-        /// путь — какой из двух вызывать каждый кадр, решает
-        /// <see cref="TunnelCameraController"/> снаружи (тумблер).
+        /// экспоненциального сглаживания (устаревший метод <c>Tick()</c> —
+        /// установившееся отставание пропорционально скорости, корень
+        /// исходной жалобы, см. историю провалов в PR). С задачи 1 (владелец
+        /// продукта принял на записи с устройства) — ЕДИНСТВЕННЫЙ механизм
+        /// устоявшегося следования, вызывается <see cref="TunnelCameraController"/>
+        /// каждый кадр после завершения интро-твина, без альтернативного пути.
         ///
         /// Цель — ТЕКУЩАЯ (не предсказанная) плитка игрока на дистанции
-        /// <paramref name="minTrailingDistance"/> (якорь). Механика —
-        /// комбинация двух слагаемых, оба применяются к "живой" Z-позиции
-        /// трейлинг-точки (<c>_continuousCameraZ</c>):
+        /// <paramref name="targetTrailingDistance"/> (якорь, точка покоя).
+        /// Механика — комбинация двух слагаемых, оба применяются к "живой"
+        /// Z-позиции трейлинг-точки (<c>_continuousCameraZ</c>):
         ///
         /// 1. <b>Компенсация скорости (feedforward)</b> — камера движется с
         ///    той же (недавно оценённой) средней скоростью, что и игрок,
@@ -591,8 +572,8 @@ namespace Burmalda.Movement
         ///    если D(t) = playerZ(t) - cameraZ(t) — дистанция камера-игрок,
         ///    и камера движется РОВНО со скоростью игрока (dCameraZ/dt = v),
         ///    то dD/dt = dPlayerZ/dt - dCameraZ/dt = v - v = 0 — дистанция
-        ///    НЕ РАСТЁТ со скоростью игрока (в отличие от Tick()/SmoothingFactor,
-        ///    где остаточное отставание растёт линейно со скоростью цели) —
+        ///    НЕ РАСТЁТ со скоростью игрока (в отличие от устаревшего Tick(),
+        ///    где остаточное отставание росло линейно со скоростью цели) —
         ///    именно этот вывод и требовался issue A.2 ("ошибка не растёт с
         ///    темпом"). Между реальными ходами скорость не падает мгновенно
         ///    до нуля (затухает плавно, см. EstimateVelocityRowsPerSecond) —
@@ -602,19 +583,30 @@ namespace Burmalda.Movement
         /// 2. <b>Мягкая коррекция (feedback)</b> — вторичная подтяжка
         ///    остаточной ошибки (неточность оценки скорости на переходных
         ///    процессах — старт/стоп/смена темпа) к идеальной дистанции
-        ///    (<paramref name="minTrailingDistance"/>), см.
+        ///    (<paramref name="targetTrailingDistance"/>), см.
         ///    <see cref="FeedbackCorrectionRatePerSecond"/>.
         ///
-        /// <b>Жёсткий ограничитель (issue A.3)</b> — ПОСЛЕ обоих слагаемых,
-        /// дистанция камера-игрок зажимается в
+        /// <b>Жёсткий ограничитель (issue A.3, переформулирован задачей 1)</b>
+        /// — ПОСЛЕ обоих слагаемых, дистанция камера-игрок зажимается в
         /// [<paramref name="minTrailingDistance"/>, <paramref name="maxTrailingDistance"/>] —
         /// инвариант, не тюнинг: не завязан на корректность контроллера
         /// выше, работает даже если оценка скорости на каком-то переходном
-        /// процессе ошиблась. Нижняя граница делает физически невозможным
-        /// уход плитки из-под пальца вниз (провалы #151/#153-тумблер3),
-        /// верхняя — физически невозможным уползание вверх (исходная жалоба).
+        /// процессе ошиблась.
+        ///
+        /// <b>Задача 1 (владелец продукта подтвердил на устройстве):</b>
+        /// полоса двусторонняя вокруг <paramref name="targetTrailingDistance"/>
+        /// — раньше <paramref name="minTrailingDistance"/> совпадал с самим
+        /// anchor (точкой покоя), физически запрещая плитке опускаться НИЖЕ
+        /// anchor (это защищало от ухода плитки из-под пальца при протяжке
+        /// в старой схеме ввода — провалы #151/#153-тумблер3). В схеме A
+        /// (issue #157) палец между шагами поднимается — уходить не из-под
+        /// чего, запрет снят: теперь <paramref name="minTrailingDistance"/> —
+        /// самостоятельная нижняя граница (anchor-backTolerance), СТРОГО
+        /// меньше <paramref name="targetTrailingDistance"/>. Верхняя граница
+        /// (anchor+tolerance) физически невозможным уползание вверх —
+        /// исходная жалоба, не поменялась.
         /// </summary>
-        public void AdvanceContinuousAnchorFollow(float deltaSeconds, float minTrailingDistance, float maxTrailingDistance, float softBoundaryStartFraction = TunnelCameraSoftBoundary.DefaultStartFraction)
+        public void AdvanceContinuousAnchorFollow(float deltaSeconds, float targetTrailingDistance, float minTrailingDistance, float maxTrailingDistance, float softBoundaryStartFraction = TunnelCameraSoftBoundary.DefaultStartFraction)
         {
             var playerWorldZ = (_trail.CurrentPosition.Row + 0.5f) * _projection.TileSize;
 
@@ -634,7 +626,7 @@ namespace Burmalda.Movement
             var velocityRowsPerSecond = EstimateVelocityRowsPerSecond();
             _continuousCameraZ += velocityRowsPerSecond * _projection.TileSize * deltaSeconds; // 1. компенсация скорости
 
-            var idealCameraZ = playerWorldZ - minTrailingDistance;
+            var idealCameraZ = playerWorldZ - targetTrailingDistance;
             var residual = idealCameraZ - _continuousCameraZ;
             // Экспоненциальная в непрерывном времени коррекция асимптотически
             // приближается к нулю, но никогда не достигает его ТОЧНО — без
@@ -645,17 +637,17 @@ namespace Burmalda.Movement
             const float ResidualSnapEpsilon = 1e-5f;
             _continuousCameraZ += Mathf.Abs(residual) < ResidualSnapEpsilon ? residual : residual * FeedbackCorrectionRatePerSecond * deltaSeconds; // 2. мягкая коррекция
 
-            // 3. Мягкая граница (issue #158) — гасит скорость подхода к
-            // anchor+tolerance ПЕРЕД хард-клампом ниже, см. doc-комментарий
-            // TunnelCameraSoftBoundary. Ноль в состоянии покоя (distance==
-            // minTrailingDistance) и везде до startFraction — не мешает
-            // инварианту B.
+            // 3. Мягкая граница (issue #158, двусторонняя с задачи 1) —
+            // гасит скорость подхода к ЛЮБОМУ краю полосы ПЕРЕД хард-клампом
+            // ниже, см. doc-комментарий TunnelCameraSoftBoundary. Ноль в
+            // состоянии покоя (distance==targetTrailingDistance) и везде до
+            // startFraction от target к каждому краю — не мешает инварианту B.
             var preClampDistance = playerWorldZ - _continuousCameraZ;
-            _continuousCameraZ += TunnelCameraSoftBoundary.ComputeCorrection(preClampDistance, minTrailingDistance, maxTrailingDistance, deltaSeconds, softBoundaryStartFraction);
+            _continuousCameraZ += TunnelCameraSoftBoundary.ComputeCorrection(preClampDistance, targetTrailingDistance, minTrailingDistance, maxTrailingDistance, deltaSeconds, softBoundaryStartFraction);
 
             // Жёсткий ограничитель — см. doc-комментарий метода. Остаётся
-            // страховкой инварианта C буквально как раньше — мягкая граница
-            // выше только смягчает подход, не отменяет сам предел.
+            // страховкой инварианта C буквально как раньше (теперь двусторонней) —
+            // мягкая граница выше только смягчает подход, не отменяет сам предел.
             var distance = playerWorldZ - _continuousCameraZ;
             var clampedDistance = Mathf.Clamp(distance, minTrailingDistance, maxTrailingDistance);
             _continuousCameraZ = playerWorldZ - clampedDistance;

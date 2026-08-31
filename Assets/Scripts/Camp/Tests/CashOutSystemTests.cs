@@ -17,23 +17,21 @@ namespace Burmalda.Camp.Tests
         }
 
         [Test]
-        public void Advanced_ReachesAltar_ChecksPointsAllThreeAccumulators()
+        public void Advanced_ReachesAltar_ChecksPointsBothAccumulators()
         {
             var (grid, trail) = CreateTrail();
             grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkAltar();
-            var coins = new RunCurrencyAccumulator();
             var mana = new RunCurrencyAccumulator();
             var keys = new RunCurrencyAccumulator();
-            coins.Add(100);
             mana.Add(200);
             keys.Add(5);
-            using var system = new CashOutSystem(grid, trail, coins, mana, keys);
+            using var system = new CashOutSystem(grid, trail, mana, keys);
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            coins.Add(50); // после чекпоинта
-            coins.RevertToCheckpoint();
+            mana.Add(50); // после чекпоинта
+            mana.RevertToCheckpoint();
 
-            Assert.AreEqual(100, coins.Total, "чекпоинт должен был зафиксироваться на 100 в момент достижения Алтаря");
+            Assert.AreEqual(200, mana.Total, "чекпоинт должен был зафиксироваться на 200 в момент достижения Алтаря");
         }
 
         [Test]
@@ -43,34 +41,32 @@ namespace Burmalda.Camp.Tests
             // зависит от наличия Ключей — фиксация происходит всегда.
             var (grid, trail) = CreateTrail();
             grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkAltar();
-            var coins = new RunCurrencyAccumulator();
             var mana = new RunCurrencyAccumulator();
             var keys = new RunCurrencyAccumulator(); // 0 Ключей
-            coins.Add(100);
-            using var system = new CashOutSystem(grid, trail, coins, mana, keys);
+            mana.Add(100);
+            using var system = new CashOutSystem(grid, trail, mana, keys);
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            coins.Add(50);
-            coins.RevertToCheckpoint();
+            mana.Add(50);
+            mana.RevertToCheckpoint();
 
-            Assert.AreEqual(100, coins.Total);
+            Assert.AreEqual(100, mana.Total);
         }
 
         [Test]
         public void Advanced_NonAltarTile_DoesNotCheckpoint()
         {
             var (grid, trail) = CreateTrail();
-            var coins = new RunCurrencyAccumulator();
             var mana = new RunCurrencyAccumulator();
             var keys = new RunCurrencyAccumulator();
-            coins.Add(100);
-            using var system = new CashOutSystem(grid, trail, coins, mana, keys);
+            mana.Add(100);
+            using var system = new CashOutSystem(grid, trail, mana, keys);
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2)); // обычная плита
-            coins.Add(50);
-            coins.RevertToCheckpoint();
+            mana.Add(50);
+            mana.RevertToCheckpoint();
 
-            Assert.AreEqual(0, coins.Total, "чекпоинт не был выставлен явно — откат к 0 (дефолт)");
+            Assert.AreEqual(0, mana.Total, "чекпоинт не был выставлен явно — откат к 0 (дефолт)");
         }
 
         [Test]
@@ -78,18 +74,17 @@ namespace Burmalda.Camp.Tests
         {
             var (grid, trail) = CreateTrail();
             grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkAltar();
-            var coins = new RunCurrencyAccumulator();
             var mana = new RunCurrencyAccumulator();
             var keys = new RunCurrencyAccumulator();
-            coins.Add(100);
-            var system = new CashOutSystem(grid, trail, coins, mana, keys);
+            mana.Add(100);
+            var system = new CashOutSystem(grid, trail, mana, keys);
             system.Dispose();
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            coins.Add(50);
-            coins.RevertToCheckpoint();
+            mana.Add(50);
+            mana.RevertToCheckpoint();
 
-            Assert.AreEqual(0, coins.Total, "после Dispose чекпоинт на Алтаре не должен выставляться");
+            Assert.AreEqual(0, mana.Total, "после Dispose чекпоинт на Алтаре не должен выставляться");
         }
     }
 }

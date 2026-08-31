@@ -18,25 +18,13 @@ namespace Burmalda.Boss.Tests
         }
 
         [Test]
-        public void Resolve_ManaEqualsThreshold_ReturnsVictoryWithNoOverflow()
+        public void Resolve_ManaEqualsThreshold_ReturnsVictory()
         {
             var boss = new Boss(5000);
 
             var outcome = boss.Resolve(5000);
 
             Assert.IsTrue(outcome.IsVictory);
-            Assert.AreEqual(0, outcome.CoinsFromOverflow);
-        }
-
-        [Test]
-        public void Resolve_ManaAboveThreshold_ConvertsOverflowToCoins()
-        {
-            var boss = new Boss(5000);
-
-            var outcome = boss.Resolve(6000);
-
-            Assert.IsTrue(outcome.IsVictory);
-            Assert.AreEqual((int)(1000 * Boss.OverflowToCoinsRate), outcome.CoinsFromOverflow);
         }
 
         [Test]

@@ -11,6 +11,9 @@
         "Burmalda.Boss",
         "Burmalda.Camp",
         "Burmalda.Progression",
+        "Burmalda.RunLifecycle",
+        "Burmalda.Bootstrap",
+        "Burmalda.Generation",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

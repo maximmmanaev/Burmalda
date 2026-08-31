@@ -19,7 +19,6 @@ namespace Burmalda.Boss.Tests
             public TunnelGrid Grid;
             public GridTraceTrail Trail;
             public RunCurrencyAccumulator Mana;
-            public RunCurrencyAccumulator Coins;
             public ArtifactPool Pool;
             public FirstBossVictoryTracker Tracker;
             public RunDepthTier DepthTier;
@@ -36,15 +35,14 @@ namespace Burmalda.Boss.Tests
             var d20 = new D20Trial(() => d20Roll);
             var runState = new RunState(grid, trail, decay, d20);
             var mana = new RunCurrencyAccumulator();
-            var coins = new RunCurrencyAccumulator();
             var pool = new ArtifactPool();
             var tracker = new FirstBossVictoryTracker();
             var depthTier = new RunDepthTier();
-            var system = new BossEncounterSystem(grid, trail, mana, coins, pool, tracker, depthTier, reason => runState.ReportBossDefeat(reason), _ => requiredEnergy);
+            var system = new BossEncounterSystem(grid, trail, mana, pool, tracker, depthTier, reason => runState.ReportBossDefeat(reason), _ => requiredEnergy);
 
             return new Fixture
             {
-                Grid = grid, Trail = trail, Mana = mana, Coins = coins,
+                Grid = grid, Trail = trail, Mana = mana,
                 Pool = pool, Tracker = tracker, DepthTier = depthTier, RunState = runState, System = system
             };
         }
@@ -76,18 +74,6 @@ namespace Burmalda.Boss.Tests
             f.Trail.TryAdvanceTo(new GridCoordinate(1, 2));
 
             Assert.IsNotNull(relic);
-        }
-
-        [Test]
-        public void Advanced_Victory_ConvertsOverflowToCoins()
-        {
-            var f = CreateFixture(requiredEnergy: 5000);
-            f.Grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkBoss();
-            f.Mana.Add(6000); // overflow 1000
-
-            f.Trail.TryAdvanceTo(new GridCoordinate(1, 2));
-
-            Assert.AreEqual((int)(1000 * Boss.OverflowToCoinsRate), f.Coins.Total);
         }
 
         [Test]
@@ -182,7 +168,7 @@ namespace Burmalda.Boss.Tests
             var mana = new RunCurrencyAccumulator();
             var depthTier = new RunDepthTier();
             var seenTiers = new System.Collections.Generic.List<int>();
-            var system = new BossEncounterSystem(grid, trail, mana, new RunCurrencyAccumulator(), new ArtifactPool(),
+            var system = new BossEncounterSystem(grid, trail, mana, new ArtifactPool(),
                 new FirstBossVictoryTracker(), depthTier, reason => runState.ReportBossDefeat(reason),
                 tier => { seenTiers.Add(tier); return 1000; });
             grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkBoss();

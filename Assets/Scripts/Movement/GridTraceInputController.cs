@@ -55,7 +55,6 @@ namespace Burmalda.Movement
         private GridTraceTrail _trail;
         private WorldGridProjection _projection;
 
-        private bool _wasPressed;
         private float _lockedUntilTime;
 
         /// <summary>Трейл текущего забега — для чтения смежными системами (визуал трейла, камера).</summary>
@@ -167,7 +166,6 @@ namespace Burmalda.Movement
             var start = new GridCoordinate(0, _width / 2);
             _trail = new GridTraceTrail(_grid, start);
             PreviewTarget = null;
-            _wasPressed = false;
             _lockedUntilTime = 0f;
             IsAlive = true;
 
@@ -176,37 +174,71 @@ namespace Burmalda.Movement
 
         private void Update()
         {
-            if (!IsAlive) return;
-
             var pointer = Pointer.current;
-            var pressed = pointer != null && pointer.press.isPressed;
+
+            // issue "ввод не реагирует на тап без движения": НЕЛЬЗЯ опираться
+            // на голое pointer.press.isPressed, опрошенное раз за кадр —
+            // если нажатие и отпускание укладываются в один кадр обработки
+            // Input System (ровно то, что делает синтетический adb-тап и,
+            // судя по всему, часть реальных быстрых тапов на тачскрине без
+            // единого мазка пальцем), .isPressed на конец кадра остаётся
+            // false ВСЮ дорогу — ни разу не был замечен true при опросе, хотя
+            // событие press-then-release реально произошло. wasPressedThisFrame/
+            // wasReleasedThisFrame — специально для этого: фиксируют факт
+            // события В ЭТОМ кадре независимо от итогового состояния на
+            // конец кадра (см. ButtonControl.wasPressedThisFrame в пакете
+            // Input System). Подтверждено логированием на устройстве:
+            // короткий `adb input tap`/`input swipe ... 60` не поднимал
+            // pointer.press.isPressed ни разу ни на одном кадре; удержание
+            // 500мс — поднимал стабильно.
+            ProcessInputFrame(
+                pointer != null && pointer.press.isPressed,
+                pointer != null && pointer.press.wasPressedThisFrame,
+                pointer != null && pointer.press.wasReleasedThisFrame,
+                pointer != null ? pointer.position.ReadValue() : Vector2.zero);
+        }
+
+        /// <summary>
+        /// Логика одного кадра ввода, вынесенная из <see cref="Update"/> —
+        /// принимает уже прочитанные из Input System флаги, а не сам
+        /// <see cref="Pointer"/>, специально чтобы регресс-тест на "тап без
+        /// движения" (press и release в одном кадре) мог прогнать её
+        /// напрямую, без реального Input System/Play Mode (тот же принцип,
+        /// что уже применён к <see cref="HandlePointerPressed"/>/
+        /// <see cref="HandlePointerReleased"/> — вызываются рефлексией в
+        /// тестах).
+        /// </summary>
+        private void ProcessInputFrame(bool pressedNow, bool pressStartedThisFrame, bool releasedThisFrame, Vector2 screenPosition)
+        {
+            if (!IsAlive) return;
 
             // IsPressed/PressStarted — ДО проверки лока ниже: камера должна
             // видеть реальное состояние пальца на экране (issue #157,
             // "камера неподвижна, пока палец на экране") независимо от того,
             // засчитает ли игровая логика это касание.
-            if (pressed && !IsPressed) PressStarted?.Invoke();
-            IsPressed = pressed;
-            if (pressed) CurrentScreenPosition = pointer.position.ReadValue();
+            if (pressStartedThisFrame && !IsPressed) PressStarted?.Invoke();
+            IsPressed = pressedNow;
+            if (pressedNow) CurrentScreenPosition = screenPosition;
 
             if (IsInputLocked)
             {
                 // Ввод заблокирован на время анимации шага (PRD 4.1 п.3) —
-                // тачи игнорируются целиком, никакого нового примеривания.
-                // Не трогаем _wasPressed здесь: если палец отпустили ДО
-                // конца лока, HandlePointerReleased уже отработал в кадре
-                // самого отпускания (см. ниже — та ветка идёт ДО этой
-                // проверки для releasing-кадра, лок стартует только ПОСЛЕ
-                // него), так что здесь ничего досрочно завершать не нужно.
+                // тачи игнорируются целиком, никакого нового примеривания,
+                // включая тач, целиком уложившийся в этот же кадр.
                 return;
             }
 
-            if (pressed)
-                HandlePointerPressed(CurrentScreenPosition);
-            else if (_wasPressed)
-                HandlePointerReleased();
+            // Порядок важен и соответствует реальному ходу событий: сначала
+            // нажатие (выставляет PreviewTarget на актуальную позицию),
+            // потом отпускание (фиксирует то, что было выставлено только
+            // что) — актуально и для растянутого на много кадров жеста, и
+            // для тапа, целиком уместившегося в один кадр (pressStartedThisFrame
+            // и releasedThisFrame оба true одновременно).
+            if (pressStartedThisFrame || pressedNow)
+                HandlePointerPressed(screenPosition);
 
-            _wasPressed = pressed;
+            if (releasedThisFrame)
+                HandlePointerReleased();
         }
 
         private void HandlePointerPressed(Vector2 screenPosition)

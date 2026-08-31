@@ -32,6 +32,15 @@ namespace Burmalda.Core
     /// генерацией (<c>Burmalda.Generation</c>). См.
     /// <c>Movement.TunnelObstacleController</c> для причины, по которой
     /// класс не удалён.
+    ///
+    /// <b>Сосуществование с сегментной генерацией (переходное состояние,
+    /// docs/wiki/roadmap.md)</b>: с момента, когда <c>RunBootstrap</c> начал
+    /// подключать <c>Generation.SegmentGenerationController</c> на ту же
+    /// сцену, оба генератора работают одновременно — этот класс уступает
+    /// целиком (см. <see cref="TunnelGrid.ClaimRow"/>) любому ряду, который
+    /// уже заявлен сегментной генерацией, и продолжает случайно засеивать
+    /// только ряды, до которых сегменты ещё не дошли. По конструкции, не по
+    /// договорённости — см. проверку в <see cref="OnTileMaterialized"/>.
     /// </summary>
     public sealed class TunnelObstacleGenerator : IDisposable
     {
@@ -77,6 +86,16 @@ namespace Burmalda.Core
         private void OnTileMaterialized(Tile tile)
         {
             if (tile.Coordinate.Row == 0) return; // стартовый ряд всегда безопасен
+
+            // Ряд заявлен внешним генератором контента (см. doc-комментарий
+            // TunnelGrid.ClaimRow — сейчас это Generation.SegmentRowProvider,
+            // переходное состояние сосуществования двух генераторов на одной
+            // сетке, docs/wiki/roadmap.md) — этот генератор его не трогает.
+            // Проверка ПО КОНСТРУКЦИИ исключает двойную запись в одну плиту:
+            // пока ряд не заявлен, только этот генератор пишет в его плиты;
+            // как только заявлен — этот генератор не пишет уже никогда,
+            // третьего состояния нет.
+            if (_grid.IsRowClaimed(tile.Coordinate.Row)) return;
 
             // Плита зарезервирована как цель другого триггера — остаётся
             // обычной (безопасной на вид) до срабатывания триггера,
