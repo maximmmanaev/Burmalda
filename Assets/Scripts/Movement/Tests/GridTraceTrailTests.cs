@@ -23,6 +23,34 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
+        public void HasVisited_StartCoordinate_ReturnsTrue()
+        {
+            var start = new GridCoordinate(0, 2);
+            var trail = CreateTrail(start);
+
+            Assert.IsTrue(trail.HasVisited(start));
+        }
+
+        [Test]
+        public void HasVisited_UnvisitedCoordinate_ReturnsFalse()
+        {
+            var trail = CreateTrail(new GridCoordinate(0, 2));
+
+            Assert.IsFalse(trail.HasVisited(new GridCoordinate(1, 2)));
+        }
+
+        [Test]
+        public void HasVisited_AfterAdvancing_ReturnsTrueForNewTile()
+        {
+            var trail = CreateTrail(new GridCoordinate(0, 2));
+            var target = new GridCoordinate(1, 2);
+
+            trail.TryAdvanceTo(target);
+
+            Assert.IsTrue(trail.HasVisited(target));
+        }
+
+        [Test]
         public void CanAdvanceTo_AdjacentUnvisitedTile_ReturnsTrue()
         {
             var trail = CreateTrail(new GridCoordinate(0, 2));

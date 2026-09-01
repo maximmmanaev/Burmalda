@@ -115,8 +115,21 @@ namespace Burmalda.DebugVisuals
                     isTimedTrapTrigger: tile.TimedTrapTarget.HasValue,
                     activeTimedTrap: tile.IsTimedTrapActive ? tile.TimedTrapKind : null,
                     isBoss: tile.IsBoss,
-                    isManaSource: tile.IsManaSource,
-                    isKeySource: tile.IsKeySource,
+                    // Задача «тёплый набор плит» (владелец): «плитка с ключом
+                    // и маной после сбора должна становиться обычной, ключ и
+                    // кристалл маны пропадать». Tile.IsManaSource/IsKeySource
+                    // сознательно НЕ сбрасываются в Core — сбор валюты
+                    // (Currencies.TrailTileCurrencySystem) и партиклы
+                    // (PickupFeedback) независимо читают эти флаги на том же
+                    // GridTraceTrail.Advanced, порядок подписчиков не
+                    // гарантирован (PickupFeedback явно избегает трогать
+                    // TrailTileCurrencySystem по этой же причине, см. её
+                    // doc-комментарий) — обнулять флаг оттуда было бы гонкой.
+                    // Вместо этого визуальный слой сам скрывает иконку, как
+                    // только плита пройдена трейлом (HasVisited) — тот же
+                    // момент, что и начисление валюты, без мутации Tile.
+                    isManaSource: tile.IsManaSource && !_trail.HasVisited(coordinate),
+                    isKeySource: tile.IsKeySource && !_trail.HasVisited(coordinate),
                     isLever: tile.IsLever,
                     isGated: tile.IsGated,
                     isLeverGateOpen: tile.IsLeverGateOpen,
@@ -211,9 +224,28 @@ namespace Burmalda.DebugVisuals
             // Случайный поворот на 0/90/180/270° (задача) — только у обычного
             // пола; у плит со смыслом (источники/сигнатуры/ворота/рычаг/
             // Алтарь/позиция игрока) ориентация постоянна, см. ApplyVisual.
+            // TopFaceOrientationCorrectionDegrees складывается с этим шагом —
+            // см. её doc-комментарий.
             var rotationSteps = UnityEngine.Random.Range(0, 4);
-            return new FreshTileVariant(index, Quaternion.Euler(0f, rotationSteps * 90f, 0f));
+            return new FreshTileVariant(index, Quaternion.Euler(0f, TopFaceOrientationCorrectionDegrees + rotationSteps * 90f, 0f));
         }
+
+        /// <summary>
+        /// Владелец на билде «тёплый набор плит»: «почему все плитки
+        /// перевёрнуты вверх ногами» — реальный баг, не показалось. Причина
+        /// не в контенте, а в том, как <c>GameObject.CreatePrimitive(Cube)</c>
+        /// разворачивает UV верхней грани: её V-ось (то, что художник рисует
+        /// "верхом" картинки) у встроенного примитива Unity по умолчанию
+        /// смотрит на -Z, а Row (глубина тоннеля, "вперёд/от камеры") — это
+        /// +Z (см. <c>WorldGridProjection</c> — Row=+Z, doc-комментарий
+        /// класса). При identity-повороте "верх" текстуры оказывался
+        /// направлен К камере, а не ОТ неё — с прежними ненаправленными
+        /// каменными текстурами этого никто не замечал, с направленными
+        /// иконками (следы, ключ, кристалл) стало видно сразу. Поворот на
+        /// 180° по Y выравнивает "верх" текстуры с "вперёд по тоннелю" —
+        /// применяется КО ВСЕМ плитам (не только Fresh), см. места вызова.
+        /// </summary>
+        private const float TopFaceOrientationCorrectionDegrees = 180f;
 
         // 2026-08-18 ("ещё больше процедурного полиша без арта"): лёгкая
         // эмиссия поверх базового цвета — плитки заметно "светятся" под
@@ -261,8 +293,9 @@ namespace Burmalda.DebugVisuals
             {
                 // Плиты со смыслом (источники/сигнатуры/ворота/рычаг/Алтарь/
                 // позиция игрока) — ориентация постоянна (задача), даже если
-                // эта же плита раньше была повёрнутым Fresh-полом.
-                tileObject.transform.localRotation = Quaternion.identity;
+                // эта же плита раньше была повёрнутым Fresh-полом. НЕ
+                // Quaternion.identity — см. TopFaceOrientationCorrectionDegrees.
+                tileObject.transform.localRotation = Quaternion.Euler(0f, TopFaceOrientationCorrectionDegrees, 0f);
                 texture = kind != TileArtKind.None && _artCatalog != null ? _artCatalog.Get(kind) : null;
             }
 
