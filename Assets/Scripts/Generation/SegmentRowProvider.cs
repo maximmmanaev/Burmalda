@@ -125,11 +125,11 @@ namespace Burmalda.Generation
             {
                 var coordinate = new GridCoordinate(baseRow + localRow, column);
                 var tile = _grid.GetOrCreateTile(coordinate);
-                ApplyTileType(tile, coordinate, template.TileAt(localRow, column), gateTargets);
+                ApplyTileType(tile, coordinate, template.TileAt(localRow, column), gateTargets, leverCoordinate);
             }
         }
 
-        private static void ApplyTileType(Tile tile, GridCoordinate coordinate, SegmentTileType type, List<GridCoordinate> leverGateTargets)
+        private static void ApplyTileType(Tile tile, GridCoordinate coordinate, SegmentTileType type, List<GridCoordinate> leverGateTargets, GridCoordinate? leverCoordinate)
         {
             switch (type)
             {
@@ -155,7 +155,12 @@ namespace Burmalda.Generation
                     tile.MarkLever(leverGateTargets);
                     break;
                 case SegmentTileType.LeverGate:
-                    tile.MarkGated();
+                    // Issue #193: координата рычага — для подсказки
+                    // направления на закрытых воротах (TunnelDebugVisual).
+                    // SegmentTemplate.ValidateLeverGates уже гарантирует,
+                    // что LeverGate не бывает без Lever в том же шаблоне —
+                    // leverCoordinate здесь не null.
+                    tile.MarkGated(leverCoordinate);
                     break;
                 case SegmentTileType.ManaSource:
                     tile.MarkManaSource();

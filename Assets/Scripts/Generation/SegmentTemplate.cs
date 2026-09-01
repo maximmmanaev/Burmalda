@@ -99,6 +99,13 @@ namespace Burmalda.Generation
                 throw new ArgumentException($"Больше одного Lever в шаблоне ({leverCount}) — issue #51 предполагает ровно один рычаг на шаблон.", nameof(_tiles));
             if (gateCount > 0 && leverCount == 0)
                 throw new ArgumentException("LeverGate без единственного Lever в том же шаблоне.", nameof(_tiles));
+            // Issue #193 (владелец, 2026-09-01): "рычаг существует только
+            // рядом со своими Воротами — отдельно стоящий рычаг вне связки
+            // бессмыслен, его никто никогда не найдёт" (рычаг теперь СКРЫТ,
+            // без Ворот открывать нечего, а искать наугад — распад того не
+            // стоит). Обратная сторона проверки выше.
+            if (leverCount > 0 && gateCount == 0)
+                throw new ArgumentException("Lever без единственного LeverGate в том же шаблоне — рычаг без ворот бессмыслен (issue #193).", nameof(_tiles));
         }
 
         // Найдено на реальном билде (2026-09-01, живой забег до Яруса 6):

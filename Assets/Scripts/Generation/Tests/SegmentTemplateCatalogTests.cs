@@ -29,6 +29,16 @@ namespace Burmalda.Generation.Tests
                 $"Шаблон '{name}': тайник за воротами не соединён с остальным сегментом даже при открытых воротах.");
         }
 
+        // Issue #193, критерий 6: "проверка возвратного маршрута (открывашка
+        // → Ворота), не только прямого маршрута входа" — на всём реальном каталоге.
+        [TestCaseSource(nameof(TemplateNames))]
+        public void Template_ReturnRouteToExitExists(string name)
+        {
+            var template = SegmentTemplateCatalog.All.Single(t => t.Name == name);
+            Assert.IsTrue(SegmentReachabilityValidator.ReturnRouteToExitExists(template),
+                $"Шаблон '{name}': возврат от тайника за воротами к выходу сегмента невозможен даже при открытых воротах.");
+        }
+
         private static string[] TemplateNames() => SegmentTemplateCatalog.All.Select(t => t.Name).ToArray();
 
         [Test]

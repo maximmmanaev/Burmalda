@@ -117,6 +117,19 @@ namespace Burmalda.DebugVisuals
         // нужно, важна только фаза синуса.
         private float _elapsedSeconds;
 
+        // Задача «Ворота и Рычаги» (issue #193, владелец, 2026-09-01):
+        // "закрытые Ворота указывают направление на свою открывашку" —
+        // обязательное условие ("без него не реализовывать"), рычаг теперь
+        // скрыт той же сигнатурой, что и ловушки, искать его наугад с
+        // ценой в распад за каждое примеривание невозможно. Процедурная
+        // геометрия (вытянутый куб-указатель, БЕЗ текстуры) — тот же
+        // принцип "без арт-ассета", что партиклы PickupFeedback/осыпи
+        // обвала: направление считается через Quaternion.LookRotation, не
+        // требует UV/поворота текстуры, риска несовпадения "верха
+        // картинки" с направлением здесь нет вовсе.
+        private readonly Material _gateHintMaterial;
+        private readonly Dictionary<GridCoordinate, GameObject> _gateDirectionHints = new Dictionary<GridCoordinate, GameObject>();
+
         public TunnelDebugVisual(TunnelGrid grid, GridTraceTrail trail, WorldGridProjection projection, Transform parent)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
@@ -126,6 +139,7 @@ namespace Burmalda.DebugVisuals
             _templateMaterial = CreateTemplateMaterial();
             _artCatalog = TileArtCatalog.Load();
             _crackOverlayMaterial = CreateCrackOverlayMaterial(_artCatalog?.CrackMaskTexture);
+            _gateHintMaterial = CreateGateHintMaterial();
 
             if (_templateMaterial != null)
             {
@@ -234,6 +248,7 @@ namespace Burmalda.DebugVisuals
 
                 var kind = ApplyVisual(tileObject, coordinate, state);
                 UpdateCrackOverlay(coordinate, kind, state);
+                UpdateGateDirectionHint(coordinate, tileObject, tile);
 
                 if (state.IsDestroyed && !_previouslyDestroyed.Contains(coordinate))
                 {
@@ -263,12 +278,17 @@ namespace Burmalda.DebugVisuals
                     UnityEngine.Object.Destroy(overlayObject);
                 _overlayObjects.Clear();
 
+                foreach (var hintObject in _gateDirectionHints.Values)
+                    UnityEngine.Object.Destroy(hintObject);
+                _gateDirectionHints.Clear();
+
                 _collapseStates.Clear();
                 _collapseElapsedSeconds.Clear();
                 _previouslyDestroyed.Clear();
 
                 UnityEngine.Object.Destroy(_templateMaterial);
                 if (_crackOverlayMaterial != null) UnityEngine.Object.Destroy(_crackOverlayMaterial);
+                if (_gateHintMaterial != null) UnityEngine.Object.Destroy(_gateHintMaterial);
             }
 
             _disposed = true;
@@ -659,6 +679,96 @@ namespace Burmalda.DebugVisuals
             overlayRenderer.SetPropertyBlock(_propertyBlock);
         }
 
+        // Высота над плитой (тот же принцип, что CrackOverlayHeightOffset —
+        // зазор от верхней грани куба, чтобы не резать полигоны насквозь);
+        // указатель ощутимо выше оверлея трещин — гейт-плита их не носит
+        // одновременно (Gated не распадается, см. TileDebugColor/
+        // TileArtKindResolver — LethalTrap/градиент распада проверяются
+        // раньше и уже "заняты" другими типами плит), но высота на всякий
+        // случай разведена.
+        private const float GateHintHeightOffset = 0.06f;
+        private const float GateHintLength = 0.5f; // доля от TileSize
+        private const float GateHintThickness = 0.08f; // доля от TileSize
+
+        /// <summary>
+        /// Issue #193 (владелец, 2026-09-01): "закрытые Ворота указывают
+        /// направление на свою открывашку" — обязательное условие задачи,
+        /// без него рычаг (теперь скрытый той же сигнатурой, что и ловушки)
+        /// пришлось бы искать наугад, а каждое примеривание стоит игроку
+        /// распада — без подсказки поиск был бы невыгоден и игрок бы его
+        /// не предпринимал. Процедурный вытянутый куб-указатель (см.
+        /// doc-комментарий <see cref="_gateHintMaterial"/>) — создаётся
+        /// лениво при первом Tick(), где плита оказывается Gated с известной
+        /// <see cref="Tile.LeverCoordinate"/> (тот же принцип "по требованию
+        /// из реального Tile.cs", что overlay трещин), дальше только
+        /// включается/выключается вместе с <see cref="Tile.IsLeverGateOpen"/>
+        /// — открытые Ворота уже не тайна, подсказка не нужна.
+        /// </summary>
+        private void UpdateGateDirectionHint(GridCoordinate coordinate, GameObject tileObject, Tile tile)
+        {
+            if (_gateHintMaterial == null) return;
+            if (!tile.IsGated || !tile.LeverCoordinate.HasValue)
+            {
+                // Плита перестала бы быть Gated только при полном
+                // пересборе сетки нового забега (Dispose очищает всё) — но
+                // защищаемся симметрично на случай уже созданной подсказки.
+                if (_gateDirectionHints.TryGetValue(coordinate, out var staleHint)) staleHint.SetActive(false);
+                return;
+            }
+
+            if (!_gateDirectionHints.TryGetValue(coordinate, out var hint))
+            {
+                hint = CreateGateDirectionHint(coordinate, tileObject.transform.position, tile.LeverCoordinate.Value);
+                _gateDirectionHints[coordinate] = hint;
+            }
+
+            if (hint == null) return;
+            hint.SetActive(!tile.IsLeverGateOpen);
+        }
+
+        private GameObject CreateGateDirectionHint(GridCoordinate gateCoordinate, Vector3 gateWorldPosition, GridCoordinate leverCoordinate)
+        {
+            var hint = new GameObject($"DebugGateDirectionHint {gateCoordinate}");
+            hint.transform.SetParent(_parent, worldPositionStays: false);
+
+            var leverWorldPosition = _projection.ToWorldPosition(leverCoordinate);
+            var direction = leverWorldPosition - gateWorldPosition;
+            direction.y = 0f;
+            // Рычаг и Ворота физически не могут совпасть координатой (issue
+            // #193/SegmentTemplate.ValidateLeverGates), но защищаемся от
+            // вырожденного вектора на случай будущих изменений генерации.
+            if (direction.sqrMagnitude < 0.0001f) direction = Vector3.forward;
+
+            hint.transform.position = gateWorldPosition + Vector3.up * (TileHeight * 0.5f + GateHintHeightOffset);
+            hint.transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+            hint.transform.localScale = new Vector3(
+                _projection.TileSize * GateHintThickness,
+                _projection.TileSize * GateHintThickness,
+                _projection.TileSize * GateHintLength);
+
+            var meshFilter = hint.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = GetGateHintMesh();
+            hint.AddComponent<MeshRenderer>().sharedMaterial = _gateHintMaterial;
+            // Ни один Collider не добавляется вообще (тот же приём, что
+            // GetOverlayQuadMesh — прямая сборка меша в обход
+            // GameObject.CreatePrimitive, где Unity сама цепляет коллайдер) —
+            // тап должен попадать только в BoxCollider базовой плиты.
+
+            return hint;
+        }
+
+        // Тот же приём, что GetOverlayQuadMesh — берём готовый Cube.fbx
+        // напрямую из Resources.GetBuiltinResource, минуя
+        // GameObject.CreatePrimitive (сама добавляет коллайдер, см.
+        // doc-комментарий класса про баг MeshCollider 2026-09-01).
+        private static Mesh _gateHintMesh;
+
+        private static Mesh GetGateHintMesh()
+        {
+            if (_gateHintMesh == null) _gateHintMesh = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
+            return _gateHintMesh;
+        }
+
         private static Material CreateTemplateMaterial()
         {
             var shader = Shader.Find("Universal Render Pipeline/Lit")
@@ -690,6 +800,35 @@ namespace Burmalda.DebugVisuals
             if (shader == null) return null;
 
             var material = new Material(shader) { mainTexture = crackMask, color = Color.white };
+            material.enableInstancing = true;
+            return material;
+        }
+
+        // Ярко-голубой (циан) — не пересекается ни с одним уже занятым
+        // цветом debug-палитры (TileDebugColor): опасность/сигнатуры —
+        // сизо-фиолетовый/оливково-жёлтый/пурпур, ворота — янтарный,
+        // источники — фиолетовый/медный. Циан читается как явно
+        // служебная/навигационная подсказка, не игровая сущность.
+        private static readonly Color GateHintColor = new Color(0.2f, 0.9f, 1f);
+
+        /// <summary>
+        /// Материал для указателя направления на рычаг (issue #193) — тот
+        /// же fallback-список шейдеров, что <see cref="CreateTemplateMaterial"/>
+        /// (уже подтверждён на устройстве, уже в Always Included Shaders,
+        /// см. <c>BuildScript.FixRenderingConfiguration</c>) — не текстура,
+        /// поэтому не нужен отдельный шейдер, как у оверлея трещин.
+        /// </summary>
+        private static Material CreateGateHintMaterial()
+        {
+            var material = CreateTemplateMaterial();
+            if (material == null) return null;
+
+            material.color = GateHintColor;
+            if (material.HasProperty("_EmissionColor"))
+            {
+                material.EnableKeyword("_EMISSION");
+                material.SetColor("_EmissionColor", GateHintColor * 0.6f); // заметен даже в тени — тот же приём, что EmissionIntensity у цветного фолбэка
+            }
             material.enableInstancing = true;
             return material;
         }

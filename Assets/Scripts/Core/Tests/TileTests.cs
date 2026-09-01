@@ -397,6 +397,32 @@ namespace Burmalda.Core.Tests
         }
 
         [Test]
+        public void MarkGated_NoArgument_LeaveLeverCoordinateNull()
+        {
+            // Обратная совместимость (issue #193): параметр опциональный,
+            // существующие вызовы без координаты рычага не должны падать.
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkGated();
+
+            Assert.IsFalse(tile.LeverCoordinate.HasValue);
+        }
+
+        [Test]
+        public void MarkGated_WithLeverCoordinate_SetsLeverCoordinate()
+        {
+            // Issue #193: "закрытые Ворота указывают направление на свою
+            // открывашку" — TunnelDebugVisual читает эту координату для
+            // подсказки.
+            var tile = new Tile(new GridCoordinate(1, 1));
+            var leverCoordinate = new GridCoordinate(3, 0);
+
+            tile.MarkGated(leverCoordinate);
+
+            Assert.AreEqual(leverCoordinate, tile.LeverCoordinate);
+        }
+
+        [Test]
         public void OpenLeverGate_SetsIsLeverGateOpenTrue()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
