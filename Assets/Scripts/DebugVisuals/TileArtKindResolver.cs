@@ -48,10 +48,11 @@ namespace Burmalda.DebugVisuals
             if (state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) return TileArtKind.HiddenTrapSignature;
             if (state.ActiveTimedTrap.HasValue) return TileArtKind.TimedTrapActive;
             // Единая сигнатура триггера (задача «сделать тоннель играбельным»,
-            // часть 3) — то же слияние, что уже сделано для HiddenTrapSignature.
-            // tile-trigger-signature.png — выделенный файл под эту роль
-            // (задача «тёплый набор плит»), раньше сюда подключался
-            // tile-explosive-trigger.png по необходимости.
+            // часть 3) — тот же принцип, что HiddenTrapSignature выше:
+            // отдельный TileArtKind, но задача «тёплый набор плит»
+            // (владелец, прямое указание) отдаёт под него ТУ ЖЕ САМУЮ
+            // текстуру, что и под HiddenTrapSignature (см. TileArtCatalog.Get)
+            // — PRD v9 §4.2, ловушку от механизма не отличить без Идола Чутья.
             if (state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) return TileArtKind.TriggerSignature;
 
             // Источники валюты (часть 1 задачи «сделать тоннель играбельным»):

@@ -25,9 +25,12 @@ namespace Burmalda.DebugVisuals
     /// <b>Задача «тёплый набор плит»:</b> обычная плита (<see cref="TileArtKind.Fresh"/>)
     /// — единственная категория с НЕСКОЛЬКИМИ вариантами текстуры
     /// (<see cref="GetFreshVariant"/>, не <see cref="Get"/>) — владелец
-    /// прислал три рисунка одной и той же "целой плиты" специально для
+    /// прислал два рисунка одной и той же "целой плиты" специально для
     /// визуального разнообразия пола (см. <see cref="DebugVisuals.TunnelDebugVisual"/>,
     /// где вариант и поворот выбираются один раз при материализации).
+    /// Третий присланный файл (<c>tile-fresh-c.png</c>) оказался побайтовым
+    /// дублем <c>tile-about-to-decay.png</c> — не отдельным вариантом пола, а
+    /// стадией распада; удалён, вариантов осталось два.
     /// </summary>
     public sealed class TileArtCatalog : ScriptableObject
     {
@@ -36,18 +39,20 @@ namespace Burmalda.DebugVisuals
 
         [SerializeField] private Texture2D _fresh;
         [SerializeField] private Texture2D _freshVariantB;
-        [SerializeField] private Texture2D _freshVariantC;
         [SerializeField] private Texture2D _halfDecayed;
         [SerializeField] private Texture2D _aboutToDecay;
         [SerializeField] private Texture2D _destroyed;
         [SerializeField] private Texture2D _start;
         [SerializeField] private Texture2D _blocked;
         [SerializeField] private Texture2D _lava;
+        // Задача «тёплый набор плит» (владелец, прямое указание): одна и та
+        // же текстура для ОБЕИХ ролей — скрытой опасности (яма/сработавший
+        // взрыв) И сигнатуры механизма (оба вида триггера). См.
+        // doc-комментарий Get() — намеренно нет отдельного поля под
+        // TriggerSignature, чтобы развести их снова стало нельзя без правки
+        // этого файла, а не просто подсунуть другой файл в ArtIntegrationSetup.
         [SerializeField] private Texture2D _hiddenTrapSignature;
         [SerializeField] private Texture2D _timedTrapActive;
-        // Задача «сделать тоннель играбельным», часть 3: единое поле вместо
-        // прежних _explosiveTrigger/_timedTrapTrigger — см. TileArtKind.TriggerSignature.
-        [SerializeField] private Texture2D _triggerSignature;
         // Задача «тёплый набор плит» — новые категории, раньше все были TileArtKind.None.
         [SerializeField] private Texture2D _currentPosition;
         [SerializeField] private Texture2D _manaSource;
@@ -89,7 +94,16 @@ namespace Burmalda.DebugVisuals
                 case TileArtKind.Lava: return _lava;
                 case TileArtKind.HiddenTrapSignature: return _hiddenTrapSignature;
                 case TileArtKind.TimedTrapActive: return _timedTrapActive;
-                case TileArtKind.TriggerSignature: return _triggerSignature;
+                // PRD v9 §4.2: до Идола Чутья игрок не должен уметь отличить
+                // ЛОВУШКУ (яма/сработавший взрыв — HiddenTrapSignature) от
+                // МЕХАНИЗМА, который вооружает ловушку где-то ещё (оба вида
+                // триггера — TriggerSignature) — намеренно одна и та же
+                // текстура на оба TileArtKind, не два похожих файла. Разведёт
+                // их снова кто-то в будущем перегенерацией одной из них по
+                // отдельности — механика разведки сломается молча, без
+                // единого падающего теста (тесты проверяют TileArtKind,
+                // текстуру за ним TileArtCatalog не различает вовсе).
+                case TileArtKind.TriggerSignature: return _hiddenTrapSignature;
                 case TileArtKind.CurrentPosition: return _currentPosition;
                 case TileArtKind.ManaSource: return _manaSource;
                 case TileArtKind.KeySource: return _keySource;
@@ -102,11 +116,11 @@ namespace Burmalda.DebugVisuals
         }
 
         /// <summary>Число вариантов текстуры для <see cref="TileArtKind.Fresh"/> (см. класс-докстроку).</summary>
-        public const int FreshVariantCount = 3;
+        public const int FreshVariantCount = 2;
 
         /// <summary>
         /// Вариант текстуры обычной плиты, 0..<see cref="FreshVariantCount"/>-1
-        /// (0 — <c>tile-fresh</c>, 1 — <c>tile-fresh-b</c>, 2 — <c>tile-fresh-c</c>).
+        /// (0 — <c>tile-fresh</c>, 1 — <c>tile-fresh-b</c>).
         /// Индекс вне диапазона — тот же фолбэк, что <see cref="Get"/> для
         /// пустого поля: возвращает null, вызывающий код падает на цвет.
         /// </summary>
@@ -116,7 +130,6 @@ namespace Burmalda.DebugVisuals
             {
                 case 0: return _fresh;
                 case 1: return _freshVariantB;
-                case 2: return _freshVariantC;
                 default: return null;
             }
         }
@@ -124,14 +137,13 @@ namespace Burmalda.DebugVisuals
 #if UNITY_EDITOR
         // Только для Editor-скрипта заполнения (ArtIntegrationSetup) —
         // рантайм-код катaлог только читает через Get()/GetFreshVariant().
-        public void EditorAssign(Texture2D fresh, Texture2D freshVariantB, Texture2D freshVariantC, Texture2D halfDecayed, Texture2D aboutToDecay, Texture2D destroyed,
+        public void EditorAssign(Texture2D fresh, Texture2D freshVariantB, Texture2D halfDecayed, Texture2D aboutToDecay, Texture2D destroyed,
             Texture2D start, Texture2D blocked, Texture2D lava, Texture2D hiddenTrapSignature,
-            Texture2D timedTrapActive, Texture2D triggerSignature, Texture2D currentPosition, Texture2D manaSource,
+            Texture2D timedTrapActive, Texture2D currentPosition, Texture2D manaSource,
             Texture2D keySource, Texture2D lever, Texture2D gateClosed, Texture2D gateOpen, Texture2D altar)
         {
             _fresh = fresh;
             _freshVariantB = freshVariantB;
-            _freshVariantC = freshVariantC;
             _halfDecayed = halfDecayed;
             _aboutToDecay = aboutToDecay;
             _destroyed = destroyed;
@@ -140,7 +152,6 @@ namespace Burmalda.DebugVisuals
             _lava = lava;
             _hiddenTrapSignature = hiddenTrapSignature;
             _timedTrapActive = timedTrapActive;
-            _triggerSignature = triggerSignature;
             _currentPosition = currentPosition;
             _manaSource = manaSource;
             _keySource = keySource;

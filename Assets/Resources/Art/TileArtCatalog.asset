@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Burmalda.DebugVisuals::Burmalda.DebugVisuals.TileArtCatalog
   _fresh: {fileID: 2800000, guid: 11cd5c506318d474d9a7d3c9a874159f, type: 3}
   _freshVariantB: {fileID: 2800000, guid: aa5896996728748a48fa039a5e590ecd, type: 3}
-  _freshVariantC: {fileID: 2800000, guid: 4d0a90a9631ef492a8becbc90ecc5dd1, type: 3}
   _halfDecayed: {fileID: 2800000, guid: f792eae4af4484190b1d0a0ae1cd4c1d, type: 3}
   _aboutToDecay: {fileID: 2800000, guid: 6490d5e59b59b49dbac248be8d88cf2e, type: 3}
   _destroyed: {fileID: 2800000, guid: 5747fb1b418cc4520a42d54ebc3c6996, type: 3}
@@ -23,7 +22,6 @@ MonoBehaviour:
   _lava: {fileID: 2800000, guid: 494b5c80825924fc4bf4d84946a31eb3, type: 3}
   _hiddenTrapSignature: {fileID: 2800000, guid: 485b72a3993d34a74b78014c20ea978c, type: 3}
   _timedTrapActive: {fileID: 2800000, guid: d82a68028efc24e74983c0d735a35f86, type: 3}
-  _triggerSignature: {fileID: 2800000, guid: 6e4e6d32dec4145b29b9151a96a99837, type: 3}
   _currentPosition: {fileID: 2800000, guid: 2c7f22d3258c04a348bb01778766cc48, type: 3}
   _manaSource: {fileID: 2800000, guid: 5c14155a824404239beb749a2dae83eb, type: 3}
   _keySource: {fileID: 2800000, guid: b08bc814301da40f7915dc38557b87ea, type: 3}

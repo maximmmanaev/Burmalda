@@ -79,15 +79,20 @@ namespace Burmalda.EditorTools
         /// <b>Задача «тёплый набор плит»:</b> каждой категории, у которой в
         /// новом тёплом наборе появился собственный файл, — своя текстура
         /// (источники, рычаг, ворота открыты/закрыты, Алтарь, позиция
-        /// игрока, обе сигнатуры). Яма и активированный взрыв (issue #163)
-        /// по-прежнему делят ОДНУ текстуру — теперь выделенный
-        /// <c>tile-hidden-trap-signature</c> (раньше сюда подключался
-        /// <c>tile-pit</c> за неимением специального файла); то же для
-        /// триггеров — выделенный <c>tile-trigger-signature</c> вместо
-        /// прежнего <c>tile-explosive-trigger</c>. Комнаты Босса в Unity ещё
-        /// нет (PRD v8) — под неё текстуры по-прежнему нет, остаётся на
-        /// цветном фолбэке. <c>tile-start</c> не вошла в тёплый лист —
-        /// владелец: использовать <c>tile-fresh</c> как временную замену.
+        /// игрока). Комнаты Босса в Unity ещё нет (PRD v8) — под неё
+        /// текстуры по-прежнему нет, остаётся на цветном фолбэке.
+        /// <c>tile-start</c> не вошла в тёплый лист — владелец: использовать
+        /// <c>tile-fresh</c> как временную замену.
+        ///
+        /// <b>Сигнатуры (владелец, прямое указание):</b>
+        /// <c>tile-hidden-trap-signature.png</c> — ОДНА текстура на ОБЕ роли:
+        /// скрытая опасность (яма/сработавший взрыв, issue #163) И механизм
+        /// (оба вида триггера, задача «сделать тоннель играбельным» часть
+        /// 3) — см. <see cref="TileArtCatalog.Get"/>, там же — почему это
+        /// не два похожих файла. <c>tile-trigger-signature.png</c> удалён
+        /// как побайтовый дубль. Первая присланная версия
+        /// <c>tile-hidden-trap-signature.png</c> сама оказалась дублем
+        /// <c>tile-half-decayed.png</c> (не сигнатурой) — заменена владельцем.
         /// </summary>
         private static void BuildTileArtCatalog()
         {
@@ -103,7 +108,6 @@ namespace Burmalda.EditorTools
             catalog.EditorAssign(
                 fresh: LoadTile("tile-fresh"),
                 freshVariantB: LoadTile("tile-fresh-b"),
-                freshVariantC: LoadTile("tile-fresh-c"),
                 halfDecayed: LoadTile("tile-half-decayed"),
                 aboutToDecay: LoadTile("tile-about-to-decay"),
                 destroyed: LoadTile("tile-destroyed"),
@@ -112,7 +116,6 @@ namespace Burmalda.EditorTools
                 lava: LoadTile("tile-lava"),
                 hiddenTrapSignature: LoadTile("tile-hidden-trap-signature"),
                 timedTrapActive: LoadTile("tile-timed-trap-active"),
-                triggerSignature: LoadTile("tile-trigger-signature"),
                 currentPosition: LoadTile("tile-current-position"),
                 manaSource: LoadTile("tile-mana-source"),
                 keySource: LoadTile("tile-key-source"),
