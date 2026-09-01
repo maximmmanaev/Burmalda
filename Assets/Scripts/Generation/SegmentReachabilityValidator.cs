@@ -87,6 +87,46 @@ namespace Burmalda.Generation
             return true;
         }
 
+        /// <summary>
+        /// Issue #193: "проверка возвратного маршрута (открывашка → Ворота),
+        /// не только прямого маршрута входа". Математически это СЛЕДСТВИЕ
+        /// <see cref="IsTraversable"/> + <see cref="LeverVaultIsReachable"/>
+        /// вместе взятых: граф проходимости неориентированный (шаг в игре
+        /// не завязан на направление — <c>GridTraceTrail.CanAdvanceTo</c>
+        /// разрешает любую соседнюю плиту), поэтому если тайник за
+        /// открытыми воротами связан с рядом входа
+        /// (<see cref="LeverVaultIsReachable"/>), а вход связан с выходом
+        /// хотя бы при ЗАКРЫТЫХ воротах (<see cref="IsTraversable"/>, граф —
+        /// подмножество открытого), то тайник связан и с выходом. Задача
+        /// прямо просит ОТДЕЛЬНУЮ проверку с явным именем — не полагаться
+        /// на то, что кто-то восстановит эту цепочку рассуждений из двух
+        /// других методов, когда придётся объяснять, почему возврат
+        /// гарантирован. Шаблоны без ворот проходят тривиально.
+        /// </summary>
+        public static bool ReturnRouteToExitExists(SegmentTemplate template)
+        {
+            var hasGate = false;
+            for (var r = 0; r < template.RowCount && !hasGate; r++)
+                for (var c = 0; c < template.Width; c++)
+                    if (template.TileAt(r, c) == SegmentTileType.LeverGate) { hasGate = true; break; }
+            if (!hasGate) return true; // нечего проверять
+
+            var componentId = ComputeComponents(template, IsPassableGateOpen);
+
+            var exitComponents = new HashSet<int>();
+            var exitRow = template.RowCount - 1;
+            for (var c = 0; c < template.Width; c++)
+                if (IsPassableGateOpen(template, exitRow, c))
+                    exitComponents.Add(componentId[exitRow, c]);
+
+            for (var r = 0; r < template.RowCount; r++)
+                for (var c = 0; c < template.Width; c++)
+                    if (template.TileAt(r, c) == SegmentTileType.LeverGate && !exitComponents.Contains(componentId[r, c]))
+                        return false;
+
+            return true;
+        }
+
         private static bool IsPassableGateClosed(SegmentTemplate template, int row, int column)
         {
             var type = template.TileAt(row, column);

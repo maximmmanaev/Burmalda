@@ -274,11 +274,29 @@ namespace Burmalda.Core
         /// <summary>Плита-ворота открыта — рычаг уже активирован.</summary>
         public bool IsLeverGateOpen { get; private set; }
 
-        /// <summary>Помечает плиту как закрытые ворота бокового прохода (закрыта по умолчанию).</summary>
-        public void MarkGated()
+        /// <summary>
+        /// Координата рычага, который открывает ЭТИ ворота (issue #193):
+        /// "подсветка Ворот указывает направление на открывашку" — рычаг
+        /// теперь скрыт (та же сигнатура опасности, что и ловушки, см.
+        /// <see cref="IsDangerSignatureRevealed"/>/<see cref="TrapInsight"/>
+        /// в вызывающем коде), без подсказки его искали бы наугад, а
+        /// каждое примеривание стоит игроку распада — подсказка делает
+        /// поиск ограниченным. Null, пока плита не помечена воротами.
+        /// </summary>
+        public GridCoordinate? LeverCoordinate { get; private set; }
+
+        /// <summary>
+        /// Помечает плиту как закрытые ворота бокового прохода (закрыта по
+        /// умолчанию). <paramref name="leverCoordinate"/> — опционально
+        /// (default null, обратная совместимость с существующими вызовами/
+        /// тестами, которым координата рычага не нужна) — задаёт
+        /// <see cref="LeverCoordinate"/> для подсказки направления.
+        /// </summary>
+        public void MarkGated(GridCoordinate? leverCoordinate = null)
         {
             GuardAgainstConflictingRole(IsGated, nameof(IsGated));
             IsGated = true;
+            LeverCoordinate = leverCoordinate;
         }
 
         /// <summary>Открывает ворота бокового прохода — вызывается системой активации рычага.</summary>

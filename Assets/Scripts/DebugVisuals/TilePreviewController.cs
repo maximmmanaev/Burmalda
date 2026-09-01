@@ -127,19 +127,41 @@ namespace Burmalda.DebugVisuals
             // Теперь тот же гейт, что и у скрытой ловушки ниже — базовая
             // строка ("здесь механизм") видна всегда, точный тип только с
             // Идолом Чутья.
-            if (tile.ExplosiveTrapTarget.HasValue || tile.TimedTrapTarget.HasValue)
+            //
+            // Issue #193 (владелец, 2026-09-01): рычаг (IsLever) — ТОЖЕ
+            // механизм, та же общая строка/гейт, что у триггеров ловушек —
+            // "две разновидности механизма с разной видимостью научат
+            // игрока неверному правилу", отдельной ветки для рычага больше
+            // нет.
+            if (tile.ExplosiveTrapTarget.HasValue || tile.TimedTrapTarget.HasValue || tile.IsLever)
             {
                 lines.Add("Триггер механизма");
                 if (TrapInsight.HasTrapTypeInsight)
                 {
-                    lines.Add(tile.ExplosiveTrapTarget.HasValue
-                        ? "(Идол Чутья) Точный тип: взрывная ловушка"
-                        : $"(Идол Чутья) Точный тип: {tile.TimedTrapKind}");
+                    string exactType;
+                    if (tile.IsLever) exactType = "рычаг";
+                    else if (tile.ExplosiveTrapTarget.HasValue) exactType = "взрывная ловушка";
+                    else exactType = tile.TimedTrapKind.ToString();
+                    lines.Add($"(Идол Чутья) Точный тип: {exactType}");
                 }
             }
             if (tile.IsTimedTrapActive) lines.Add("Ловушка с таймингом СЕЙЧАС активна"); // реальная угроза прямо сейчас — не скрывается, см. TrapSignature
-            if (tile.IsLever) lines.Add("Рычаг");
-            if (tile.IsGated) lines.Add(tile.IsLeverGateOpen ? "Ворота (открыты)" : "Ворота (закрыты)");
+            // Ворота — преграда, видна ВСЕГДА (issue #193: "награды и
+            // преграды видны всегда, опасность и механизмы — нет"), в
+            // отличие от рычага выше.
+            if (tile.IsGated)
+            {
+                lines.Add(tile.IsLeverGateOpen ? "Ворота (открыты)" : "Ворота (закрыты)");
+                // Issue #193: "закрытые Ворота указывают направление на
+                // свою открывашку" — без подсказки поиск скрытого рычага
+                // был бы наугад, а каждое примеривание стоит игроку
+                // распада. Координата видна в текстовой сводке безусловно
+                // (обвод/визуальная стрелка на самой плите — TunnelDebugVisual);
+                // сам факт "рычаг существует" не тайна (Ворота уже видны),
+                // тайна — только ГДЕ он и КАКОЙ он ТОЧНО.
+                if (!tile.IsLeverGateOpen && tile.LeverCoordinate.HasValue)
+                    lines.Add($"Открывашка: {tile.LeverCoordinate.Value}");
+            }
 
             // Issue #163, Идол Жадности: "что ценного скрыто под плитой" — на
             // скрытой ловушке ценность видна, только если она раскрыта

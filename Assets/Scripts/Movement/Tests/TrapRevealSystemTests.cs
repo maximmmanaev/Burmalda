@@ -112,6 +112,22 @@ namespace Burmalda.Movement.Tests
             Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
         }
 
+        // Issue #193 (владелец, 2026-09-01): рычаг теперь скрыт той же
+        // сигнатурой, что и ловушки/триггеры — "две разновидности
+        // механизма с разной видимостью научат игрока неверному правилу".
+        [Test]
+        public void Tick_LeverTile_RevealsSignature()
+        {
+            var grid = new TunnelGrid(Width);
+            var coordinate = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(coordinate).MarkLever(new System.Collections.Generic.List<GridCoordinate> { new GridCoordinate(2, 2) });
+            var system = new TrapRevealSystem(grid);
+
+            system.Tick(coordinate);
+
+            Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
+        }
+
         [Test]
         public void Tick_RevealsSignature_RaisesSignatureRevealedEvent()
         {
