@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Reflection;
 using Burmalda.Core;
 using Burmalda.Movement;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Burmalda.Generation.Tests
 {
@@ -174,5 +176,81 @@ namespace Burmalda.Generation.Tests
         // TileMaterialized_RollAtPitThreshold_MarksLethalTrapLava в
         // Core.Tests.TunnelObstacleGeneratorTests — тот же приём).
         private static System.Func<float> AlwaysLava() => () => TunnelObstacleGenerator.PitThreshold;
+
+        /// <summary>
+        /// Задача «двойные флаги на плитах»: тест выше
+        /// (<see cref="RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTileTypeSilentlyLost"/>)
+        /// доказывает механизм гонки на уровне голых классов
+        /// (<see cref="TunnelObstacleGenerator"/>/<see cref="TunnelGridReveal"/>
+        /// напрямую). Эти два теста проверяют фикс на уровне тех же
+        /// MonoBehaviour-контроллеров и в том же порядке вызова, что
+        /// реально использует <c>Bootstrap.RunBootstrap.EnsureControllersWired</c>/
+        /// <c>HandleRunStarted</c> (см. их doc-комментарии) — не гипотеза,
+        /// а тот самый порядок <c>EnsureBuilt</c>, который производственный
+        /// код вызывает на настоящей сцене.
+        /// </summary>
+        [Test]
+        public void ControllerEnsureBuiltOrder_SegmentsFirst_ClaimsRevealWindowBeforeLegacyGeneratorTouchesIt()
+        {
+            var host = new GameObject("CoexistenceHost_SegmentsFirst");
+            try
+            {
+                var input = host.AddComponent<GridTraceInputController>();
+                InvokePrivate(input, "Awake");
+
+                var segments = host.AddComponent<SegmentGenerationController>();
+                InvokePrivate(segments, "Awake");
+
+                var obstacle = host.AddComponent<TunnelObstacleController>();
+                InvokePrivate(obstacle, "Awake");
+
+                // Ровно порядок RunBootstrap.EnsureControllersWired: сначала
+                // Segments.EnsureBuilt(), затем SyncLegacyObstacleGenerator
+                // (obstacle.EnsureBuilt()).
+                segments.EnsureBuilt();
+                obstacle.EnsureBuilt();
+
+                for (var row = 1; row <= TunnelGridReveal.RowsAheadOfPlayer; row++)
+                    Assert.IsTrue(input.Grid.IsRowClaimed(row),
+                        $"Ряд {row} должен быть заявлен Generation.SegmentRowProvider раньше, чем Movement.TunnelGridReveal успел материализовать его напрямую в обход ClaimRow.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+            }
+        }
+
+        // Контрольный тест на обратный порядок — документирует, ЧТО ИМЕННО
+        // чинит порядок вызова в RunBootstrap: без него (вызови кто-нибудь
+        // obstacle.EnsureBuilt() первым) гарантии просто нет.
+        [Test]
+        public void ControllerEnsureBuiltOrder_LegacyGeneratorFirst_RevealWindowIsNotClaimedYet()
+        {
+            var host = new GameObject("CoexistenceHost_LegacyFirst");
+            try
+            {
+                var input = host.AddComponent<GridTraceInputController>();
+                InvokePrivate(input, "Awake");
+
+                var obstacle = host.AddComponent<TunnelObstacleController>();
+                InvokePrivate(obstacle, "Awake");
+
+                obstacle.EnsureBuilt();
+
+                Assert.IsFalse(input.Grid.IsRowClaimed(1),
+                    "До фикса (задача «двойные флаги на плитах») именно это и происходило: TunnelGridReveal успевал материализовать ряды раньше, чем SegmentRowProvider успевал их заявить.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+            }
+        }
+
+        private static void InvokePrivate(object target, string methodName)
+        {
+            var method = target.GetType().GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.IsNotNull(method, $"{target.GetType().Name}.{methodName} не найден рефлексией — сигнатура/имя изменились?");
+            method.Invoke(target, null);
+        }
     }
 }
