@@ -9,10 +9,11 @@ namespace Burmalda.DebugVisuals
     /// Тумблеры для <see cref="RunHudToggles"/>: "Run HUD" (числа/множитель/
     /// билд текстом, старый OnGUI-оверлей — дефолт ВЫКЛ с задачи «HUD
     /// накладывается сам на себя», см. её doc-комментарий), "Tile debug"
-    /// (координаты/% распада/тип ловушки примериваемой плиты, дефолт ВЫКЛ)
-    /// и "Boss Room preview" (каркас Комнаты Босса, дефолт ВЫКЛ — раньше
+    /// (координаты/% распада/тип ловушки примериваемой плиты, дефолт ВЫКЛ),
+    /// "Boss Room preview" (каркас Комнаты Босса, дефолт ВЫКЛ — раньше
     /// кнопка висела прямо на игровом поле, задача «на поле не должно быть
-    /// ни одной отладочной кнопки»).
+    /// ни одной отладочной кнопки») и "FPS" (сглаженный FPS/время кадра,
+    /// <see cref="FrameRateOverlay"/>, issue #190, дефолт ВЫКЛ).
     ///
     /// Тот же принцип, что <see cref="CameraAnchorDebugPanel"/>: свёрнутая
     /// кнопка-кнопка в углу разворачивает панель, Canvas/Toggle вместо
@@ -118,7 +119,7 @@ namespace Burmalda.DebugVisuals
             rect.anchorMin = new Vector2(0.5f, 1f);
             rect.anchorMax = new Vector2(0.5f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 3f + Margin * 2f);
+            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 4f + Margin * 2f);
             rect.anchoredPosition = new Vector2(0f, -(Margin + ButtonHeight + Margin));
 
             BuildToggleRow(_panelRoot.transform, 0, "Run HUD", RunHudToggles.ShowRunHud, v => RunHudToggles.ShowRunHud = v);
@@ -127,6 +128,9 @@ namespace Burmalda.DebugVisuals
             // Room» посреди экрана, ровно там, куда игрок тапает при ходе) —
             // кнопка убрана с игрового поля, теперь тумблер здесь, дефолт ВЫКЛ.
             BuildToggleRow(_panelRoot.transform, 2, "Boss Room preview", RunHudToggles.ShowBossRoomPreview, v => RunHudToggles.ShowBossRoomPreview = v);
+            // Issue #190 (Спринт 12a): сглаженный FPS/время кадра — тот же
+            // принцип, дефолт ВЫКЛ.
+            BuildToggleRow(_panelRoot.transform, 3, "FPS", RunHudToggles.ShowFrameRateOverlay, v => RunHudToggles.ShowFrameRateOverlay = v);
         }
 
         private void BuildToggleRow(Transform parent, int rowIndex, string label, bool initialValue, System.Action<bool> onValueChanged)

@@ -43,5 +43,14 @@ namespace Burmalda.DebugVisuals
         /// дефолт ВЫКЛЮЧЕН.
         /// </summary>
         public static bool ShowBossRoomPreview { get; set; }
+
+        /// <summary>
+        /// Отладочный оверлей FPS/времени кадра (<see cref="FrameRateOverlay"/>,
+        /// issue #190, Спринт 12a) — <c>Application.targetFrameRate=60</c>
+        /// уже настроен (<see cref="FrameRateSetup"/>), но живого измерения
+        /// фактического FPS не было. По умолчанию ВЫКЛЮЧЕН, как и остальные
+        /// тумблеры здесь.
+        /// </summary>
+        public static bool ShowFrameRateOverlay { get; set; }
     }
 }
