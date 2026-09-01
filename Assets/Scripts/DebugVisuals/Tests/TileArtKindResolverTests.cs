@@ -231,15 +231,25 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileArtKind.KeySource, TileArtKindResolver.Resolve(state));
         }
 
-        // Задача «тёплый набор плит»: прежние tile-gate-closed.png/tile-gate-
-        // open.png (по имени, не по содержимому) заменены настоящими плитами
-        // пола — теперь Lever/GateClosed/GateOpen, не None.
+        // Issue #193 (владелец, 2026-09-01) ОТМЕНЯЕТ более раннее решение
+        // «тёплый набор плит» (тогда — Lever всегда видим): рычаг теперь
+        // скрыт той же сигнатурой, что и ловушки, пока не раскрыт
+        // примериванием — "две разновидности механизма с разной видимостью
+        // научат игрока неверному правилу".
         [Test]
-        public void Resolve_Lever_ReturnsLever_NotDecayGradient()
+        public void Resolve_Lever_NotRevealed_LooksLikeOrdinaryFreshTile()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true);
+            var hidden = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: false);
 
-            Assert.AreEqual(TileArtKind.Lever, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(hidden));
+        }
+
+        [Test]
+        public void Resolve_Lever_Revealed_ReturnsTriggerSignature()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: true);
+
+            Assert.AreEqual(TileArtKind.TriggerSignature, TileArtKindResolver.Resolve(state));
         }
 
         [Test]

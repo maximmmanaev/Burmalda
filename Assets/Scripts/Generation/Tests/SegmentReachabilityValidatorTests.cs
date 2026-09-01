@@ -147,5 +147,48 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("sealed-vault", 1, SegmentRewardTag.Keys, tiles);
             Assert.IsFalse(SegmentReachabilityValidator.LeverVaultIsReachable(template));
         }
+
+        // Issue #193: явная проверка "возвратный маршрут существует", а не
+        // расчёт на то, что кто-то выведет её из IsTraversable +
+        // LeverVaultIsReachable (см. doc-комментарий метода).
+        [Test]
+        public void ReturnRouteToExitExists_NoGateInTemplate_ReturnsTrue()
+        {
+            var template = new SegmentTemplate("no-gate", 1, SegmentRewardTag.Coins, OpenRows(5));
+            Assert.IsTrue(SegmentReachabilityValidator.ReturnRouteToExitExists(template));
+        }
+
+        [Test]
+        public void ReturnRouteToExitExists_GateConnectedToRestOfSegmentWhenOpen_ReturnsTrue()
+        {
+            // Тот же шаблон, что LeverVaultIsReachable_GateConnectedToRestOfSegmentWhenOpen_ReturnsTrue —
+            // подтверждает, что связь с рядом ВХОДА (тот метод) влечёт связь с рядом ВЫХОДА (этот).
+            var tiles = OpenRows(5);
+            for (var c = 0; c < Width; c++) tiles[2, c] = SegmentTileType.Blocked;
+            tiles[2, 1] = SegmentTileType.LeverGate;
+            tiles[0, 0] = SegmentTileType.Lever;
+
+            var template = new SegmentTemplate("gate-connected", 1, SegmentRewardTag.Artifact, tiles);
+            Assert.IsTrue(SegmentReachabilityValidator.ReturnRouteToExitExists(template));
+        }
+
+        [Test]
+        public void ReturnRouteToExitExists_GateSealedOnEverySideExceptVault_ReturnsFalse()
+        {
+            // Тот же замкнутый карман, что LeverVaultIsReachable_GateSealedOnEverySideExceptVault_ReturnsFalse.
+            var tiles = OpenRows(5);
+            for (var c = 0; c < Width; c++)
+            {
+                tiles[1, c] = SegmentTileType.Blocked;
+                tiles[3, c] = SegmentTileType.Blocked;
+            }
+            tiles[2, 0] = SegmentTileType.Blocked;
+            tiles[2, 1] = SegmentTileType.LeverGate;
+            tiles[2, 2] = SegmentTileType.KeySource;
+            tiles[0, 0] = SegmentTileType.Lever;
+
+            var template = new SegmentTemplate("sealed-vault", 1, SegmentRewardTag.Keys, tiles);
+            Assert.IsFalse(SegmentReachabilityValidator.ReturnRouteToExitExists(template));
+        }
     }
 }

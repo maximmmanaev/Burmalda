@@ -114,6 +114,20 @@ namespace Burmalda.Generation.Tests
             StringAssert.Contains("Lever", ex.Message);
         }
 
+        // Issue #193 (владелец, 2026-09-01): "рычаг существует только рядом
+        // со своими Воротами — отдельно стоящий рычаг вне связки бессмыслен,
+        // его никто никогда не найдёт" — обратная сторона проверки выше.
+        [Test]
+        public void Constructor_LeverWithoutLeverGate_Throws()
+        {
+            var tiles = OpenRows(5);
+            tiles[2, 0] = SegmentTileType.Lever;
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                new SegmentTemplate("t", 1, SegmentRewardTag.Artifact, tiles));
+            StringAssert.Contains("LeverGate", ex.Message);
+        }
+
         [Test]
         public void Constructor_LeverWithGate_DoesNotThrow()
         {

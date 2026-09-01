@@ -164,6 +164,13 @@ namespace Burmalda.Generation.Tests
 
             Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 1)).IsGated);
             Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(3, 1)).IsGated);
+
+            // Issue #193: обе плиты-Ворота должны знать координату СВОЕГО
+            // рычага — TunnelDebugVisual использует её для подсказки
+            // направления на закрытых Воротах.
+            var leverCoordinate = new GridCoordinate(2, 0);
+            Assert.AreEqual(leverCoordinate, grid.GetOrCreateTile(new GridCoordinate(2, 1)).LeverCoordinate);
+            Assert.AreEqual(leverCoordinate, grid.GetOrCreateTile(new GridCoordinate(3, 1)).LeverCoordinate);
         }
 
         [Test]
