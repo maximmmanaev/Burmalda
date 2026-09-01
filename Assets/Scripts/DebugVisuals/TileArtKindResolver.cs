@@ -17,6 +17,12 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public static class TileArtKindResolver
     {
+        // Задача «двойные флаги на плитах» — тот же порядок и то же
+        // обоснование, что TileDebugColor.Resolve (см. её doc-комментарий):
+        // поведение (Destroyed/Blocked/Lava/LethalTrap/TimedTrapActive/
+        // триггер) проверяется раньше ролевых/декоративных
+        // (Boss/Altar/Gated/Lever/источники) — вторая линия обороны на
+        // случай коллизии ролей, раньше порядок был обратным.
         public static TileArtKind Resolve(TileVisualState state)
         {
             if (state.IsDestroyed) return TileArtKind.Destroyed;
@@ -25,6 +31,29 @@ namespace Burmalda.DebugVisuals
             // владельца) — теперь tile-current-position.png.
             if (state.IsCurrentPosition) return TileArtKind.CurrentPosition;
             if (state.IsStart) return TileArtKind.Start;
+            if (state.IsBlocked) return TileArtKind.Blocked;
+            if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
+            // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2
+            // заменяется): яма и активированный взрыв — ОДНА категория, не
+            // выдающая точный тип (см. Core.TrapSignature) — общий
+            // tile-hidden-trap-signature.png, но только ПОСЛЕ того, как
+            // игрок навёл на плиту (state.IsDangerSignatureRevealed, см.
+            // Movement.TrapRevealSystem). Пока не раскрыта — плита
+            // неотличима от обычного пола, ветка ничего не возвращает и
+            // проваливается ниже, до градиента распада в конце.
+            if ((state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) && state.IsDangerSignatureRevealed)
+                return TileArtKind.HiddenTrapSignature;
+            if (state.ActiveTimedTrap.HasValue) return TileArtKind.TimedTrapActive;
+            // Единая сигнатура триггера (задача «сделать тоннель играбельным»,
+            // часть 3) — тот же принцип, что HiddenTrapSignature выше:
+            // отдельный TileArtKind, но задача «тёплый набор плит»
+            // (владелец, прямое указание) отдаёт под него ТУ ЖЕ САМУЮ
+            // текстуру, что и под HiddenTrapSignature (см. TileArtCatalog.Get)
+            // — PRD v9 §4.2, ловушку от механизма не отличить без Идола Чутья.
+            // Та же гейт-логика раскрытия, что и у ямы/взрыва выше.
+            if ((state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) && state.IsDangerSignatureRevealed)
+                return TileArtKind.TriggerSignature;
+
             // Комнаты Босса ещё нет в Unity (PRD v8) — под неё в тёплом
             // наборе по-прежнему нет текстуры, остаётся на цветном фолбэке.
             if (state.IsBoss) return TileArtKind.None;
@@ -37,23 +66,6 @@ namespace Burmalda.DebugVisuals
             // GateClosed/GateOpen, не одна текстура на оба состояния.
             if (state.IsGated) return state.IsLeverGateOpen ? TileArtKind.GateOpen : TileArtKind.GateClosed;
             if (state.IsLever) return TileArtKind.Lever;
-            if (state.IsBlocked) return TileArtKind.Blocked;
-            if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
-            // Issue #163/задача «тёплый набор плит»: яма и активированный
-            // взрыв — ОДНА категория, не выдающая точный тип (см.
-            // Core.TrapSignature) — теперь общий tile-hidden-trap-
-            // signature.png, выделенный под эту роль (раньше сюда
-            // подключался tile-pit.png по необходимости, без палитры под
-            // сигнатуру отдельно).
-            if (state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) return TileArtKind.HiddenTrapSignature;
-            if (state.ActiveTimedTrap.HasValue) return TileArtKind.TimedTrapActive;
-            // Единая сигнатура триггера (задача «сделать тоннель играбельным»,
-            // часть 3) — тот же принцип, что HiddenTrapSignature выше:
-            // отдельный TileArtKind, но задача «тёплый набор плит»
-            // (владелец, прямое указание) отдаёт под него ТУ ЖЕ САМУЮ
-            // текстуру, что и под HiddenTrapSignature (см. TileArtCatalog.Get)
-            // — PRD v9 §4.2, ловушку от механизма не отличить без Идола Чутья.
-            if (state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) return TileArtKind.TriggerSignature;
 
             // Источники валюты (часть 1 задачи «сделать тоннель играбельным»):
             // раньше None (в пакете были только иконки Icons/Currencies/, не

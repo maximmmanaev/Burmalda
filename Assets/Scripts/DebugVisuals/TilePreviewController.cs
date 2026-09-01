@@ -72,9 +72,14 @@ namespace Burmalda.DebugVisuals
         private void OnGUI()
         {
             if (!RunHudToggles.ShowTileDebugOverlay) return;
-            if (_input == null || _input.Grid == null || !_input.PreviewTarget.HasValue) return;
+            // ExamineTarget, не PreviewTarget (задача «раскрытие опасности
+            // при примеривании») — смертельная ловушка всегда даёт
+            // CanAdvanceTo=false, значит PreviewTarget для нее никогда не
+            // установится; сводка о плите — диагностика, должна показывать
+            // и то, на что нельзя шагнуть, не только то, на что можно.
+            if (_input == null || _input.Grid == null || !_input.ExamineTarget.HasValue) return;
 
-            var text = BuildTileSummary(_input.PreviewTarget.Value);
+            var text = BuildTileSummary(_input.ExamineTarget.Value);
             var style = new GUIStyle(GUI.skin.box) { fontSize = 22, alignment = TextAnchor.UpperLeft, wordWrap = true };
             GUI.Box(new Rect(20f, Screen.height - 200f, 420f, 180f), text, style);
         }

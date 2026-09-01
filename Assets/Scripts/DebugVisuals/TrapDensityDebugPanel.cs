@@ -33,12 +33,17 @@ namespace Burmalda.DebugVisuals
     /// по умолчанию (кнопка GEN в углу).
     ///
     /// Позиция — НИЖНИЙ ЛЕВЫЙ угол: верхняя строка занята CAM (левый)/HUD
-    /// (центр)/RESTART+ECO (правый), восемь строк этой панели туда физически
+    /// (центр)/RESTART+ECO (правый), десять строк этой панели туда физически
     /// не поместились бы без перекрытия.
     ///
     /// <b>Только процедурный генератор и правила отбора шаблонов</b> —
     /// содержимое авторских сегментов (<c>Generation.SegmentTemplateCatalog</c>)
     /// сюда не входит: это контент, не параметр (docs/rules/forbidden-actions.md).
+    ///
+    /// <b>Задача «раскрытие опасности при примеривании»:</b> добавлены два
+    /// ползунка обратной связи вибрации (<see cref="TrapRevealFeedback"/>) —
+    /// "Параметры (длительность раскрытия, сила вибрации) — в дебаг-панель",
+    /// как прямо просит задача.
     /// </summary>
     public sealed class TrapDensityDebugPanel : MonoBehaviour
     {
@@ -51,6 +56,8 @@ namespace Burmalda.DebugVisuals
         private const float ToggleButtonSize = DebugPanelLayout.GenButtonSize;
         private const float MaxShare = 0.3f; // 30% на один тип — щедрый запас над стартовыми значениями для ручного подбора
         private const float MaxTierWindow = 4f; // шире некуда — весь диапазон тиров 1..5
+        private const float MaxVibrationDurationSeconds = 1f; // задача «раскрытие опасности при примеривании» — щедрый запас над стартовым значением
+        private const int RowCount = 10; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия (см. BuildPanel)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -137,7 +144,7 @@ namespace Burmalda.DebugVisuals
             rect.anchorMin = new Vector2(0f, 0f);
             rect.anchorMax = new Vector2(0f, 0f);
             rect.pivot = new Vector2(0f, 0f);
-            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 8f + Margin * 2f);
+            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * RowCount + Margin * 2f);
             rect.anchoredPosition = new Vector2(Margin, Margin + ToggleButtonSize + Margin);
 
             BuildRow(_panelRoot.transform, 0, "Заблокировано", 0f, MaxShare, TunnelObstacleGenerator.BlockedShare,
@@ -159,10 +166,19 @@ namespace Burmalda.DebugVisuals
                 v => SegmentSelector.TierWindowBelow = Mathf.RoundToInt(v), FormatTierCount);
             BuildRow(_panelRoot.transform, 7, "Окно тиров: выше", 0f, MaxTierWindow, SegmentSelector.TierWindowAbove,
                 v => SegmentSelector.TierWindowAbove = Mathf.RoundToInt(v), FormatTierCount);
+
+            // Задача «раскрытие опасности при примеривании»: "Параметры
+            // (длительность раскрытия, сила вибрации) — в дебаг-панель" —
+            // рядом с остальными балансовыми ползунками, тот же принцип.
+            BuildRow(_panelRoot.transform, 8, "Раскрытие: вибро сила", 0f, 1f, TrapRevealFeedback.VibrationStrength,
+                v => TrapRevealFeedback.VibrationStrength = v, FormatPercent);
+            BuildRow(_panelRoot.transform, 9, "Раскрытие: вибро длительность", 0f, MaxVibrationDurationSeconds, TrapRevealFeedback.VibrationDurationSeconds,
+                v => TrapRevealFeedback.VibrationDurationSeconds = v, FormatSeconds);
         }
 
         private static string FormatPercent(float v) => (v * 100f).ToString("0.0") + "%";
         private static string FormatTierCount(float v) => Mathf.RoundToInt(v).ToString();
+        private static string FormatSeconds(float v) => v.ToString("0.00") + "с";
 
         /// <summary>Строка "подпись + слайдер + текущее значение" — та же разметка, что EconomyDebugPanel.BuildRow/CameraAnchorDebugPanel.BuildRow.</summary>
         private void BuildRow(Transform parent, int rowIndex, string label, float min, float max, float initialValue,
