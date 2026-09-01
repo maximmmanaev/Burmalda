@@ -20,7 +20,22 @@ namespace Burmalda.DebugVisuals
     {
         None,
         Fresh,
+
+        /// <summary>
+        /// Задача «разрушение плиты» (2026-09-01): <see cref="TileArtKindResolver"/>
+        /// больше НЕ возвращает это значение (см. её doc-комментарий) —
+        /// распад теперь непрерывный оверлей трещин
+        /// (<see cref="TileArtCatalog.CrackMaskTexture"/>), не дискретная
+        /// смена <see cref="TileArtKind"/>. Значение и текстура
+        /// <c>tile-half-decayed.png</c> оставлены — она служит одним из
+        /// двух ИСХОДНИКОВ для генерации маски трещин, слот в
+        /// <see cref="TileArtCatalog.Get"/> тоже оставлен (на случай, если
+        /// понадобится показать текстуру как есть где-то ещё), просто путь
+        /// от <see cref="TileVisualState"/> до неё через резолвер закрыт.
+        /// </summary>
         HalfDecayed,
+
+        /// <summary>Тот же статус, что <see cref="HalfDecayed"/> — второй источник маски трещин (<c>tile-about-to-decay.png</c>).</summary>
         AboutToDecay,
         Destroyed,
         Start,

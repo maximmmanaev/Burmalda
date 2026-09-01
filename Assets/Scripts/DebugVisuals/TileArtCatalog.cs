@@ -62,6 +62,17 @@ namespace Burmalda.DebugVisuals
         [SerializeField] private Texture2D _gateOpen;
         [SerializeField] private Texture2D _altar;
 
+        // Задача «разрушение плиты» (2026-09-01): НЕ TileArtKind — маска
+        // трещин накладывается оверлеем поверх ЛЮБОЙ базовой текстуры
+        // (Fresh-варианты), не заменяет её как отдельное состояние (см.
+        // TileArtKindResolver.ResolveDecayGradient). Отдельное поле и
+        // отдельный аксессор (CrackMaskTexture), не Get(TileArtKind) —
+        // семантически это не "какая плита показана", а "насколько она
+        // потрескалась". Сгенерирована как разность пикселей
+        // tile-half-decayed.png/tile-about-to-decay.png с tile-fresh.png
+        // (см. её doc-комментарий в docs/wiki/roadmap.md).
+        [SerializeField] private Texture2D _crackMask;
+
         private static TileArtCatalog _cached;
         private static bool _loadAttempted;
 
@@ -115,6 +126,16 @@ namespace Burmalda.DebugVisuals
             }
         }
 
+        /// <summary>
+        /// Маска трещин для непрерывного оверлея распада (задача
+        /// «разрушение плиты») — см. doc-комментарий поля <c>_crackMask</c>.
+        /// Null, если <c>ArtIntegrationSetup</c> ещё не запускался или файл
+        /// удалён — вызывающий код (<see cref="TunnelDebugVisual"/>) обязан
+        /// считать это "оверлея нет" и не создавать геометрию под него, тот
+        /// же оборонительный принцип, что у <see cref="Get"/>.
+        /// </summary>
+        public Texture2D CrackMaskTexture => _crackMask;
+
         /// <summary>Число вариантов текстуры для <see cref="TileArtKind.Fresh"/> (см. класс-докстроку).</summary>
         public const int FreshVariantCount = 2;
 
@@ -140,7 +161,8 @@ namespace Burmalda.DebugVisuals
         public void EditorAssign(Texture2D fresh, Texture2D freshVariantB, Texture2D halfDecayed, Texture2D aboutToDecay, Texture2D destroyed,
             Texture2D start, Texture2D blocked, Texture2D lava, Texture2D hiddenTrapSignature,
             Texture2D timedTrapActive, Texture2D currentPosition, Texture2D manaSource,
-            Texture2D keySource, Texture2D lever, Texture2D gateClosed, Texture2D gateOpen, Texture2D altar)
+            Texture2D keySource, Texture2D lever, Texture2D gateClosed, Texture2D gateOpen, Texture2D altar,
+            Texture2D crackMask)
         {
             _fresh = fresh;
             _freshVariantB = freshVariantB;
@@ -159,6 +181,7 @@ namespace Burmalda.DebugVisuals
             _gateClosed = gateClosed;
             _gateOpen = gateOpen;
             _altar = altar;
+            _crackMask = crackMask;
         }
 #endif
     }

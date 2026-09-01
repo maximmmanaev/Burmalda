@@ -77,16 +77,20 @@ namespace Burmalda.DebugVisuals
             return ResolveDecayGradient(state.DecayProgress01);
         }
 
-        // TileDebugColor.Resolve плавно интерполирует между тремя цветами по
-        // DecayProgress01 — для дискретных текстур плавности нет, поэтому
-        // делим 0..1 на трети (а не на половины, как у центра Lerp'а в
-        // TileDebugColor): FreshColor/HalfDecayedColor/AboutToDecayColor
-        // были рассчитаны как равнозначные опорные точки трёхцветного
-        // градиента, трети — ближайший дискретный аналог того же намерения.
-        private static TileArtKind ResolveDecayGradient(float progress01)
-        {
-            if (progress01 < 1f / 3f) return TileArtKind.Fresh;
-            return progress01 < 2f / 3f ? TileArtKind.HalfDecayed : TileArtKind.AboutToDecay;
-        }
+        // Задача «разрушение плиты» (владелец, 2026-09-01): "Ответ —
+        // анимация. Больше статичных стадий — тупиковый путь." Раньше здесь
+        // делили 0..1 на трети (Fresh/HalfDecayed/AboutToDecay) — три
+        // дискретных текстуры не дают игроку прицелиться в окно Отклика «На
+        // волоске» (PRD §19/28.4), потому что 70% и 95% распада читались
+        // одинаково. Теперь ВСЕГДА Fresh — прогресс распада передаётся
+        // непрерывным оверлеем трещин поверх текстуры
+        // (см. TunnelDebugVisual.ApplyVisual/UpdateCrackOverlay), не сменой
+        // TileArtKind. tile-half-decayed.png/tile-about-to-decay.png не
+        // удалены — остались на диске как ИСХОДНИКИ для маски трещин
+        // (tile-crack-mask.png, TileArtCatalog.CrackMaskTexture), но больше
+        // не самостоятельные состояния этого enum. Обоснование записано в
+        // docs/wiki/roadmap.md ("Почему анимация распада, а не больше
+        // стадий текстуры"), чтобы к вопросу не возвращались.
+        private static TileArtKind ResolveDecayGradient(float progress01) => TileArtKind.Fresh;
     }
 }

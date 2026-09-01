@@ -44,6 +44,11 @@ namespace Burmalda.DebugVisuals
     /// ползунка обратной связи вибрации (<see cref="TrapRevealFeedback"/>) —
     /// "Параметры (длительность раскрытия, сила вибрации) — в дебаг-панель",
     /// как прямо просит задача.
+    ///
+    /// <b>Задача «разрушение плиты»:</b> ещё два ползунка
+    /// (<see cref="DecayCollapseFeedback"/>) — длительность анимации обвала
+    /// (прямое требование задачи) и сила вибро-пульсации последней трети
+    /// распада, тот же принцип.
     /// </summary>
     public sealed class TrapDensityDebugPanel : MonoBehaviour
     {
@@ -57,7 +62,8 @@ namespace Burmalda.DebugVisuals
         private const float MaxShare = 0.3f; // 30% на один тип — щедрый запас над стартовыми значениями для ручного подбора
         private const float MaxTierWindow = 4f; // шире некуда — весь диапазон тиров 1..5
         private const float MaxVibrationDurationSeconds = 1f; // задача «раскрытие опасности при примеривании» — щедрый запас над стартовым значением
-        private const int RowCount = 10; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия (см. BuildPanel)
+        private const float MaxCollapseDurationSeconds = 1f; // задача «разрушение плиты» — щедрый запас над стартовыми 0.25–0.4с
+        private const int RowCount = 12; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 2 параметра обвала (см. BuildPanel)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -174,6 +180,14 @@ namespace Burmalda.DebugVisuals
                 v => TrapRevealFeedback.VibrationStrength = v, FormatPercent);
             BuildRow(_panelRoot.transform, 9, "Раскрытие: вибро длительность", 0f, MaxVibrationDurationSeconds, TrapRevealFeedback.VibrationDurationSeconds,
                 v => TrapRevealFeedback.VibrationDurationSeconds = v, FormatSeconds);
+
+            // Задача «разрушение плиты»: "длительность анимации обрушения —
+            // в дебаг-панель" — прямое требование, тот же принцип, что и
+            // остальные восемь ползунков выше.
+            BuildRow(_panelRoot.transform, 10, "Обвал: длительность", 0f, MaxCollapseDurationSeconds, DecayCollapseFeedback.CollapseDurationSeconds,
+                v => DecayCollapseFeedback.CollapseDurationSeconds = v, FormatSeconds);
+            BuildRow(_panelRoot.transform, 11, "Распад: вибро сила", 0f, 1f, DecayCollapseFeedback.PulseVibrationStrength,
+                v => DecayCollapseFeedback.PulseVibrationStrength = v, FormatPercent);
         }
 
         private static string FormatPercent(float v) => (v * 100f).ToString("0.0") + "%";

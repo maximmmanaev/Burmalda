@@ -68,6 +68,32 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.IsNotNull(_catalog.Get(kind), $"TileArtCatalog.Get({kind}) вернул null — слот не заполнен ArtIntegrationSetup.");
         }
 
+        // Задача «разрушение плиты»: CrackMaskTexture — НЕ TileArtKind (см.
+        // её doc-комментарий в TileArtCatalog), отдельный аксессор, поэтому
+        // отдельные тесты, а не запись в ExpectedWiredKinds.
+        [Test]
+        public void CrackMaskTexture_ReturnsNonNullTexture()
+        {
+            Assert.IsNotNull(_catalog.CrackMaskTexture, "TileArtCatalog.CrackMaskTexture вернул null — ArtIntegrationSetup.BuildTileArtCatalog не подключил tile-crack-mask.png?");
+        }
+
+        [Test]
+        public void CrackMaskTexture_DoesNotShareContentWithAnyOtherCatalogSlot()
+        {
+            var crackMask = _catalog.CrackMaskTexture;
+            if (crackMask == null) return; // уже отдельно проверено выше
+
+            var crackMaskHash = HashAssetContent(crackMask);
+            foreach (var kind in ExpectedWiredKinds)
+            {
+                var texture = _catalog.Get(kind);
+                if (texture == null) continue;
+
+                Assert.AreNotEqual(crackMaskHash, HashAssetContent(texture),
+                    $"tile-crack-mask.png дублирует содержимое слота '{kind}' — маска трещин должна быть отдельным производным файлом, не переиспользованной стадией распада как есть.");
+            }
+        }
+
         [Test]
         public void GetFreshVariant_BothIndices_ReturnNonNullTexture()
         {

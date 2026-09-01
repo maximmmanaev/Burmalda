@@ -28,6 +28,21 @@ namespace Burmalda.DebugVisuals
     /// доступного шейдера визуал безопасно САМООТКЛЮЧАЕТСЯ (одно предупреждение
     /// в лог, не создаёт геометрию) — debug-инфраструктура необязательна для
     /// игры и не должна иметь возможность её сломать.
+    ///
+    /// <b>Задача «разрушение плиты» (владелец, 2026-09-01):</b> раньше
+    /// каждая плита получала СВОЙ экземпляр материала
+    /// (<c>renderer.material = new Material(_templateMaterial)</c>) — при
+    /// ~100 плитах на экране это ~100 материалов, каждый рвёт батчинг.
+    /// Обязательное требование задачи — не создавать материал на плиту.
+    /// Теперь все плиты делят ОДИН <see cref="_templateMaterial"/>
+    /// (<c>renderer.sharedMaterial</c> + <c>enableInstancing</c>), а
+    /// параметр, уникальный для конкретной плиты (текстура/цвет/сглаженность/
+    /// эмиссия), передаётся через <see cref="MaterialPropertyBlock"/> —
+    /// именно тот путь, который Unity предусмотрел для GPU-инстансинга
+    /// (SRP Batcher продолжает работать, т.к. материал общий). Тот же
+    /// принцип — для нового оверлея трещин (<see cref="_crackOverlayMaterial"/>).
+    /// См. <see cref="ApplyVisual"/>/<see cref="UpdateCrackOverlay"/> и отчёт
+    /// задачи — что выбрано и почему.
     /// </summary>
     public sealed class TunnelDebugVisual : IDisposable
     {
@@ -50,6 +65,58 @@ namespace Burmalda.DebugVisuals
         /// <summary>Ложь, если ни один шейдер не найден в этой сборке — визуал не создаёт геометрию и ничего не делает.</summary>
         public bool IsEnabled => _templateMaterial != null;
 
+        // Задача «разрушение плиты»: MaterialPropertyBlock ОДИН, переиспользуется
+        // на каждый вызов ApplyVisual/UpdateCrackOverlay (Clear() + заново
+        // заполняется) — не аллоцируется на плиту и не на кадр, только сам
+        // объект-контейнер создаётся один раз на всю жизнь TunnelDebugVisual.
+        private readonly MaterialPropertyBlock _propertyBlock = new MaterialPropertyBlock();
+        private readonly bool _supportsSmoothness;
+        private readonly bool _supportsEmission;
+
+        private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
+        private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
+        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+
+        // Оверлей трещин (задача «разрушение плиты», п.1: "непрерывный
+        // оверлей трещин... одна общая маска на весь набор"). Null — как и
+        // _templateMaterial, оборонительно: либо шейдер не найден на этой
+        // сборке, либо TileArtCatalog.CrackMaskTexture ещё не подключена
+        // (ArtIntegrationSetup не запускался) — в обоих случаях оверлей
+        // просто не создаётся, распад по-прежнему виден (через
+        // TileDebugColor.ResolveDecayGradient — тот путь не тронут).
+        private readonly Material _crackOverlayMaterial;
+        private readonly Dictionary<GridCoordinate, GameObject> _overlayObjects = new Dictionary<GridCoordinate, GameObject>();
+
+        // Задача «разрушение плиты», п.2 (обвал в конце). Состояние
+        // анимации хранится отдельно от Core.Tile — это чисто визуальный
+        // проигрыш, Tile уже необратимо разрушена (IsDestroyed), геометрия
+        // просто донашивает анимацию поверх уже случившегося факта.
+        private readonly struct CollapseState
+        {
+            public CollapseState(Vector3 basePosition, Quaternion baseRotation, Quaternion tiltTarget)
+            {
+                BasePosition = basePosition;
+                BaseRotation = baseRotation;
+                TiltTarget = tiltTarget;
+            }
+
+            public Vector3 BasePosition { get; }
+            public Quaternion BaseRotation { get; }
+            public Quaternion TiltTarget { get; }
+        }
+
+        private readonly Dictionary<GridCoordinate, CollapseState> _collapseStates = new Dictionary<GridCoordinate, CollapseState>();
+        private readonly Dictionary<GridCoordinate, float> _collapseElapsedSeconds = new Dictionary<GridCoordinate, float>();
+        private readonly HashSet<GridCoordinate> _previouslyDestroyed = new HashSet<GridCoordinate>();
+
+        // Накопленное время — только для непрерывной визуальной пульсации
+        // (см. UpdateCrackOverlay), синхронизировать с чем-то внешним не
+        // нужно, важна только фаза синуса.
+        private float _elapsedSeconds;
+
         public TunnelDebugVisual(TunnelGrid grid, GridTraceTrail trail, WorldGridProjection projection, Transform parent)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
@@ -58,6 +125,23 @@ namespace Burmalda.DebugVisuals
             _parent = parent;
             _templateMaterial = CreateTemplateMaterial();
             _artCatalog = TileArtCatalog.Load();
+            _crackOverlayMaterial = CreateCrackOverlayMaterial(_artCatalog?.CrackMaskTexture);
+
+            if (_templateMaterial != null)
+            {
+                _templateMaterial.enableInstancing = true;
+                _supportsSmoothness = _templateMaterial.HasProperty("_Smoothness");
+                _supportsEmission = _templateMaterial.HasProperty("_EmissionColor");
+                // Задача «разрушение плиты»: раньше EnableKeyword/DisableKeyword
+                // дёргались НА ЭКЗЕМПЛЯРЕ материала конкретной плиты (у каждой
+                // был свой). Материал теперь общий — переключать ключевое
+                // слово поинстансно уже нельзя. Вместо этого ключевое слово
+                // включено здесь ОДИН РАЗ навсегда, а "светится плита или
+                // нет" решает per-instance _EmissionColor через
+                // MaterialPropertyBlock (см. ApplyVisual) — чёрный цвет
+                // эмиссии визуально неотличим от выключенной эмиссии.
+                if (_supportsEmission) _templateMaterial.EnableKeyword("_EMISSION");
+            }
 
             if (!IsEnabled)
             {
@@ -92,10 +176,21 @@ namespace Burmalda.DebugVisuals
                 OnTileMaterialized(tile);
         }
 
-        /// <summary>Пересчитывает цвет всех созданных плит по их текущему состоянию. Не-op, если <see cref="IsEnabled"/> ложь.</summary>
-        public void Tick()
+        /// <summary>
+        /// Пересчитывает визуал всех созданных плит по их текущему
+        /// состоянию и продвигает анимацию обрушения/пульсации.
+        /// Не-op, если <see cref="IsEnabled"/> ложь.
+        /// </summary>
+        /// <param name="deltaSeconds">
+        /// Реальное время с прошлого тика (задача «разрушение плиты») —
+        /// нужно для анимации обвала (<see cref="DecayCollapseFeedback.CollapseDurationSeconds"/>)
+        /// и фазы визуальной пульсации (см. <see cref="UpdateCrackOverlay"/>).
+        /// </param>
+        public void Tick(float deltaSeconds)
         {
             if (!IsEnabled) return;
+
+            _elapsedSeconds += Mathf.Max(0f, deltaSeconds);
 
             var startCoordinate = _trail.Path[0];
             var currentCoordinate = _trail.CurrentPosition;
@@ -103,6 +198,7 @@ namespace Burmalda.DebugVisuals
             foreach (var pair in _tileObjects)
             {
                 var coordinate = pair.Key;
+                var tileObject = pair.Value;
                 var tile = _grid.GetOrCreateTile(coordinate);
                 var state = new TileVisualState(
                     isStart: coordinate == startCoordinate,
@@ -136,7 +232,17 @@ namespace Burmalda.DebugVisuals
                     isAltar: tile.IsAltar,
                     isDangerSignatureRevealed: tile.IsDangerSignatureRevealed);
 
-                ApplyVisual(pair.Value, coordinate, state);
+                var kind = ApplyVisual(tileObject, coordinate, state);
+                UpdateCrackOverlay(coordinate, kind, state);
+
+                if (state.IsDestroyed && !_previouslyDestroyed.Contains(coordinate))
+                {
+                    _previouslyDestroyed.Add(coordinate);
+                    TriggerCollapse(coordinate, tileObject);
+                }
+
+                if (_collapseElapsedSeconds.ContainsKey(coordinate))
+                    AdvanceCollapse(coordinate, tileObject, deltaSeconds);
             }
         }
 
@@ -153,7 +259,16 @@ namespace Burmalda.DebugVisuals
                     UnityEngine.Object.Destroy(tileObject);
                 _tileObjects.Clear();
 
+                foreach (var overlayObject in _overlayObjects.Values)
+                    UnityEngine.Object.Destroy(overlayObject);
+                _overlayObjects.Clear();
+
+                _collapseStates.Clear();
+                _collapseElapsedSeconds.Clear();
+                _previouslyDestroyed.Clear();
+
                 UnityEngine.Object.Destroy(_templateMaterial);
+                if (_crackOverlayMaterial != null) UnityEngine.Object.Destroy(_crackOverlayMaterial);
             }
 
             _disposed = true;
@@ -177,13 +292,180 @@ namespace Burmalda.DebugVisuals
             primitive.AddComponent<TileVisualMarker>().Initialize(tile.Coordinate);
 
             var renderer = primitive.GetComponent<Renderer>();
-            if (renderer != null) renderer.material = new Material(_templateMaterial);
+            // Задача «разрушение плиты»: sharedMaterial, не "new Material(...)"
+            // на каждую плиту (см. doc-комментарий класса — обязательное
+            // требование, ~100 плит на экране не должны рвать батчинг).
+            if (renderer != null) renderer.sharedMaterial = _templateMaterial;
 
             _tileObjects[tile.Coordinate] = primitive;
             // Задача «тёплый набор плит»: выбор фиксируется один раз здесь,
             // не в ApplyVisual — иначе вариант/поворот "плавали" бы каждый
             // кадр, пока плита ещё Fresh (см. PickFreshVariant/ApplyVisual).
             _freshVariants[tile.Coordinate] = PickFreshVariant();
+
+            CreateCrackOverlayObject(tile.Coordinate, primitive.transform.position);
+        }
+
+        // Задача «разрушение плиты»: небольшой зазор над верхней гранью
+        // куба — избегает z-fighting между базовой текстурой плиты и
+        // оверлеем трещин поверх неё.
+        private const float CrackOverlayHeightOffset = 0.003f;
+
+        // Задача «разрушение плиты», найдено на реальном Android-билде
+        // (2026-09-01): `GameObject.CreatePrimitive(PrimitiveType.Quad)`
+        // ВНУТРИ движка сам добавляет `MeshCollider` — на этой сборке класс
+        // оказался вырезан стриппингом (тот же класс проблем, что уже ловили
+        // на `Shader.Find` 2026-08-14, см. doc-комментарий класса), и на
+        // устройстве это заваливало экран сотнями "Can't add component
+        // because class 'MeshCollider' doesn't exist!" (Development Console
+        // оверлей) — по одной на каждый созданный тайл. Тапу коллайдер
+        // оверлея всё равно не нужен (см. TileVisualMarker на базовой
+        // плите) — вместо CreatePrimitive строим GameObject вручную из
+        // готового меша (тот же `Quad.fbx`, что использует сам CreatePrimitive
+        // под капотом) и MeshRenderer, коллайдер вообще никогда не создаётся
+        // и не уничтожается постфактум.
+        private static Mesh _overlayQuadMesh;
+
+        private static Mesh GetOverlayQuadMesh()
+        {
+            if (_overlayQuadMesh == null) _overlayQuadMesh = Resources.GetBuiltinResource<Mesh>("Quad.fbx");
+            return _overlayQuadMesh;
+        }
+
+        private void CreateCrackOverlayObject(GridCoordinate coordinate, Vector3 tileWorldPosition)
+        {
+            if (_crackOverlayMaterial == null) return;
+
+            var overlay = new GameObject($"DebugTileCrackOverlay {coordinate}");
+            overlay.AddComponent<MeshFilter>().sharedMesh = GetOverlayQuadMesh();
+            overlay.AddComponent<MeshRenderer>();
+
+            overlay.transform.SetParent(_parent, worldPositionStays: false);
+            overlay.transform.position = tileWorldPosition + new Vector3(0f, TileHeight * 0.5f + CrackOverlayHeightOffset, 0f);
+            // Фиксированный поворот, без учёта случайного 0/90/180/270°
+            // Fresh-варианта (PickFreshVariant) — маска трещин не несёт
+            // читаемого "верха" как иконки (ключ/Мана/т.п.), согласовывать
+            // её поворот с полом не требуется для читаемости.
+            overlay.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            overlay.transform.localScale = new Vector3(_projection.TileSize * TileScale, _projection.TileSize * TileScale, 1f);
+
+            var overlayRenderer = overlay.GetComponent<Renderer>();
+            if (overlayRenderer != null) overlayRenderer.sharedMaterial = _crackOverlayMaterial;
+
+            // Скрыт, пока UpdateCrackOverlay не найдёт прогресс распада > 0
+            // (обычная нераспадающаяся плита не должна показывать трещины).
+            overlay.SetActive(false);
+            _overlayObjects[coordinate] = overlay;
+        }
+
+        // Задача «разрушение плиты»: обвал сдвигает плиту вниз на глубину,
+        // заметно превышающую её собственную толщину (TileHeight) — должно
+        // читаться как "провалилась", а не "чуть просела".
+        private const float CollapseSinkDepth = 0.4f;
+        private const float CollapseTiltMinDegrees = 20f;
+        private const float CollapseTiltMaxDegrees = 45f;
+
+        private void TriggerCollapse(GridCoordinate coordinate, GameObject tileObject)
+        {
+            var basePosition = tileObject.transform.position;
+            var baseRotation = tileObject.transform.localRotation;
+
+            // Случайная ось наклона в плоскости пола (не вокруг вертикали —
+            // крен должен выглядеть как падение обломка, не как поворот на
+            // месте) и случайный угол в разумных пределах.
+            var tiltAxis = new Vector3(UnityEngine.Random.Range(-1f, 1f), 0f, UnityEngine.Random.Range(-1f, 1f));
+            if (tiltAxis.sqrMagnitude < 0.0001f) tiltAxis = Vector3.right;
+            tiltAxis.Normalize();
+            var tiltAngle = UnityEngine.Random.Range(CollapseTiltMinDegrees, CollapseTiltMaxDegrees);
+            var tiltTarget = Quaternion.AngleAxis(tiltAngle, tiltAxis) * baseRotation;
+
+            _collapseStates[coordinate] = new CollapseState(basePosition, baseRotation, tiltTarget);
+            _collapseElapsedSeconds[coordinate] = 0f;
+
+            SpawnCollapseDebris(basePosition);
+        }
+
+        private void AdvanceCollapse(GridCoordinate coordinate, GameObject tileObject, float deltaSeconds)
+        {
+            var elapsed = _collapseElapsedSeconds[coordinate] + Mathf.Max(0f, deltaSeconds);
+            _collapseElapsedSeconds[coordinate] = elapsed;
+
+            var duration = Mathf.Max(0.01f, DecayCollapseFeedback.CollapseDurationSeconds);
+            var t = Mathf.Clamp01(elapsed / duration);
+            var eased = t * t; // ease-in — обвал ускоряется по ходу падения, не едет равномерно
+
+            var collapse = _collapseStates[coordinate];
+            tileObject.transform.position = collapse.BasePosition - Vector3.up * (CollapseSinkDepth * eased);
+            tileObject.transform.localRotation = Quaternion.Slerp(collapse.BaseRotation, collapse.TiltTarget, eased);
+            // t достигает 1 — анимация просто перестаёт продвигаться дальше
+            // (elapsed продолжает расти, но eased уже зажат в 1), плита
+            // остаётся в осевшей позе до конца забега. Из
+            // _collapseElapsedSeconds координату намеренно не убираем —
+            // иначе ApplyVisual на следующем Tick() отменил бы крен обратно
+            // до TopFaceOrientationCorrectionDegrees (см. её ветку "else").
+        }
+
+        // Партиклы осыпи — тот же процедурный приём без арт-ассета, что
+        // PickupFeedback.SpawnBurst (её doc-комментарий: "прямой запрос
+        // владельца продукта... без единого арт-ассета"), тонировка — через
+        // startColor.
+        //
+        // <b>Найдено на реальном Android-билде (2026-09-01), тот же класс
+        // бага, что MeshCollider выше:</b> PickupFeedback НЕ назначает
+        // материал вручную (полагается на дефолтный материал
+        // ParticleSystemRenderer) — по её же комментарию это осознанный
+        // выбор, "здесь его просто негде допустить" (Shader.Find). На ЭТОЙ
+        // сборке дефолтный материал партикла оказался закрашен ярко-розовым
+        // (классический Unity-фолбэк "шейдер не найден") — та же категория
+        // риска шейдер-стриппинга, что уже ловили на "Universal Render
+        // Pipeline/Lit" (2026-08-14) и на "Sprites/Default" в этой же задаче:
+        // "дефолтный" не значит "всегда включённый в билд". Не трогаем
+        // PickupFeedback (чужой, уже протестированный код, вне скоупа этой
+        // задачи) — здесь материал назначается явно, тем же уже проверенным
+        // и добавленным в Always Included Shaders "Sprites/Default"
+        // (см. CreateCrackOverlayMaterial/BuildScript.FixRenderingConfiguration),
+        // не третий новый шейдер, а переиспользование уже подтверждённого.
+        private const float DebrisLifetimeSeconds = 0.7f;
+        private static readonly Color DebrisColor = new Color(90f / 255f, 70f / 255f, 55f / 255f);
+        private static Material _debrisMaterial;
+
+        private static void SpawnCollapseDebris(Vector3 worldPosition)
+        {
+            var host = new GameObject("DebugTileCollapseDebris");
+            host.transform.position = worldPosition;
+
+            var particles = host.AddComponent<ParticleSystem>();
+            var main = particles.main;
+            main.duration = DebrisLifetimeSeconds;
+            main.loop = false;
+            main.startLifetime = DebrisLifetimeSeconds;
+            main.startSpeed = 1.2f;
+            main.startSize = 0.12f;
+            main.startColor = DebrisColor;
+            main.gravityModifier = 1.5f; // осколки падают, не разлетаются в невесомости
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+            var emission = particles.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 10) });
+
+            var shape = particles.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.15f;
+
+            if (_debrisMaterial == null)
+            {
+                var shader = Shader.Find("Sprites/Default");
+                if (shader != null) _debrisMaterial = new Material(shader);
+            }
+
+            if (_debrisMaterial != null)
+            {
+                var particleRenderer = host.GetComponent<ParticleSystemRenderer>();
+                if (particleRenderer != null) particleRenderer.sharedMaterial = _debrisMaterial;
+            }
+
+            UnityEngine.Object.Destroy(host, DebrisLifetimeSeconds + 0.2f);
         }
 
         // Задача «тёплый набор плит»: два рисунка обычной плиты — бесплатное
@@ -267,23 +549,19 @@ namespace Burmalda.DebugVisuals
         /// менялось — только источник (текстура вместо Color) для тех
         /// состояний, для которых в пакете есть готовый арт.
         ///
-        /// <b>Задача «тёплый набор плит»:</b> <c>tile-hidden-trap-signature.png</c>
-        /// (владелец) — уже приглушённая, специально нарисованная под эту
-        /// роль текстура (используется и для <see cref="TileArtKind.HiddenTrapSignature"/>,
-        /// и для <see cref="TileArtKind.TriggerSignature"/> — см.
-        /// <see cref="TileArtCatalog.Get"/>), показывается как есть, как и
-        /// остальные текстуры. Прежний принудительный тон
-        /// (<see cref="TileDebugColor.HiddenTrapSignatureTextureTint"/>)
-        /// компенсировал СЛУЧАЙНО подвернувшуюся холодную текстуру
-        /// (<c>tile-pit.png</c>), которая читалась как однозначная
-        /// яма-ловушка — с целевой тёплой текстурой такой необходимости
-        /// нет; константа оставлена в TileDebugColor на случай, если
-        /// плейтест на устройстве покажет обратное.
+        /// <b>Задача «разрушение плиты»:</b> раньше писала прямо в
+        /// <c>renderer.material</c> (свой экземпляр на каждую плиту) —
+        /// теперь заполняет переиспользуемый <see cref="_propertyBlock"/> и
+        /// применяет его к <c>renderer.sharedMaterial</c> (см.
+        /// doc-комментарий класса). Возвращает вычисленный
+        /// <see cref="TileArtKind"/> — нужен вызывающему <see cref="Tick"/>
+        /// для <see cref="UpdateCrackOverlay"/>, чтобы не резолвить состояние
+        /// дважды.
         /// </summary>
-        private void ApplyVisual(GameObject tileObject, GridCoordinate coordinate, TileVisualState state)
+        private TileArtKind ApplyVisual(GameObject tileObject, GridCoordinate coordinate, TileVisualState state)
         {
             var renderer = tileObject.GetComponent<Renderer>();
-            if (renderer == null) return;
+            if (renderer == null) return TileArtKind.None;
 
             var kind = TileArtKindResolver.Resolve(state);
             Texture2D texture;
@@ -291,6 +569,9 @@ namespace Burmalda.DebugVisuals
             {
                 var variant = _freshVariants.TryGetValue(coordinate, out var v) ? v : new FreshTileVariant(0, Quaternion.identity);
                 texture = _artCatalog.GetFreshVariant(variant.TextureIndex);
+                // Во время анимации обвала (см. AdvanceCollapse) поворотом
+                // владеет она — Fresh здесь означает "ещё не разрушена",
+                // конфликта нет (обвал начинается только на IsDestroyed).
                 tileObject.transform.localRotation = variant.Rotation;
             }
             else
@@ -299,29 +580,83 @@ namespace Burmalda.DebugVisuals
                 // позиция игрока) — ориентация постоянна (задача), даже если
                 // эта же плита раньше была повёрнутым Fresh-полом. НЕ
                 // Quaternion.identity — см. TopFaceOrientationCorrectionDegrees.
+                // Destroyed — тоже сюда, но AdvanceCollapse перезапишет
+                // rotation следом в этом же Tick(), если обвал уже идёт.
                 tileObject.transform.localRotation = Quaternion.Euler(0f, TopFaceOrientationCorrectionDegrees, 0f);
                 texture = kind != TileArtKind.None && _artCatalog != null ? _artCatalog.Get(kind) : null;
             }
 
-            var material = renderer.material;
+            _propertyBlock.Clear();
             if (texture != null)
             {
-                material.mainTexture = texture;
-                material.color = Color.white;
-                if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.35f);
-                if (material.HasProperty("_EmissionColor")) material.DisableKeyword("_EMISSION");
-                return;
+                // _BaseMap/_MainTex и _BaseColor/_Color выставлены ОБА —
+                // MaterialPropertyBlock молча игнорирует имя свойства,
+                // которого нет в шейдере назначенного материала, это
+                // безопасно и покрывает все три варианта из
+                // CreateTemplateMaterial (URP/Lit, Standard, Unlit/Color)
+                // одним и тем же кодом без ветвления по типу шейдера.
+                _propertyBlock.SetTexture(BaseMapId, texture);
+                _propertyBlock.SetTexture(MainTexId, texture);
+                _propertyBlock.SetColor(BaseColorId, Color.white);
+                _propertyBlock.SetColor(ColorId, Color.white);
+                if (_supportsSmoothness) _propertyBlock.SetFloat(SmoothnessId, 0.35f);
+                if (_supportsEmission) _propertyBlock.SetColor(EmissionColorId, Color.black);
+            }
+            else
+            {
+                var color = TileDebugColor.Resolve(state);
+                _propertyBlock.SetColor(BaseColorId, color);
+                _propertyBlock.SetColor(ColorId, color);
+                if (_supportsSmoothness) _propertyBlock.SetFloat(SmoothnessId, 0.55f);
+                if (_supportsEmission) _propertyBlock.SetColor(EmissionColorId, color * EmissionIntensity);
             }
 
-            var color = TileDebugColor.Resolve(state);
-            material.mainTexture = null;
-            material.color = color;
+            renderer.SetPropertyBlock(_propertyBlock);
+            return kind;
+        }
 
-            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.55f);
-            if (!material.HasProperty("_EmissionColor")) return;
+        /// <summary>
+        /// Задача «разрушение плиты», п.1 и п.3: непрерывный оверлей трещин
+        /// (альфа = <see cref="Tile.DecayProgress01"/>, не дискретный
+        /// <see cref="TileArtKind"/>) плюс визуальная половина пульсации в
+        /// последней трети распада (звук/вибро — <see cref="DecayPulseController"/>).
+        /// Видим только там, куда доходит <see cref="TileArtKindResolver.ResolveDecayGradient"/>
+        /// (сейчас — всегда <see cref="TileArtKind.Fresh"/>) — на структурных
+        /// плитах (стена/ловушка/источник/Алтарь/...) распад не рисуется
+        /// вовсе, тот же порядок приоритета, что у самого резолвера, а не
+        /// отдельный параллельный список веток, который мог бы разойтись с
+        /// ним со временем.
+        /// </summary>
+        private void UpdateCrackOverlay(GridCoordinate coordinate, TileArtKind kind, TileVisualState state)
+        {
+            if (!_overlayObjects.TryGetValue(coordinate, out var overlay)) return;
 
-            material.EnableKeyword("_EMISSION");
-            material.SetColor("_EmissionColor", color * EmissionIntensity);
+            var progress01 = Mathf.Clamp01(state.DecayProgress01);
+            var visible = kind == TileArtKind.Fresh && progress01 > 0f;
+
+            if (overlay.activeSelf != visible) overlay.SetActive(visible);
+            if (!visible) return;
+
+            var pulseBoost = 0f;
+            if (state.IsCurrentPosition && progress01 >= DecayPulseController.LastThirdThreshold01)
+            {
+                var withinLastThird01 = Mathf.InverseLerp(DecayPulseController.LastThirdThreshold01, 1f, progress01);
+                // Частота пульса растёт вместе с прогрессом — тот же принцип
+                // учащения, что у DecayPulseController.Update() для
+                // звука/вибро (оба — визуальная и звуко-вибро половины
+                // ОДНОГО непрерывного сигнала, задача п.3).
+                var pulseFrequencyHz = Mathf.Lerp(2f, 9f, withinLastThird01);
+                pulseBoost = (Mathf.Sin(_elapsedSeconds * pulseFrequencyHz * Mathf.PI * 2f) * 0.5f + 0.5f) * 0.35f * withinLastThird01;
+            }
+
+            var alpha = Mathf.Clamp01(progress01 + pulseBoost);
+
+            var overlayRenderer = overlay.GetComponent<Renderer>();
+            if (overlayRenderer == null) return;
+
+            _propertyBlock.Clear();
+            _propertyBlock.SetColor(ColorId, new Color(1f, 1f, 1f, alpha));
+            overlayRenderer.SetPropertyBlock(_propertyBlock);
         }
 
         private static Material CreateTemplateMaterial()
@@ -330,6 +665,33 @@ namespace Burmalda.DebugVisuals
                 ?? Shader.Find("Standard")
                 ?? Shader.Find("Unlit/Color");
             return shader != null ? new Material(shader) : null;
+        }
+
+        /// <summary>
+        /// Задача «разрушение плиты»: <c>Sprites/Default</c> — не
+        /// URP-специфичный шейдер, встроен в Unity практически всегда
+        /// (даже когда URP-стриппинг на устройстве вырезает
+        /// "Universal Render Pipeline/Lit", см. doc-комментарий класса про
+        /// баг 2026-08-14), поддерживает альфа-блендинг "из коробки" (в
+        /// отличие от непрозрачного <c>Unlit/Color</c> — последнего резерва
+        /// <see cref="CreateTemplateMaterial"/>) и имеет ровно те свойства
+        /// (<c>_MainTex</c>/<c>_Color</c>), которые нужны для маски трещин.
+        /// Не собственный HLSL-шейдер — риск ошибки компиляции без
+        /// возможности быстро итерировать в этом окружении не оправдан для
+        /// декоративного оверлея. Null, если даже этот шейдер недоступен —
+        /// вызывающий код просто не создаёт оверлей (см. <see cref="CreateCrackOverlayObject"/>),
+        /// та же оборонительная логика, что у отсутствующего базового шейдера.
+        /// </summary>
+        private static Material CreateCrackOverlayMaterial(Texture2D crackMask)
+        {
+            if (crackMask == null) return null;
+
+            var shader = Shader.Find("Sprites/Default");
+            if (shader == null) return null;
+
+            var material = new Material(shader) { mainTexture = crackMask, color = Color.white };
+            material.enableInstancing = true;
+            return material;
         }
     }
 }

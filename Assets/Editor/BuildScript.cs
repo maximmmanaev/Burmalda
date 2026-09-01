@@ -110,6 +110,14 @@ namespace Burmalda.EditorTools
             // Pipeline/Lit". PickupFeedback материал шейдер не запрашивает
             // (дефолт ParticleSystemRenderer) — добавлять нечего.
             EnsureAlwaysIncludedShader("Skybox/Procedural");
+            // Задача «разрушение плиты» (2026-09-01): оверлей трещин
+            // (TunnelDebugVisual.CreateCrackOverlayMaterial) намеренно взял
+            // "Sprites/Default", а не "Universal Render Pipeline/Lit" —
+            // но это ТОТ ЖЕ класс риска шейдер-стриппинга, что уже ловили
+            // на "Universal Render Pipeline/Lit" 2026-08-14 (ни один
+            // Material-ассет в проекте на него не ссылается — раньше и на
+            // Sprites/Default тоже, в проекте нет ни одного SpriteRenderer).
+            EnsureAlwaysIncludedShader("Sprites/Default");
             DisableBrokenRendererFeature("Assets/Settings/PC_Renderer.asset", "ScreenSpaceAmbientOcclusion");
         }
 
