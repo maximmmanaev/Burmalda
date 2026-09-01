@@ -51,17 +51,24 @@ namespace Burmalda.Movement.Tests
             Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
         }
 
+        // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
+        // ИНВЕРСИЯ прежнего теста с тем же именем — сработавший взрыв
+        // больше не входит в TrapSignature.IsHiddenLethalTrap (см. её
+        // doc-комментарий), значит нечего раскрывать через этот флаг — он
+        // и так уже виден всегда (резолверы проверяют LethalTrap ==
+        // Explosion напрямую, без гейта IsDangerSignatureRevealed). Тот же
+        // случай, что и Лава ниже.
         [Test]
-        public void Tick_ExplosionTile_RevealsSignature()
+        public void Tick_ExplosionTile_DoesNotReveal()
         {
             var grid = new TunnelGrid(Width);
             var coordinate = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(coordinate).MarkLethalTrap(LethalTrapType.Explosion);
+            grid.GetOrCreateTile(coordinate).TransitionToLethalTrap(LethalTrapType.Explosion);
             var system = new TrapRevealSystem(grid);
 
             system.Tick(coordinate);
 
-            Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
+            Assert.IsFalse(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
         }
 
         [Test]

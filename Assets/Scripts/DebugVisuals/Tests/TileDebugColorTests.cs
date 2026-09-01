@@ -107,23 +107,28 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileDebugColor.HiddenTrapSignatureColor, TileDebugColor.Resolve(state));
         }
 
-        // Issue #163: взрыв (после активации триггером) тоже скрыт — общая сигнатура вместо ExplosionColor.
+        // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
+        // сработавший взрыв — угроза прямо сейчас, БОЛЬШЕ НЕ скрыт за общей
+        // сигнатурой (см. Core.TrapSignature) — реюзит TimedTrapActiveColor,
+        // видим ВСЕГДА, даже без раскрытия.
         [Test]
-        public void Resolve_Explosion_Revealed_ReturnsHiddenTrapSignatureColor()
+        public void Resolve_Explosion_AlwaysReturnsTimedTrapActiveColor_RegardlessOfRevealed()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
+            var revealed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
+            var notRevealed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
 
-            Assert.AreEqual(TileDebugColor.HiddenTrapSignatureColor, TileDebugColor.Resolve(state));
+            Assert.AreEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(revealed));
+            Assert.AreEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(notRevealed));
         }
 
-        // Issue #163: сигнатура НЕ различает яму и взрыв — иначе она бы выдавала точный тип.
+        // Pit и Explosion теперь РАЗНЫЕ категории — Pit прячется, Explosion нет.
         [Test]
-        public void Resolve_PitAndExplosion_ProduceIdenticalColor_SignatureDoesNotRevealExactType()
+        public void Resolve_PitRevealed_AndExplosion_ProduceDifferentColors()
         {
             var pitState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Pit, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
-            var explosionState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
+            var explosionState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
 
-            Assert.AreEqual(TileDebugColor.Resolve(pitState), TileDebugColor.Resolve(explosionState));
+            Assert.AreNotEqual(TileDebugColor.Resolve(pitState), TileDebugColor.Resolve(explosionState));
         }
 
         // Issue #163: сигнатура тоже не путается с лавой — иначе лава выглядела бы "скрытой".
@@ -500,13 +505,17 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileDebugColor.Resolve(ordinary), TileDebugColor.Resolve(hidden));
         }
 
+        // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
+        // ИНВЕРСИЯ прежнего теста с тем же именем — сработавший взрыв
+        // сознательно НЕ выглядит как обычный пол даже без раскрытия,
+        // "сработавшая ловушка — угроза прямо сейчас, скрывать нельзя".
         [Test]
-        public void Resolve_Explosion_NotRevealed_LooksLikeOrdinaryFreshTile()
+        public void Resolve_Explosion_NotRevealed_DoesNotLookLikeOrdinaryFreshTile()
         {
-            var hidden = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0.4f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
+            var active = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0.4f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
             var ordinary = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.4f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
 
-            Assert.AreEqual(TileDebugColor.Resolve(ordinary), TileDebugColor.Resolve(hidden));
+            Assert.AreNotEqual(TileDebugColor.Resolve(ordinary), TileDebugColor.Resolve(active));
         }
 
         [Test]

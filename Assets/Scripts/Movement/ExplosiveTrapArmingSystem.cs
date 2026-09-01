@@ -18,8 +18,17 @@ namespace Burmalda.Movement
     ///
     /// Реагирует на <see cref="GridTraceTrail.PositionChanged"/> (любой
     /// успешный ход, включая повтор — #61), а не только <see cref="GridTraceTrail.Advanced"/>:
-    /// повторное срабатывание уже активной ловушки — не-op (<see cref="Tile.MarkLethalTrap"/>
-    /// сохраняет первый тип), безопасно проверять при каждом ходе.
+    /// повторное срабатывание уже активной ловушки безопасно проверять при
+    /// каждом ходе — <see cref="Tile.TransitionToLethalTrap"/> переприсваивает
+    /// тот же <see cref="LethalTrapType.Explosion"/> (эффективно не-op).
+    ///
+    /// <b>Владелец, задача «разрушение плиты» (продолжение, 2026-09-01):</b>
+    /// цель — <see cref="Tile.TransitionToLethalTrap"/>, не
+    /// <see cref="Tile.MarkLethalTrap"/> — рантайм-переход, не генерация
+    /// (см. её doc-комментарий): цель триггера может уже нести
+    /// <see cref="Tile.IsManaSource"/>/<see cref="Tile.IsKeySource"/>
+    /// (шаблоны «выкуп»/«последний-рывок» — "триггер уничтожает собственную
+    /// награду", намеренная механика, не гонка генераторов).
     /// </summary>
     public sealed class ExplosiveTrapArmingSystem : IDisposable
     {
@@ -47,7 +56,12 @@ namespace Burmalda.Movement
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
             if (!tile.ExplosiveTrapTarget.HasValue) return;
 
-            _grid.GetOrCreateTile(tile.ExplosiveTrapTarget.Value).MarkLethalTrap(LethalTrapType.Explosion);
+            // Tile.TransitionToLethalTrap, не MarkLethalTrap — это рантайм-
+            // переход (владелец, 2026-09-01), не генерация: цель может уже
+            // нести ManaSource/KeySource (шаблоны «выкуп»/«последний-рывок»,
+            // Generation.SegmentTemplateCatalog — "триггер уничтожает
+            // собственную награду"), и это ожидаемо, не гонка генераторов.
+            _grid.GetOrCreateTile(tile.ExplosiveTrapTarget.Value).TransitionToLethalTrap(LethalTrapType.Explosion);
         }
     }
 }
