@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Burmalda.Core
@@ -27,6 +28,52 @@ namespace Burmalda.Core
 
         public GridCoordinate Coordinate { get; }
 
+        /// <summary>
+        /// Задача «двойные флаги на плитах» (плейтест владельца: сигнатура
+        /// опасности отрисовывается вместо стены, рычаг/Алтарь иногда
+        /// непроходимы, сигнатура вместо источника Маны) — подтверждено
+        /// логами/тестом: <c>Generation.SegmentRowProvider</c> и
+        /// <c>Core.TunnelObstacleGenerator</c> оба писали в одну и ту же
+        /// плиту (см. <c>Generation.Tests.SegmentGenerationCoexistenceTests.
+        /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTileTypeSilentlyLost</c>,
+        /// заведённый ещё в задаче «партии 1 и 2 + правила отбора» как
+        /// диагностика без фикса). Разграничение по рядам (см.
+        /// <c>Bootstrap.RunBootstrap</c>) закрывает ПРИЧИНУ — этот метод
+        /// закрывает СЛЕДСТВИЕ на случай, если причина всё же случится
+        /// снова (регрессия, новый генератор, ручной тест): плита не может
+        /// одновременно нести две из перечисленных ниже ролей — попытка
+        /// зовёт <see cref="InvalidOperationException"/>, а не молча
+        /// перезаписывает. Core не ссылается на UnityEngine
+        /// (<c>noEngineReferences</c> в Burmalda.Core.asmdef) — необработанное
+        /// исключение Unity сам громко логирует в консоль в Editor/dev-сборке,
+        /// отдельный Debug.LogError не нужен и был бы недоступен отсюда.
+        /// Повторная пометка ТОЙ ЖЕ роли (что и раньше) остаётся тихим
+        /// не-op — конфликт только между РАЗНЫМИ ролями.
+        /// </summary>
+        private void GuardAgainstConflictingRole(bool alreadyThisRole, string incomingRole)
+        {
+            if (alreadyThisRole) return;
+
+            var existing = ActiveExclusiveRoleName();
+            if (existing == null) return;
+
+            throw new InvalidOperationException(
+                $"Tile {Coordinate}: попытка пометить роль '{incomingRole}', но плита уже несёт взаимоисключающую роль '{existing}' — два генератора записали в одну плиту (см. docs/wiki/changelog.md, задача «двойные флаги на плитах»).");
+        }
+
+        private string ActiveExclusiveRoleName()
+        {
+            if (IsBlocked) return nameof(IsBlocked);
+            if (LethalTrap.HasValue) return $"{nameof(LethalTrap)}={LethalTrap.Value}";
+            if (IsManaSource) return nameof(IsManaSource);
+            if (IsKeySource) return nameof(IsKeySource);
+            if (IsAltar) return nameof(IsAltar);
+            if (IsBoss) return nameof(IsBoss);
+            if (IsLever) return nameof(IsLever);
+            if (IsGated) return nameof(IsGated);
+            return null;
+        }
+
         /// <summary>Плита разрушена распадом — по ней больше нельзя пройти.</summary>
         public bool IsDestroyed { get; private set; }
 
@@ -41,6 +88,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как непроходимое статичное препятствие. Повторные вызовы — не-op.</summary>
         public void MarkBlocked()
         {
+            GuardAgainstConflictingRole(IsBlocked, nameof(IsBlocked));
             IsBlocked = true;
         }
 
@@ -54,6 +102,7 @@ namespace Burmalda.Core
         public void MarkLethalTrap(LethalTrapType trapType)
         {
             if (LethalTrap.HasValue) return;
+            GuardAgainstConflictingRole(false, nameof(LethalTrap));
             LethalTrap = trapType;
         }
 
@@ -122,6 +171,29 @@ namespace Burmalda.Core
         }
 
         /// <summary>
+        /// Задача «раскрытие опасности при примеривании» (PRD v9 §4.2
+        /// заменяется — сигнатура опасности видна не всегда, а только после
+        /// примеривания): истинно, если игрок хотя бы раз навёл на эту
+        /// плиту (<c>Movement.TrapRevealSystem</c>) и её скрытая опасность
+        /// (яма/активированный взрыв — <see cref="Core.TrapSignature.IsHiddenLethalTrap"/>
+        /// — или триггер механизма, <see cref="ExplosiveTrapTarget"/>/
+        /// <see cref="TimedTrapTarget"/>) была раскрыта. НЕ про точный тип —
+        /// это по-прежнему <c>Movement.TrapInsight.HasTrapTypeInsight</c>
+        /// (Идол Чутья), а про сам факт "здесь что-то не так". Раз раскрыто —
+        /// навсегда до конца забега (нет метода, который бы это снимал) —
+        /// разведка не должна превращаться в проверку памяти. Лава/активная
+        /// ловушка с таймингом сюда не относятся — они видимы всегда, вне
+        /// зависимости от этого флага (см. <c>TrapSignature</c>).
+        /// </summary>
+        public bool IsDangerSignatureRevealed { get; private set; }
+
+        /// <summary>Раскрывает сигнатуру опасности этой плиты — см. <see cref="IsDangerSignatureRevealed"/>. Повторные вызовы — не-op.</summary>
+        public void RevealDangerSignature()
+        {
+            IsDangerSignatureRevealed = true;
+        }
+
+        /// <summary>
         /// Плита — рычаг (PRD 4.2, раздел 21, issue #51): не ловушка, не
         /// наносит вреда. Активация (проход трейла через эту плиту) должна
         /// открыть все плиты <see cref="LeverGateTargets"/> — см.
@@ -136,6 +208,7 @@ namespace Burmalda.Core
         public void MarkLever(IReadOnlyList<GridCoordinate> gateTargets)
         {
             if (IsLever) return;
+            GuardAgainstConflictingRole(false, nameof(IsLever));
             IsLever = true;
             LeverGateTargets = gateTargets;
         }
@@ -154,6 +227,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как закрытые ворота бокового прохода (закрыта по умолчанию).</summary>
         public void MarkGated()
         {
+            GuardAgainstConflictingRole(IsGated, nameof(IsGated));
             IsGated = true;
         }
 
@@ -173,6 +247,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как источник Кристаллов Маны. Повторные вызовы — не-op.</summary>
         public void MarkManaSource()
         {
+            GuardAgainstConflictingRole(IsManaSource, nameof(IsManaSource));
             IsManaSource = true;
         }
 
@@ -185,6 +260,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как источник Ключей. Повторные вызовы — не-op.</summary>
         public void MarkKeySource()
         {
+            GuardAgainstConflictingRole(IsKeySource, nameof(IsKeySource));
             IsKeySource = true;
         }
 
@@ -197,6 +273,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как Алтарь. Повторные вызовы — не-op.</summary>
         public void MarkAltar()
         {
+            GuardAgainstConflictingRole(IsAltar, nameof(IsAltar));
             IsAltar = true;
         }
 
@@ -210,6 +287,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как точку Босса. Повторные вызовы — не-op.</summary>
         public void MarkBoss()
         {
+            GuardAgainstConflictingRole(IsBoss, nameof(IsBoss));
             IsBoss = true;
         }
 

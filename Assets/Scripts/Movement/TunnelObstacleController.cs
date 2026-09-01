@@ -23,6 +23,20 @@ namespace Burmalda.Movement
     /// компонента на новый в сцене нужно сделать вручную в Editor; не
     /// использовать оба одновременно на одном забеге — конкурируют за одни и
     /// те же плиты.</para>
+    ///
+    /// <para><b>Задача «двойные флаги на плитах»:</b> раньше этот класс сам
+    /// подписывался на <c>GridTraceInputController.RunStarted</c> — из-за
+    /// того, что он уже размещён на сцене (его <c>OnEnable</c> срабатывает
+    /// при загрузке сцены), а <c>Generation.SegmentGenerationController</c>
+    /// добавляется динамически позже <c>Bootstrap.RunBootstrap</c>, подписка
+    /// ЭТОГО класса всегда оказывалась РАНЬШЕ в списке подписчиков —
+    /// <see cref="TunnelGridReveal"/> успевал материализовать ряды раньше,
+    /// чем <c>Generation.SegmentRowProvider</c> успевал их заявить
+    /// (<c>TunnelGrid.ClaimRow</c>), давая плитам одновременно роль от обоих
+    /// генераторов. Теперь этот класс НЕ подписывается на RunStarted сам —
+    /// <c>RunBootstrap</c> единственный, кто вызывает <see cref="EnsureBuilt"/>/
+    /// <see cref="EnsureRebuilt"/>, и делает это СТРОГО после того, как
+    /// сегментный провайдер уже заявил свои ряды на этот момент.</para>
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TunnelObstacleController : MonoBehaviour
@@ -37,31 +51,38 @@ namespace Burmalda.Movement
             if (_input == null) _input = GetComponent<GridTraceInputController>();
         }
 
-        private void OnEnable()
-        {
-            if (_input != null) _input.RunStarted += HandleRunStarted;
-        }
-
         private void OnDisable()
         {
-            if (_input != null) _input.RunStarted -= HandleRunStarted;
             DisposeAll();
         }
 
-        private void Update()
+        private void Update() => EnsureBuilt();
+
+        /// <summary>
+        /// Строит генератор/reveal, если ещё не собраны — не-op, если уже
+        /// собраны или Grid/Trail ещё не готовы. Идемпотентный аналог
+        /// <c>Generation.SegmentGenerationController.EnsureBuilt</c> — тот же
+        /// приём: <c>Bootstrap.RunBootstrap</c> вызывает его синхронно, СРАЗУ
+        /// ПОСЛЕ того, как вызвал аналогичный метод у сегментного провайдера
+        /// (см. класс-докстрингу), поэтому к моменту, когда <see cref="TunnelGridReveal"/>
+        /// реально начинает материализовывать ряды, они уже заявлены.
+        /// </summary>
+        public void EnsureBuilt()
         {
-            // Ленивая инициализация вместо OnEnable — по тому же паттерну,
-            // что TrailDecayController/TunnelCameraController: порядок
-            // Awake/OnEnable между разными компонентами не гарантирован, а
-            // Grid/Trail появляются только в Awake() GridTraceInputController.
-            if (_generator == null || _reveal == null)
-            {
-                if (_input == null || _input.Grid == null || _input.Trail == null) return;
-                Rebuild();
-            }
+            if (_generator != null && _reveal != null) return;
+            if (_input == null || _input.Grid == null || _input.Trail == null) return;
+            Rebuild();
         }
 
-        private void HandleRunStarted() => Rebuild();
+        /// <summary>
+        /// Безусловная пересборка (Dispose старого + новый Grid/Trail) — для
+        /// повторных забегов (<c>RunStarted</c> на рестарте). Вызывается
+        /// ТОЛЬКО извне (<c>Bootstrap.RunBootstrap.HandleRunStarted</c>),
+        /// строго после того, как сегментный провайдер уже пересобрался сам
+        /// (его собственная подписка на RunStarted идёт раньше в списке —
+        /// см. <c>RunBootstrap.EnsureControllersWired</c>).
+        /// </summary>
+        public void EnsureRebuilt() => Rebuild();
 
         private void Rebuild()
         {

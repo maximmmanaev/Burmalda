@@ -133,7 +133,8 @@ namespace Burmalda.DebugVisuals
                     isLever: tile.IsLever,
                     isGated: tile.IsGated,
                     isLeverGateOpen: tile.IsLeverGateOpen,
-                    isAltar: tile.IsAltar);
+                    isAltar: tile.IsAltar,
+                    isDangerSignatureRevealed: tile.IsDangerSignatureRevealed);
 
                 ApplyVisual(pair.Value, coordinate, state);
             }

@@ -178,32 +178,57 @@ namespace Burmalda.DebugVisuals
         /// </summary>
         public static readonly Color AltarColor = new Color(1f, 215f / 255f, 0f);
 
+        /// <summary>
+        /// Задача «двойные флаги на плитах» (плейтест владельца: сигнатура
+        /// опасности отрисовывается вместо стены, рычаг/Алтарь иногда
+        /// непроходимы, сигнатура вместо источника Маны): причина — два
+        /// генератора писали в одну плиту (см. <c>Core.Tile.GuardAgainstConflictingRole</c>,
+        /// теперь бросает исключение вместо молчаливой перезаписи).
+        /// ПОРЯДОК ВЕТОК ниже — вторая линия обороны на случай, если
+        /// конфликт всё же случится: состояния, определяющие РЕАЛЬНОЕ
+        /// поведение (проходимость — Destroyed/Blocked/Lava/LethalTrap/
+        /// TimedTrapActive/триггер) проверяются РАНЬШЕ ролевых и декоративных
+        /// (Boss/Altar/Gated/Lever/источники) — если на одной плите всё же
+        /// окажутся обе роли, игрок увидит то, что реально его останавливает
+        /// или убивает, а не безобидный на вид Алтарь/рычаг/источник поверх
+        /// стены. Раньше порядок был обратным (Boss/Altar/Gated/Lever шли
+        /// первыми) — намеренно исправлено этой задачей.
+        /// </summary>
         public static Color Resolve(TileVisualState state)
         {
             if (state.IsDestroyed) return DestroyedColor;
             if (state.IsCurrentPosition) return CurrentPositionColor;
             if (state.IsStart) return StartColor;
-            if (state.IsBoss) return BossColor;
-            if (state.IsAltar) return AltarColor;
-            // Ворота и рычаг — новые структурные состояния (задача «рычаг и
-            // ворота невидимы»), той же приоритетной группы, что Boss/Blocked:
-            // фиксированы на плите, не связаны с распадом, должны быть видны
-            // всегда. Открытые/закрытые ворота — один тон, разная яркость
-            // (см. LeverGateOpenColor/LeverGateClosedColor).
-            if (state.IsGated) return state.IsLeverGateOpen ? LeverGateOpenColor : LeverGateClosedColor;
-            if (state.IsLever) return LeverColor;
             if (state.IsBlocked) return BlockedColor;
             // Issue #163: лава остаётся видимой как раньше (PRD v8 §4.2)
             // — единственный LethalTrapType, для которого Resolve() всё ещё
             // возвращает его собственный цвет напрямую.
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
-            // Яма и активированный взрыв — скрыты (см. Core.TrapSignature):
-            // ОДИН общий цвет на оба типа, не выдающий, какой именно.
-            if (state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) return HiddenTrapSignatureColor;
+            // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2
+            // заменяется): яма и активированный взрыв — скрыты (см.
+            // Core.TrapSignature) — ОДИН общий цвет на оба типа, не
+            // выдающий, какой именно, И только ПОСЛЕ того, как игрок навёл
+            // на плиту (state.IsDangerSignatureRevealed, см.
+            // Movement.TrapRevealSystem). Пока не раскрыта — плита
+            // неотличима от обычного пола, ветка ничего не возвращает и
+            // проваливается ниже, до градиента распада в самом конце.
+            if ((state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) && state.IsDangerSignatureRevealed)
+                return HiddenTrapSignatureColor;
             if (state.ActiveTimedTrap.HasValue) return TimedTrapActiveColor;
             // Единая сигнатура для обоих видов триггера (см. TriggerSignatureColor) —
-            // факт "здесь механизм" виден всем, тип — не отсюда.
-            if (state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) return TriggerSignatureColor;
+            // факт "здесь механизм" виден всем, тип — не отсюда. Та же
+            // гейт-логика раскрытия, что и у ямы/взрыва выше.
+            if ((state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) && state.IsDangerSignatureRevealed)
+                return TriggerSignatureColor;
+
+            if (state.IsBoss) return BossColor;
+            if (state.IsAltar) return AltarColor;
+            // Ворота и рычаг — структурные состояния (задача «рычаг и
+            // ворота невидимы»), фиксированы на плите, не связаны с
+            // распадом, должны быть видны всегда. Открытые/закрытые ворота —
+            // один тон, разная яркость (см. LeverGateOpenColor/LeverGateClosedColor).
+            if (state.IsGated) return state.IsLeverGateOpen ? LeverGateOpenColor : LeverGateClosedColor;
+            if (state.IsLever) return LeverColor;
 
             // Источники валюты — награда, видна всегда (см. doc-комментарий
             // TileVisualState.IsManaSource), проверяются после

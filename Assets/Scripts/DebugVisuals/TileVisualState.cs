@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -28,6 +28,7 @@ namespace Burmalda.DebugVisuals
             IsGated = isGated;
             IsLeverGateOpen = isLeverGateOpen;
             IsAltar = isAltar;
+            IsDangerSignatureRevealed = isDangerSignatureRevealed;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -124,5 +125,15 @@ namespace Burmalda.DebugVisuals
         /// набор плит».
         /// </summary>
         public bool IsAltar { get; }
+
+        /// <summary>
+        /// Задача «раскрытие опасности при примеривании»: осмысленно только
+        /// для скрытых состояний (<see cref="LethalTrap"/> Pit/Explosion,
+        /// <see cref="IsExplosiveTrapTrigger"/>/<see cref="IsTimedTrapTrigger"/>)
+        /// — см. <c>Core.Tile.IsDangerSignatureRevealed</c>. Пока ложно, эти
+        /// состояния рисуются НЕОТЛИЧИМО от обычного пола (не сигнатурой) —
+        /// раньше сигнатура была видна всегда, PRD v9 §4.2 заменяется.
+        /// </summary>
+        public bool IsDangerSignatureRevealed { get; }
     }
 }

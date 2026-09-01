@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace Burmalda.Core.Tests
@@ -252,6 +254,35 @@ namespace Burmalda.Core.Tests
         }
 
         [Test]
+        public void NewTile_DangerSignatureIsNotRevealed()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsDangerSignatureRevealed);
+        }
+
+        [Test]
+        public void RevealDangerSignature_SetsRevealedTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.RevealDangerSignature();
+
+            Assert.IsTrue(tile.IsDangerSignatureRevealed);
+        }
+
+        [Test]
+        public void RevealDangerSignature_CalledTwice_StaysRevealed()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.RevealDangerSignature();
+            tile.RevealDangerSignature();
+
+            Assert.IsTrue(tile.IsDangerSignatureRevealed);
+        }
+
+        [Test]
         public void NewTile_IsNotLeverAndHasNoGateTargets()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
@@ -434,6 +465,90 @@ namespace Burmalda.Core.Tests
 
             Assert.AreEqual(BossRoomTileKind.Vein, tile.BossRoomTile);
             Assert.IsNull(tile.RiftSubtype);
+        }
+
+        // Задача «двойные флаги на плитах»: плейтест владельца — сигнатура
+        // опасности отрисовывается вместо стены, рычаг/Алтарь иногда
+        // непроходимы, сигнатура вместо источника Маны. Причина —
+        // Generation.SegmentRowProvider и Core.TunnelObstacleGenerator оба
+        // писали в одну плиту (см. doc-комментарий GuardAgainstConflictingRole).
+        // Разграничение по рядам (Bootstrap.RunBootstrap) закрывает причину;
+        // эти тесты проверяют следствие — сам инвариант на Tile, вторая
+        // линия обороны, если причина всё же повторится.
+        private static readonly (string Name, Action<Tile> Mark)[] ExclusiveRoleMarkers =
+        {
+            ("Blocked", t => t.MarkBlocked()),
+            ("LethalTrap", t => t.MarkLethalTrap(LethalTrapType.Lava)),
+            ("ManaSource", t => t.MarkManaSource()),
+            ("KeySource", t => t.MarkKeySource()),
+            ("Altar", t => t.MarkAltar()),
+            ("Boss", t => t.MarkBoss()),
+            ("Lever", t => t.MarkLever(Array.Empty<GridCoordinate>())),
+            ("Gated", t => t.MarkGated()),
+        };
+
+        private static IEnumerable<TestCaseData> ExclusiveRoleConflictPairs()
+        {
+            for (var i = 0; i < ExclusiveRoleMarkers.Length; i++)
+            for (var j = 0; j < ExclusiveRoleMarkers.Length; j++)
+            {
+                if (i == j) continue; // одна и та же роль дважды — отдельный тест ниже, не конфликт
+                yield return new TestCaseData(i, j)
+                    .SetName($"MarkingExclusiveRole_First{ExclusiveRoleMarkers[i].Name}Then{ExclusiveRoleMarkers[j].Name}_Throws");
+            }
+        }
+
+        [TestCaseSource(nameof(ExclusiveRoleConflictPairs))]
+        public void MarkingExclusiveRole_AfterDifferentRoleAlreadySet_ThrowsInvalidOperationException(int firstIndex, int secondIndex)
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            ExclusiveRoleMarkers[firstIndex].Mark(tile);
+
+            Assert.Throws<InvalidOperationException>(() => ExclusiveRoleMarkers[secondIndex].Mark(tile));
+        }
+
+        // Три конкретных случая из плейтеста владельца — не только матрица
+        // выше, но и узнаваемые по формулировке задачи сценарии.
+        [Test]
+        public void MarkAltar_TileAlreadyBlocked_Throws()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.MarkBlocked();
+
+            Assert.Throws<InvalidOperationException>(() => tile.MarkAltar());
+        }
+
+        [Test]
+        public void MarkLever_TileAlreadyBlocked_Throws()
+        {
+            // Симптом "рычаг иногда непроходим" — если бы Blocked молча
+            // накладывался поверх Lever, GridTraceTrail.CanAdvanceTo видел
+            // бы IsBlocked=true и не пускал бы игрока на рычаг вообще.
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.MarkBlocked();
+
+            Assert.Throws<InvalidOperationException>(() => tile.MarkLever(Array.Empty<GridCoordinate>()));
+        }
+
+        [Test]
+        public void MarkManaSource_TileAlreadyLethalTrap_Throws()
+        {
+            // Симптом "сигнатура вместо источника Маны" — TileArtKindResolver
+            // проверяет LethalTrap раньше ManaSource, поэтому такая плита
+            // выглядела бы как ловушка, а не как источник.
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.MarkLethalTrap(LethalTrapType.Pit);
+
+            Assert.Throws<InvalidOperationException>(() => tile.MarkManaSource());
+        }
+
+        [TestCaseSource(nameof(ExclusiveRoleMarkers))]
+        public void MarkingExclusiveRole_SameRoleTwice_DoesNotThrow((string Name, Action<Tile> Mark) marker)
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            marker.Mark(tile);
+
+            Assert.DoesNotThrow(() => marker.Mark(tile), $"повторная пометка той же роли ({marker.Name}) должна остаться тихим не-op");
         }
     }
 }

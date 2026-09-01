@@ -59,15 +59,24 @@ namespace Burmalda.Bootstrap
     /// Раньше здесь была задокументирована сознательная блокировка: собственный
     /// doc-комментарий <see cref="Generation.SegmentGenerationController"/>
     /// предупреждал, что он "конкурирует за одни и те же плиты" с уже
-    /// размещённым на сцене <c>Movement.TunnelObstacleController</c>. Это
-    /// разграничено по рядам по конструкции — <c>Generation.SegmentRowProvider</c>
-    /// заявляет ряды применяемого шаблона (<c>Core.TunnelGrid.ClaimRow</c>)
-    /// раньше, чем <c>Core.TunnelObstacleGenerator</c> успевает откликнуться
-    /// на материализацию их плит, поэтому оба контроллера теперь безопасно
-    /// сосуществуют на одном GameObject. <c>TunnelObstacleController</c>
-    /// остаётся на сцене и продолжает засеивать ряды, до которых сегменты ещё
-    /// не дошли — уберёт его владелец продукта вручную (.unity не трогаем),
-    /// когда каталог шаблонов покроет тоннель целиком (см. docs/wiki/roadmap.md).
+    /// размещённым на сцене <c>Movement.TunnelObstacleController</c>.
+    /// Разграничение по рядам (<c>Core.TunnelGrid.ClaimRow</c>) само по себе
+    /// корректно, но долго опиралось на ПОРЯДОК, а не на конструкцию: оба
+    /// контроллера независимо подписывались на <c>RunStarted</c>, и чей
+    /// обработчик сработает раньше — не было гарантировано (плейтест
+    /// владельца, задача «двойные флаги на плитах», нашёл плиты сразу с
+    /// несколькими взаимоисключающими ролями — <c>Core.TunnelObstacleGenerator</c>
+    /// засевал плиту раньше, чем <c>Generation.SegmentRowProvider</c> успевал
+    /// её заявить). Теперь порядок задан явно и синхронно этим классом:
+    /// <see cref="EnsureControllersWired"/> сначала форсирует первую сборку
+    /// <see cref="Segments"/> (<c>Generation.SegmentGenerationController.EnsureBuilt</c>),
+    /// затем — <c>Movement.TunnelObstacleController.EnsureBuilt</c> (см.
+    /// <c>SyncLegacyObstacleGenerator</c>); на каждом рестарте забега то же
+    /// самое повторяет <see cref="HandleRunStarted"/>, уже как безусловную
+    /// пересборку. <c>TunnelObstacleController</c> остаётся на сцене и
+    /// продолжает засеивать ряды, до которых сегменты ещё не дошли — уберёт
+    /// его владелец продукта вручную (.unity не трогаем), когда каталог
+    /// шаблонов покроет тоннель целиком (см. docs/wiki/roadmap.md).
     ///
     /// <b>Артефактный лоадаут забега</b> (<see cref="Loadout"/>) — по своей же
     /// доккомментарии <see cref="RunArtifactLoadout"/>, "новый экземпляр
@@ -142,6 +151,16 @@ namespace Burmalda.Bootstrap
         private void Awake()
         {
             Instance = this;
+            // Задача «двойные флаги на плитах»: попытка синхронной сборки
+            // прямо здесь, а не только в ленивом Update() ниже — этот
+            // GameObject создаётся через RuntimeInitializeLoadType.AfterSceneLoad
+            // (см. Bootstrap()), а это гарантированно ПОСЛЕ Awake/OnEnable
+            // всех объектов сцены (включая GridTraceInputController) и
+            // строго ДО первого Update() любого компонента в этом кадре —
+            // единственное надёжное окно, чтобы SyncLegacyObstacleGenerator
+            // ниже успел отработать раньше, чем Movement.TunnelObstacleController
+            // получит свой собственный первый Update()-тик.
+            TrySync();
         }
 
         private void OnDestroy()
@@ -150,12 +169,16 @@ namespace Burmalda.Bootstrap
             if (Instance == this) Instance = null;
         }
 
-        private void Update()
+        private void Update() => TrySync();
+
+        private void TrySync()
         {
             // Ленивый поиск — тот же принцип, что у остальных debug/game
             // driver'ов проекта: порядок Awake между объектами сцены не
             // гарантирован, GridTraceInputController может ещё не
             // существовать в момент, когда этот компонент запускается.
+            // Всё ниже идемпотентно — безопасно вызывать и из Awake(), и
+            // из Update() на каждом кадре до полной сборки.
             if (_input == null) _input = FindFirstObjectByType<GridTraceInputController>();
             if (_input == null) return;
 
@@ -177,6 +200,12 @@ namespace Burmalda.Bootstrap
 
             var host = _input.gameObject;
             if (Segments == null) Segments = GetOrAddComponent<SegmentGenerationController>(host);
+            // Задача «двойные флаги на плитах»: форсируем первую сборку
+            // Generation.SegmentRowProvider СИНХРОННО здесь — до того, как
+            // SyncLegacyObstacleGenerator ниже даст уже размещённому на
+            // сцене Movement.TunnelObstacleController шанс материализовать
+            // те же ряды напрямую. См. Generation.SegmentGenerationController.EnsureBuilt.
+            Segments.EnsureBuilt();
             if (Currency == null) Currency = GetOrAddComponent<CurrencyController>(host);
             if (Altar == null) Altar = GetOrAddComponent<AltarController>(host);
             if (Boss == null) Boss = GetOrAddComponent<BossController>(host);
@@ -184,10 +213,42 @@ namespace Burmalda.Bootstrap
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
 
             _controllersWired = true;
+            SyncLegacyObstacleGenerator(forceRebuild: false);
         }
 
         private static T GetOrAddComponent<T>(GameObject host) where T : Component =>
             host.GetComponent<T>() != null ? host.GetComponent<T>() : host.AddComponent<T>();
+
+        /// <summary>
+        /// Задача «двойные флаги на плитах» (плейтест владельца — сигнатура
+        /// опасности вместо стены, рычаг/Алтарь иногда непроходимы,
+        /// сигнатура вместо источника Маны): <c>Movement.TunnelObstacleController</c>
+        /// уже размещён на сцене отдельно от этого класса и раньше сам
+        /// подписывался на <c>RunStarted</c> — из-за более раннего
+        /// <c>OnEnable</c> (объект сцены грузится раньше, чем этот
+        /// self-bootstrap через AfterSceneLoad) его подписка ВСЕГДА
+        /// оказывалась раньше <see cref="Segments"/> в списке подписчиков, и
+        /// его <c>Movement.TunnelGridReveal</c> успевал материализовать ряды
+        /// раньше, чем <c>Generation.SegmentRowProvider</c> успевал их
+        /// заявить (<c>Core.TunnelGrid.ClaimRow</c>) — см.
+        /// <c>Generation.Tests.SegmentGenerationCoexistenceTests.
+        /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTileTypeSilentlyLost</c>.
+        /// Теперь <c>TunnelObstacleController</c> сам на RunStarted не
+        /// подписан — этот метод единственный, кто его (пере)собирает,
+        /// СТРОГО после того, как <see cref="Segments"/> уже заявил свои
+        /// ряды на этот момент (вызывается сразу после
+        /// <see cref="Generation.SegmentGenerationController.EnsureBuilt"/>
+        /// выше, либо после его же <c>RebuildProvider</c> на рестарте — см.
+        /// <see cref="HandleRunStarted"/>).
+        /// </summary>
+        private void SyncLegacyObstacleGenerator(bool forceRebuild)
+        {
+            var obstacle = _input.GetComponent<TunnelObstacleController>();
+            if (obstacle == null) return;
+
+            if (forceRebuild) obstacle.EnsureRebuilt();
+            else obstacle.EnsureBuilt();
+        }
 
         private void EnsureRunStartedSubscription()
         {
@@ -196,7 +257,16 @@ namespace Burmalda.Bootstrap
             _subscribedToRunStarted = true;
         }
 
-        private void HandleRunStarted() => RebuildLoadout();
+        private void HandleRunStarted()
+        {
+            RebuildLoadout();
+            // Segments уже пересобрался сам к этому моменту — его подписка
+            // на RunStarted (Generation.SegmentGenerationController.OnEnable)
+            // добавлена раньше этой (см. EnsureControllersWired), поэтому её
+            // обработчик в списке подписчиков GridTraceInputController.RunStarted
+            // вызывается первым. См. doc-комментарий SyncLegacyObstacleGenerator.
+            SyncLegacyObstacleGenerator(forceRebuild: true);
+        }
 
         private void EnsureLoadoutReady()
         {
