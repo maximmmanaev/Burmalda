@@ -51,6 +51,18 @@ namespace Burmalda.Movement
         public GridCoordinate CurrentPosition => _currentPosition;
 
         /// <summary>
+        /// Была ли плита уже пройдена трейлом хотя бы раз — O(1)-версия
+        /// проверки, для которой иначе пришлось бы линейно сканировать
+        /// <see cref="Path"/>. Задача «тёплый набор плит»: нужна визуальному
+        /// слою (<c>DebugVisuals.TunnelDebugVisual</c>), чтобы скрывать
+        /// иконку источника Маны/Ключей после сбора — момент, когда плита
+        /// становится "пройдена", у <see cref="TryAdvanceTo"/> синхронен с
+        /// моментом начисления валюты (<c>Currencies.TrailTileCurrencySystem</c>
+        /// реагирует на то же самое первое посещение через <see cref="Advanced"/>).
+        /// </summary>
+        public bool HasVisited(GridCoordinate coordinate) => _visited.Contains(coordinate);
+
+        /// <summary>
         /// Срабатывает после продвижения трейла на плиту, которая ранее не
         /// была пройдена (см. <see cref="TryAdvanceTo"/>). Не срабатывает
         /// повторно при возврате на уже пройденную плиту (#61) — Decay и

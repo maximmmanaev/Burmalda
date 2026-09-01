@@ -115,13 +115,27 @@ namespace Burmalda.DebugVisuals
                     isTimedTrapTrigger: tile.TimedTrapTarget.HasValue,
                     activeTimedTrap: tile.IsTimedTrapActive ? tile.TimedTrapKind : null,
                     isBoss: tile.IsBoss,
-                    isManaSource: tile.IsManaSource,
-                    isKeySource: tile.IsKeySource,
+                    // Задача «тёплый набор плит» (владелец): «плитка с ключом
+                    // и маной после сбора должна становиться обычной, ключ и
+                    // кристалл маны пропадать». Tile.IsManaSource/IsKeySource
+                    // сознательно НЕ сбрасываются в Core — сбор валюты
+                    // (Currencies.TrailTileCurrencySystem) и партиклы
+                    // (PickupFeedback) независимо читают эти флаги на том же
+                    // GridTraceTrail.Advanced, порядок подписчиков не
+                    // гарантирован (PickupFeedback явно избегает трогать
+                    // TrailTileCurrencySystem по этой же причине, см. её
+                    // doc-комментарий) — обнулять флаг оттуда было бы гонкой.
+                    // Вместо этого визуальный слой сам скрывает иконку, как
+                    // только плита пройдена трейлом (HasVisited) — тот же
+                    // момент, что и начисление валюты, без мутации Tile.
+                    isManaSource: tile.IsManaSource && !_trail.HasVisited(coordinate),
+                    isKeySource: tile.IsKeySource && !_trail.HasVisited(coordinate),
                     isLever: tile.IsLever,
                     isGated: tile.IsGated,
-                    isLeverGateOpen: tile.IsLeverGateOpen);
+                    isLeverGateOpen: tile.IsLeverGateOpen,
+                    isAltar: tile.IsAltar);
 
-                ApplyVisual(pair.Value, state);
+                ApplyVisual(pair.Value, coordinate, state);
             }
         }
 
@@ -165,7 +179,74 @@ namespace Burmalda.DebugVisuals
             if (renderer != null) renderer.material = new Material(_templateMaterial);
 
             _tileObjects[tile.Coordinate] = primitive;
+            // Задача «тёплый набор плит»: выбор фиксируется один раз здесь,
+            // не в ApplyVisual — иначе вариант/поворот "плавали" бы каждый
+            // кадр, пока плита ещё Fresh (см. PickFreshVariant/ApplyVisual).
+            _freshVariants[tile.Coordinate] = PickFreshVariant();
         }
+
+        // Задача «тёплый набор плит»: два рисунка обычной плиты — бесплатное
+        // визуальное разнообразие пола, иначе однообразное повторение одной
+        // картинки само становится читаемым ритмом. Поровну — третий
+        // присланный вариант (tile-fresh-c) оказался дублем стадии распада
+        // (не отдельным полом), удалён; веса ниже больше не нужны, но массив
+        // оставлен ради единообразия с PickFreshVariant на случай, если
+        // владелец пришлёт третий настоящий вариант позже.
+        private static readonly int[] FreshVariantWeights = { 1, 1 };
+
+        private readonly struct FreshTileVariant
+        {
+            public FreshTileVariant(int textureIndex, Quaternion rotation)
+            {
+                TextureIndex = textureIndex;
+                Rotation = rotation;
+            }
+
+            public int TextureIndex { get; }
+            public Quaternion Rotation { get; }
+        }
+
+        private readonly Dictionary<GridCoordinate, FreshTileVariant> _freshVariants = new Dictionary<GridCoordinate, FreshTileVariant>();
+
+        private static FreshTileVariant PickFreshVariant()
+        {
+            var totalWeight = 0;
+            foreach (var weight in FreshVariantWeights) totalWeight += weight;
+
+            var roll = UnityEngine.Random.Range(0, totalWeight);
+            var cursor = 0;
+            var index = FreshVariantWeights.Length - 1;
+            for (var i = 0; i < FreshVariantWeights.Length; i++)
+            {
+                cursor += FreshVariantWeights[i];
+                if (roll < cursor) { index = i; break; }
+            }
+
+            // Случайный поворот на 0/90/180/270° (задача) — только у обычного
+            // пола; у плит со смыслом (источники/сигнатуры/ворота/рычаг/
+            // Алтарь/позиция игрока) ориентация постоянна, см. ApplyVisual.
+            // TopFaceOrientationCorrectionDegrees складывается с этим шагом —
+            // см. её doc-комментарий.
+            var rotationSteps = UnityEngine.Random.Range(0, 4);
+            return new FreshTileVariant(index, Quaternion.Euler(0f, TopFaceOrientationCorrectionDegrees + rotationSteps * 90f, 0f));
+        }
+
+        /// <summary>
+        /// Владелец на билде «тёплый набор плит»: «почему все плитки
+        /// перевёрнуты вверх ногами» — реальный баг, не показалось. Причина
+        /// не в контенте, а в том, как <c>GameObject.CreatePrimitive(Cube)</c>
+        /// разворачивает UV верхней грани: её V-ось (то, что художник рисует
+        /// "верхом" картинки) у встроенного примитива Unity по умолчанию
+        /// смотрит на -Z, а Row (глубина тоннеля, "вперёд/от камеры") — это
+        /// +Z (см. <c>WorldGridProjection</c> — Row=+Z, doc-комментарий
+        /// класса). При identity-повороте "верх" текстуры оказывался
+        /// направлен К камере, а не ОТ неё — с прежними ненаправленными
+        /// каменными текстурами этого никто не замечал, с направленными
+        /// иконками (следы, ключ, кристалл) стало видно сразу. Поворот на
+        /// 180° по Y выравнивает "верх" текстуры с "вперёд по тоннелю" —
+        /// применяется КО ВСЕМ плитам (не только Fresh), см. места вызова.
+        /// </summary>
+        private const float TopFaceOrientationCorrectionDegrees = 180f;
 
         // 2026-08-18 ("ещё больше процедурного полиша без арта"): лёгкая
         // эмиссия поверх базового цвета — плитки заметно "светятся" под
@@ -184,27 +265,48 @@ namespace Burmalda.DebugVisuals
         /// doc-комментарий класса). Ветвление "что показывать когда" не
         /// менялось — только источник (текстура вместо Color) для тех
         /// состояний, для которых в пакете есть готовый арт.
+        ///
+        /// <b>Задача «тёплый набор плит»:</b> <c>tile-hidden-trap-signature.png</c>
+        /// (владелец) — уже приглушённая, специально нарисованная под эту
+        /// роль текстура (используется и для <see cref="TileArtKind.HiddenTrapSignature"/>,
+        /// и для <see cref="TileArtKind.TriggerSignature"/> — см.
+        /// <see cref="TileArtCatalog.Get"/>), показывается как есть, как и
+        /// остальные текстуры. Прежний принудительный тон
+        /// (<see cref="TileDebugColor.HiddenTrapSignatureTextureTint"/>)
+        /// компенсировал СЛУЧАЙНО подвернувшуюся холодную текстуру
+        /// (<c>tile-pit.png</c>), которая читалась как однозначная
+        /// яма-ловушка — с целевой тёплой текстурой такой необходимости
+        /// нет; константа оставлена в TileDebugColor на случай, если
+        /// плейтест на устройстве покажет обратное.
         /// </summary>
-        private void ApplyVisual(GameObject tileObject, TileVisualState state)
+        private void ApplyVisual(GameObject tileObject, GridCoordinate coordinate, TileVisualState state)
         {
             var renderer = tileObject.GetComponent<Renderer>();
             if (renderer == null) return;
 
             var kind = TileArtKindResolver.Resolve(state);
-            var texture = kind != TileArtKind.None && _artCatalog != null ? _artCatalog.Get(kind) : null;
+            Texture2D texture;
+            if (kind == TileArtKind.Fresh && _artCatalog != null)
+            {
+                var variant = _freshVariants.TryGetValue(coordinate, out var v) ? v : new FreshTileVariant(0, Quaternion.identity);
+                texture = _artCatalog.GetFreshVariant(variant.TextureIndex);
+                tileObject.transform.localRotation = variant.Rotation;
+            }
+            else
+            {
+                // Плиты со смыслом (источники/сигнатуры/ворота/рычаг/Алтарь/
+                // позиция игрока) — ориентация постоянна (задача), даже если
+                // эта же плита раньше была повёрнутым Fresh-полом. НЕ
+                // Quaternion.identity — см. TopFaceOrientationCorrectionDegrees.
+                tileObject.transform.localRotation = Quaternion.Euler(0f, TopFaceOrientationCorrectionDegrees, 0f);
+                texture = kind != TileArtKind.None && _artCatalog != null ? _artCatalog.Get(kind) : null;
+            }
 
             var material = renderer.material;
             if (texture != null)
             {
                 material.mainTexture = texture;
-                // Задача «сделать тоннель играбельным», часть 3: tile-pit.png
-                // (кислотно-зелёная мозаика с чёрной дырой) читается как
-                // однозначная ловушка, не как "с плитой что-то не так" — см.
-                // TileDebugColor.HiddenTrapSignatureTextureTint. Единственное
-                // состояние, где текстура не показывается как есть.
-                material.color = kind == TileArtKind.HiddenTrapSignature
-                    ? TileDebugColor.HiddenTrapSignatureTextureTint
-                    : Color.white;
+                material.color = Color.white;
                 if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.35f);
                 if (material.HasProperty("_EmissionColor")) material.DisableKeyword("_EMISSION");
                 return;

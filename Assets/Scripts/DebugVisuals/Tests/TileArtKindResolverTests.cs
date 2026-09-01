@@ -20,14 +20,15 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileArtKind.Destroyed, TileArtKindResolver.Resolve(state));
         }
 
+        // Задача «тёплый набор плит»: раньше None (белый цветной фолбэк,
+        // самый невнятный объект на экране по плейтесту владельца), теперь
+        // tile-current-position.png.
         [Test]
-        public void Resolve_CurrentPosition_NotDestroyed_ReturnsNone_EvenIfAlsoStart()
+        public void Resolve_CurrentPosition_NotDestroyed_ReturnsCurrentPosition_EvenIfAlsoStart()
         {
-            // Готового арта под текущую позицию в пакете нет — TunnelDebugVisual
-            // сам падает на TileDebugColor.CurrentPositionColor для None.
             var state = new TileVisualState(isStart: true, isCurrentPosition: true, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
 
-            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.CurrentPosition, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
@@ -189,45 +190,72 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
 
-        // Задача «сделать тоннель играбельным», часть 1: нет тайл-текстур под
-        // источники валюты в текущем пакете — None, TunnelDebugVisual падает
-        // на цветной фолбэк (TileDebugColor.ManaSourceColor/KeySourceColor),
-        // не на градиент распада.
+        // Задача «тёплый набор плит»: раньше None (в пакете были только
+        // иконки Icons/Currencies/, не тайлы пола) — теперь
+        // tile-mana-source.png/tile-key-source.png.
         [Test]
-        public void Resolve_ManaSource_ReturnsNone_NotDecayGradient()
+        public void Resolve_ManaSource_ReturnsManaSource_NotDecayGradient()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isManaSource: true);
 
-            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.ManaSource, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
-        public void Resolve_KeySource_ReturnsNone_NotDecayGradient()
+        public void Resolve_KeySource_ReturnsKeySource_NotDecayGradient()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isKeySource: true);
 
-            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.KeySource, TileArtKindResolver.Resolve(state));
         }
 
-        // Задача «рычаг и ворота невидимы»: tile-gate-closed.png/tile-gate-open.png
-        // существуют по имени, но не по содержимому (не тайлы пола, проверено
-        // визуально) — None, как и у источников валюты.
+        // Задача «тёплый набор плит»: прежние tile-gate-closed.png/tile-gate-
+        // open.png (по имени, не по содержимому) заменены настоящими плитами
+        // пола — теперь Lever/GateClosed/GateOpen, не None.
         [Test]
-        public void Resolve_Lever_ReturnsNone_NotDecayGradient()
+        public void Resolve_Lever_ReturnsLever_NotDecayGradient()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true);
 
-            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.Lever, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
-        public void Resolve_GatedClosedOrOpen_ReturnsNone_NotDecayGradient()
+        public void Resolve_GatedClosedOrOpen_ReturnsDistinctKinds_NotDecayGradient()
         {
             var closed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isGated: true, isLeverGateOpen: false);
             var open = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isGated: true, isLeverGateOpen: true);
 
-            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(closed));
-            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(open));
+            Assert.AreEqual(TileArtKind.GateClosed, TileArtKindResolver.Resolve(closed));
+            Assert.AreEqual(TileArtKind.GateOpen, TileArtKindResolver.Resolve(open));
+        }
+
+        // Задача «тёплый набор плит»: Алтарь — та же приоритетная группа,
+        // что Boss (см. TileDebugColorTests.Resolve_Boss_TakesPriorityOverGatedAndLever).
+        [Test]
+        public void Resolve_Altar_ReturnsAltar()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isAltar: true);
+
+            Assert.AreEqual(TileArtKind.Altar, TileArtKindResolver.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Boss_TakesPriorityOverAltar()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true, isAltar: true);
+
+            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Altar_TakesPriorityOverGatedAndLever()
+        {
+            var gatedAltar = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isAltar: true, isGated: true);
+            var leverAltar = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isAltar: true, isLever: true);
+
+            Assert.AreEqual(TileArtKind.Altar, TileArtKindResolver.Resolve(gatedAltar));
+            Assert.AreEqual(TileArtKind.Altar, TileArtKindResolver.Resolve(leverAltar));
         }
     }
 }

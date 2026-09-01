@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -27,6 +27,7 @@ namespace Burmalda.DebugVisuals
             IsLever = isLever;
             IsGated = isGated;
             IsLeverGateOpen = isLeverGateOpen;
+            IsAltar = isAltar;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -115,5 +116,13 @@ namespace Burmalda.DebugVisuals
         /// результатом.
         /// </summary>
         public bool IsLeverGateOpen { get; }
+
+        /// <summary>
+        /// Плита — Алтарь (PRD, см. <c>Core.Tile.IsAltar</c>). Фиксированное
+        /// структурное состояние той же группы, что <see cref="IsBoss"/> —
+        /// не подвержено распаду, должно быть видно всегда, задача «тёплый
+        /// набор плит».
+        /// </summary>
+        public bool IsAltar { get; }
     }
 }

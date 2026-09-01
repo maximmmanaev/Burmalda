@@ -73,12 +73,16 @@ namespace Burmalda.DebugVisuals
         /// (<c>tile-pit.png</c> — кислотно-зелёная мозаика с чёрной дырой)
         /// читается как однозначная ловушка, а не как "с плитой что-то не
         /// так" (PRD v9 §4.2 — сигнатура обязана оставлять сомнение).
-        /// Перерисовать саму текстуру не в скоупе этой задачи (палитра
-        /// целиком — issue #191, Спринт 12b) — вместо этого
-        /// <see cref="TunnelDebugVisual.ApplyVisual"/> умножает текстуру на
-        /// этот приглушающий тон (снижает яркость и насыщенность), а не
-        /// показывает её как есть (<c>material.color = Color.white</c>, как
-        /// для остальных текстур). Временная мера до перегенерации палитры.
+        /// Перерисовать саму текстуру было не в скоупе задачи «сделать
+        /// тоннель играбельным» — вместо этого <c>TunnelDebugVisual.ApplyVisual</c>
+        /// умножал текстуру на этот приглушающий тон. Палитра перегенерирована
+        /// задачей «тёплый набор плит» (issue #191, Спринт 12b) —
+        /// <c>tile-hidden-trap-signature.png</c> нарисован специально под эту
+        /// роль (уже приглушённый, в общей тёплой палитре, используется и
+        /// для сигнатуры триггера — см. <c>TileArtCatalog.Get</c>), тон
+        /// больше не применяется (<c>ApplyVisual</c> показывает текстуру как
+        /// есть). Константа оставлена — вернуть тон тривиально, если
+        /// плейтест на устройстве покажет, что текстура всё равно заметнее источников.
         /// </summary>
         public static readonly Color HiddenTrapSignatureTextureTint = new Color(0.55f, 0.5f, 0.62f);
 
@@ -164,12 +168,23 @@ namespace Burmalda.DebugVisuals
         // распад, жёлтый/магента — ловушки, чёрный/тёмный — препятствия).
         public static readonly Color BossColor = new Color(40f / 255f, 40f / 255f, 220f / 255f);
 
+        /// <summary>
+        /// Алтарь (<c>Tile.IsAltar</c>) — та же приоритетная группа, что
+        /// <see cref="BossColor"/> (фиксированное структурное состояние, не
+        /// подверженное распаду). Насыщенный чистый золотой — отличим от
+        /// более приглушённого оливково-жёлтого <see cref="TriggerSignatureColor"/>
+        /// (совпадающего по тону, но не по насыщенности/яркости) и не
+        /// пересекается ни с одним другим цветом палитры.
+        /// </summary>
+        public static readonly Color AltarColor = new Color(1f, 215f / 255f, 0f);
+
         public static Color Resolve(TileVisualState state)
         {
             if (state.IsDestroyed) return DestroyedColor;
             if (state.IsCurrentPosition) return CurrentPositionColor;
             if (state.IsStart) return StartColor;
             if (state.IsBoss) return BossColor;
+            if (state.IsAltar) return AltarColor;
             // Ворота и рычаг — новые структурные состояния (задача «рычаг и
             // ворота невидимы»), той же приоритетной группы, что Boss/Blocked:
             // фиксированы на плите, не связаны с распадом, должны быть видны

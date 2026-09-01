@@ -405,5 +405,39 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(gatedBoss));
             Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(leverBoss));
         }
+
+        // Задача «тёплый набор плит»: Алтарь — та же приоритетная группа, что Boss.
+        [Test]
+        public void Resolve_Altar_NotStartNotCurrentNotDestroyedNotBoss_ReturnsAltarColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isAltar: true);
+
+            Assert.AreEqual(TileDebugColor.AltarColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Boss_TakesPriorityOverAltar()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true, isAltar: true);
+
+            Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Altar_TakesPriorityOverGatedAndLever()
+        {
+            var gatedAltar = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isAltar: true, isGated: true);
+            var leverAltar = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isAltar: true, isLever: true);
+
+            Assert.AreEqual(TileDebugColor.AltarColor, TileDebugColor.Resolve(gatedAltar));
+            Assert.AreEqual(TileDebugColor.AltarColor, TileDebugColor.Resolve(leverAltar));
+        }
+
+        [Test]
+        public void Resolve_Altar_DiffersFromTriggerSignatureColor()
+        {
+            // Оба золотисто-жёлтые по тону — проверяем, что не совпадают буквально.
+            Assert.AreNotEqual(TileDebugColor.AltarColor, TileDebugColor.TriggerSignatureColor);
+        }
     }
 }
