@@ -74,24 +74,25 @@ namespace Burmalda.EditorTools
         /// Заполняет <see cref="TileArtCatalog"/> под <c>Resources/</c> (см.
         /// её doc-комментарий, почему именно Resources) ссылками на
         /// текстуры по фиксированному маппингу <see cref="TileArtKind"/> →
-        /// имя файла. Пит и активированный взрыв (issue #163) сознательно
-        /// делят ОДНУ текстуру (tile-pit) — не должны быть визуально
-        /// различимы, см. <see cref="TileArtKindResolver"/>. tile-explosive-
-        /// explosion/tile-gate-closed/tile-gate-open не подключены — нет
-        /// игрового состояния, которое бы на них маппилось (взрыв слит с
-        /// ямой намеренно, ворота ещё не реализованы в Core.Tile).
+        /// имя файла.
         ///
-        /// <b>Задача «сделать тоннель играбельным», часть 3:</b> триггеры
-        /// (взрывной и с таймингом) тоже слиты в одну текстуру
-        /// (<see cref="TileArtKind.TriggerSignature"/>) — выбран
-        /// tile-explosive-trigger (серо-мятная база, совпадает с палитрой
-        /// остальных тайлов; tile-timed-trap-idle уже в тёплой палитре
-        /// будущего рестайла и визуально не сочетался бы с остальным
-        /// набором до issue #191). Источники Маны/Ключей
-        /// (<c>TileArtKind.None</c> для обоих — см. <see cref="TileArtKindResolver"/>)
-        /// сюда не заведены: в пакете нет отдельных тайл-текстур под них,
-        /// только иконки <c>Icons/Currencies/</c>, не подходящие как текстура
-        /// пола — читается цветом (<c>TileDebugColor.ManaSourceColor</c>/<c>KeySourceColor</c>).
+        /// <b>Задача «тёплый набор плит»:</b> каждой категории, у которой в
+        /// новом тёплом наборе появился собственный файл, — своя текстура
+        /// (источники, рычаг, ворота открыты/закрыты, Алтарь, позиция
+        /// игрока). Комнаты Босса в Unity ещё нет (PRD v8) — под неё
+        /// текстуры по-прежнему нет, остаётся на цветном фолбэке.
+        /// <c>tile-start</c> не вошла в тёплый лист — владелец: использовать
+        /// <c>tile-fresh</c> как временную замену.
+        ///
+        /// <b>Сигнатуры (владелец, прямое указание):</b>
+        /// <c>tile-hidden-trap-signature.png</c> — ОДНА текстура на ОБЕ роли:
+        /// скрытая опасность (яма/сработавший взрыв, issue #163) И механизм
+        /// (оба вида триггера, задача «сделать тоннель играбельным» часть
+        /// 3) — см. <see cref="TileArtCatalog.Get"/>, там же — почему это
+        /// не два похожих файла. <c>tile-trigger-signature.png</c> удалён
+        /// как побайтовый дубль. Первая присланная версия
+        /// <c>tile-hidden-trap-signature.png</c> сама оказалась дублем
+        /// <c>tile-half-decayed.png</c> (не сигнатурой) — заменена владельцем.
         /// </summary>
         private static void BuildTileArtCatalog()
         {
@@ -106,15 +107,28 @@ namespace Burmalda.EditorTools
 
             catalog.EditorAssign(
                 fresh: LoadTile("tile-fresh"),
+                freshVariantB: LoadTile("tile-fresh-b"),
                 halfDecayed: LoadTile("tile-half-decayed"),
                 aboutToDecay: LoadTile("tile-about-to-decay"),
                 destroyed: LoadTile("tile-destroyed"),
-                start: LoadTile("tile-start"),
+                start: LoadTile("tile-fresh"),
                 blocked: LoadTile("tile-blocked"),
                 lava: LoadTile("tile-lava"),
-                hiddenTrapSignature: LoadTile("tile-pit"),
+                hiddenTrapSignature: LoadTile("tile-hidden-trap-signature"),
                 timedTrapActive: LoadTile("tile-timed-trap-active"),
-                triggerSignature: LoadTile("tile-explosive-trigger"));
+                currentPosition: LoadTile("tile-current-position"),
+                manaSource: LoadTile("tile-mana-source"),
+                keySource: LoadTile("tile-key-source"),
+                lever: LoadTile("tile-lever"),
+                gateClosed: LoadTile("tile-gate-closed"),
+                gateOpen: LoadTile("tile-gate-open"),
+                altar: LoadTile("tile-altar"),
+                // Задача «разрушение плиты»: производный ассет (не арт
+                // владельца — вычислен из tile-half-decayed.png/
+                // tile-about-to-decay.png относительно tile-fresh.png, см.
+                // TileArtCatalog.CrackMaskTexture), но подключается тем же
+                // путём, что и остальные текстуры плит.
+                crackMask: LoadTile("tile-crack-mask"));
 
             EditorUtility.SetDirty(catalog);
         }

@@ -31,9 +31,13 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public sealed class RestartButton : MonoBehaviour
     {
-        private const float ButtonWidth = 220f;
-        private const float ButtonHeight = 90f;
-        private const float Margin = 24f;
+        // Размер/отступ — из DebugPanelLayout (единый владелец раскладки
+        // отладочных кнопок, задача «рычаг и ворота невидимы, HUD
+        // накладывается сам на себя»): ECO/TO CAMP стекуются под эту
+        // кнопку по её реальному размеру, не по догадке.
+        private const float ButtonWidth = DebugPanelLayout.RestartButtonWidth;
+        private const float ButtonHeight = DebugPanelLayout.RestartButtonHeight;
+        private const float Margin = DebugPanelLayout.Margin;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()

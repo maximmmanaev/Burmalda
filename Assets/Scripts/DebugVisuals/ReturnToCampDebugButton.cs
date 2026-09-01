@@ -30,11 +30,15 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public sealed class ReturnToCampDebugButton : MonoBehaviour
     {
-        private const float ButtonWidth = 220f;
-        private const float ButtonHeight = 90f;
-        private const float Margin = 24f;
-        // RestartButton (90) + ECO-кнопка EconomyDebugPanel (72), тот же верхний правый угол.
-        private const float TopOffset = Margin + 90f + Margin + 72f + Margin;
+        // Размер/отступ — из DebugPanelLayout (единый владелец раскладки
+        // отладочных кнопок, задача «рычаг и ворота невидимы, HUD
+        // накладывается сам на себя»): раньше TopOffset был жёстко вписанной
+        // цепочкой "Margin + 90 + Margin + 72 + Margin", повторяющей числа
+        // RestartButton/EconomyDebugPanel вручную — один источник теперь.
+        private const float ButtonWidth = DebugPanelLayout.ToCampButtonWidth;
+        private const float ButtonHeight = DebugPanelLayout.ToCampButtonHeight;
+        private const float Margin = DebugPanelLayout.Margin;
+        private const float TopOffset = DebugPanelLayout.ToCampTopOffset;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()

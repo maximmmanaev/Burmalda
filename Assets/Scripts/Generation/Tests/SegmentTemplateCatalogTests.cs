@@ -17,6 +17,18 @@ namespace Burmalda.Generation.Tests
             Assert.IsTrue(SegmentReachabilityValidator.IsTraversable(template), $"Шаблон '{name}' непроходим.");
         }
 
+        // issue #208: "рычаги появились но стены по прежнему не пускают к
+        // ключу" — IsTraversable сознательно не проверяет доступность
+        // содержимого ЗА воротами, только основной маршрут в обход них.
+        // Этот тест и есть та самая недостающая проверка на этапе авторинга.
+        [TestCaseSource(nameof(TemplateNames))]
+        public void Template_LeverVaultIsReachable(string name)
+        {
+            var template = SegmentTemplateCatalog.All.Single(t => t.Name == name);
+            Assert.IsTrue(SegmentReachabilityValidator.LeverVaultIsReachable(template),
+                $"Шаблон '{name}': тайник за воротами не соединён с остальным сегментом даже при открытых воротах.");
+        }
+
         private static string[] TemplateNames() => SegmentTemplateCatalog.All.Select(t => t.Name).ToArray();
 
         [Test]

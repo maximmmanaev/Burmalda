@@ -35,9 +35,12 @@ namespace Burmalda.DebugVisuals
     public sealed class CameraAnchorDebugPanel : MonoBehaviour
     {
         private const float PanelWidth = 460f;
-        private const float Margin = 24f;
+        // Margin/ToggleButtonSize — из DebugPanelLayout (единый владелец
+        // раскладки отладочных кнопок, задача «рычаг и ворота невидимы,
+        // HUD накладывается сам на себя»), не собственные константы.
+        private const float Margin = DebugPanelLayout.Margin;
         private const float RowHeight = 110f;
-        private const float ToggleButtonSize = 72f;
+        private const float ToggleButtonSize = DebugPanelLayout.CamButtonSize;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()

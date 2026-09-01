@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -24,6 +24,11 @@ namespace Burmalda.DebugVisuals
             IsBoss = isBoss;
             IsManaSource = isManaSource;
             IsKeySource = isKeySource;
+            IsLever = isLever;
+            IsGated = isGated;
+            IsLeverGateOpen = isLeverGateOpen;
+            IsAltar = isAltar;
+            IsDangerSignatureRevealed = isDangerSignatureRevealed;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -87,5 +92,48 @@ namespace Burmalda.DebugVisuals
 
         /// <summary>Плита — источник Ключей (PRD раздел 5, issue #12, см. <c>Core.Tile.IsKeySource</c>). Тот же принцип видимости, что и <see cref="IsManaSource"/>.</summary>
         public bool IsKeySource { get; }
+
+        /// <summary>
+        /// Плита — рычаг (PRD 4.2/21, issue #51, см. <c>Core.Tile.IsLever</c>).
+        /// Задача «рычаг и ворота невидимы» (плейтест владельца — «рычагов
+        /// поблизости не обнаружил»): видим ВСЕГДА, это механизм-приглашение
+        /// («на это можно нажать»), не скрытая опасность — не должен
+        /// путаться с сигнатурой ловушки.
+        /// </summary>
+        public bool IsLever { get; }
+
+        /// <summary>
+        /// Плита — часть бокового прохода, закрытого рычагом (issue #51, см.
+        /// <c>Core.Tile.IsGated</c>). В отличие от <see cref="IsBlocked"/>
+        /// («никогда») — это «пока нет»: должна читаться как явная
+        /// временная преграда, не как обычная стена.
+        /// </summary>
+        public bool IsGated { get; }
+
+        /// <summary>
+        /// Осмысленно только когда <see cref="IsGated"/> истинно (см.
+        /// <c>Core.Tile.IsLeverGateOpen</c>) — момент открытия ворот должен
+        /// быть визуально заметен, иначе игрок не свяжет нажатие рычага с
+        /// результатом.
+        /// </summary>
+        public bool IsLeverGateOpen { get; }
+
+        /// <summary>
+        /// Плита — Алтарь (PRD, см. <c>Core.Tile.IsAltar</c>). Фиксированное
+        /// структурное состояние той же группы, что <see cref="IsBoss"/> —
+        /// не подвержено распаду, должно быть видно всегда, задача «тёплый
+        /// набор плит».
+        /// </summary>
+        public bool IsAltar { get; }
+
+        /// <summary>
+        /// Задача «раскрытие опасности при примеривании»: осмысленно только
+        /// для скрытых состояний (<see cref="LethalTrap"/> Pit/Explosion,
+        /// <see cref="IsExplosiveTrapTrigger"/>/<see cref="IsTimedTrapTrigger"/>)
+        /// — см. <c>Core.Tile.IsDangerSignatureRevealed</c>. Пока ложно, эти
+        /// состояния рисуются НЕОТЛИЧИМО от обычного пола (не сигнатурой) —
+        /// раньше сигнатура была видна всегда, PRD v9 §4.2 заменяется.
+        /// </summary>
+        public bool IsDangerSignatureRevealed { get; }
     }
 }

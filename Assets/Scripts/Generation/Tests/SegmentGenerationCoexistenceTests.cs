@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Reflection;
 using Burmalda.Core;
 using Burmalda.Movement;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Burmalda.Generation.Tests
 {
@@ -53,7 +55,7 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("with-block", 1, SegmentRewardTag.Coins,
                 OpenRowsWithOneBlock(5, blockedRow: 2, blockedColumn: 1));
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
-            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 5);
+            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1);
 
             // Незаявленный ряд (за пределами обоих применений шаблона) —
             // единственный, кто имеет право потратить бросок из очереди.
@@ -76,7 +78,7 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("with-block", 1, SegmentRewardTag.Coins,
                 OpenRowsWithOneBlock(5, blockedRow: 2, blockedColumn: 1)); // -> абсолютный row 3, column 1
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
-            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 5);
+            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1);
 
             // Ровно те тайлы, которые шаблон сам пометил заблокированными —
             // 5-рядный шаблон применяется дважды подряд (см. предыдущий
@@ -104,5 +106,151 @@ namespace Burmalda.Generation.Tests
         // шаблона); первый тест выше отдельно проверяет, что для заявленных
         // рядов бросок вообще не берётся, через Queue на ровно одно значение.
         private static System.Func<float> AlwaysBlock() => () => 0f;
+
+        /// <summary>
+        /// Задача «партии 1 и 2 + правила отбора»: два теста выше доказывают,
+        /// что разграничение по <c>ClaimRow</c> корректно, КОГДА единственный
+        /// путь материализации ряда — сам <see cref="SegmentRowProvider"/>.
+        /// В реальной сцене это не так: <c>Movement.TunnelObstacleController</c>
+        /// остаётся подключён (переходное состояние, docs/wiki/roadmap.md) и
+        /// его <c>Movement.TunnelGridReveal</c> материализует плиты НАПРЯМУЮ
+        /// (<c>TunnelGrid.GetOrCreateTile</c>), вообще не зная о
+        /// <c>ClaimRow</c> — он писался до появления сегментной генерации и
+        /// не был обновлён. Если <c>TunnelGridReveal</c> успевает
+        /// материализовать ряд РАНЬШЕ, чем <see cref="SegmentRowProvider"/> его
+        /// заявляет (правдоподобно на практике: <c>TunnelObstacleController</c>
+        /// уже размещён на сцене и получает свой первый <c>Update()</c>
+        /// раньше, чем <c>Bootstrap.RunBootstrap</c> успевает через
+        /// <c>FindFirstObjectByType</c> найти <c>GridTraceInputController</c>
+        /// и добавить <c>Generation.SegmentGenerationController</c> — то есть
+        /// как минимум на первых <see cref="SegmentRowProvider.RowsAheadOfPlayer"/>
+        /// рядах забега), обстакловый генератор откликается на уже
+        /// незаявленную на тот момент плиту первым — <c>Tile.MarkLethalTrap</c>
+        /// (guard на уже установленное значение) молча ОТБРАСЫВАЕТ тип,
+        /// который затем пытается назначить шаблон, а не заглушенные полями
+        /// (<c>MarkLever</c>/<c>MarkManaSource</c> и т.п.) — накладываются
+        /// поверх, давая противоречивую плиту (например, одновременно Lava и
+        /// Lever). Тест ниже — не гипотеза, воспроизводит механизм напрямую.
+        /// <b>Не чинится в этой задаче</b> — только диагностика по прямому
+        /// запросу постановки.
+        /// </summary>
+        [Test]
+        public void RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTileTypeSilentlyLost()
+        {
+            var grid = new TunnelGrid(Width);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+
+            // Порядок конструирования — генератор ПОДПИСЫВАЕТСЯ на
+            // TileMaterialized первым (конструктор TunnelObstacleGenerator
+            // только подписывается, сам ничего не материализует), а уже
+            // затем TunnelGridReveal материализует ряды 0..RowsAheadOfPlayer(8)
+            // синхронно в СВОЁМ конструкторе — тот же порядок, что вероятен
+            // на сцене: TunnelObstacleController уже там (оба его класса
+            // создаются в одном Rebuild(), генератор первым по коду), а
+            // SegmentRowProvider ниже появляется позже (RunBootstrap ещё не
+            // подключил SegmentGenerationController в этот момент).
+            using var obstacles = new TunnelObstacleGenerator(grid, AlwaysLava());
+            using var reveal = new TunnelGridReveal(grid, trail);
+
+            // Шаблон говорит: локальная (2,1) → абсолютная (3,1) — Pit.
+            var tiles = new SegmentTileType[5, Width];
+            for (var r = 0; r < 5; r++)
+                for (var c = 0; c < Width; c++)
+                    tiles[r, c] = SegmentTileType.Open;
+            tiles[2, 1] = SegmentTileType.Pit;
+
+            var template = new SegmentTemplate("adversarial", 1, SegmentRewardTag.Coins, tiles);
+            var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
+            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1);
+
+            var tile = grid.GetOrCreateTile(new GridCoordinate(3, 1));
+
+            // Реальный тип плиты — то, что откатил обстакловый генератор
+            // (Lava), НЕ то, что задумал автор шаблона (Pit): Tile.MarkLethalTrap
+            // молча не сработал повторно (LethalTrap уже был установлен).
+            Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap,
+                "Тип шаблона (Pit) потерян — плиту раньше материализовал TunnelGridReveal, минуя ClaimRow.");
+        }
+
+        // Roll, гарантированно попадающий в диапазон Lava (см.
+        // TileMaterialized_RollAtPitThreshold_MarksLethalTrapLava в
+        // Core.Tests.TunnelObstacleGeneratorTests — тот же приём).
+        private static System.Func<float> AlwaysLava() => () => TunnelObstacleGenerator.PitThreshold;
+
+        /// <summary>
+        /// Задача «двойные флаги на плитах»: тест выше
+        /// (<see cref="RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTileTypeSilentlyLost"/>)
+        /// доказывает механизм гонки на уровне голых классов
+        /// (<see cref="TunnelObstacleGenerator"/>/<see cref="TunnelGridReveal"/>
+        /// напрямую). Эти два теста проверяют фикс на уровне тех же
+        /// MonoBehaviour-контроллеров и в том же порядке вызова, что
+        /// реально использует <c>Bootstrap.RunBootstrap.EnsureControllersWired</c>/
+        /// <c>HandleRunStarted</c> (см. их doc-комментарии) — не гипотеза,
+        /// а тот самый порядок <c>EnsureBuilt</c>, который производственный
+        /// код вызывает на настоящей сцене.
+        /// </summary>
+        [Test]
+        public void ControllerEnsureBuiltOrder_SegmentsFirst_ClaimsRevealWindowBeforeLegacyGeneratorTouchesIt()
+        {
+            var host = new GameObject("CoexistenceHost_SegmentsFirst");
+            try
+            {
+                var input = host.AddComponent<GridTraceInputController>();
+                InvokePrivate(input, "Awake");
+
+                var segments = host.AddComponent<SegmentGenerationController>();
+                InvokePrivate(segments, "Awake");
+
+                var obstacle = host.AddComponent<TunnelObstacleController>();
+                InvokePrivate(obstacle, "Awake");
+
+                // Ровно порядок RunBootstrap.EnsureControllersWired: сначала
+                // Segments.EnsureBuilt(), затем SyncLegacyObstacleGenerator
+                // (obstacle.EnsureBuilt()).
+                segments.EnsureBuilt();
+                obstacle.EnsureBuilt();
+
+                for (var row = 1; row <= TunnelGridReveal.RowsAheadOfPlayer; row++)
+                    Assert.IsTrue(input.Grid.IsRowClaimed(row),
+                        $"Ряд {row} должен быть заявлен Generation.SegmentRowProvider раньше, чем Movement.TunnelGridReveal успел материализовать его напрямую в обход ClaimRow.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+            }
+        }
+
+        // Контрольный тест на обратный порядок — документирует, ЧТО ИМЕННО
+        // чинит порядок вызова в RunBootstrap: без него (вызови кто-нибудь
+        // obstacle.EnsureBuilt() первым) гарантии просто нет.
+        [Test]
+        public void ControllerEnsureBuiltOrder_LegacyGeneratorFirst_RevealWindowIsNotClaimedYet()
+        {
+            var host = new GameObject("CoexistenceHost_LegacyFirst");
+            try
+            {
+                var input = host.AddComponent<GridTraceInputController>();
+                InvokePrivate(input, "Awake");
+
+                var obstacle = host.AddComponent<TunnelObstacleController>();
+                InvokePrivate(obstacle, "Awake");
+
+                obstacle.EnsureBuilt();
+
+                Assert.IsFalse(input.Grid.IsRowClaimed(1),
+                    "До фикса (задача «двойные флаги на плитах») именно это и происходило: TunnelGridReveal успевал материализовать ряды раньше, чем SegmentRowProvider успевал их заявить.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+            }
+        }
+
+        private static void InvokePrivate(object target, string methodName)
+        {
+            var method = target.GetType().GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.IsNotNull(method, $"{target.GetType().Name}.{methodName} не найден рефлексией — сигнатура/имя изменились?");
+            method.Invoke(target, null);
+        }
     }
 }

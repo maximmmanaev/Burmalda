@@ -13,12 +13,20 @@ MonoBehaviour:
   m_Name: TileArtCatalog
   m_EditorClassIdentifier: Burmalda.DebugVisuals::Burmalda.DebugVisuals.TileArtCatalog
   _fresh: {fileID: 2800000, guid: 11cd5c506318d474d9a7d3c9a874159f, type: 3}
+  _freshVariantB: {fileID: 2800000, guid: aa5896996728748a48fa039a5e590ecd, type: 3}
   _halfDecayed: {fileID: 2800000, guid: f792eae4af4484190b1d0a0ae1cd4c1d, type: 3}
   _aboutToDecay: {fileID: 2800000, guid: 6490d5e59b59b49dbac248be8d88cf2e, type: 3}
   _destroyed: {fileID: 2800000, guid: 5747fb1b418cc4520a42d54ebc3c6996, type: 3}
-  _start: {fileID: 2800000, guid: cd06847bda104472b9e677621c90be92, type: 3}
+  _start: {fileID: 2800000, guid: 11cd5c506318d474d9a7d3c9a874159f, type: 3}
   _blocked: {fileID: 2800000, guid: 815ee27b2d4194f0eb4e5cabd0b8f84c, type: 3}
   _lava: {fileID: 2800000, guid: 494b5c80825924fc4bf4d84946a31eb3, type: 3}
-  _hiddenTrapSignature: {fileID: 2800000, guid: 2d601df6480c44accb5b6f2ff2a028b7, type: 3}
+  _hiddenTrapSignature: {fileID: 2800000, guid: 485b72a3993d34a74b78014c20ea978c, type: 3}
   _timedTrapActive: {fileID: 2800000, guid: d82a68028efc24e74983c0d735a35f86, type: 3}
-  _triggerSignature: {fileID: 2800000, guid: 986909852365f4139a5099082a0ceb74, type: 3}
+  _currentPosition: {fileID: 2800000, guid: 2c7f22d3258c04a348bb01778766cc48, type: 3}
+  _manaSource: {fileID: 2800000, guid: 5c14155a824404239beb749a2dae83eb, type: 3}
+  _keySource: {fileID: 2800000, guid: b08bc814301da40f7915dc38557b87ea, type: 3}
+  _lever: {fileID: 2800000, guid: e3395b30c14c64e488cfe05abe90235e, type: 3}
+  _gateClosed: {fileID: 2800000, guid: 991073f8ac8f841d0b15d0f4431a53ce, type: 3}
+  _gateOpen: {fileID: 2800000, guid: 9103c0f21efca40468ca34d5136fdd3f, type: 3}
+  _altar: {fileID: 2800000, guid: 5b589a453d0674628925fa0792dc1c8d, type: 3}
+  _crackMask: {fileID: 2800000, guid: 822f16fe9a916403b8f92079b4678c11, type: 3}

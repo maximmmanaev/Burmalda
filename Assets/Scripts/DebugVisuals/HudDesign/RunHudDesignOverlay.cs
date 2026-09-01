@@ -24,19 +24,62 @@ namespace Burmalda.DebugVisuals.HudDesign
     /// событию (<see cref="GridTraceInputController.PreviewTarget"/>).
     /// Состояние 4 (Комната Босса) — статичный, неактивный по умолчанию
     /// каркас без единой связи с игровыми данными (см. doc-комментарий
-    /// <see cref="BuildBossRoomShell"/>) — временная кнопка-превью только
-    /// для скриншотов на ревью, не часть финального UI.
+    /// <see cref="BuildBossRoomShell"/>), виден только через
+    /// <see cref="RunHudToggles.ShowBossRoomPreview"/> (<see cref="RunHudTogglePanel"/>) —
+    /// задача «на игровом поле не должно быть ни одной отладочной кнопки»:
+    /// раньше здесь была постоянная кнопка "Preview Boss Room" ровно там,
+    /// куда игрок тапает при ходе.
     ///
-    /// НЕ трогает <see cref="RunHudOverlay"/>/<see cref="RunHudTogglePanel"/>
-    /// (Task 2, отладочный текстовый HUD) — независимый параллельный слой,
-    /// оба могут быть видны одновременно на ревью.
+    /// Этот класс — единственный player-facing HUD, остаётся без тумблера
+    /// (не debug-инструмент). <see cref="RunHudOverlay"/> — отдельный,
+    /// чисто отладочный текстовый слой поверх, дефолт ВЫКЛ (задача «HUD
+    /// накладывается сам на себя» — оба default-ВКЛ рисовали дублирующие
+    /// числа валют одновременно, владелец продукта увидел на устройстве
+    /// буквально перечёркнутые друг другом цифры).
     /// </summary>
     public sealed class RunHudDesignOverlay : MonoBehaviour
     {
         private const float ReferenceWidth = 720f;
         private const float ReferenceHeight = 1600f;
         private const float BottomThumbZoneHeight = ReferenceHeight / 3f; // 533px — issue: "туда ничего не класть"
-        private const float TopMargin = 96f; // ниже существующих CAM/HUD/RESTART debug-кнопок (другой Canvas, другой scale-режим)
+        private const float TopMargin = 96f; // ниже CAM/HUD (левый/центр) — тем не грозит пересечение с этим Canvas
+
+        /// <summary>
+        /// Задача «HUD накладывается сам на себя» (плейтест владельца:
+        /// «ЯРУС 0» налезал на кнопку ECO) — TopMargin=96 был выбран "на
+        /// глаз", без пересчёта в реальные device-пиксели. У этого Canvas
+        /// (<see cref="CanvasScaler.ScaleMode.ScaleWithScreenSize"/>, референс
+        /// 720×1600) 96 своих единиц — НЕ 96 экранных пикселей: на конкретном
+        /// устройстве (Realme, 1080×2400) масштаб ×1.5, то есть фактически
+        /// 144px — а <see cref="DebugPanelLayout.TopRightReservedHeight"/>
+        /// (RESTART+ECO+TO CAMP) занимает 234 "сырых" device-пикселя, реально
+        /// не занятых текстом "ЯРУС", даже если 144 больше формального 96.
+        /// Отступ "ЯРУС" (правый верхний угол — единственный, где player-facing
+        /// HUD физически соседствует с колонкой debug-кнопок) считается через
+        /// эту функцию: резерв в device-пикселях делится на масштаб этого
+        /// Canvas, переводя его в единицы референс-пространства — независимо
+        /// от размера экрана устройства отступ гарантированно достаточен, не
+        /// жёстко вписанное число, актуальное только для одного экрана.
+        ///
+        /// Масштаб — та же формула, что <see cref="CanvasScaler"/> сам
+        /// использует для <see cref="CanvasScaler.ScaleMode.ScaleWithScreenSize"/>
+        /// (см. её исходники), пересчитана напрямую из <see cref="Screen.width"/>/
+        /// <see cref="Screen.height"/>, а не прочитана из компонента: на
+        /// первом кадре, когда строится этот HUD (<see cref="BuildUi"/>,
+        /// вызывается из <see cref="Start"/>), сам Canvas ещё не проходил
+        /// ни один layout-пасс — <c>CanvasScaler.scaleFactor</c> в этот
+        /// момент не гарантированно уже посчитан.
+        /// </summary>
+        private float TierTopOffset
+        {
+            get
+            {
+                var logWidth = Mathf.Log(Screen.width / ReferenceWidth, 2f);
+                var logHeight = Mathf.Log(Screen.height / ReferenceHeight, 2f);
+                var scaleFactor = Mathf.Pow(2f, Mathf.Lerp(logWidth, logHeight, 0.5f)); // 0.5f — тот же matchWidthOrHeight, что задан на Canvas ниже (BuildUi)
+                return TopMargin + DebugPanelLayout.TopRightReservedHeight / scaleFactor;
+            }
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -89,6 +132,20 @@ namespace Burmalda.DebugVisuals.HudDesign
 
             UpdateCurrencyCounters();
             UpdateAimState();
+            UpdateBossRoomPreview();
+        }
+
+        // Задача «на игровом поле не должно быть ни одной отладочной
+        // кнопки»: раньше "Preview Boss Room" висела прямо на поле, ровно
+        // там, куда игрок тапает при ходе (BuildBossRoomPreviewToggle,
+        // удалена). Теперь — тумблер в RunHudTogglePanel, дефолт ВЫКЛ;
+        // SetActive идемпотентен, лишний вызов на кадр, где ничего не
+        // изменилось, безвреден.
+        private void UpdateBossRoomPreview()
+        {
+            if (_bossRoomRoot == null) return;
+            if (_bossRoomRoot.activeSelf != RunHudToggles.ShowBossRoomPreview)
+                _bossRoomRoot.SetActive(RunHudToggles.ShowBossRoomPreview);
         }
 
         private void UpdateCurrencyCounters()
@@ -175,7 +232,6 @@ namespace Burmalda.DebugVisuals.HudDesign
             BuildNormalHud(canvasHost.transform);
             BuildAimVisuals(canvasHost.transform);
             BuildBossRoomShell(canvasHost.transform);
-            BuildBossRoomPreviewToggle(canvasHost.transform);
         }
 
         // Состояния 1/2 — один и тот же UI, живые значения делают разницу (см. doc-комментарий класса).
@@ -186,9 +242,12 @@ namespace Burmalda.DebugVisuals.HudDesign
             AnchorTopLeft((RectTransform)manaCounter.ValueText.transform.parent, new Vector2(24f, -TopMargin), new Vector2(160f, 40f));
             _manaAnimator = manaCounter.ValueText.gameObject.AddComponent<HudCounterAnimator>();
 
-            // Ярус — ВСЕГДА полная непрозрачность, справа сверху.
+            // Ярус — ВСЕГДА полная непрозрачность, справа сверху. Отступ —
+            // TierTopOffset, не голый TopMargin (см. её doc-комментарий):
+            // единственный элемент этого HUD, соседствующий с колонкой
+            // debug-кнопок RESTART/ECO/TO CAMP в том же верхнем правом углу.
             _tierText = HudUiPrimitives.CreateLabel(parent, "TierLabel", "ЯРУС 0", 20, BurmaldaHudPalette.TextSecondary, bold: true, TextAnchor.MiddleRight);
-            AnchorTopRight((RectTransform)_tierText.transform, new Vector2(-24f, -TopMargin), new Vector2(160f, 32f));
+            AnchorTopRight((RectTransform)_tierText.transform, new Vector2(-24f, -TierTopOffset), new Vector2(160f, 32f));
 
             // Всё остальное (Монеты, Ключи, слоты билда, вес) — притушается при примеривании.
             var dimHost = HudUiPrimitives.CreateRect(parent, "DimmableGroup");
@@ -339,18 +398,6 @@ namespace Burmalda.DebugVisuals.HudDesign
             echoLabelRect.offsetMax = Vector2.zero;
 
             _bossRoomRoot.SetActive(false);
-        }
-
-        // Временная кнопка ТОЛЬКО для скриншотов на ревью (issue: "не пуш и не коммить до OK, жду скриншоты состояний 1-4") — не часть финального UI, обсудить перед мержем.
-        private void BuildBossRoomPreviewToggle(Transform parent)
-        {
-            var button = HudUiPrimitives.CreateSecondaryButton(parent, "Preview Boss Room", () => _bossRoomRoot.SetActive(!_bossRoomRoot.activeSelf));
-            var rect = (RectTransform)button.transform;
-            rect.anchorMin = new Vector2(0.5f, 1f);
-            rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.sizeDelta = new Vector2(260f, 48f);
-            rect.anchoredPosition = new Vector2(0f, -420f); // ниже слотов билда/веса — не перекрывать (см. BuildNormalHud)
         }
 
         private static void AnchorTopLeft(RectTransform rect, Vector2 topLeftOffset, Vector2 size)

@@ -20,7 +20,22 @@ namespace Burmalda.DebugVisuals
     {
         None,
         Fresh,
+
+        /// <summary>
+        /// Задача «разрушение плиты» (2026-09-01): <see cref="TileArtKindResolver"/>
+        /// больше НЕ возвращает это значение (см. её doc-комментарий) —
+        /// распад теперь непрерывный оверлей трещин
+        /// (<see cref="TileArtCatalog.CrackMaskTexture"/>), не дискретная
+        /// смена <see cref="TileArtKind"/>. Значение и текстура
+        /// <c>tile-half-decayed.png</c> оставлены — она служит одним из
+        /// двух ИСХОДНИКОВ для генерации маски трещин, слот в
+        /// <see cref="TileArtCatalog.Get"/> тоже оставлен (на случай, если
+        /// понадобится показать текстуру как есть где-то ещё), просто путь
+        /// от <see cref="TileVisualState"/> до неё через резолвер закрыт.
+        /// </summary>
         HalfDecayed,
+
+        /// <summary>Тот же статус, что <see cref="HalfDecayed"/> — второй источник маски трещин (<c>tile-about-to-decay.png</c>).</summary>
         AboutToDecay,
         Destroyed,
         Start,
@@ -46,6 +61,27 @@ namespace Burmalda.DebugVisuals
         /// <see cref="TileArtKindResolver"/>/<see cref="TileDebugColor.TriggerSignatureColor"/>).
         /// Заменяет прежние раздельные ExplosiveTrigger/TimedTrapTrigger.
         /// </summary>
-        TriggerSignature
+        TriggerSignature,
+
+        /// <summary>Задача «тёплый набор плит»: плита, на которой стоит игрок — раньше белый цветной фолбэк, теперь <c>tile-current-position.png</c>.</summary>
+        CurrentPosition,
+
+        /// <summary>Задача «тёплый набор плит»: источник Кристаллов Маны — раньше только цвет (<see cref="TileDebugColor.ManaSourceColor"/>), теперь <c>tile-mana-source.png</c>.</summary>
+        ManaSource,
+
+        /// <summary>Задача «тёплый набор плит»: источник Ключей — раньше только цвет, теперь <c>tile-key-source.png</c>.</summary>
+        KeySource,
+
+        /// <summary>Задача «тёплый набор плит»: рычаг — раньше только цвет, теперь <c>tile-lever.png</c>.</summary>
+        Lever,
+
+        /// <summary>Задача «тёплый набор плит»: закрытые ворота — раньше только цвет (прежний <c>tile-gate-closed.png</c> оказался непригоден, см. историю <see cref="TileArtKindResolver"/>), теперь настоящая плита пола.</summary>
+        GateClosed,
+
+        /// <summary>Открытые ворота — <c>tile-gate-open.png</c>, собран владельцем из второго варианта решётки (рама сохранена, прутья убраны).</summary>
+        GateOpen,
+
+        /// <summary>Алтарь (<c>Core.Tile.IsAltar</c>) — <c>tile-altar.png</c>.</summary>
+        Altar
     }
 }

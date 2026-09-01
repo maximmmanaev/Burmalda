@@ -43,12 +43,15 @@ namespace Burmalda.DebugVisuals
     public sealed class EconomyDebugPanel : MonoBehaviour
     {
         private const float PanelWidth = 460f;
-        private const float Margin = 24f;
+        // Margin/ToggleButtonSize/TopOffset — из DebugPanelLayout (единый
+        // владелец раскладки отладочных кнопок, задача «рычаг и ворота
+        // невидимы, HUD накладывается сам на себя»): раньше TopOffset
+        // считался по локальной догадке о размере RestartButton — теперь
+        // читает его реальный размер из общего файла.
+        private const float Margin = DebugPanelLayout.Margin;
         private const float RowHeight = 110f;
-        private const float ToggleButtonSize = 72f;
-        // RestartButton — 220×90, тот же угол (1,1), офсет (-Margin,-Margin).
-        private const float RestartButtonHeight = 90f;
-        private const float TopOffset = Margin + RestartButtonHeight + Margin;
+        private const float ToggleButtonSize = DebugPanelLayout.EcoButtonSize;
+        private const float TopOffset = DebugPanelLayout.EcoTopOffset;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()

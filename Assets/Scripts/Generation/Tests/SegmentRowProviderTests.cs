@@ -29,12 +29,20 @@ namespace Burmalda.Generation.Tests
         private static SegmentSelector SingleTemplateSelector(SegmentTemplate template, int seed = 1) =>
             new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(seed));
 
+        // Все шаблоны в этом файле — tier 1 (единственный кандидат в
+        // каталоге-заглушке SingleTemplateSelector). maxDifficultyForRow
+        // передаётся сюда как "_ => 1" (совпадает с тиром шаблона) — с
+        // задачи «партии 1 и 2 + правила отбора» SegmentSelector фильтрует
+        // ОКНОМ вокруг цели (по умолчанию [цель, цель+1]), не "<= цель":
+        // "_ => 5" (прежнее значение, тест сам по себе к числу 5 не
+        // привязан) больше не включал бы tier-1 в окно [5,6].
+
         [Test]
         public void Constructor_CoversRowsAheadOfPlayerImmediately()
         {
             var (grid, trail) = CreateTrail();
             var template = new SegmentTemplate("open-5", 1, SegmentRewardTag.Coins, OpenRows(5));
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             // 5-рядные шаблоны, старт row=0 => появляется минимум до row 8 (RowsAheadOfPlayer) включительно.
             Assert.IsTrue(grid.TryGetTile(new GridCoordinate(8, 0), out _));
@@ -47,7 +55,7 @@ namespace Burmalda.Generation.Tests
             var tiles = OpenRows(5);
             tiles[2, 1] = SegmentTileType.Blocked; // локально (2,1) -> глобально (baseRow=1) + 2 = row 3
             var template = new SegmentTemplate("with-block", 1, SegmentRewardTag.Coins, tiles);
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(3, 1)).IsBlocked);
             Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(3, 0)).IsBlocked);
@@ -61,7 +69,7 @@ namespace Burmalda.Generation.Tests
             tiles[1, 2] = SegmentTileType.ExplosiveTrigger; // baseRow=1 => глобально row 2
 
             var template = new SegmentTemplate("with-trigger", 1, SegmentRewardTag.Coins, tiles);
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             var triggerTile = grid.GetOrCreateTile(new GridCoordinate(2, 2));
             Assert.AreEqual(new GridCoordinate(3, 2), triggerTile.ExplosiveTrapTarget);
@@ -75,7 +83,7 @@ namespace Burmalda.Generation.Tests
             tiles[1, 2] = SegmentTileType.TimedTrapBladeTrigger;
 
             var template = new SegmentTemplate("with-timed", 1, SegmentRewardTag.Coins, tiles);
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             var triggerTile = grid.GetOrCreateTile(new GridCoordinate(2, 2));
             Assert.AreEqual(new GridCoordinate(3, 2), triggerTile.TimedTrapTarget);
@@ -90,7 +98,7 @@ namespace Burmalda.Generation.Tests
             tiles[1, 2] = SegmentTileType.ManaSource;
 
             var template = new SegmentTemplate("with-mana", 1, SegmentRewardTag.Mana, tiles);
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsManaSource);
             Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsKeySource);
@@ -104,7 +112,7 @@ namespace Burmalda.Generation.Tests
             tiles[1, 2] = SegmentTileType.KeySource;
 
             var template = new SegmentTemplate("with-key", 1, SegmentRewardTag.Keys, tiles);
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsKeySource);
             Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsManaSource);
@@ -118,7 +126,7 @@ namespace Burmalda.Generation.Tests
             tiles[1, 2] = SegmentTileType.Altar;
 
             var template = new SegmentTemplate("with-altar", 1, SegmentRewardTag.Coins, tiles);
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsAltar);
         }
@@ -131,7 +139,7 @@ namespace Burmalda.Generation.Tests
             tiles[1, 2] = SegmentTileType.Boss;
 
             var template = new SegmentTemplate("with-boss", 1, SegmentRewardTag.Coins, tiles);
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsBoss);
         }
@@ -146,7 +154,7 @@ namespace Burmalda.Generation.Tests
             tiles[2, 1] = SegmentTileType.LeverGate; // -> row 3, col 1
 
             var template = new SegmentTemplate("with-lever", 1, SegmentRewardTag.Artifact, tiles);
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             var lever = grid.GetOrCreateTile(new GridCoordinate(2, 0));
             Assert.IsTrue(lever.IsLever);
@@ -163,7 +171,7 @@ namespace Burmalda.Generation.Tests
         {
             var (grid, trail) = CreateTrail();
             var template = new SegmentTemplate("open-8", 1, SegmentRewardTag.Coins, OpenRows(8));
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             provider.EnsureCoveredThrough(9); // запрос на 9, но шаблон занимает по 8 рядов — покрытие прыгнет минимум до row 8
 
@@ -177,7 +185,7 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("wrong-width", 1, SegmentRewardTag.Coins, OpenRows(5, width: 3));
 
             Assert.Throws<InvalidOperationException>(() =>
-                new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5));
+                new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1));
         }
 
         [Test]
@@ -185,7 +193,7 @@ namespace Burmalda.Generation.Tests
         {
             var (grid, trail) = CreateTrail();
             var template = new SegmentTemplate("open-5", 1, SegmentRewardTag.Coins, OpenRows(5));
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             for (var row = 1; row <= 6; row++)
                 trail.TryAdvanceTo(new GridCoordinate(row, 2));
@@ -199,7 +207,7 @@ namespace Burmalda.Generation.Tests
         {
             var (grid, trail) = CreateTrail();
             var template = new SegmentTemplate("open-5", 1, SegmentRewardTag.Coins, OpenRows(5));
-            var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
             var coveredBefore = grid.TryGetTile(new GridCoordinate(8, 0), out _); // покрыто ещё в конструкторе (rows 1..10)
             provider.Dispose();
 
@@ -224,7 +232,7 @@ namespace Burmalda.Generation.Tests
             var tiles = OpenRows(5);
             for (var c = 0; c < Width; c++) tiles[0, c] = SegmentTileType.Blocked;
             var template = new SegmentTemplate("blocked-local-row0", 1, SegmentRewardTag.Coins, tiles);
-            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 5);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
             Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(0, 2)).IsBlocked, "стартовый ряд должен оставаться безопасным (#9)");
             Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(1, 2)).IsBlocked, "локальный ряд 0 шаблона применяется к глобальному ряду 1, не 0");

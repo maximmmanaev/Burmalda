@@ -297,6 +297,72 @@ namespace Burmalda.Core.Tests
             Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap); // не Pit — полоса нулевой ширины
         }
 
+        // Найдено на реальном билде (2026-09-01, Ярус 3 живого забега):
+        // необработанный InvalidOperationException в рантайме — триггер
+        // (Row=1) целился в Row=2, а Row=2 уже был заявлен сегментной
+        // генерацией и получил от неё ManaSource/KeySource. Резервация
+        // (_reservedTrapTargets) защищает только от собственного ролла
+        // ЭТОГО генератора — не от содержимого, которое положит туда
+        // сегмент. Три теста ниже — по одному на тип триггера (см.
+        // CanReserveTarget в генераторе).
+        [Test]
+        public void TileMaterialized_ExplosiveTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
+        {
+            var grid = new TunnelGrid(5);
+            grid.ClaimRow(2); // ряд цели уже заявлен сегментной генерацией — как в баге на устройстве
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold, 0f));
+
+            var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+            Assert.IsFalse(trigger.ExplosiveTrapTarget.HasValue, "Триггер не должен был поставиться — цель на уже заявленном ряду.");
+            Assert.IsFalse(trigger.IsBlocked);
+            Assert.IsFalse(trigger.LethalTrap.HasValue);
+
+            // Заявленный ряд этот генератор не трогает вовсе (см. IsRowClaimed
+            // выше в OnTileMaterialized) — но важно, что и РЕЗЕРВАЦИЯ не
+            // висит: следующая НЕЗАЯВЛЕННАЯ плита тратит второе значение
+            // очереди как обычная, не "снятие резервации" без последствий.
+            var otherTile = grid.GetOrCreateTile(new GridCoordinate(3, 0));
+            Assert.IsTrue(otherTile.IsBlocked);
+        }
+
+        [Test]
+        public void TileMaterialized_TimedTrapArrowTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
+        {
+            var grid = new TunnelGrid(5);
+            grid.ClaimRow(2);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.ExplosiveTriggerThreshold));
+
+            var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+
+            Assert.IsFalse(trigger.TimedTrapTarget.HasValue, "Триггер не должен был поставиться — цель на уже заявленном ряду.");
+        }
+
+        [Test]
+        public void TileMaterialized_TimedTrapBladeTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
+        {
+            var grid = new TunnelGrid(5);
+            grid.ClaimRow(2);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.TimedTrapArrowThreshold));
+
+            var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+
+            Assert.IsFalse(trigger.TimedTrapTarget.HasValue, "Триггер не должен был поставиться — цель на уже заявленном ряду.");
+        }
+
+        [Test]
+        public void TileMaterialized_ExplosiveTrigger_TargetRowNotClaimed_StillPlacesTriggerNormally()
+        {
+            // Контрольный тест — фикс не должен был сломать обычный случай
+            // (уже покрыт TileMaterialized_RollAtLavaThreshold_MarksExplosiveTrapTrigger
+            // выше, но явно проверяет именно CanReserveTarget=true ветку).
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold));
+
+            var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+
+            Assert.AreEqual(new GridCoordinate(2, 0), trigger.ExplosiveTrapTarget);
+        }
+
         [Test]
         public void Dispose_StopsReactingToFurtherMaterializedTiles()
         {

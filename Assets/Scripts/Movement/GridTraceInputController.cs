@@ -90,6 +90,20 @@ namespace Burmalda.Movement
         /// </summary>
         public GridCoordinate? PreviewTarget { get; private set; }
 
+        /// <summary>
+        /// Задача «раскрытие опасности при примеривании»: соседняя плита под
+        /// пальцем прямо сейчас, БЕЗ проверки <see cref="GridTraceTrail.CanAdvanceTo"/>
+        /// (в отличие от <see cref="PreviewTarget"/>). Нужна отдельно —
+        /// смертельная ловушка (<c>Core.Tile.LethalTrap</c>) всегда даёт
+        /// <c>CanAdvanceTo</c> false (шагнуть на неё нельзя, в этом и суть),
+        /// значит <see cref="PreviewTarget"/> для неё никогда не
+        /// установится — но игрок обязан мочь рассмотреть плиту, НЕ
+        /// наступая на неё, иначе разведать скрытую опасность физически
+        /// невозможно ни при каких обстоятельствах. Публично — для
+        /// <c>Movement.TrapRevealSystem</c>.
+        /// </summary>
+        public GridCoordinate? ExamineTarget { get; private set; }
+
         /// <summary>Длительность анимации шага/блокировки ввода после отпускания, секунды (0.15–0.5, PRD 4.1 п.3) — публично для чтения debug-визуалом/HUD.</summary>
         public float StepDurationSeconds => _stepDurationSeconds;
 
@@ -166,6 +180,7 @@ namespace Burmalda.Movement
             var start = new GridCoordinate(0, _width / 2);
             _trail = new GridTraceTrail(_grid, start);
             PreviewTarget = null;
+            ExamineTarget = null;
             _lockedUntilTime = 0f;
             IsAlive = true;
 
@@ -251,10 +266,13 @@ namespace Burmalda.Movement
             {
                 RunConfirmed?.Invoke();
                 PreviewTarget = null;
+                ExamineTarget = null;
                 return;
             }
 
             PreviewTarget = target.HasValue && _trail.CanAdvanceTo(target.Value) ? target : (GridCoordinate?)null;
+            // ExamineTarget — только соседство, без CanAdvanceTo (см. её doc-комментарий).
+            ExamineTarget = target.HasValue && _trail.CurrentPosition.IsAdjacentTo(target.Value) ? target : (GridCoordinate?)null;
         }
 
         private void HandlePointerReleased()
@@ -269,6 +287,7 @@ namespace Burmalda.Movement
             // следующая попытка разрешена немедленно.
 
             PreviewTarget = null;
+            ExamineTarget = null;
         }
 
         /// <summary>

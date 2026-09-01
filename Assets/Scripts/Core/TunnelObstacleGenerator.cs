@@ -142,22 +142,60 @@ namespace Burmalda.Core
             else if (roll < ExplosiveTriggerThreshold)
             {
                 var target = NextRowTarget(tile.Coordinate);
-                tile.MarkExplosiveTrapTrigger(target);
-                _reservedTrapTargets.Add(target);
+                if (CanReserveTarget(target))
+                {
+                    tile.MarkExplosiveTrapTrigger(target);
+                    _reservedTrapTargets.Add(target);
+                }
             }
             else if (roll < TimedTrapArrowThreshold)
             {
                 var target = NextRowTarget(tile.Coordinate);
-                tile.MarkTimedTrapTrigger(target, TimedTrapType.Arrow);
-                _reservedTrapTargets.Add(target);
+                if (CanReserveTarget(target))
+                {
+                    tile.MarkTimedTrapTrigger(target, TimedTrapType.Arrow);
+                    _reservedTrapTargets.Add(target);
+                }
             }
             else if (roll < TimedTrapBladeThreshold)
             {
                 var target = NextRowTarget(tile.Coordinate);
-                tile.MarkTimedTrapTrigger(target, TimedTrapType.Blade);
-                _reservedTrapTargets.Add(target);
+                if (CanReserveTarget(target))
+                {
+                    tile.MarkTimedTrapTrigger(target, TimedTrapType.Blade);
+                    _reservedTrapTargets.Add(target);
+                }
             }
+            // Иначе — ни один порог не пройден, плита остаётся обычной
+            // (тот же фолбэк, что и ниже у CanReserveTarget=false): не
+            // выдуманное состояние, роллы уже сейчас могут не набрать до
+            // TimedTrapBladeThreshold.
         }
+
+        /// <summary>
+        /// Найдено на реальном билде (2026-09-01, не гипотеза — воспроизвелось
+        /// на Ярусе 3 живого забега, повторяющийся необработанный
+        /// <c>InvalidOperationException</c> в логе устройства): цель триггера
+        /// — ВСЕГДА <c>Row+1</c> (см. <see cref="NextRowTarget"/>). Если этот
+        /// ряд уже заявлен сегментной генерацией
+        /// (<c>Generation.SegmentRowProvider.ClaimRow</c> вызывается ДО
+        /// материализации её плит, см. её doc-комментарий), содержимое этой
+        /// плиты решает сегмент, не этот генератор — и оно может оказаться
+        /// источником Маны/Ключа. Раньше это не проверялось: резервация
+        /// (<see cref="_reservedTrapTargets"/>) защищает только от
+        /// СОБСТВЕННОГО ролла этого генератора на той же плите, а не от
+        /// содержимого, которое туда положит сегмент. Конфликт всплывал не
+        /// на этапе генерации (тихо), а в рантайме — когда игрок реально
+        /// доходил до триггера, <see cref="Movement.ExplosiveTrapArmingSystem"/>/
+        /// <c>TimedTrapSystem</c> вызывали <c>Tile.MarkLethalTrap</c> на уже
+        /// занятую источником плиту, и <c>Tile.GuardAgainstConflictingRole</c>
+        /// (задача «двойные флаги на плитах») бросал исключение прямо во
+        /// время хода игрока. Безопасный фолбэк — не ставить триггер вовсе
+        /// (плита остаётся обычной), тот же принцип, что уже применяется к
+        /// зарезервированным целям (см. класс-докстринг про "плита
+        /// зарезервирована... остаётся обычной").
+        /// </summary>
+        private bool CanReserveTarget(GridCoordinate target) => !_grid.IsRowClaimed(target.Row);
 
         // Цель — плита сразу впереди по глубине тоннеля, тот же столбец
         // (issues #10/#45: "запускается с плиты-триггера" — ближайшая по
