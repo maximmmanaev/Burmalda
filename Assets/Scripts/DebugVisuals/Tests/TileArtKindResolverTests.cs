@@ -158,28 +158,36 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
 
+        // Задача «разрушение плиты»: TileArtKindResolver теперь всегда
+        // отдаёт Fresh независимо от прогресса распада — сам распад
+        // передаётся непрерывным оверлеем трещин (TunnelDebugVisual), не
+        // сменой TileArtKind (см. doc-комментарий ResolveDecayGradient).
+        // Эти три теста раньше проверяли переключение на
+        // HalfDecayed/AboutToDecay — переписаны на "остаётся Fresh", не
+        // удалены, чтобы регрессия ("кто-то вернул дискретные стадии")
+        // тоже падала явно.
         [Test]
-        public void Resolve_RegularTile_HalfDecayProgress_ReturnsHalfDecayed()
+        public void Resolve_RegularTile_HalfDecayProgress_StaysFresh_OverlayCarriesProgressNow()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.5f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
 
-            Assert.AreEqual(TileArtKind.HalfDecayed, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
-        public void Resolve_RegularTile_FullDecayProgress_ReturnsAboutToDecay()
+        public void Resolve_RegularTile_FullDecayProgress_StaysFresh_OverlayCarriesProgressNow()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 1f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
 
-            Assert.AreEqual(TileArtKind.AboutToDecay, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
-        public void Resolve_ProgressAboveOne_ClampsToAboutToDecay()
+        public void Resolve_ProgressAboveOne_StaysFresh_OverlayCarriesProgressNow()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 5f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
 
-            Assert.AreEqual(TileArtKind.AboutToDecay, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
 
         [Test]

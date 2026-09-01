@@ -29,3 +29,4 @@ MonoBehaviour:
   _gateClosed: {fileID: 2800000, guid: 991073f8ac8f841d0b15d0f4431a53ce, type: 3}
   _gateOpen: {fileID: 2800000, guid: 9103c0f21efca40468ca34d5136fdd3f, type: 3}
   _altar: {fileID: 2800000, guid: 5b589a453d0674628925fa0792dc1c8d, type: 3}
+  _crackMask: {fileID: 2800000, guid: 822f16fe9a916403b8f92079b4678c11, type: 3}

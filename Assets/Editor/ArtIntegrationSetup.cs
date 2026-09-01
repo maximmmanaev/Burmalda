@@ -122,7 +122,13 @@ namespace Burmalda.EditorTools
                 lever: LoadTile("tile-lever"),
                 gateClosed: LoadTile("tile-gate-closed"),
                 gateOpen: LoadTile("tile-gate-open"),
-                altar: LoadTile("tile-altar"));
+                altar: LoadTile("tile-altar"),
+                // Задача «разрушение плиты»: производный ассет (не арт
+                // владельца — вычислен из tile-half-decayed.png/
+                // tile-about-to-decay.png относительно tile-fresh.png, см.
+                // TileArtCatalog.CrackMaskTexture), но подключается тем же
+                // путём, что и остальные текстуры плит.
+                crackMask: LoadTile("tile-crack-mask"));
 
             EditorUtility.SetDirty(catalog);
         }

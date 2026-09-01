@@ -45,7 +45,10 @@ namespace Burmalda.DebugVisuals
                 RebuildVisual();
             }
 
-            _visual.Tick();
+            // Задача «разрушение плиты»: Tick() теперь берёт deltaSeconds —
+            // нужен для анимации обвала и фазы визуальной пульсации (см.
+            // TunnelDebugVisual.Tick).
+            _visual.Tick(Time.deltaTime);
         }
 
         private void HandleRunStarted() => RebuildVisual();
