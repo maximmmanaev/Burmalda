@@ -164,6 +164,67 @@ namespace Burmalda.Core.Tests
             Assert.AreEqual(LethalTrapType.Pit, tile.LethalTrap);
         }
 
+        // Владелец, задача «разрушение плиты», продолжение (2026-09-01):
+        // "раздели страж на две фазы... рантайм: переходы состояний
+        // разрешены и идут через явный API, страж к ним не применяется" —
+        // TransitionToLethalTrap сознательно НЕ вызывает
+        // GuardAgainstConflictingRole, в отличие от MarkLethalTrap выше.
+        [Test]
+        public void TransitionToLethalTrap_SetsLethalTrapType()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.TransitionToLethalTrap(LethalTrapType.Explosion);
+
+            Assert.AreEqual(LethalTrapType.Explosion, tile.LethalTrap);
+        }
+
+        [TestCase(nameof(Tile.MarkManaSource))]
+        [TestCase(nameof(Tile.MarkKeySource))]
+        [TestCase(nameof(Tile.MarkBlocked))]
+        [TestCase(nameof(Tile.MarkAltar))]
+        [TestCase(nameof(Tile.MarkBoss))]
+        public void TransitionToLethalTrap_OverAnyOtherExclusiveRole_DoesNotThrow(string markMethodName)
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            switch (markMethodName)
+            {
+                case nameof(Tile.MarkManaSource): tile.MarkManaSource(); break;
+                case nameof(Tile.MarkKeySource): tile.MarkKeySource(); break;
+                case nameof(Tile.MarkBlocked): tile.MarkBlocked(); break;
+                case nameof(Tile.MarkAltar): tile.MarkAltar(); break;
+                case nameof(Tile.MarkBoss): tile.MarkBoss(); break;
+            }
+
+            Assert.DoesNotThrow(() => tile.TransitionToLethalTrap(LethalTrapType.Explosion));
+            Assert.AreEqual(LethalTrapType.Explosion, tile.LethalTrap);
+        }
+
+        [Test]
+        public void TransitionToLethalTrap_DoesNotClearManaSourceFlag()
+        {
+            // Tile.IsManaSource намеренно не сбрасывается (тот же принцип,
+            // что у собранных источников, см. doc-комментарий класса) —
+            // визуальный слой/проходимость решают по LethalTrap, не по этому флагу.
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.MarkManaSource();
+
+            tile.TransitionToLethalTrap(LethalTrapType.Explosion);
+
+            Assert.IsTrue(tile.IsManaSource);
+        }
+
+        [Test]
+        public void MarkLethalTrap_StillGuardsAgainstConflictingRole_UnlikeTransitionToLethalTrap()
+        {
+            // Контрольный тест на РАЗЛИЧИЕ двух методов — генерация (Mark*)
+            // осталась строгой, рантайм (TransitionTo*) — нет.
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.MarkManaSource();
+
+            Assert.Throws<InvalidOperationException>(() => tile.MarkLethalTrap(LethalTrapType.Pit));
+        }
+
         [Test]
         public void NewTile_HasNoExplosiveTrapTarget()
         {

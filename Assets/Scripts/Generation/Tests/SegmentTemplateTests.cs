@@ -124,6 +124,93 @@ namespace Burmalda.Generation.Tests
             Assert.DoesNotThrow(() => new SegmentTemplate("t", 1, SegmentRewardTag.Artifact, tiles));
         }
 
+        // Найдено на реальном билде (2026-09-01, живой забег до Яруса 6):
+        // необработанный InvalidOperationException — триггер взрыва целился
+        // в клетку, которая в том же шаблоне уже размечена как одна из этих
+        // структурных ролей. ManaSource/KeySource сознательно НЕ в этом
+        // списке — см. тест ниже.
+        [TestCase(SegmentTileType.Blocked)]
+        [TestCase(SegmentTileType.Pit)]
+        [TestCase(SegmentTileType.Lava)]
+        [TestCase(SegmentTileType.Altar)]
+        [TestCase(SegmentTileType.Boss)]
+        public void Constructor_ExplosiveTriggerTargetsConflictingRole_Throws(SegmentTileType targetType)
+        {
+            var tiles = OpenRows(5);
+            tiles[2, 0] = SegmentTileType.ExplosiveTrigger;
+            tiles[3, 0] = targetType; // (row+1, тот же столбец) — цель триггера
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+            StringAssert.Contains("целится", ex.Message);
+        }
+
+        // Владелец, продолжение той же задачи (2026-09-01): "триггер должен
+        // уметь уничтожать ключ под собой" — шаблоны «выкуп»/«последний-
+        // рывок» (Generation.SegmentTemplateCatalog) намеренно ставят
+        // ExplosiveTrigger над ManaSource/KeySource. Core.Tile.
+        // TransitionToLethalTrap (рантайм-переход) обслуживает это без
+        // стража — эта проверка (этап авторинга) не должна мешать.
+        [TestCase(SegmentTileType.ManaSource)]
+        [TestCase(SegmentTileType.KeySource)]
+        public void Constructor_ExplosiveTriggerTargetsManaOrKeySource_DoesNotThrow(SegmentTileType targetType)
+        {
+            var tiles = OpenRows(5);
+            tiles[2, 0] = SegmentTileType.ExplosiveTrigger;
+            tiles[3, 0] = targetType;
+
+            Assert.DoesNotThrow(() => new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+        }
+
+        // Намеренно НЕ Throws: Movement.TimedTrapSystem активирует цель через
+        // Tile.ArmTimedTrap, который НЕ вызывает GuardAgainstConflictingRole
+        // вообще (см. её doc-комментарий в Tile.cs) — этот класс крэша для
+        // Arrow/Blade физически невозможен, в отличие от ExplosiveTrigger
+        // выше. Проверяет именно СУЖЕНИЕ ValidateTriggerTargetsDoNotConflict
+        // до ExplosiveTrigger — не общий случай "все триггеры безопасны".
+        [TestCase(SegmentTileType.TimedTrapArrowTrigger, SegmentTileType.ManaSource)]
+        [TestCase(SegmentTileType.TimedTrapArrowTrigger, SegmentTileType.KeySource)]
+        [TestCase(SegmentTileType.TimedTrapBladeTrigger, SegmentTileType.Pit)]
+        [TestCase(SegmentTileType.TimedTrapBladeTrigger, SegmentTileType.Blocked)]
+        public void Constructor_TimedTrapTriggerTargetsConflictingRole_DoesNotThrow(SegmentTileType triggerType, SegmentTileType targetType)
+        {
+            var tiles = OpenRows(5);
+            tiles[2, 0] = triggerType;
+            tiles[3, 0] = targetType;
+
+            Assert.DoesNotThrow(() => new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+        }
+
+        [Test]
+        public void Constructor_TriggerTargetsLeverGate_Throws()
+        {
+            // LeverGate требует Lever где-то в шаблоне (иначе своя, другая
+            // валидация упадёт первой) — Lever ставим отдельно от триггера/цели.
+            var tiles = OpenRows(5);
+            tiles[0, 1] = SegmentTileType.Lever;
+            tiles[2, 0] = SegmentTileType.ExplosiveTrigger;
+            tiles[3, 0] = SegmentTileType.LeverGate;
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+            StringAssert.Contains("целится", ex.Message);
+        }
+
+        [TestCase(SegmentTileType.Open)]
+        [TestCase(SegmentTileType.ExplosiveTrigger)]
+        [TestCase(SegmentTileType.TimedTrapArrowTrigger)]
+        [TestCase(SegmentTileType.TimedTrapBladeTrigger)]
+        public void Constructor_TriggerTargetsNonExclusiveRole_DoesNotThrow(SegmentTileType targetType)
+        {
+            // Цель — обычный пол или сама тоже триггер (не гейтится этим
+            // инвариантом, см. IsExclusiveRole) — не должно падать.
+            var tiles = OpenRows(5);
+            tiles[2, 0] = SegmentTileType.ExplosiveTrigger;
+            tiles[3, 0] = targetType;
+
+            Assert.DoesNotThrow(() => new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+        }
+
         [Test]
         public void Constructor_MoreThanOneLever_Throws()
         {

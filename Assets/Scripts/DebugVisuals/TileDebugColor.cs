@@ -204,15 +204,22 @@ namespace Burmalda.DebugVisuals
             // — единственный LethalTrapType, для которого Resolve() всё ещё
             // возвращает его собственный цвет напрямую.
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
+            // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
+            // сработавший взрыв (Tile.TransitionToLethalTrap) — угроза
+            // ПРЯМО СЕЙЧАС, тот же принцип, что ActiveTimedTrap ниже (см.
+            // Core.TrapSignature) — виден ВСЕГДА, без гейта
+            // IsDangerSignatureRevealed. Реюз TimedTrapActiveColor — тот же
+            // смысл "активная угроза", отдельного цвета под "уже взорвалось"
+            // придумывать не в скоупе агента.
+            if (state.LethalTrap == LethalTrapType.Explosion) return TimedTrapActiveColor;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2
-            // заменяется): яма и активированный взрыв — скрыты (см.
-            // Core.TrapSignature) — ОДИН общий цвет на оба типа, не
-            // выдающий, какой именно, И только ПОСЛЕ того, как игрок навёл
-            // на плиту (state.IsDangerSignatureRevealed, см.
+            // заменяется): яма — единственный оставшийся скрытый тип (см.
+            // Core.TrapSignature), только ПОСЛЕ того, как игрок навёл на
+            // плиту (state.IsDangerSignatureRevealed, см.
             // Movement.TrapRevealSystem). Пока не раскрыта — плита
             // неотличима от обычного пола, ветка ничего не возвращает и
             // проваливается ниже, до градиента распада в самом конце.
-            if ((state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) && state.IsDangerSignatureRevealed)
+            if (state.LethalTrap == LethalTrapType.Pit && state.IsDangerSignatureRevealed)
                 return HiddenTrapSignatureColor;
             if (state.ActiveTimedTrap.HasValue) return TimedTrapActiveColor;
             // Единая сигнатура для обоих видов триггера (см. TriggerSignatureColor) —

@@ -89,14 +89,28 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileArtKind.Lava, TileArtKindResolver.Resolve(state));
         }
 
-        // Issue #163: сигнатура не должна различать яму и взрыв — иначе выдаёт точный тип.
+        // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
+        // сработавший взрыв — угроза прямо сейчас, БОЛЬШЕ НЕ прячется за
+        // сигнатурой ямы (см. Core.TrapSignature) — реюзит TimedTrapActive,
+        // видим ВСЕГДА, даже без раскрытия.
         [Test]
-        public void Resolve_PitAndExplosion_ProduceIdenticalKind()
+        public void Resolve_Explosion_AlwaysReturnsTimedTrapActive_RegardlessOfRevealed()
+        {
+            var revealed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
+            var notRevealed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
+
+            Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(revealed));
+            Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(notRevealed));
+        }
+
+        // Pit и Explosion теперь РАЗНЫЕ категории — Pit прячется, Explosion нет.
+        [Test]
+        public void Resolve_PitRevealed_AndExplosion_ProduceDifferentKinds()
         {
             var pitState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Pit, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
-            var explosionState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
+            var explosionState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
 
-            Assert.AreEqual(TileArtKindResolver.Resolve(pitState), TileArtKindResolver.Resolve(explosionState));
+            Assert.AreNotEqual(TileArtKindResolver.Resolve(pitState), TileArtKindResolver.Resolve(explosionState));
         }
 
         [Test]
