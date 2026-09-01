@@ -72,6 +72,45 @@ namespace Burmalda.Movement.Tests
             Assert.AreEqual(LethalTrapType.Explosion, grid.GetOrCreateTile(target).LethalTrap);
         }
 
+        // Владелец, задача «разрушение плиты», продолжение (2026-09-01):
+        // "триггер должен уметь уничтожать ключ под собой" — шаблоны
+        // «выкуп»/«последний-рывок» (Generation.SegmentTemplateCatalog)
+        // намеренно ставят взрывной триггер над ManaSource/KeySource.
+        // Раньше это бросало InvalidOperationException в рантайме
+        // (Tile.MarkLethalTrap → GuardAgainstConflictingRole) — найдено на
+        // реальном билде. Теперь Tile.TransitionToLethalTrap (рантайм-API,
+        // без стража) должен спокойно превратить награду в ловушку.
+        [Test]
+        public void PositionChanged_TargetAlreadyManaSource_TransitionsToExplosion_DoesNotThrow()
+        {
+            var (grid, trail) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkExplosiveTrapTrigger(target);
+            grid.GetOrCreateTile(target).MarkManaSource();
+            using var arming = new ExplosiveTrapArmingSystem(grid, trail);
+
+            Assert.DoesNotThrow(() => trail.TryAdvanceTo(trigger));
+
+            var targetTile = grid.GetOrCreateTile(target);
+            Assert.AreEqual(LethalTrapType.Explosion, targetTile.LethalTrap);
+            Assert.IsTrue(targetTile.IsManaSource, "Флаг IsManaSource намеренно не сбрасывается (тот же принцип, что и у собранных источников) — визуальный слой/проходимость решают по LethalTrap, не по этому флагу.");
+        }
+
+        [Test]
+        public void PositionChanged_TargetAlreadyKeySource_TransitionsToExplosion_DoesNotThrow()
+        {
+            var (grid, trail) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkExplosiveTrapTrigger(target);
+            grid.GetOrCreateTile(target).MarkKeySource();
+            using var arming = new ExplosiveTrapArmingSystem(grid, trail);
+
+            Assert.DoesNotThrow(() => trail.TryAdvanceTo(trigger));
+            Assert.AreEqual(LethalTrapType.Explosion, grid.GetOrCreateTile(target).LethalTrap);
+        }
+
         [Test]
         public void Dispose_StopsReactingToFurtherPositionChanges()
         {

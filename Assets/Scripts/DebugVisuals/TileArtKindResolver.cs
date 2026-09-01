@@ -33,15 +33,24 @@ namespace Burmalda.DebugVisuals
             if (state.IsStart) return TileArtKind.Start;
             if (state.IsBlocked) return TileArtKind.Blocked;
             if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
+            // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
+            // сработавший взрыв (Tile.TransitionToLethalTrap) — угроза,
+            // происходящая ПРЯМО СЕЙЧАС (тот же принцип, что ActiveTimedTrap
+            // ниже, см. Core.TrapSignature) — видим ВСЕГДА, без гейта
+            // IsDangerSignatureRevealed (в отличие от ямы ниже). Реюз
+            // TileArtKind.TimedTrapActive — тот же смысл "активная угроза
+            // прямо сейчас", отдельной текстуры под "уже взорвалось" в
+            // пакете нет и придумывать её не в скоупе агента.
+            if (state.LethalTrap == LethalTrapType.Explosion) return TileArtKind.TimedTrapActive;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2
-            // заменяется): яма и активированный взрыв — ОДНА категория, не
-            // выдающая точный тип (см. Core.TrapSignature) — общий
+            // заменяется): яма — единственный оставшийся тип, не выдающий
+            // точный тип до примеривания (см. Core.TrapSignature) — общий
             // tile-hidden-trap-signature.png, но только ПОСЛЕ того, как
             // игрок навёл на плиту (state.IsDangerSignatureRevealed, см.
             // Movement.TrapRevealSystem). Пока не раскрыта — плита
             // неотличима от обычного пола, ветка ничего не возвращает и
             // проваливается ниже, до градиента распада в конце.
-            if ((state.LethalTrap == LethalTrapType.Pit || state.LethalTrap == LethalTrapType.Explosion) && state.IsDangerSignatureRevealed)
+            if (state.LethalTrap == LethalTrapType.Pit && state.IsDangerSignatureRevealed)
                 return TileArtKind.HiddenTrapSignature;
             if (state.ActiveTimedTrap.HasValue) return TileArtKind.TimedTrapActive;
             // Единая сигнатура триггера (задача «сделать тоннель играбельным»,

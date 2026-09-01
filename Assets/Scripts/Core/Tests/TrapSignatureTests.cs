@@ -16,13 +16,17 @@ namespace Burmalda.Core.Tests
             Assert.IsTrue(TrapSignature.IsHiddenLethalTrap(tile));
         }
 
+        // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
+        // сработавший взрыв — угроза прямо сейчас, скрывать нельзя, тот же
+        // принцип, что активная ловушка с таймингом (см. doc-комментарий
+        // класса) — БОЛЬШЕ НЕ скрытая ловушка.
         [Test]
-        public void Explosion_IsHiddenLethalTrap()
+        public void Explosion_IsNotHiddenLethalTrap()
         {
             var tile = CreateTile();
-            tile.MarkLethalTrap(LethalTrapType.Explosion);
+            tile.TransitionToLethalTrap(LethalTrapType.Explosion);
 
-            Assert.IsTrue(TrapSignature.IsHiddenLethalTrap(tile));
+            Assert.IsFalse(TrapSignature.IsHiddenLethalTrap(tile));
         }
 
         // PRD v8 §4.2: "заблокированные плиты и лава остаются видимыми как раньше".

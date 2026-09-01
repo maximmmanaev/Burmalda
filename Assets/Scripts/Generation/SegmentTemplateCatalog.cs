@@ -138,10 +138,19 @@ namespace Burmalda.Generation
                 ".....",
             })),
 
+            // Найдено на реальном билде (2026-09-01, живой забег до Яруса 6):
+            // 'e' на (1,1) целился в (2,1)='l' — Tile.MarkLethalTrap(Explosion)
+            // поверх уже стоящей Lava бросало InvalidOperationException в
+            // рантайме (Tile.GuardAgainstConflictingRole, docs/wiki/changelog.md,
+            // задача «двойные флаги на плитах»). Минимальный фикс — 'e'
+            // сдвинут на одну клетку вправо (col1→col2, был открытым полом),
+            // теперь целится в (2,2)='.'; Lava/Blade-триггер не тронуты.
+            // ValidateTriggerTargetsDoNotConflict (Generation.SegmentTemplate)
+            // теперь ловит этот класс ошибки на этапе авторинга.
             new SegmentTemplate("испытание", 5, SegmentRewardTag.Artifact, ParseRows(new[]
             {
                 ".....",
-                "#e.a#",
+                "#.ea#",
                 "#l.b#",
                 ".....",
                 ".....",
@@ -212,6 +221,15 @@ namespace Burmalda.Generation
 
             // Тир 2. Две полосы: в левой Мана, но прямо над ней триггер —
             // взять можно, только зайдя сбоку. Правая чистая, но пустая.
+            //
+            // Найдено на реальном билде (2026-09-01, живой забег до Яруса 6):
+            // на первый взгляд похоже на конфликт (Мана прямо под клеткой,
+            // куда бьёт взрыв), но это ТА ЖЕ намеренная механика "триггер
+            // уничтожает награду под собой", что и у «выкуп»/«последний-
+            // рывок» ниже (владелец, прямое подтверждение) — Tile.
+            // TransitionToLethalTrap (рантайм-переход, не MarkLethalTrap)
+            // спокойно превращает Ману в ловушку при срабатывании. Раскладка
+            // НЕ менялась.
             new SegmentTemplate("развилка-цены", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
@@ -435,7 +453,12 @@ namespace Burmalda.Generation
             })),
 
             // Тир 4. Триггер стоит над ключом: прямой путь уничтожает
-            // собственную награду.
+            // собственную награду. Подтверждено владельцем (2026-09-01) как
+            // намеренная механика, не ошибка авторинга — Core.Tile.
+            // TransitionToLethalTrap (рантайм-переход, не MarkLethalTrap)
+            // спокойно превращает KeySource в LethalTrap при срабатывании,
+            // Generation.SegmentTemplate.ValidateTriggerTargetsDoNotConflict
+            // намеренно не проверяет эту пару ролей.
             new SegmentTemplate("выкуп", 4, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
@@ -465,7 +488,9 @@ namespace Burmalda.Generation
                 "..m..",
             })),
 
-            // Тир 5. Два ключа, над каждым триггер, между ними лава.
+            // Тир 5. Два ключа, над каждым триггер, между ними лава. Та же
+            // намеренная механика "триггер уничтожает награду", что у
+            // «выкуп» выше — подтверждено владельцем, см. её комментарий.
             new SegmentTemplate("последний-рывок", 5, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
