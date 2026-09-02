@@ -37,6 +37,18 @@ namespace Burmalda.DebugVisuals
 
         private const float BurstLifetimeSeconds = 0.6f;
 
+        // Issue #218 (найдено на реальном Android-билде, задача «разрушение
+        // плиты», 2026-09-01, зафиксировано отдельно — не чинилось там):
+        // дефолтный материал ParticleSystemRenderer оказался закрашен
+        // ярко-розовым (классический Unity-фолбэк "шейдер не найден" —
+        // ничего в проекте не ссылается на этот дефолтный шейдер напрямую,
+        // агрессивный шейдер-стриппинг вырезает его из билда). Тот же приём
+        // фикса, что уже проверен на устройстве на осколках обвала
+        // (TunnelDebugVisual.SpawnCollapseDebris) — общий материал на
+        // "Sprites/Default" (уже в Always Included Shaders), кэшированный
+        // один раз, не на партикл.
+        private static Material _burstMaterial;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
@@ -103,13 +115,20 @@ namespace Burmalda.DebugVisuals
             shape.shapeType = ParticleSystemShapeType.Sphere;
             shape.radius = 0.05f;
 
-            // Материал НЕ назначается вручную намеренно: ParticleSystemRenderer
-            // сам создаёт дефолтный материал при AddComponent<ParticleSystem>(),
-            // тонировка идёт через main.startColor (vertex color) — без
-            // Shader.Find. Тот же класс бага уже ловили на устройстве
-            // (TunnelDebugVisual, 2026-08-14: шейдер-стриппинг вырезает
-            // явно запрошенные шейдеры, Shader.Find возвращает null) —
-            // здесь его просто негде допустить.
+            // Issue #218: материал теперь назначается явно (см. doc-комментарий
+            // _burstMaterial) — дефолтный материал ParticleSystemRenderer на
+            // устройстве рендерился ярко-розовым из-за шейдер-стриппинга.
+            if (_burstMaterial == null)
+            {
+                var shader = Shader.Find("Sprites/Default");
+                if (shader != null) _burstMaterial = new Material(shader);
+            }
+
+            if (_burstMaterial != null)
+            {
+                var particleRenderer = host.GetComponent<ParticleSystemRenderer>();
+                if (particleRenderer != null) particleRenderer.sharedMaterial = _burstMaterial;
+            }
 
             Destroy(host, BurstLifetimeSeconds + 0.2f);
         }
