@@ -67,6 +67,41 @@ namespace Burmalda.BossRoom.Tests
         }
 
         [Test]
+        public void CollectEcho_MultipliesCurrentMultiplier()
+        {
+            var room = new BossRoom(entryRow: 0, exitRow: 10, waveRowsPerSecond: 1f);
+
+            room.CollectEcho();
+
+            Assert.AreEqual(2f, room.Multiplier.CurrentMultiplier, 1e-5f);
+        }
+
+        // PRD v9 §8.3, таблица "Математика взрыва": порядок имеет значение.
+        [Test]
+        public void CollectEcho_AfterTwoResonances_MatchesPrdWorkedExample_TimesFour()
+        {
+            var room = new BossRoom(entryRow: 0, exitRow: 10, waveRowsPerSecond: 1f);
+
+            room.CollectResonance(); // 1 + 0.5
+            room.CollectResonance(); // + 0.5
+            room.CollectEcho(); // × 2
+
+            Assert.AreEqual(4f, room.Multiplier.CurrentMultiplier, 1e-5f);
+        }
+
+        [Test]
+        public void CollectEcho_BeforeTwoResonances_MatchesPrdWorkedExample_TimesThree()
+        {
+            var room = new BossRoom(entryRow: 0, exitRow: 10, waveRowsPerSecond: 1f);
+
+            room.CollectEcho(); // 1 × 2
+            room.CollectResonance(); // + 0.5
+            room.CollectResonance(); // + 0.5
+
+            Assert.AreEqual(3f, room.Multiplier.CurrentMultiplier, 1e-5f);
+        }
+
+        [Test]
         public void TickRift_VeinSubtype_AddsIncomePerSecond()
         {
             var room = new BossRoom(entryRow: 0, exitRow: 10, waveRowsPerSecond: 1f);

@@ -180,6 +180,27 @@ namespace Burmalda.DebugVisuals
         public static readonly Color AltarColor = new Color(1f, 215f / 255f, 0f);
 
         /// <summary>
+        /// Задача «Комната Босса» (владелец, 2026-09-02): содержимое Комнаты
+        /// (Жила/Резонанс/Эхо, PRD v9 §8.2) — награда, видна всегда, тот же
+        /// принцип, что <see cref="ManaSourceColor"/>/<see cref="KeySourceColor"/>.
+        /// Три РАЗЛИЧИМЫХ цвета в этой группе (не один общий) — вертикальный
+        /// срез должен быть проходим на глаз без Идола: игрок должен видеть
+        /// разницу между "+Мана", "+0.5 к множителю" и "×2 к множителю" на
+        /// полу, не только по числу на HUD. Голубой — самый частый тип
+        /// (Жила), не пересекается ни с одним занятым цветом палитры.
+        /// </summary>
+        public static readonly Color BossRoomVeinColor = new Color(110f / 255f, 190f / 255f, 1f);
+
+        /// <summary>Резонанс — мятно-бирюзовый, см. <see cref="BossRoomVeinColor"/>.</summary>
+        public static readonly Color BossRoomResonanceColor = new Color(60f / 255f, 235f / 255f, 190f / 255f);
+
+        /// <summary>Эхо — самый редкий и самый "заряженный" тип (×2, PRD v9 §8.3), яркая магента, см. <see cref="BossRoomVeinColor"/>.</summary>
+        public static readonly Color BossRoomEchoColor = new Color(1f, 70f / 255f, 235f / 255f);
+
+        /// <summary>Разлом Комнаты — вне скоупа вертикального среза (не генерируется), цвет заведён для полноты enum на случай будущей интеграции.</summary>
+        public static readonly Color BossRoomRiftColor = new Color(190f / 255f, 130f / 255f, 1f);
+
+        /// <summary>
         /// Задача «двойные флаги на плитах» (плейтест владельца: сигнатура
         /// опасности отрисовывается вместо стены, рычаг/Алтарь иногда
         /// непроходимы, сигнатура вместо источника Маны): причина — два
@@ -230,6 +251,7 @@ namespace Burmalda.DebugVisuals
                 return TriggerSignatureColor;
 
             if (state.IsBoss) return BossColor;
+            if (state.BossRoomTile.HasValue) return ResolveBossRoomTileColor(state.BossRoomTile.Value);
             if (state.IsAltar) return AltarColor;
             // Ворота — структурное состояние (задача «рычаг и ворота
             // невидимы»), фиксировано на плите, не связано с распадом,
@@ -260,6 +282,17 @@ namespace Burmalda.DebugVisuals
             // градиента распада — препятствие/ловушка/валюта уже не
             // участвуют в градиенте, т.к. никогда не начинают распад.
             return ResolveDecayGradient(state.DecayProgress01);
+        }
+
+        private static Color ResolveBossRoomTileColor(BossRoomTileKind kind)
+        {
+            switch (kind)
+            {
+                case BossRoomTileKind.Resonance: return BossRoomResonanceColor;
+                case BossRoomTileKind.Echo: return BossRoomEchoColor;
+                case BossRoomTileKind.Rift: return BossRoomRiftColor;
+                default: return BossRoomVeinColor;
+            }
         }
 
         private static Color ResolveDecayGradient(float progress01)

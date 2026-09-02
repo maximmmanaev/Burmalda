@@ -183,8 +183,25 @@ namespace Burmalda.DebugVisuals
 
             if (tile.IsAltar) lines.Add("Алтарь");
             if (tile.IsBoss) lines.Add("Точка Босса");
+            if (tile.BossRoomTile.HasValue) lines.Add($"Комната Босса: {DescribeBossRoomTile(tile.BossRoomTile.Value)}");
 
             return string.Join("\n", lines);
+        }
+
+        // Задача «Комната Босса» (владелец, 2026-09-02): человекочитаемое
+        // описание для отладочного примеривания — содержимое Комнаты видно
+        // всегда (награда, не опасность), нет смысла прятать точный тип за
+        // сигнатурой, как для ловушек/рычага.
+        private static string DescribeBossRoomTile(BossRoomTileKind kind)
+        {
+            switch (kind)
+            {
+                case BossRoomTileKind.Vein: return "Жила (+Мана)";
+                case BossRoomTileKind.Resonance: return "Резонанс (+0.5 к множителю)";
+                case BossRoomTileKind.Echo: return "Эхо (×2 к множителю)";
+                case BossRoomTileKind.Rift: return "Разлом";
+                default: return kind.ToString();
+            }
         }
 
         private static void AppendValueLine(List<string> lines, bool hasValue, string label, bool isHiddenTrap)

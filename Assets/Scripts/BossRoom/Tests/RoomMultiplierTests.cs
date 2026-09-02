@@ -34,6 +34,38 @@ namespace Burmalda.BossRoom.Tests
         }
 
         [Test]
+        public void ApplyEchoTile_MultipliesCurrentMultiplier()
+        {
+            var multiplier = new RoomMultiplier();
+
+            multiplier.ApplyEchoTile();
+
+            Assert.AreEqual(2f, multiplier.CurrentMultiplier, 1e-5f);
+        }
+
+        [Test]
+        public void ApplyEchoTile_CalledTwice_Stacks()
+        {
+            var multiplier = new RoomMultiplier();
+
+            multiplier.ApplyEchoTile();
+            multiplier.ApplyEchoTile();
+
+            Assert.AreEqual(4f, multiplier.CurrentMultiplier, 1e-5f);
+        }
+
+        [Test]
+        public void ApplyEchoTile_AfterResonance_MultipliesTheAccumulatedValue()
+        {
+            var multiplier = new RoomMultiplier();
+            multiplier.ApplyResonanceTile(); // 1.5
+
+            multiplier.ApplyEchoTile();
+
+            Assert.AreEqual(3f, multiplier.CurrentMultiplier, 1e-5f);
+        }
+
+        [Test]
         public void TickRiftResonance_AddsProportionalToElapsedTime()
         {
             var multiplier = new RoomMultiplier();

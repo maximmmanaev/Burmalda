@@ -11,7 +11,8 @@
         "Burmalda.Generation",
         "Burmalda.Artifacts",
         "Burmalda.Progression",
-        "Burmalda.RunLifecycle"
+        "Burmalda.RunLifecycle",
+        "Burmalda.BossRoom"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
