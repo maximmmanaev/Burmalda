@@ -63,9 +63,13 @@ namespace Burmalda.DebugVisuals
             if ((state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) && state.IsDangerSignatureRevealed)
                 return TileArtKind.TriggerSignature;
 
-            // Комнаты Босса ещё нет в Unity (PRD v8) — под неё в тёплом
-            // наборе по-прежнему нет текстуры, остаётся на цветном фолбэке.
+            // Комнаты Босса ещё нет в тёплом наборе (PRD v8/v9 §8) — под вход
+            // и под содержимое Комнаты по-прежнему нет текстур, остаётся на
+            // цветном фолбэке (см. TileDebugColor — там у Жилы/Резонанса/Эха
+            // уже есть различимые цвета, задача «Комната Босса», владелец,
+            // 2026-09-02).
             if (state.IsBoss) return TileArtKind.None;
+            if (state.BossRoomTile.HasValue) return TileArtKind.None;
             if (state.IsAltar) return TileArtKind.Altar;
             // Задача «тёплый набор плит»: прежние tile-gate-closed.png/
             // tile-gate-open.png (лист мелких UI-иконок и полный рендер

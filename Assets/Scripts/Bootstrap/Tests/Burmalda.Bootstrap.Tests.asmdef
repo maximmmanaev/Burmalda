@@ -13,6 +13,7 @@
         "Burmalda.Artifacts",
         "Burmalda.Progression",
         "Burmalda.RunLifecycle",
+        "Burmalda.BossRoom",
         "Burmalda.Bootstrap",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

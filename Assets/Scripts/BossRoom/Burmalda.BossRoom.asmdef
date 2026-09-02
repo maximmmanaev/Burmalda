@@ -2,7 +2,10 @@
     "name": "Burmalda.BossRoom",
     "rootNamespace": "Burmalda.BossRoom",
     "references": [
-        "Burmalda.Core"
+        "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Currencies",
+        "Burmalda.RunLifecycle"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -12,5 +15,5 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
-    "noEngineReferences": true
+    "noEngineReferences": false
 }

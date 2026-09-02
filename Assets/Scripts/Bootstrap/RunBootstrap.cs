@@ -1,6 +1,7 @@
 using Burmalda.Altar;
 using Burmalda.Artifacts;
 using Burmalda.Boss;
+using Burmalda.BossRoom;
 using Burmalda.Camp;
 using Burmalda.Currencies;
 using Burmalda.Generation;
@@ -124,6 +125,17 @@ namespace Burmalda.Bootstrap
         public LeverActivationController Lever { get; private set; }
 
         /// <summary>
+        /// Интеграция Комнаты Босса (вертикальный срез, задача «Комната
+        /// Босса», владелец, 2026-09-02) — вход по <c>Core.Tile.IsBoss</c>,
+        /// генерация содержимого, сбор Жилы/Резонанса/Эха, наступающая
+        /// волна, выход с начислением Кристаллов Маны. Зависит от
+        /// <see cref="Currency"/> (начисление счёта) и уже размещённого на
+        /// сцене <c>RunLifecycle.RunController</c> (сообщить о поражении от
+        /// волны) — оба должны существовать к моменту добавления.
+        /// </summary>
+        public BossRoomController BossRoom { get; private set; }
+
+        /// <summary>
         /// Билд Амулетов/Талисманов текущего забега — новый экземпляр на
         /// каждый забег (см. <see cref="RunArtifactLoadout"/>). Null, пока
         /// <see cref="Altar"/> ещё не создал постоянную Коллекцию.
@@ -211,6 +223,10 @@ namespace Burmalda.Bootstrap
             if (Boss == null) Boss = GetOrAddComponent<BossController>(host);
             if (Camp == null) Camp = GetOrAddComponent<CampController>(host);
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
+            // Зависит только от Currency (уже создана строкой выше) и
+            // RunLifecycle.RunController, который уже размещён на сцене
+            // независимо от порядка здесь — см. doc-комментарий BossRoom.
+            if (BossRoom == null) BossRoom = GetOrAddComponent<BossRoomController>(host);
 
             _controllersWired = true;
             SyncLegacyObstacleGenerator(forceRebuild: false);

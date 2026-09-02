@@ -63,6 +63,13 @@ namespace Burmalda.BossRoom
             Multiplier.ApplyResonanceTile();
         }
 
+        /// <summary>Плита-Эхо собрана — ×2 к множителю (PRD v9 §8.2/8.3).</summary>
+        public void CollectEcho()
+        {
+            if (!IsActive) return;
+            Multiplier.ApplyEchoTile();
+        }
+
         /// <summary>Тик Разлома — подтип-Жила даёт доход, подтип-Резонанс даёт множитель, оба по реальному времени (PRD v8 §8.2).</summary>
         public void TickRift(BossRoomRiftSubtype subtype, float deltaSeconds)
         {

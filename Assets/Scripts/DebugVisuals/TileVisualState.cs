@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, BossRoomTileKind? bossRoomTile = null)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -29,6 +29,7 @@ namespace Burmalda.DebugVisuals
             IsLeverGateOpen = isLeverGateOpen;
             IsAltar = isAltar;
             IsDangerSignatureRevealed = isDangerSignatureRevealed;
+            BossRoomTile = bossRoomTile;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -135,5 +136,15 @@ namespace Burmalda.DebugVisuals
         /// раньше сигнатура была видна всегда, PRD v9 §4.2 заменяется.
         /// </summary>
         public bool IsDangerSignatureRevealed { get; }
+
+        /// <summary>
+        /// Плита — содержимое Комнаты Босса (Жила/Резонанс/Эхо, PRD v9
+        /// §8.2, см. <c>Core.Tile.BossRoomTile</c>). Null вне Комнаты и на
+        /// плите-входе (<see cref="IsBoss"/>) самой по себе — задача
+        /// «Комната Босса» (владелец, 2026-09-02): содержимое Комнаты видно
+        /// всегда, как и обычные источники валюты, это награда, не
+        /// скрытая опасность.
+        /// </summary>
+        public BossRoomTileKind? BossRoomTile { get; }
     }
 }

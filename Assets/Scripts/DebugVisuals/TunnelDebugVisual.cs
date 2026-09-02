@@ -244,7 +244,8 @@ namespace Burmalda.DebugVisuals
                     isGated: tile.IsGated,
                     isLeverGateOpen: tile.IsLeverGateOpen,
                     isAltar: tile.IsAltar,
-                    isDangerSignatureRevealed: tile.IsDangerSignatureRevealed);
+                    isDangerSignatureRevealed: tile.IsDangerSignatureRevealed,
+                    bossRoomTile: tile.BossRoomTile);
 
                 var kind = ApplyVisual(tileObject, coordinate, state);
                 UpdateCrackOverlay(coordinate, kind, state);

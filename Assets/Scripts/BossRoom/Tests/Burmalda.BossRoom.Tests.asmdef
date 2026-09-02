@@ -3,6 +3,9 @@
     "rootNamespace": "Burmalda.BossRoom.Tests",
     "references": [
         "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Currencies",
+        "Burmalda.RunLifecycle",
         "Burmalda.BossRoom",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
