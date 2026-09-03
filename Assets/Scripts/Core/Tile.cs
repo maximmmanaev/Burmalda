@@ -157,6 +157,30 @@ namespace Burmalda.Core
         }
 
         /// <summary>
+        /// РАНТАЙМ-переход, симметричный <see cref="TransitionToLethalTrap"/>:
+        /// снимает опасность, поставленную им же — плита возвращается к
+        /// обычному полу. Введён для ловушки «Стрела» (docs/wiki/traps.md,
+        /// issue #213, <c>Movement.ArrowWaveTrapSystem</c>): «каждая плита
+        /// опасна короткий момент, пока волна проходит, затем снова
+        /// безопасна» — в отличие от <see cref="LethalTrapType.Pit"/>/
+        /// <see cref="LethalTrapType.Lava"/> (постоянны с генерации) и уже
+        /// сработавшего <see cref="LethalTrapType.Explosion"/> (постоянен
+        /// после активации), опасность волны Стрелы временная НА КАЖДОЙ
+        /// отдельной плите ряда.
+        ///
+        /// Вызывать ТОЛЬКО на плите, которую сама вызывающая система же и
+        /// сделала смертельной через <see cref="TransitionToLethalTrap"/> в
+        /// рамках этой же волны — метод не проверяет источник и снимет
+        /// ЛЮБОЙ <see cref="LethalTrap"/>, включая статичный
+        /// <see cref="MarkLethalTrap"/> с генерации, если вызвать не на той
+        /// плите (дисциплина вызывающей стороны, не защита этим методом).
+        /// </summary>
+        public void ClearLethalTrap()
+        {
+            LethalTrap = null;
+        }
+
+        /// <summary>
         /// Плита — триггер динамической мгновенной ловушки (PRD 4.2, issue
         /// #10): координата связанной плиты-взрыва, которая становится
         /// смертельной (<see cref="LethalTrapType.Explosion"/>), когда трейл
@@ -212,6 +236,32 @@ namespace Burmalda.Core
         {
             TimedTrapKind = kind;
             IsTimedTrapActive = true;
+        }
+
+        /// <summary>
+        /// Плита — триггер ловушки «Стрела» (docs/wiki/traps.md, issue #213):
+        /// номер ряда, который через 1 ход начнёт становиться опасным
+        /// столбец за столбцом (см. <see cref="ArrowWaveDirection"/>,
+        /// <c>Movement.ArrowWaveTrapSystem</c>). Null — плита не триггер.
+        /// Открытый вопрос владельца («в ряду триггера или в следующем?») не
+        /// решён — этот класс хранит ЯВНО заданный ряд, а не вычисляет его
+        /// из <see cref="Coordinate"/> самого триггера, поэтому не зависит
+        /// от того, как вопрос решится: вызывающая сторона (генерация)
+        /// передаёт номер ряда сама, по умолчанию — ряд самого триггера
+        /// (docs/wiki/traps.md). Сама плита-триггер всегда безопасна для
+        /// прохода — опасна плиты заявленного ряда, не она сама.
+        /// </summary>
+        public int? ArrowWaveTargetRow { get; private set; }
+
+        /// <summary>Направление волны — актуально только вместе с <see cref="ArrowWaveTargetRow"/>. Задаётся на генерации, не выбирается заново при активации (см. <see cref="RowWaveDirection"/>).</summary>
+        public RowWaveDirection? ArrowWaveDirection { get; private set; }
+
+        /// <summary>Помечает плиту как триггер волны Стрелы по заданному ряду и направлению. Повторные вызовы сохраняют первые значения.</summary>
+        public void MarkArrowWaveTrigger(int targetRow, RowWaveDirection direction)
+        {
+            if (ArrowWaveTargetRow.HasValue) return;
+            ArrowWaveTargetRow = targetRow;
+            ArrowWaveDirection = direction;
         }
 
         /// <summary>Снимает опасность с плиты-цели — окончательно, снаряд/лезвие уже прошли (одноразовая ловушка).</summary>

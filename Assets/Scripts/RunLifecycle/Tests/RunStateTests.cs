@@ -84,6 +84,24 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
+        public void LethalTrapTriggered_ArrowWave_SetsIsAliveFalseAndFiresDiedWithOwnReason()
+        {
+            // issue #213: тот же регресс-тест, что и для Explosion выше —
+            // новый LethalTrapType не должен провалиться в default ветку
+            // switch-выражения DescribeLethalTrap.
+            var (grid, trail, _, runState) = CreateRun();
+            var arrowTile = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(arrowTile).TransitionToLethalTrap(LethalTrapType.ArrowWave);
+            string firedReason = null;
+            runState.Died += reason => firedReason = reason;
+
+            trail.TryAdvanceTo(arrowTile);
+
+            Assert.IsFalse(runState.IsAlive);
+            Assert.AreEqual("Пронзён стрелой", firedReason);
+        }
+
+        [Test]
         public void TimedTrapTriggered_Arrow_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
             // Issue #45: плита-цель уже активна (снаряд физически проходит) — попытка шагнуть на неё смертельна.

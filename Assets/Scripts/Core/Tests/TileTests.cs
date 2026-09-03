@@ -637,5 +637,58 @@ namespace Burmalda.Core.Tests
 
             Assert.DoesNotThrow(() => marker.Mark(tile), $"повторная пометка той же роли ({marker.Name}) должна остаться тихим не-op");
         }
+
+        // issue #213 — ловушка «Стрела» (docs/wiki/traps.md).
+        [Test]
+        public void NewTile_HasNoArrowWaveTrigger()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.ArrowWaveTargetRow.HasValue);
+            Assert.IsFalse(tile.ArrowWaveDirection.HasValue);
+        }
+
+        [Test]
+        public void MarkArrowWaveTrigger_SetsTargetRowAndDirection()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkArrowWaveTrigger(targetRow: 3, RowWaveDirection.RightToLeft);
+
+            Assert.AreEqual(3, tile.ArrowWaveTargetRow);
+            Assert.AreEqual(RowWaveDirection.RightToLeft, tile.ArrowWaveDirection);
+        }
+
+        [Test]
+        public void MarkArrowWaveTrigger_CalledTwice_KeepsFirstValues()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkArrowWaveTrigger(targetRow: 3, RowWaveDirection.LeftToRight);
+            tile.MarkArrowWaveTrigger(targetRow: 9, RowWaveDirection.RightToLeft);
+
+            Assert.AreEqual(3, tile.ArrowWaveTargetRow);
+            Assert.AreEqual(RowWaveDirection.LeftToRight, tile.ArrowWaveDirection);
+        }
+
+        [Test]
+        public void ClearLethalTrap_TileWasLethal_BecomesSafe()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.TransitionToLethalTrap(LethalTrapType.ArrowWave);
+
+            tile.ClearLethalTrap();
+
+            Assert.IsFalse(tile.LethalTrap.HasValue);
+        }
+
+        [Test]
+        public void ClearLethalTrap_TileWasNeverLethal_StaysSafe()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.DoesNotThrow(() => tile.ClearLethalTrap());
+            Assert.IsFalse(tile.LethalTrap.HasValue);
+        }
     }
 }

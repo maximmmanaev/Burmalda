@@ -112,6 +112,20 @@ namespace Burmalda.Movement.Tests
             Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
         }
 
+        // issue #213 — триггер Стрелы скрыт тем же приёмом, что и прочие триггеры выше.
+        [Test]
+        public void Tick_ArrowWaveTriggerTile_RevealsSignature()
+        {
+            var grid = new TunnelGrid(Width);
+            var coordinate = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(coordinate).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
+            var system = new TrapRevealSystem(grid);
+
+            system.Tick(coordinate);
+
+            Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
+        }
+
         // Issue #193 (владелец, 2026-09-01): рычаг теперь скрыт той же
         // сигнатурой, что и ловушки/триггеры — "две разновидности
         // механизма с разной видимостью научат игрока неверному правилу".
