@@ -155,4 +155,10 @@
 - [#216](https://github.com/maximmmanaev/Burmalda/issues/216) — Лава (+ известный конфликт с Воротами, не решён — реализацию не начинать до ответа владельца)
 - [#217](https://github.com/maximmmanaev/Burmalda/issues/217) — Падающий камень
 
-Все шесть — milestone [«Спринт 12: Скрытые ловушки»](https://github.com/maximmmanaev/Burmalda/milestone/26) (ближайший подходящий по roadmap.md — уже в работе, уже про ловушки/раскрытие опасности), метки `feature`+`balance` (кроме инфраструктурного #212 — только `feature`).
+Инфраструктурный #212 остался на milestone [«Спринт 12: Скрытые ловушки»](https://github.com/maximmmanaev/Burmalda/milestone/26)
+(там был заведён и там же сделан). Пять типов (#213–#217) перевешены на
+отдельный milestone [«Спринт 13a: Поведение ловушек»](https://github.com/maximmmanaev/Burmalda/milestone/33)
+(docs/wiki/roadmap.md — сразу после вертикального среза Комнаты Босса,
+Спринт 13; название «поведение», не «ловушки», потому что Спринт 3, закрыт,
+уже занимал имя «ловушки» под прежнюю механику, а не эту). Метки —
+`feature`+`balance` (кроме #212 — только `feature`).
