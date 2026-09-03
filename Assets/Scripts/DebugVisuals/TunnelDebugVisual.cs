@@ -130,6 +130,43 @@ namespace Burmalda.DebugVisuals
         private readonly Material _gateHintMaterial;
         private readonly Dictionary<GridCoordinate, GameObject> _gateDirectionHints = new Dictionary<GridCoordinate, GameObject>();
 
+        // issue #191 (Спринт 12b, «Арт: палитра и визуальный язык»):
+        // «простейшие стены и потолок вместо чёрной пустоты» по бокам и
+        // сверху тоннеля — геометрия, не арт-контент (сам issue прямо
+        // разделяет: контент не сочиняется агентом, здесь только
+        // техническая интеграция). Тот же приём без текстуры/без коллайдера,
+        // что подсказка направления на Ворота — переиспользует тот же
+        // builtin Cube.fbx (см. GetGateHintMesh), плоский тёмный каменный
+        // тон ("тёсаный камень", PRD §3) вместо арт-текстуры. Создаются один
+        // раз на РЯД (не на плиту — в ряду несколько столбцов) реактивно
+        // вместе с материализацией пола (см. OnTileMaterialized) — растут
+        // сами вместе с TunnelGridReveal/сегментной генерацией, отдельного
+        // драйвера не требуют.
+        //
+        // <b>Потолок НЕ реализован в этой правке — только боковые стены</b>
+        // (найдено на реальном Android-билде, 2026-09-02). Камера забега
+        // смотрит СВЕРХУ-ВНИЗ-ВПЕРЁД (высота 6, TunnelCameraController.
+        // _heightOffset, тангаж 50°, TunnelCameraFollow.DefaultPitchDegrees) —
+        // не коридорный вид "от первого лица", где потолок закрывал бы
+        // только пустоту у верхнего края кадра. Горизонтальная плита-потолок
+        // на любой высоте МЕЖДУ полом и камерой встаёт прямо на луч взгляда
+        // камеры на пол и закрывает собой ВЕСЬ пол целиком — проверено на
+        // устройстве: WallHeight=3f и WallHeight=1.1f дали БИТОВО ИДЕНТИЧНЫЙ
+        // результат (сплошной градиент цвета стен на весь экран вместо
+        // тоннеля), подтверждая, что дело не в высоте, а в самой идее
+        // горизонтальной плиты для этого ракурса камеры. Боковые стены
+        // (вертикальные, вдоль оси взгляда, не поперёк неё) этой проблеме не
+        // подвержены — оставлены. Потолок убран целиком до отдельной задачи
+        // с камера-осознанной геометрией (например, кольцо только у
+        // горизонта/за пределами видимых рядов, а не плита прямо над каждым
+        // материализованным рядом).
+        private const float WallHeight = 1.1f;
+        private const float WallThicknessShare = 0.15f; // доля TileSize — тонкая плита, не толстая стена
+        private static readonly Color WallColor = new Color(45f / 255f, 32f / 255f, 22f / 255f);
+        private readonly Material _wallMaterial;
+        private readonly HashSet<int> _wallRows = new HashSet<int>();
+        private readonly List<GameObject> _wallObjects = new List<GameObject>();
+
         public TunnelDebugVisual(TunnelGrid grid, GridTraceTrail trail, WorldGridProjection projection, Transform parent)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
@@ -140,6 +177,7 @@ namespace Burmalda.DebugVisuals
             _artCatalog = TileArtCatalog.Load();
             _crackOverlayMaterial = CreateCrackOverlayMaterial(_artCatalog?.CrackMaskTexture);
             _gateHintMaterial = CreateGateHintMaterial();
+            _wallMaterial = CreateWallMaterial();
 
             if (_templateMaterial != null)
             {
@@ -283,6 +321,11 @@ namespace Burmalda.DebugVisuals
                     UnityEngine.Object.Destroy(hintObject);
                 _gateDirectionHints.Clear();
 
+                foreach (var wallObject in _wallObjects)
+                    UnityEngine.Object.Destroy(wallObject);
+                _wallObjects.Clear();
+                _wallRows.Clear();
+
                 _collapseStates.Clear();
                 _collapseElapsedSeconds.Clear();
                 _previouslyDestroyed.Clear();
@@ -290,6 +333,7 @@ namespace Burmalda.DebugVisuals
                 UnityEngine.Object.Destroy(_templateMaterial);
                 if (_crackOverlayMaterial != null) UnityEngine.Object.Destroy(_crackOverlayMaterial);
                 if (_gateHintMaterial != null) UnityEngine.Object.Destroy(_gateHintMaterial);
+                if (_wallMaterial != null) UnityEngine.Object.Destroy(_wallMaterial);
             }
 
             _disposed = true;
@@ -325,6 +369,7 @@ namespace Burmalda.DebugVisuals
             _freshVariants[tile.Coordinate] = PickFreshVariant();
 
             CreateCrackOverlayObject(tile.Coordinate, primitive.transform.position);
+            CreateWallSegmentsForRow(tile.Coordinate.Row);
         }
 
         // Задача «разрушение плиты»: небольшой зазор над верхней гранью
@@ -768,6 +813,58 @@ namespace Burmalda.DebugVisuals
         {
             if (_gateHintMesh == null) _gateHintMesh = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
             return _gateHintMesh;
+        }
+
+        /// <summary>
+        /// Стены слева/справа на один ряд (issue #191, часть — потолок вне
+        /// скоупа этой правки, см. её doc-комментарий у <see cref="WallHeight"/>)
+        /// — не-op, если материал недоступен на этой сборке (тот же
+        /// оборонительный принцип, что и у остальных опциональных материалов
+        /// класса) или ряд уже получил свой комплект (несколько столбцов
+        /// одного ряда материализуются по отдельности, стены — общие на весь
+        /// ряд).
+        /// </summary>
+        private void CreateWallSegmentsForRow(int row)
+        {
+            if (_wallMaterial == null) return;
+            if (!_wallRows.Add(row)) return;
+
+            var tileSize = _projection.TileSize;
+            var halfWidth = _projection.Width * 0.5f * tileSize;
+            var centerZ = (row + 0.5f) * tileSize;
+            var thickness = WallThicknessShare * tileSize;
+
+            _wallObjects.Add(CreateStructureCube(
+                $"DebugWallLeft row{row}",
+                new Vector3(-halfWidth, WallHeight * 0.5f, centerZ),
+                new Vector3(thickness, WallHeight, tileSize)));
+            _wallObjects.Add(CreateStructureCube(
+                $"DebugWallRight row{row}",
+                new Vector3(halfWidth, WallHeight * 0.5f, centerZ),
+                new Vector3(thickness, WallHeight, tileSize)));
+        }
+
+        // Тот же приём, что подсказка направления на Ворота — переиспользует
+        // тот же builtin Cube.fbx (GetGateHintMesh), ни один Collider не
+        // добавляется вовсе (стены/потолок не тап-цель).
+        private GameObject CreateStructureCube(string name, Vector3 position, Vector3 scale)
+        {
+            var structure = new GameObject(name);
+            structure.transform.SetParent(_parent, worldPositionStays: false);
+            structure.transform.position = position;
+            structure.transform.localScale = scale;
+            structure.AddComponent<MeshFilter>().sharedMesh = GetGateHintMesh();
+            structure.AddComponent<MeshRenderer>().sharedMaterial = _wallMaterial;
+            return structure;
+        }
+
+        private static Material CreateWallMaterial()
+        {
+            var material = CreateTemplateMaterial();
+            if (material == null) return null;
+
+            material.color = WallColor;
+            return material;
         }
 
         private static Material CreateTemplateMaterial()
