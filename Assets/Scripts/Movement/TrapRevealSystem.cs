@@ -76,6 +76,7 @@ namespace Burmalda.Movement
             TrapSignature.IsHiddenLethalTrap(tile)
             || tile.ExplosiveTrapTarget.HasValue
             || tile.TimedTrapTarget.HasValue
+            || tile.ArrowWaveTargetRow.HasValue // триггер Стрелы (issue #213) — тот же приём, что и прочие триггеры выше
             || tile.IsLever;
     }
 }

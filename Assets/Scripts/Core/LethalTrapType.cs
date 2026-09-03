@@ -23,6 +23,20 @@ namespace Burmalda.Core
         /// триггером (<see cref="Tile.ExplosiveTrapTarget"/>), после чего
         /// становится смертельной, как и остальные варианты.
         /// </summary>
-        Explosion
+        Explosion,
+
+        /// <summary>
+        /// Ловушка «Стрела» (docs/wiki/traps.md, issue #213,
+        /// <c>Movement.ArrowWaveTrapSystem</c>): волна по ряду, столбец за
+        /// столбцом, тикаемая ХОДАМИ. Отдельный C#-идентификатор от
+        /// <see cref="TimedTrapType.Arrow"/> намеренно — та же тема ловушки,
+        /// другая механика (одна плита-цель на реальном времени vs. волна по
+        /// нескольким плитам на ходах), см. docs/wiki/traps.md «Сверка с уже
+        /// существующим кодом». В отличие от <see cref="Pit"/>/<see cref="Lava"/>
+        /// — временное состояние: плита возвращается в безопасное
+        /// (<see cref="Tile.ClearLethalTrap"/>) через 1 ход, когда волна
+        /// проходит дальше.
+        /// </summary>
+        ArrowWave
     }
 }
