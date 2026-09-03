@@ -1,3 +1,4 @@
+using System;
 using Burmalda.D20;
 using Burmalda.Decay;
 using Burmalda.Movement;
@@ -26,6 +27,25 @@ namespace Burmalda.RunLifecycle
         [SerializeField] private TrailDecayController _decayController;
 
         private RunState _runState;
+
+        /// <summary>
+        /// Переопределяет источник броска d20 (issue #225) — по умолчанию
+        /// null, реальный кубик <c>UnityEngine.Random.Range(1, 21)</c>, как и
+        /// раньше (в игре д20 намеренно не детерминирован, см. doc-комментарий
+        /// класса). Существует ТОЛЬКО ради тестов, которым нужен
+        /// гарантированный исход (например,
+        /// <c>IntegrationTests.CoreLoopIntegrationTests</c>: та же схема, что
+        /// уже применяется для <see cref="Burmalda.Core.TunnelObstacleGenerator"/>/
+        /// <see cref="Burmalda.Altar.AltarTriggerSystem"/> — внедрённый источник
+        /// случайности вместо процесс-wide <c>UnityEngine.Random</c>, которое
+        /// делает результат теста зависимым от того, сколько раз этот RNG
+        /// вызвали ДРУГИЕ тесты, отработавшие раньше в том же прогоне).
+        /// Устанавливать ДО первого <see cref="Update"/>/<see cref="HandleRunStarted"/>
+        /// (до того, как <see cref="RebuildRunState"/> создаст
+        /// <see cref="D20Trial"/>) — на уже собранный <see cref="RunState"/>
+        /// не влияет.
+        /// </summary>
+        public Func<int> RollD20Override { get; set; }
 
         /// <summary>Причина последней смерти — для будущего UI, пока никак не отображается.</summary>
         public string LastDeathReason { get; private set; }
@@ -67,7 +87,8 @@ namespace Burmalda.RunLifecycle
             if (_input == null || _decayController == null) return;
             if (_input.Grid == null || _input.Trail == null || _decayController.Decay == null) return;
 
-            var d20 = new D20Trial(() => UnityEngine.Random.Range(1, 21)); // Range(1,21) — верхняя граница исключена, даёт 1..20
+            var rollD20 = RollD20Override ?? (() => UnityEngine.Random.Range(1, 21)); // Range(1,21) — верхняя граница исключена, даёт 1..20
+            var d20 = new D20Trial(rollD20);
             _runState = new RunState(_input.Grid, _input.Trail, _decayController.Decay, d20);
             _runState.Died += OnDied;
         }

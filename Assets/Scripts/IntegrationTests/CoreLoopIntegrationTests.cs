@@ -92,6 +92,20 @@ namespace Burmalda.IntegrationTests
             InvokePrivate(decay, "Update");
 
             var runController = _inputObject.AddComponent<RunController>();
+            // issue #225: без этого переопределения бросок d20 при попытке
+            // шагнуть на смертельную ловушку ниже (LethalTrapType.Pit) идёт
+            // на процесс-wide UnityEngine.Random.Range — исход (Fortune/
+            // Knockback/Death) зависит от того, сколько раз этот RNG успели
+            // вызвать ДРУГИЕ тесты, отработавшие раньше в том же прогоне
+            // (порядок NUnit не гарантирован). Knockback телепортирует трейл
+            // на "последний пройденный Алтарь" (Алтарей ещё не было — откат
+            // на СТАРТ, RunState.ResolveHazard), что и давало наблюдаемый
+            // флаки-фейл: CurrentPosition оказывалась (0,2) вместо keySource.
+            // Фиксируем исход на Fortune (ничего не меняется, ровно то, что
+            // тест и так предполагал) — тот же приём внедрённого источника
+            // случайности, что уже применяется для TunnelObstacleGenerator/
+            // AltarTriggerSystem, не блиндовый глобальный сид (см. issue).
+            runController.RollD20Override = () => 20;
             InvokePrivate(runController, "Awake");
             InvokePrivate(runController, "Update");
 
