@@ -458,11 +458,31 @@ namespace Burmalda.Core
         /// </summary>
         public bool IsKeySource { get; private set; }
 
-        /// <summary>Помечает плиту как источник Ключей. Повторные вызовы — не-op.</summary>
-        public void MarkKeySource()
+        /// <summary>
+        /// Явно заданное число Ключей ЭТОЙ конкретной плиты-источника, если
+        /// задано (задача «видимые рычаги, инвариант лавы, размер награды
+        /// за Воротами», владелец, 2026-09-04) — тайник за Воротами получает
+        /// свою сумму, вычисленную из <c>Generation.GateVaultPricing</c> по
+        /// числу покупок конкретного шаблона, а не общий
+        /// <c>Currencies.CurrencyController.KeysPerSource</c>. Null — плита
+        /// обычный источник на пути, сумму решает вызывающая сторона
+        /// (<c>Currencies.TrailTileCurrencySystem</c>) по умолчанию.
+        /// </summary>
+        public int? KeySourceAmount { get; private set; }
+
+        /// <summary>
+        /// Помечает плиту как источник Ключей. Повторные вызовы сохраняют
+        /// первую сумму — тихий не-op, как и у прочих <c>Mark*</c>.
+        /// <paramref name="amount"/> — явная сумма ЭТОЙ плиты (см.
+        /// <see cref="KeySourceAmount"/>); null (по умолчанию) — обычный
+        /// источник на пути, сумму решает вызывающая сторона.
+        /// </summary>
+        public void MarkKeySource(int? amount = null)
         {
-            GuardAgainstConflictingRole(IsKeySource, nameof(IsKeySource));
+            if (IsKeySource) return;
+            GuardAgainstConflictingRole(false, nameof(IsKeySource));
             IsKeySource = true;
+            KeySourceAmount = amount;
         }
 
         /// <summary>

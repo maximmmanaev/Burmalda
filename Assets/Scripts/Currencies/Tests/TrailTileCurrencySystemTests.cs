@@ -114,5 +114,35 @@ namespace Burmalda.Currencies.Tests
 
             Assert.AreEqual(0, accumulator.Total);
         }
+
+        // Перегрузка Func<Tile,int> (задача «размер награды за Воротами»,
+        // владелец, 2026-09-04) — сумма считается ПО ПЛИТЕ, не единая.
+        [Test]
+        public void Advanced_AmountForTileOverload_UsesPerTileAmount()
+        {
+            var (grid, trail) = CreateTrail();
+            grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkKeySource(120); // тайник — своя сумма
+            grid.GetOrCreateTile(new GridCoordinate(2, 2)).MarkKeySource(); // обычный источник — сумма по умолчанию
+            var accumulator = new RunCurrencyAccumulator();
+            using var system = new TrailTileCurrencySystem(grid, trail, t => t.IsKeySource, t => t.KeySourceAmount ?? 15, accumulator);
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            trail.TryAdvanceTo(new GridCoordinate(2, 2));
+
+            Assert.AreEqual(120 + 15, accumulator.Total);
+        }
+
+        [Test]
+        public void Advanced_AmountForTileOverload_WithRewardMultiplier_ScalesPerTileAmount()
+        {
+            var (grid, trail) = CreateTrail();
+            grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkKeySource(80);
+            var accumulator = new RunCurrencyAccumulator();
+            using var system = new TrailTileCurrencySystem(grid, trail, t => t.IsKeySource, t => t.KeySourceAmount ?? 15, accumulator, rewardMultiplier: 2f);
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+
+            Assert.AreEqual(160, accumulator.Total);
+        }
     }
 }

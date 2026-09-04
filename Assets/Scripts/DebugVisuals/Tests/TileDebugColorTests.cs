@@ -341,28 +341,26 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileDebugColor.ManaSourceColor, TileDebugColor.Resolve(plainManaSource));
         }
 
-        // Issue #193 (владелец, 2026-09-01) ОТМЕНЯЕТ более раннее решение
-        // «рычаг и ворота невидимы» (тогда — «рычаг механизм-приглашение,
-        // видим всегда»): "две разновидности механизма с разной видимостью
-        // научат игрока неверному правилу" — рычаг теперь скрыт той же
-        // сигнатурой, что и ловушки, пока не раскрыт примериванием.
+        // Владелец, 2026-09-04 («видимые рычаги, инвариант лавы, размер
+        // награды за Воротами») ОТМЕНЯЕТ issue #193: «рычаг — механизм, а
+        // не опасность» — видим ВСЕГДА, не гейтится примериванием, не
+        // делит сигнатуру с ловушками.
         [Test]
-        public void Resolve_Lever_NotRevealed_LooksLikeOrdinaryFreshTile()
+        public void Resolve_Lever_NotRevealed_ReturnsLeverColor()
         {
-            var hidden = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: false);
-            var ordinary = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: false);
 
-            Assert.AreEqual(TileDebugColor.Resolve(ordinary), TileDebugColor.Resolve(hidden));
+            Assert.AreEqual(TileDebugColor.LeverColor, TileDebugColor.Resolve(state));
         }
 
         [Test]
-        public void Resolve_Lever_Revealed_ReturnsTriggerSignatureColor()
+        public void Resolve_Lever_Revealed_StillReturnsLeverColor()
         {
-            // Та же сигнатура, что взрывной/тайминговый триггер — "рычаг
-            // ТОЖЕ механизм", не отдельная категория (issue #193).
+            // isDangerSignatureRevealed не влияет на рычаг вообще —
+            // видимость безусловна в обоих состояниях этого флага.
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: true);
 
-            Assert.AreEqual(TileDebugColor.TriggerSignatureColor, TileDebugColor.Resolve(state));
+            Assert.AreEqual(TileDebugColor.LeverColor, TileDebugColor.Resolve(state));
         }
 
         [Test]
@@ -396,24 +394,22 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
-        public void Resolve_LeverColor_LegacyConstant_StillDiffersFromSignatures()
+        public void Resolve_LeverColor_DiffersFromSignatures()
         {
-            // LeverColor больше не выбирается Resolve() (issue #193, см.
-            // её doc-комментарий) — константа оставлена для истории, тест
-            // на не-совпадение оставлен тоже (дешёвая страховка от будущего
-            // случайного повторного использования того же RGB).
+            // LeverColor снова активно выбирается Resolve() (владелец,
+            // 2026-09-04) — дешёвая страховка, что рычаг не читается как
+            // одна из сигнатур опасности/триггера.
             Assert.AreNotEqual(TileDebugColor.LeverColor, TileDebugColor.HiddenTrapSignatureColor);
             Assert.AreNotEqual(TileDebugColor.LeverColor, TileDebugColor.TriggerSignatureColor);
         }
 
         [Test]
-        public void Resolve_Gated_TakesPriorityOverRevealedLever_WhenSomehowBothTrue()
+        public void Resolve_Gated_TakesPriorityOverLever_WhenSomehowBothTrue()
         {
             // Не должно случиться по построению генератора (одна плита — один
             // символ шаблона) — проверяем приоритет ветвления явно, как и для
-            // других "не должно, но на всякий" кейсов в этом файле. Рычаг
-            // раскрыт (иначе он бы и так не конкурировал за ветку).
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isGated: true, isLeverGateOpen: false, isDangerSignatureRevealed: true);
+            // других "не должно, но на всякий" кейсов в этом файле.
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isGated: true, isLeverGateOpen: false);
 
             Assert.AreEqual(TileDebugColor.LeverGateClosedColor, TileDebugColor.Resolve(state));
         }

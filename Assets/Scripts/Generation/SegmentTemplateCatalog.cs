@@ -12,7 +12,9 @@ namespace Burmalda.Generation
     /// Символ → <see cref="SegmentTileType"/>: '.' Open, '#' Blocked, 'p' Pit,
     /// 'l' Lava, 'e' ExplosiveTrigger, 'a' TimedTrapArrowTrigger,
     /// 'b' TimedTrapBladeTrigger, 'L' Lever, 'g' LeverGate, 'm' ManaSource,
-    /// 'k' KeySource, 'A' Altar, 'B' Boss.
+    /// 'k' KeySource, 'v' GateVaultKeySource (тайник за Воротами — сумма из
+    /// <see cref="SegmentTemplate.GateVaultPurchases"/>, не 'k'), 'A' Altar,
+    /// 'B' Boss.
     ///
     /// **Контент-долг**: 40 шаблонов (13 исходных + Партия 2, 13 шаблонов +
     /// Партия 1, 14 шаблонов — обе из задачи «партии 1 и 2 + правила
@@ -259,20 +261,25 @@ namespace Burmalda.Generation
             // ним было физически неоткуда. Один символ в стене (col2 у
             // ворот) открывает подход именно К ВОРОТАМ, не к ключу напрямую
             // — рычаг остаётся обязательным, карман больше не замкнут сам на себя.
+            // Владелец, 2026-09-04: рычаг↔Ворота 2 ряда — короткий крюк,
+            // тайник на 1 покупку ('v' = GateVaultKeySource, не 'k' — сумма
+            // из GateVaultPricing, не общий KeysPerSource).
             new SegmentTemplate("двор-с-рычагом", 3, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
                 "...L.",
                 "..###",
-                "...gk",
+                "...gv",
                 "..###",
                 ".....",
-            })),
+            }), gateVaultPurchases: 1.0),
 
             // Тир 3. Рычаг в начале, ворота в конце — нажимаешь, ещё не зная,
             // что откроешь.
             // issue #208: та же правка, что у "двор-с-рычагом" — подход к
             // воротам сбоку, ключ по-прежнему достижим только через них.
+            // Владелец, 2026-09-04: рычаг↔Ворота 4 ряда — длинный крюк,
+            // тайник на 1.5 покупки.
             new SegmentTemplate("ворота-склада", 3, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
@@ -280,9 +287,9 @@ namespace Burmalda.Generation
                 ".....",
                 ".....",
                 "..###",
-                "...gk",
+                "...gv",
                 "..###",
-            })),
+            }), gateVaultPurchases: 1.5),
 
             // Тир 4. Ключевой шаблон партии: запертый склад стоит у входа,
             // рычаг лежит глубоко внизу. Чтобы забрать награду, надо пройти
@@ -291,16 +298,18 @@ namespace Burmalda.Generation
             // что можно собрать на текущих Lever/LeverGate.
             // issue #208: та же правка — подход к воротам сбоку (col2),
             // не к ключу напрямую.
+            // Владелец, 2026-09-04: рычаг↔Ворота 4 ряда — длинный крюк,
+            // тайник на 1.5 покупки.
             new SegmentTemplate("рычаг-в-глубине", 4, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 "..###",
-                "...gk",
+                "...gv",
                 "..###",
                 ".....",
                 ".....",
                 "..L..",
                 ".....",
-            })),
+            }), gateVaultPurchases: 1.5),
 
             // Тир 4. Два триггера сторожат подход к ключу: сработает любой, и
             // коридор к награде сузится.
@@ -532,6 +541,7 @@ namespace Burmalda.Generation
                     'g' => SegmentTileType.LeverGate,
                     'm' => SegmentTileType.ManaSource,
                     'k' => SegmentTileType.KeySource,
+                    'v' => SegmentTileType.GateVaultKeySource,
                     'A' => SegmentTileType.Altar,
                     'B' => SegmentTileType.Boss,
                     _ => SegmentTileType.Open

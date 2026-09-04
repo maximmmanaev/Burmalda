@@ -138,6 +138,59 @@ namespace Burmalda.Generation.Tests
             Assert.DoesNotThrow(() => new SegmentTemplate("t", 1, SegmentRewardTag.Artifact, tiles));
         }
 
+        // issue «размер награды за Воротами» (владелец, 2026-09-04).
+        [Test]
+        public void Constructor_GateVaultKeySourceWithoutPurchases_Throws()
+        {
+            var tiles = OpenRows(5);
+            tiles[2, 0] = SegmentTileType.GateVaultKeySource;
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                new SegmentTemplate("t", 1, SegmentRewardTag.Keys, tiles));
+            StringAssert.Contains("GateVaultPurchases", ex.Message);
+        }
+
+        [Test]
+        public void Constructor_GateVaultPurchasesWithoutKeySource_Throws()
+        {
+            var tiles = OpenRows(5);
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                new SegmentTemplate("t", 1, SegmentRewardTag.Keys, tiles, gateVaultPurchases: 1.0));
+            StringAssert.Contains("GateVaultKeySource", ex.Message);
+        }
+
+        [Test]
+        public void Constructor_MultipleGateVaultKeySource_Throws()
+        {
+            var tiles = OpenRows(5);
+            tiles[1, 0] = SegmentTileType.GateVaultKeySource;
+            tiles[2, 0] = SegmentTileType.GateVaultKeySource;
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                new SegmentTemplate("t", 1, SegmentRewardTag.Keys, tiles, gateVaultPurchases: 1.0));
+            StringAssert.Contains("GateVaultKeySource", ex.Message);
+        }
+
+        [Test]
+        public void Constructor_GateVaultKeySourceWithPurchases_DoesNotThrow_ExposesGateVaultPurchases()
+        {
+            var tiles = OpenRows(5);
+            tiles[2, 0] = SegmentTileType.GateVaultKeySource;
+
+            var template = new SegmentTemplate("t", 1, SegmentRewardTag.Keys, tiles, gateVaultPurchases: 1.5);
+
+            Assert.AreEqual(1.5, template.GateVaultPurchases);
+        }
+
+        [Test]
+        public void Constructor_NoGateVault_GateVaultPurchasesIsNull()
+        {
+            var template = new SegmentTemplate("t", 1, SegmentRewardTag.Coins, OpenRows(5));
+
+            Assert.IsFalse(template.GateVaultPurchases.HasValue);
+        }
+
         // Найдено на реальном билде (2026-09-01, живой забег до Яруса 6):
         // необработанный InvalidOperationException — триггер взрыва целился
         // в клетку, которая в том же шаблоне уже размечена как одна из этих

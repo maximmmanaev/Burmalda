@@ -114,8 +114,35 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("with-key", 1, SegmentRewardTag.Keys, tiles);
             using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
 
-            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsKeySource);
-            Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsManaSource);
+            var tile = grid.GetOrCreateTile(new GridCoordinate(2, 2));
+            Assert.IsTrue(tile.IsKeySource);
+            Assert.IsFalse(tile.IsManaSource);
+            Assert.IsFalse(tile.KeySourceAmount.HasValue, "обычный KeySource не должен нести явную сумму — решает CurrencyController.KeysPerSource");
+        }
+
+        // issue «размер награды за Воротами» (владелец, 2026-09-04).
+        [Test]
+        public void ApplyTemplate_GateVaultKeySource_MarksTileWithComputedAmount()
+        {
+            var (grid, trail) = CreateTrail();
+            var tiles = OpenRows(5);
+            tiles[1, 2] = SegmentTileType.GateVaultKeySource;
+            var originalKeysPerPurchase = GateVaultPricing.KeysPerVaultPurchase;
+
+            try
+            {
+                GateVaultPricing.KeysPerVaultPurchase = 80;
+                var template = new SegmentTemplate("with-vault", 1, SegmentRewardTag.Keys, tiles, gateVaultPurchases: 1.5);
+                using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1);
+
+                var tile = grid.GetOrCreateTile(new GridCoordinate(2, 2));
+                Assert.IsTrue(tile.IsKeySource);
+                Assert.AreEqual(120, tile.KeySourceAmount);
+            }
+            finally
+            {
+                GateVaultPricing.KeysPerVaultPurchase = originalKeysPerPurchase;
+            }
         }
 
         [Test]

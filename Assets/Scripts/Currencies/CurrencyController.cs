@@ -61,8 +61,21 @@ namespace Burmalda.Currencies
         /// </summary>
         public static int ManaPerSource = 100;
 
-        /// <summary>Ключей за одну плиту-источник — нет прецедента в прототипе (Ключи введены только в PRD v6), черновое значение. Предмет баланса (Спринт 10, docs/rules/forbidden-actions.md).</summary>
-        public const int KeysPerSource = 1;
+        /// <summary>
+        /// Ключей за одну обычную плиту-источник на пути (задача «видимые
+        /// рычаги, инвариант лавы, размер награды за Воротами», владелец,
+        /// 2026-09-04, закрывает настоящий пробел — раньше нигде не было
+        /// задано, тихо стояла заглушка 1). Стартовое значение 15, **не**
+        /// <c>const</c> — изменяемое статическое поле, live-рычаг для
+        /// debug-панели, уточняется на плейтесте (тот же приём, что
+        /// <see cref="ManaPerSource"/>). Ориентир владельца: за забег игрок
+        /// должен набирать примерно на одну-две покупки в Алтаре (порядка
+        /// 100–150 Ключей при текущей плотности источников в каталоге
+        /// сегментов) — не привязано к цене формулой, читай doc-комментарий
+        /// <c>Generation.GateVaultPricing</c> о том, почему эта связь ручная,
+        /// не автоматическая.
+        /// </summary>
+        public static int KeysPerSource = 15;
 
         [SerializeField] private GridTraceInputController _input;
 
@@ -120,7 +133,11 @@ namespace Burmalda.Currencies
             _multiplier = new TrailMultiplierSystem(_input.Trail);
             _manaIncomeSystem = new TrailManaIncomeSystem(_input.Trail, _multiplier, RunManaCrystals);
             _manaSystem = new TrailTileCurrencySystem(_input.Grid, _input.Trail, t => t.IsManaSource, ManaPerSource, RunManaCrystals);
-            _keySystem = new TrailTileCurrencySystem(_input.Grid, _input.Trail, t => t.IsKeySource, KeysPerSource, RunKeys);
+            // Func<Tile,int>-перегрузка, не единый KeysPerSource на все
+            // источники — тайник за Воротами (Tile.KeySourceAmount) несёт
+            // свою явную сумму, обычные источники на пути падают на общий
+            // KeysPerSource (см. её doc-комментарий).
+            _keySystem = new TrailTileCurrencySystem(_input.Grid, _input.Trail, t => t.IsKeySource, t => t.KeySourceAmount ?? KeysPerSource, RunKeys);
         }
 
         private void DisposeRunSystems()

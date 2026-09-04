@@ -18,7 +18,15 @@ namespace Burmalda.Generation
 
         private readonly SegmentTileType[,] _tiles;
 
-        public SegmentTemplate(string name, int difficultyTier, SegmentRewardTag rewardTag, SegmentTileType[,] tiles)
+        /// <param name="gateVaultPurchases">
+        /// Размер тайника за Воротами этого шаблона, в покупках (задача
+        /// «видимые рычаги, инвариант лавы, размер награды за Воротами»,
+        /// владелец, 2026-09-04) — см. <see cref="GateVaultPurchases"/> и
+        /// <see cref="GateVaultPricing"/>. Обязателен, если в шаблоне есть
+        /// <see cref="SegmentTileType.GateVaultKeySource"/>, иначе должен
+        /// быть null — см. <see cref="ValidateGateVault"/>.
+        /// </param>
+        public SegmentTemplate(string name, int difficultyTier, SegmentRewardTag rewardTag, SegmentTileType[,] tiles, double? gateVaultPurchases = null)
         {
             if (tiles == null) throw new ArgumentNullException(nameof(tiles));
             if (difficultyTier < MinDifficultyTier || difficultyTier > MaxDifficultyTier)
@@ -37,9 +45,11 @@ namespace Burmalda.Generation
             RowCount = rowCount;
             Width = tiles.GetLength(1);
             _tiles = tiles;
+            GateVaultPurchases = gateVaultPurchases;
 
             ValidateNoTriggerOnLastRow();
             ValidateLeverGates();
+            ValidateGateVault();
             ValidateTriggerTargetsDoNotConflict();
         }
 
@@ -60,6 +70,15 @@ namespace Burmalda.Generation
 
         /// <summary>Тип плиты по локальным координатам внутри шаблона (0,0 — вход, RowCount-1 — выход).</summary>
         public SegmentTileType TileAt(int row, int column) => _tiles[row, column];
+
+        /// <summary>
+        /// Размер тайника за Воротами ЭТОГО шаблона, в покупках (владелец,
+        /// 2026-09-04: «1 для короткого крюка, 1.5 для длинного» — не
+        /// формула, конкретные значения по шаблону задаёт авторинг). Null,
+        /// если в шаблоне нет <see cref="SegmentTileType.GateVaultKeySource"/>.
+        /// Фактическая сумма Ключей — <see cref="GateVaultPricing.ComputeVaultKeys"/>.
+        /// </summary>
+        public double? GateVaultPurchases { get; }
 
         // Триггер на последнем ряду шаблона указывал бы на плиту за его
         // пределами (следующий ряд — уже другой сегмент) — см.
@@ -99,13 +118,35 @@ namespace Burmalda.Generation
                 throw new ArgumentException($"Больше одного Lever в шаблоне ({leverCount}) — issue #51 предполагает ровно один рычаг на шаблон.", nameof(_tiles));
             if (gateCount > 0 && leverCount == 0)
                 throw new ArgumentException("LeverGate без единственного Lever в том же шаблоне.", nameof(_tiles));
-            // Issue #193 (владелец, 2026-09-01): "рычаг существует только
-            // рядом со своими Воротами — отдельно стоящий рычаг вне связки
-            // бессмыслен, его никто никогда не найдёт" (рычаг теперь СКРЫТ,
-            // без Ворот открывать нечего, а искать наугад — распад того не
-            // стоит). Обратная сторона проверки выше.
+            // Issue #193: "рычаг существует только рядом со своими Воротами
+            // — отдельно стоящий рычаг вне связки бессмыслен" — открывать
+            // нечего, независимо от того, виден рычаг всегда (владелец,
+            // 2026-09-04) или был скрыт (более раннее решение того же
+            // issue). Обратная сторона проверки выше.
             if (leverCount > 0 && gateCount == 0)
                 throw new ArgumentException("Lever без единственного LeverGate в том же шаблоне — рычаг без ворот бессмыслен (issue #193).", nameof(_tiles));
+        }
+
+        // Не более одного тайника за Ворота на шаблон (задача «размер
+        // награды за Воротами», владелец, 2026-09-04) — тот же принцип, что
+        // у Lever выше: GateVaultPurchases одна на шаблон, нескольким
+        // тайникам разных размеров было бы некуда деться. Обязателен, если
+        // GateVaultKeySource есть; должен быть null, если его нет — молчаливо
+        // проигнорированный параметр конструктора маскировал бы опечатку
+        // авторинга (забыли поставить 'v' или, наоборот, лишний параметр).
+        private void ValidateGateVault()
+        {
+            var vaultCount = 0;
+            for (var r = 0; r < RowCount; r++)
+                for (var c = 0; c < Width; c++)
+                    if (_tiles[r, c] == SegmentTileType.GateVaultKeySource) vaultCount++;
+
+            if (vaultCount > 1)
+                throw new ArgumentException($"Больше одного GateVaultKeySource в шаблоне ({vaultCount}) — GateVaultPurchases одна на шаблон.", nameof(_tiles));
+            if (vaultCount == 1 && !GateVaultPurchases.HasValue)
+                throw new ArgumentException("GateVaultKeySource есть в шаблоне, но GateVaultPurchases не задан.", nameof(_tiles));
+            if (vaultCount == 0 && GateVaultPurchases.HasValue)
+                throw new ArgumentException("GateVaultPurchases задан, но GateVaultKeySource в шаблоне нет — параметр не был бы использован.", nameof(GateVaultPurchases));
         }
 
         // Найдено на реальном билде (2026-09-01, живой забег до Яруса 6):

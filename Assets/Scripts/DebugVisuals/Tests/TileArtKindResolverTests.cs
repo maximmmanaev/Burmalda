@@ -231,25 +231,25 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileArtKind.KeySource, TileArtKindResolver.Resolve(state));
         }
 
-        // Issue #193 (владелец, 2026-09-01) ОТМЕНЯЕТ более раннее решение
-        // «тёплый набор плит» (тогда — Lever всегда видим): рычаг теперь
-        // скрыт той же сигнатурой, что и ловушки, пока не раскрыт
-        // примериванием — "две разновидности механизма с разной видимостью
-        // научат игрока неверному правилу".
+        // Владелец, 2026-09-04 («видимые рычаги, инвариант лавы, размер
+        // награды за Воротами») ОТМЕНЯЕТ issue #193: рычаг — механизм, не
+        // опасность, видим ВСЕГДА, собственная текстура, не гейтится
+        // примериванием.
         [Test]
-        public void Resolve_Lever_NotRevealed_LooksLikeOrdinaryFreshTile()
+        public void Resolve_Lever_NotRevealed_ReturnsLever()
         {
-            var hidden = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: false);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: false);
 
-            Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(hidden));
+            Assert.AreEqual(TileArtKind.Lever, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
-        public void Resolve_Lever_Revealed_ReturnsTriggerSignature()
+        public void Resolve_Lever_Revealed_StillReturnsLever()
         {
+            // isDangerSignatureRevealed не влияет на рычаг вообще.
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: true);
 
-            Assert.AreEqual(TileArtKind.TriggerSignature, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.Lever, TileArtKindResolver.Resolve(state));
         }
 
         [Test]

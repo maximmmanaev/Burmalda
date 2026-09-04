@@ -84,16 +84,14 @@ namespace Burmalda.DebugVisuals
             // плите не бывают (взаимоисключающие роли, Tile.
             // GuardAgainstConflictingRole).
             if (state.IsGated) return state.IsLeverGateOpen ? TileArtKind.GateOpen : TileArtKind.GateClosed;
-            // Issue #193 (владелец, 2026-09-01): рычаг ТЕПЕРЬ скрытый
-            // механизм — "две разновидности механизма с разной видимостью
-            // научат игрока неверному правилу", отдельной сущности "рычаг-
-            // открывашка" нет, один тип, та же сигнатура, что у триггеров
-            // ловушек выше. TileArtKind.Lever/tile-lever.png остаются в
-            // каталоге (текстура владельца, не удаляется), но резолвер её
-            // больше не выбирает — см. TunnelDebugVisual для подсказки
-            // направления на закрытых Воротах (Tile.LeverCoordinate),
-            // которая делает поиск скрытого рычага ограниченным, не наугад.
-            if (state.IsLever && state.IsDangerSignatureRevealed) return TileArtKind.TriggerSignature;
+            // Владелец, 2026-09-04 (отменяет issue #193): рычаг — механизм,
+            // не опасность, видим ВСЕГДА, собственная текстура
+            // (TileArtKind.Lever/tile-lever.png), не гейтится примериванием
+            // и не делит сигнатуру с триггерами ловушек выше. Подсказка
+            // направления на закрытых Воротах (TunnelDebugVisual,
+            // Tile.LeverCoordinate) остаётся — необязательна теперь, но
+            // лишней не будет.
+            if (state.IsLever) return TileArtKind.Lever;
 
             // Источники валюты (часть 1 задачи «сделать тоннель играбельным»):
             // раньше None (в пакете были только иконки Icons/Currencies/, не

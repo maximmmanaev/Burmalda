@@ -464,6 +464,38 @@ namespace Burmalda.Core.Tests
             Assert.IsFalse(tile.IsManaSource);
         }
 
+        // issue «размер награды за Воротами» (владелец, 2026-09-04).
+        [Test]
+        public void MarkKeySource_NoAmount_KeySourceAmountIsNull()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkKeySource();
+
+            Assert.IsFalse(tile.KeySourceAmount.HasValue);
+        }
+
+        [Test]
+        public void MarkKeySource_WithAmount_SetsKeySourceAmount()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkKeySource(120);
+
+            Assert.AreEqual(120, tile.KeySourceAmount);
+        }
+
+        [Test]
+        public void MarkKeySource_CalledTwice_KeepsFirstAmount()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkKeySource(120);
+            tile.MarkKeySource(999);
+
+            Assert.AreEqual(120, tile.KeySourceAmount);
+        }
+
         [Test]
         public void NewTile_IsNotAltar()
         {
