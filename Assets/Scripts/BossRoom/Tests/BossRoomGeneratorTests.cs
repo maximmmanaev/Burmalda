@@ -130,6 +130,64 @@ namespace Burmalda.BossRoom.Tests
             Assert.IsFalse(tile.BossRoomTile.HasValue);
         }
 
+        // Владелец, 2026-09-05 («закрыть вертикальный срез — плита Эхо»):
+        // «Эхо должно лежать так, чтобы дойти до него можно было только
+        // после Резонансов» — прогоняем много разных seed'ов, чтобы поймать
+        // регрессию, которая проявляется не при каждом случайном порядке.
+        [Test]
+        public void Generate_EchoTiles_AreAlwaysStrictlyDeeperThanEveryResonanceTile()
+        {
+            BossRoomGenerator.ResonanceCountMin = 6;
+            BossRoomGenerator.ResonanceCountMax = 10;
+            BossRoomGenerator.EchoCountMin = 1;
+            BossRoomGenerator.EchoCountMax = 3;
+            BossRoomGenerator.VeinShareOfRemaining = 0.6f;
+
+            for (var seed = 0; seed < 30; seed++)
+            {
+                var grid = new TunnelGrid(5);
+                var generator = new BossRoomGenerator(grid, PseudoRandom(seed));
+
+                generator.Generate(entryRow: 0, roomLengthRows: BossRoomGenerator.DefaultRoomLengthRows);
+
+                var tiles = CollectRoomTiles(grid, 1, BossRoomGenerator.DefaultRoomLengthRows);
+                var resonanceRows = tiles.Where(t => t.BossRoomTile == BossRoomTileKind.Resonance).Select(t => t.Coordinate.Row).ToList();
+                var echoRows = tiles.Where(t => t.BossRoomTile == BossRoomTileKind.Echo).Select(t => t.Coordinate.Row).ToList();
+
+                Assert.Greater(resonanceRows.Count, 0, $"seed={seed}: должен быть хотя бы один Резонанс.");
+                Assert.Greater(echoRows.Count, 0, $"seed={seed}: должно быть хотя бы одно Эхо.");
+                Assert.Less(resonanceRows.Max(), echoRows.Min(), $"seed={seed}: самый глубокий Резонанс должен быть мельче самого мелкого Эха.");
+            }
+        }
+
+        [Test]
+        public void Generate_EchoCount_StaysWithinConfiguredRange()
+        {
+            BossRoomGenerator.ResonanceCountMin = 6;
+            BossRoomGenerator.ResonanceCountMax = 10;
+            BossRoomGenerator.EchoCountMin = 1;
+            BossRoomGenerator.EchoCountMax = 3;
+            BossRoomGenerator.VeinShareOfRemaining = 0.6f;
+
+            for (var seed = 0; seed < 30; seed++)
+            {
+                var grid = new TunnelGrid(5);
+                var generator = new BossRoomGenerator(grid, PseudoRandom(seed));
+
+                generator.Generate(entryRow: 0, roomLengthRows: BossRoomGenerator.DefaultRoomLengthRows);
+
+                var echoCount = CollectRoomTiles(grid, 1, BossRoomGenerator.DefaultRoomLengthRows).Count(t => t.BossRoomTile == BossRoomTileKind.Echo);
+                Assert.GreaterOrEqual(echoCount, 1, $"seed={seed}");
+                Assert.LessOrEqual(echoCount, 3, $"seed={seed}");
+            }
+        }
+
+        private static System.Func<float> PseudoRandom(int seed)
+        {
+            var random = new System.Random(seed);
+            return () => (float)random.NextDouble();
+        }
+
         [Test]
         public void Generate_ZeroRoomLength_Throws()
         {
