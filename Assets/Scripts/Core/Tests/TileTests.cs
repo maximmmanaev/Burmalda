@@ -819,5 +819,35 @@ namespace Burmalda.Core.Tests
 
             Assert.Throws<InvalidOperationException>(() => tile.MarkBlocked());
         }
+
+        // issue #216 — ловушка «Лава» (docs/wiki/traps.md).
+        [Test]
+        public void NewTile_IsNotLavaTrigger()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsLavaTrigger);
+        }
+
+        [Test]
+        public void MarkLavaTrigger_SetsIsLavaTrigger()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkLavaTrigger();
+
+            Assert.IsTrue(tile.IsLavaTrigger);
+        }
+
+        [Test]
+        public void MarkLavaTrigger_CalledTwice_StaysTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkLavaTrigger();
+            tile.MarkLavaTrigger();
+
+            Assert.IsTrue(tile.IsLavaTrigger);
+        }
     }
 }

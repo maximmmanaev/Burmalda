@@ -331,6 +331,22 @@ namespace Burmalda.Core
             IsFallingRockTrigger = true;
         }
 
+        /// <summary>
+        /// Плита — триггер ловушки «Лава» (docs/wiki/traps.md, issue #216):
+        /// сама эта плита — начало волны, отдельной координаты/ряда цели не
+        /// хранит (владелец: «волна идёт от ряда триггера назад» — ряд
+        /// вычисляется из <see cref="Coordinate"/> самого триггера, не
+        /// задаётся отдельно, в отличие от <see cref="ArrowWaveTargetRow"/>/
+        /// <see cref="BladeTactTargetRow"/>), см. <c>Movement.LavaWaveTrapSystem</c>.
+        /// </summary>
+        public bool IsLavaTrigger { get; private set; }
+
+        /// <summary>Помечает плиту как триггер волны Лавы. Повторные вызовы — не-op.</summary>
+        public void MarkLavaTrigger()
+        {
+            IsLavaTrigger = true;
+        }
+
         /// <summary>Снимает опасность с плиты-цели — окончательно, снаряд/лезвие уже прошли (одноразовая ловушка).</summary>
         public void DisarmTimedTrap()
         {

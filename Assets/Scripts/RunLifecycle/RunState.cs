@@ -88,6 +88,7 @@ namespace Burmalda.RunLifecycle
             LethalTrapType.ArrowWave => "Пронзён стрелой",
             LethalTrapType.BombBlast => "Подорвался на бомбе",
             LethalTrapType.BladeTact => "Разрублен лезвием",
+            LethalTrapType.LavaWave => "Сгорел в лаве",
             _ => "Сработала ловушка"
         };
 
