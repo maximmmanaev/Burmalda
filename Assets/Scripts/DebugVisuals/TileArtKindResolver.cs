@@ -8,9 +8,10 @@ namespace Burmalda.DebugVisuals
     /// приоритета, что и <see cref="TileDebugColor.Resolve"/> (первая
     /// генерация арта заменяет цвет текстурой, не меняет логику "что
     /// показывать когда", см. задачу "Завести арт в игру"). Состояния, для
-    /// которых в пакете нет готового арта (текущая позиция, вход в Комнату
-    /// Босса), возвращают <see cref="TileArtKind.None"/> — вызывающий код
-    /// решает, чем их закрыть (см. doc-комментарий <see cref="TileArtKind"/>).
+    /// которых в пакете нет готового арта (сейчас — только содержимое самой
+    /// Комнаты Босса, Жила/Резонанс/Эхо), возвращают <see cref="TileArtKind.None"/>
+    /// — вызывающий код решает, чем их закрыть (см. doc-комментарий
+    /// <see cref="TileArtKind"/>).
     ///
     /// Чистая функция — как и <see cref="TileDebugColor.Resolve"/>,
     /// тестируется без сцены и без Unity Texture API.
@@ -63,12 +64,13 @@ namespace Burmalda.DebugVisuals
             if ((state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) && state.IsDangerSignatureRevealed)
                 return TileArtKind.TriggerSignature;
 
-            // Комнаты Босса ещё нет в тёплом наборе (PRD v8/v9 §8) — под вход
-            // и под содержимое Комнаты по-прежнему нет текстур, остаётся на
-            // цветном фолбэке (см. TileDebugColor — там у Жилы/Резонанса/Эха
-            // уже есть различимые цвета, задача «Комната Босса», владелец,
-            // 2026-09-02).
-            if (state.IsBoss) return TileArtKind.None;
+            // Баг с устройства (владелец, 2026-09-04): вход в Комнату — уже
+            // TileArtKind.Boss (см. её doc-комментарий), структурная плита
+            // маршрута обязана читаться. Содержимое САМОЙ Комнаты
+            // (Жила/Резонанс/Эхо) по прямому указанию задачи остаётся на
+            // цветном фолбэке — Комната целиком получит свой визуальный
+            // режим в Спринте 20, чинить его по частям сейчас не просили.
+            if (state.IsBoss) return TileArtKind.Boss;
             if (state.BossRoomTile.HasValue) return TileArtKind.None;
             if (state.IsAltar) return TileArtKind.Altar;
             // Задача «тёплый набор плит»: прежние tile-gate-closed.png/

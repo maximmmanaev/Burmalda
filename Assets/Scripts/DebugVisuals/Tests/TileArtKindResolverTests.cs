@@ -47,14 +47,15 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileArtKind.Blocked, TileArtKindResolver.Resolve(state));
         }
 
+        // Баг с устройства (владелец, 2026-09-04, «вход в Комнату — обязан
+        // читаться»): TileArtKind.Boss переиспользует текстуру Алтаря со
+        // своим тоном (TunnelDebugVisual.BossArtTint), не None.
         [Test]
-        public void Resolve_Boss_NotStartNotCurrentNotDestroyed_ReturnsNone()
+        public void Resolve_Boss_NotStartNotCurrentNotDestroyed_ReturnsBoss()
         {
-            // Categорий Boss/ в пакете нет (Комната Босса ещё не реализована) —
-            // остаётся на цветном fallback (TileDebugColor.BossColor).
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true);
 
-            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.Boss, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
@@ -277,7 +278,7 @@ namespace Burmalda.DebugVisuals.Tests
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true, isAltar: true);
 
-            Assert.AreEqual(TileArtKind.None, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.Boss, TileArtKindResolver.Resolve(state));
         }
 
         [Test]

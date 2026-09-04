@@ -122,6 +122,11 @@ namespace Burmalda.DebugVisuals
                 case TileArtKind.GateClosed: return _gateClosed;
                 case TileArtKind.GateOpen: return _gateOpen;
                 case TileArtKind.Altar: return _altar;
+                // Баг с устройства (владелец, 2026-09-04): переиспользует
+                // ту же текстуру, что Altar — свой тон применяет вызывающая
+                // сторона (см. TunnelDebugVisual.BossArtTint), не
+                // отдельный файл. См. doc-комментарий TileArtKind.Boss.
+                case TileArtKind.Boss: return _altar;
                 default: return null;
             }
         }

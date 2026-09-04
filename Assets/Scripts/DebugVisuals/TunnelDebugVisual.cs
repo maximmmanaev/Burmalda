@@ -50,6 +50,18 @@ namespace Burmalda.DebugVisuals
         private const float TileScale = 0.92f;
         private const float TileHeight = 0.1f;
 
+        /// <summary>
+        /// Баг с устройства (владелец, 2026-09-04): вход в Комнату Босса
+        /// (<see cref="DebugVisuals.TileArtKind.Boss"/>) переиспользует
+        /// текстуру Алтаря, но не должен выглядеть КАК Алтарь (оба стоят
+        /// рядом на маршруте, PRD v9 §8.1) — умножается на этот тёплый
+        /// медно-оранжевый тон вместо Color.white (см. её применение в
+        /// <see cref="ApplyVisual"/>), тот же приём, что раньше
+        /// использовался для HiddenTrapSignatureTextureTint (см. её
+        /// doc-комментарий в TileDebugColor).
+        /// </summary>
+        public static readonly Color BossArtTint = new Color(1f, 150f / 255f, 90f / 255f);
+
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private readonly WorldGridProjection _projection;
@@ -661,10 +673,14 @@ namespace Burmalda.DebugVisuals
                 // безопасно и покрывает все три варианта из
                 // CreateTemplateMaterial (URP/Lit, Standard, Unlit/Color)
                 // одним и тем же кодом без ветвления по типу шейдера.
+                // Босс переиспользует текстуру Алтаря, но не её белый тон —
+                // см. doc-комментарий BossArtTint. Единственное исключение
+                // из "текстура показывается как есть" в этом методе.
+                var textureTint = kind == TileArtKind.Boss ? BossArtTint : Color.white;
                 _propertyBlock.SetTexture(BaseMapId, texture);
                 _propertyBlock.SetTexture(MainTexId, texture);
-                _propertyBlock.SetColor(BaseColorId, Color.white);
-                _propertyBlock.SetColor(ColorId, Color.white);
+                _propertyBlock.SetColor(BaseColorId, textureTint);
+                _propertyBlock.SetColor(ColorId, textureTint);
                 if (_supportsSmoothness) _propertyBlock.SetFloat(SmoothnessId, 0.35f);
                 if (_supportsEmission) _propertyBlock.SetColor(EmissionColorId, Color.black);
             }
