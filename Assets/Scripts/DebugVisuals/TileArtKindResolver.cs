@@ -43,6 +43,15 @@ namespace Burmalda.DebugVisuals
             // прямо сейчас", отдельной текстуры под "уже взорвалось" в
             // пакете нет и придумывать её не в скоупе агента.
             if (state.LethalTrap == LethalTrapType.Explosion) return TileArtKind.TimedTrapActive;
+            // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
+            // смертельной навсегда») — см. подробный doc-комментарий той же
+            // ветки в TileDebugColor.Resolve: настоящая причина — у четырёх
+            // новых LethalTrapType (ArrowWave/BombBlast/BladeTact/LavaWave)
+            // не было ветки здесь вовсе, армированная плита выглядела
+            // обычным полом. Тот же реюз TimedTrapActive, что у Explosion.
+            if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
+                state.LethalTrap == LethalTrapType.BladeTact || state.LethalTrap == LethalTrapType.LavaWave)
+                return TileArtKind.TimedTrapActive;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2
             // заменяется): яма — единственный оставшийся тип, не выдающий
             // точный тип до примеривания (см. Core.TrapSignature) — общий

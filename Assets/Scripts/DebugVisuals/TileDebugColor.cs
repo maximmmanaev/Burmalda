@@ -251,6 +251,22 @@ namespace Burmalda.DebugVisuals
             // смысл "активная угроза", отдельного цвета под "уже взорвалось"
             // придумывать не в скоупе агента.
             if (state.LethalTrap == LethalTrapType.Explosion) return TimedTrapActiveColor;
+            // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
+            // смертельной навсегда... выглядит как непроходимая стена»):
+            // проверка показала, что ArrowWaveTrapSystem/BladeTactTrapSystem
+            // корректно снимают опасность по завершении (см. их тесты,
+            // Tick_FullSequence_..._ThenAllSafe) — настоящая причина другая:
+            // у ЧЕТЫРЁХ новых LethalTrapType Спринта 13a (ArrowWave/
+            // BombBlast/BladeTact/LavaWave) не было НИ ОДНОЙ ветки здесь
+            // вовсе — Resolve() проваливался до градиента распада, армированная
+            // плита выглядела обычным полом. Игрок видел "необъяснимую
+            // преграду": ход отклоняется (CanAdvanceTo видит LethalTrap),
+            // а глазами — ничего не видно, что бы это объясняло. Тот же
+            // принцип, что Explosion выше — активная угроза ПРЯМО СЕЙЧАС,
+            // видна ВСЕГДА, без гейта примеривания.
+            if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
+                state.LethalTrap == LethalTrapType.BladeTact || state.LethalTrap == LethalTrapType.LavaWave)
+                return TimedTrapActiveColor;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2
             // заменяется): яма — единственный оставшийся скрытый тип (см.
             // Core.TrapSignature), только ПОСЛЕ того, как игрок навёл на

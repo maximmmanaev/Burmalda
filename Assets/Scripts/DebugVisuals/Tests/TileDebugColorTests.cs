@@ -121,6 +121,23 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(notRevealed));
         }
 
+        // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
+        // смертельной навсегда... выглядит как непроходимая стена»):
+        // настоящая причина — у этих четырёх LethalTrapType не было ветки
+        // здесь вовсе, армированная плита выглядела обычным полом (падала
+        // до градиента распада) — игрок видел необъяснимую преграду, а не
+        // "перестал гаситься тайл". Тот же реюз TimedTrapActiveColor, что у Explosion.
+        [TestCase(LethalTrapType.ArrowWave)]
+        [TestCase(LethalTrapType.BombBlast)]
+        [TestCase(LethalTrapType.BladeTact)]
+        [TestCase(LethalTrapType.LavaWave)]
+        public void Resolve_NewTurnBasedTrapTypes_ReturnTimedTrapActiveColor(LethalTrapType trapType)
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: trapType, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+
+            Assert.AreEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(state));
+        }
+
         // Pit и Explosion теперь РАЗНЫЕ категории — Pit прячется, Explosion нет.
         [Test]
         public void Resolve_PitRevealed_AndExplosion_ProduceDifferentColors()
