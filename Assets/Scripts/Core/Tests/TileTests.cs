@@ -750,5 +750,74 @@ namespace Burmalda.Core.Tests
 
             Assert.AreEqual(4, tile.BladeTactTargetRow);
         }
+
+        // issue #217 — ловушка «Падающий камень» (docs/wiki/traps.md).
+        [Test]
+        public void NewTile_IsNotFallingRockTrigger()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsFallingRockTrigger);
+        }
+
+        [Test]
+        public void MarkFallingRockTrigger_SetsIsFallingRockTrigger()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkFallingRockTrigger();
+
+            Assert.IsTrue(tile.IsFallingRockTrigger);
+        }
+
+        [Test]
+        public void MarkFallingRockTrigger_CalledTwice_StaysTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkFallingRockTrigger();
+            tile.MarkFallingRockTrigger();
+
+            Assert.IsTrue(tile.IsFallingRockTrigger);
+        }
+
+        [Test]
+        public void TransitionToBlocked_SetsIsBlockedTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.TransitionToBlocked();
+
+            Assert.IsTrue(tile.IsBlocked);
+        }
+
+        // Тот же контрольный принцип, что MarkLethalTrap_StillGuardsAgainstConflictingRole_UnlikeTransitionToLethalTrap выше.
+        [TestCase(nameof(Tile.MarkManaSource))]
+        [TestCase(nameof(Tile.MarkKeySource))]
+        [TestCase(nameof(Tile.MarkAltar))]
+        [TestCase(nameof(Tile.MarkBoss))]
+        public void TransitionToBlocked_OverAnyOtherExclusiveRole_DoesNotThrow(string markMethodName)
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            switch (markMethodName)
+            {
+                case nameof(Tile.MarkManaSource): tile.MarkManaSource(); break;
+                case nameof(Tile.MarkKeySource): tile.MarkKeySource(); break;
+                case nameof(Tile.MarkAltar): tile.MarkAltar(); break;
+                case nameof(Tile.MarkBoss): tile.MarkBoss(); break;
+            }
+
+            Assert.DoesNotThrow(() => tile.TransitionToBlocked());
+            Assert.IsTrue(tile.IsBlocked);
+        }
+
+        [Test]
+        public void MarkBlocked_StillGuardsAgainstConflictingRole_UnlikeTransitionToBlocked()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.MarkManaSource();
+
+            Assert.Throws<InvalidOperationException>(() => tile.MarkBlocked());
+        }
     }
 }

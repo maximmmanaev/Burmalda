@@ -59,11 +59,11 @@ namespace Burmalda.Core
         /// будущие Лава-волна/Падающий камень, ворота открываются, плита
         /// разрушается распадом, docs/wiki/traps.md) — те идут через
         /// отдельный явный API (см. <see cref="TransitionToLethalTrap"/>,
-        /// <see cref="OpenLeverGate"/>, <see cref="AdvanceDecay"/>), который
-        /// сознательно не вызывает этот метод. Список рантайм-переходов
-        /// растёт вместе с игрой — не перечислением исключений здесь, а
-        /// новым явным методом на каждый случай, как уже сделано для этих
-        /// четырёх.
+        /// <see cref="TransitionToBlocked"/>, <see cref="OpenLeverGate"/>,
+        /// <see cref="AdvanceDecay"/>), который сознательно не вызывает этот
+        /// метод. Список рантайм-переходов растёт вместе с игрой — не
+        /// перечислением исключений здесь, а новым явным методом на каждый
+        /// случай, как уже сделано для этих пяти.
         /// </summary>
         private void GuardAgainstConflictingRole(bool alreadyThisRole, string incomingRole)
         {
@@ -104,6 +104,22 @@ namespace Burmalda.Core
         public void MarkBlocked()
         {
             GuardAgainstConflictingRole(IsBlocked, nameof(IsBlocked));
+            IsBlocked = true;
+        }
+
+        /// <summary>
+        /// РАНТАЙМ-переход, симметричный <see cref="TransitionToLethalTrap"/>:
+        /// плита становится непроходимой ПРЯМО СЕЙЧАС, по ходу забега —
+        /// сознательно БЕЗ <see cref="GuardAgainstConflictingRole"/> (см. её
+        /// doc-комментарий). Введён для ловушки «Падающий камень»
+        /// (docs/wiki/traps.md, issue #217, <c>Movement.FallingRockTrapSystem</c>):
+        /// единственная ловушка, необратимо меняющая геометрию маршрута —
+        /// камень падает на плиту-триггер и остаётся там навсегда, как
+        /// стена (<see cref="IsBlocked"/>), но появляется ВО ВРЕМЯ забега, а
+        /// не на этапе генерации, как <see cref="MarkBlocked"/>.
+        /// </summary>
+        public void TransitionToBlocked()
+        {
             IsBlocked = true;
         }
 
@@ -299,6 +315,20 @@ namespace Burmalda.Core
         {
             if (BladeTactTargetRow.HasValue) return;
             BladeTactTargetRow = targetRow;
+        }
+
+        /// <summary>
+        /// Плита — триггер ловушки «Падающий камень» (docs/wiki/traps.md,
+        /// issue #217): в отличие от прочих триггеров не хранит отдельную
+        /// координату/ряд цели — камень падает на САМУ эту плиту (владелец:
+        /// «на плиту-триггер падает камень»), см. <c>Movement.FallingRockTrapSystem</c>.
+        /// </summary>
+        public bool IsFallingRockTrigger { get; private set; }
+
+        /// <summary>Помечает плиту как триггер Падающего камня. Повторные вызовы — не-op.</summary>
+        public void MarkFallingRockTrigger()
+        {
+            IsFallingRockTrigger = true;
         }
 
         /// <summary>Снимает опасность с плиты-цели — окончательно, снаряд/лезвие уже прошли (одноразовая ловушка).</summary>
