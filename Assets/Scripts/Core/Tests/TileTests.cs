@@ -690,5 +690,35 @@ namespace Burmalda.Core.Tests
             Assert.DoesNotThrow(() => tile.ClearLethalTrap());
             Assert.IsFalse(tile.LethalTrap.HasValue);
         }
+
+        // issue #214 — ловушка «Бомба» (docs/wiki/traps.md).
+        [Test]
+        public void NewTile_IsNotBombTrigger()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsBombTrigger);
+        }
+
+        [Test]
+        public void MarkBombTrigger_SetsIsBombTrigger()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBombTrigger();
+
+            Assert.IsTrue(tile.IsBombTrigger);
+        }
+
+        [Test]
+        public void MarkBombTrigger_CalledTwice_StaysTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBombTrigger();
+            tile.MarkBombTrigger();
+
+            Assert.IsTrue(tile.IsBombTrigger);
+        }
     }
 }

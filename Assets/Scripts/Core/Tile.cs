@@ -264,6 +264,24 @@ namespace Burmalda.Core
             ArrowWaveDirection = direction;
         }
 
+        /// <summary>
+        /// Плита — триггер ловушки «Бомба» (docs/wiki/traps.md, issue #214):
+        /// в отличие от <see cref="ArrowWaveTargetRow"/>/<see cref="ExplosiveTrapTarget"/>/
+        /// <see cref="TimedTrapTarget"/> не хранит отдельную координату
+        /// цели — площадь взрыва (радиус <c>Movement.BombTrapSystem.RadiusTiles</c>)
+        /// вычисляется вокруг координаты САМОЙ этой плиты (владелец: «восемь
+        /// соседей плюс сама плита-триггер», взрыв центрирован на триггере,
+        /// не смещён на отдельную цель). Сама плита-триггер входит в площадь
+        /// взрыва — в отличие от прочих триггеров она НЕ остаётся безопасной.
+        /// </summary>
+        public bool IsBombTrigger { get; private set; }
+
+        /// <summary>Помечает плиту как триггер Бомбы. Повторные вызовы — не-op.</summary>
+        public void MarkBombTrigger()
+        {
+            IsBombTrigger = true;
+        }
+
         /// <summary>Снимает опасность с плиты-цели — окончательно, снаряд/лезвие уже прошли (одноразовая ловушка).</summary>
         public void DisarmTimedTrap()
         {
