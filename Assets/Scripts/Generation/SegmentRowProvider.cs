@@ -180,6 +180,23 @@ namespace Burmalda.Generation
                 case SegmentTileType.Boss:
                     tile.MarkBoss();
                     break;
+                case SegmentTileType.ArrowWaveTrigger:
+                    // Дефолт "ряд самого триггера/слева-направо" — см.
+                    // doc-комментарий SegmentTileType.ArrowWaveTrigger.
+                    tile.MarkArrowWaveTrigger(coordinate.Row, RowWaveDirection.LeftToRight);
+                    break;
+                case SegmentTileType.BombTrigger:
+                    tile.MarkBombTrigger();
+                    break;
+                case SegmentTileType.BladeTactTrigger:
+                    tile.MarkBladeTactTrigger(coordinate.Row);
+                    break;
+                case SegmentTileType.FallingRockTrigger:
+                    tile.MarkFallingRockTrigger();
+                    break;
+                case SegmentTileType.LavaWaveTrigger:
+                    tile.MarkLavaTrigger();
+                    break;
                 case SegmentTileType.Open:
                 default:
                     break;

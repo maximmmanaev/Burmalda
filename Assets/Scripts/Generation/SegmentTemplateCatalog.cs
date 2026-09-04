@@ -14,7 +14,10 @@ namespace Burmalda.Generation
     /// 'b' TimedTrapBladeTrigger, 'L' Lever, 'g' LeverGate, 'm' ManaSource,
     /// 'k' KeySource, 'v' GateVaultKeySource (тайник за Воротами — сумма из
     /// <see cref="SegmentTemplate.GateVaultPurchases"/>, не 'k'), 'A' Altar,
-    /// 'B' Boss.
+    /// 'B' Boss. Ловушки Спринта 13a (issues #213–#217, найдено при сверке
+    /// 2026-09-04 — были написаны и протестированы, но без символов не
+    /// могли попасть на трассу): 'w' ArrowWaveTrigger, 'x' BombTrigger,
+    /// 't' BladeTactTrigger, 'r' FallingRockTrigger, 'f' LavaWaveTrigger.
     ///
     /// **Контент-долг**: 40 шаблонов (13 исходных + Партия 2, 13 шаблонов +
     /// Партия 1, 14 шаблонов — обе из задачи «партии 1 и 2 + правила
@@ -518,6 +521,48 @@ namespace Burmalda.Generation
                 ".#k#.",
                 ".....",
             })),
+
+            // ==================== Партия 3 (баг с устройства, 2026-09-04) ====================
+            // Пять ловушек Спринта 13a (issues #213–#217) были написаны и
+            // покрыты тестами, но без символов шаблона не могли попасть на
+            // трассу — см. doc-комментарий SegmentTileType.ArrowWaveTrigger.
+            // Существующие раскладки НЕ переписаны — только новые три.
+
+            // Тир 2. Стрелы новой волновой механики (issue #213) — весь ряд
+            // триггера станет опасным столбец за столбцом через 1 ход, плюс
+            // падающий камень (issue #217) двумя клетками ниже.
+            new SegmentTemplate("рой-стрел", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "..w..",
+                ".....",
+                ".r.r.",
+                "..m..",
+            })),
+
+            // Тир 3. Такт Лезвий (issue #215) — пятитактовый паттерн, ряд
+            // триггера начинает становиться опасным через несколько ходов.
+            new SegmentTemplate("такт-лезвий-волной", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            {
+                ".....",
+                ".t.t.",
+                ".....",
+                "..t..",
+                "..k..",
+            })),
+
+            // Тир 4. Бомба (issue #214, площадь 3×3 через 2 хода) и волна
+            // Лавы (issue #216, идёт назад от триггера — инвариант волны
+            // сам не даст ей перекрыть ряд игрока/впереди него, см.
+            // Movement.LavaWaveTrapSystem).
+            new SegmentTemplate("бомба-и-поток-лавы", 4, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "..x..",
+                ".....",
+                "..f..",
+                ".m.m.",
+            })),
         };
 
         private static SegmentTileType[,] ParseRows(string[] rows)
@@ -544,6 +589,11 @@ namespace Burmalda.Generation
                     'v' => SegmentTileType.GateVaultKeySource,
                     'A' => SegmentTileType.Altar,
                     'B' => SegmentTileType.Boss,
+                    'w' => SegmentTileType.ArrowWaveTrigger,
+                    'x' => SegmentTileType.BombTrigger,
+                    't' => SegmentTileType.BladeTactTrigger,
+                    'r' => SegmentTileType.FallingRockTrigger,
+                    'f' => SegmentTileType.LavaWaveTrigger,
                     _ => SegmentTileType.Open
                 };
 

@@ -125,6 +125,15 @@ namespace Burmalda.Bootstrap
         public LeverActivationController Lever { get; private set; }
 
         /// <summary>
+        /// Тикает пять ловушек Спринта 13a (issues #213–#217) — баг с
+        /// устройства (владелец, 2026-09-04, «новых ловушек в игре нет»):
+        /// системы были написаны и протестированы, но без этого Controller'а
+        /// (и без символов шаблона, отдельный фикс) никогда не тикали в
+        /// реальном забеге. Независим от остальных — как и <see cref="Lever"/>.
+        /// </summary>
+        public TurnBasedTrapSystemsController TurnBasedTraps { get; private set; }
+
+        /// <summary>
         /// Интеграция Комнаты Босса (вертикальный срез, задача «Комната
         /// Босса», владелец, 2026-09-02) — вход по <c>Core.Tile.IsBoss</c>,
         /// генерация содержимого, сбор Жилы/Резонанса/Эха, наступающая
@@ -223,6 +232,7 @@ namespace Burmalda.Bootstrap
             if (Boss == null) Boss = GetOrAddComponent<BossController>(host);
             if (Camp == null) Camp = GetOrAddComponent<CampController>(host);
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
+            if (TurnBasedTraps == null) TurnBasedTraps = GetOrAddComponent<TurnBasedTrapSystemsController>(host);
             // Зависит только от Currency (уже создана строкой выше) и
             // RunLifecycle.RunController, который уже размещён на сцене
             // независимо от порядка здесь — см. doc-комментарий BossRoom.
