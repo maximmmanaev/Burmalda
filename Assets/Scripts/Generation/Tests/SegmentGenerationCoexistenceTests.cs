@@ -55,7 +55,7 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("with-block", 1, SegmentRewardTag.Coins,
                 OpenRowsWithOneBlock(5, blockedRow: 2, blockedColumn: 1));
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
-            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1);
+            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000);
 
             // Незаявленный ряд (за пределами обоих применений шаблона) —
             // единственный, кто имеет право потратить бросок из очереди.
@@ -78,7 +78,7 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("with-block", 1, SegmentRewardTag.Coins,
                 OpenRowsWithOneBlock(5, blockedRow: 2, blockedColumn: 1)); // -> абсолютный row 3, column 1
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
-            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1);
+            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000);
 
             // Ровно те тайлы, которые шаблон сам пометил заблокированными —
             // 5-рядный шаблон применяется дважды подряд (см. предыдущий
@@ -161,7 +161,7 @@ namespace Burmalda.Generation.Tests
 
             var template = new SegmentTemplate("adversarial", 1, SegmentRewardTag.Coins, tiles);
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
-            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1);
+            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000);
 
             var tile = grid.GetOrCreateTile(new GridCoordinate(3, 1));
 

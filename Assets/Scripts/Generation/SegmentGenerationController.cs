@@ -100,7 +100,7 @@ namespace Burmalda.Generation
 
             var seed = new RunSeed(new System.Random().Next()); // явно System.Random — не UnityEngine.Random, см. doc-комментарий класса
             var selector = new SegmentSelector(SegmentTemplateCatalog.All, seed);
-            _provider = new SegmentRowProvider(_input.Grid, _input.Trail, selector, MaxDifficultyForRow);
+            _provider = new SegmentRowProvider(_input.Grid, _input.Trail, selector, MaxDifficultyForRow, RowsPerDifficultyStep);
         }
 
         private static int MaxDifficultyForRow(int row)
