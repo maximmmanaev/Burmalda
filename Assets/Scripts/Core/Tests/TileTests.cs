@@ -720,5 +720,35 @@ namespace Burmalda.Core.Tests
 
             Assert.IsTrue(tile.IsBombTrigger);
         }
+
+        // issue #215 — ловушка «Лезвия» (docs/wiki/traps.md).
+        [Test]
+        public void NewTile_HasNoBladeTactTrigger()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.BladeTactTargetRow.HasValue);
+        }
+
+        [Test]
+        public void MarkBladeTactTrigger_SetsTargetRow()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBladeTactTrigger(targetRow: 4);
+
+            Assert.AreEqual(4, tile.BladeTactTargetRow);
+        }
+
+        [Test]
+        public void MarkBladeTactTrigger_CalledTwice_KeepsFirstValue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBladeTactTrigger(targetRow: 4);
+            tile.MarkBladeTactTrigger(targetRow: 9);
+
+            Assert.AreEqual(4, tile.BladeTactTargetRow);
+        }
     }
 }

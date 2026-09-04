@@ -282,6 +282,25 @@ namespace Burmalda.Core
             IsBombTrigger = true;
         }
 
+        /// <summary>
+        /// Плита — триггер ловушки «Лезвия» (docs/wiki/traps.md, issue
+        /// #215): номер ряда, который через несколько ходов начнёт
+        /// становиться опасным по пятитактовому паттерну (см.
+        /// <c>Movement.BladeTactTrapSystem</c>). Null — плита не триггер.
+        /// Тот же приём, что у <see cref="ArrowWaveTargetRow"/> — открытый
+        /// вопрос владельца («ряд триггера или следующий?») не решён, класс
+        /// хранит явно заданный ряд, не вычисляет его из <see cref="Coordinate"/>
+        /// самого триггера.
+        /// </summary>
+        public int? BladeTactTargetRow { get; private set; }
+
+        /// <summary>Помечает плиту как триггер такта Лезвий по заданному ряду. Повторные вызовы сохраняют первое значение.</summary>
+        public void MarkBladeTactTrigger(int targetRow)
+        {
+            if (BladeTactTargetRow.HasValue) return;
+            BladeTactTargetRow = targetRow;
+        }
+
         /// <summary>Снимает опасность с плиты-цели — окончательно, снаряд/лезвие уже прошли (одноразовая ловушка).</summary>
         public void DisarmTimedTrap()
         {
