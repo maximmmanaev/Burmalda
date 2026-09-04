@@ -77,6 +77,7 @@ namespace Burmalda.Movement
             || tile.ExplosiveTrapTarget.HasValue
             || tile.TimedTrapTarget.HasValue
             || tile.ArrowWaveTargetRow.HasValue // триггер Стрелы (issue #213) — тот же приём, что и прочие триггеры выше
+            || tile.IsBombTrigger // триггер Бомбы (issue #214) — тот же приём
             || tile.IsLever;
     }
 }
