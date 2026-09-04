@@ -191,7 +191,10 @@ namespace Burmalda.IntegrationTests
             var runMana = _bootstrap.Currency.RunManaCrystals;
             var runKeys = _bootstrap.Currency.RunKeys;
             Assert.Greater(runMana.Total, 0, "Мана должна была накопиться — и с обычных плит, и с плитки-источника.");
-            Assert.AreEqual(1, runKeys.Total, "Ключ должен был собраться с плитки-источника.");
+            // CurrencyController.KeysPerSource, не жёсткая 1 — mutable
+            // static (задача «размер награды за Воротами», владелец,
+            // 2026-09-04), тест не должен ломаться при её перебалансировке.
+            Assert.AreEqual(CurrencyController.KeysPerSource, runKeys.Total, "Ключи с плитки-источника должны были собраться в размере KeysPerSource.");
 
             // Топ-ап валют — тест проверяет проводку систем, а не баланс.
             // Мана — с явным запасом СВЕРХ реального BossController.BaseRequiredEnergy

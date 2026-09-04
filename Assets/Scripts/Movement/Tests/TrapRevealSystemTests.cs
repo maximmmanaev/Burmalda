@@ -182,11 +182,11 @@ namespace Burmalda.Movement.Tests
             Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
         }
 
-        // Issue #193 (владелец, 2026-09-01): рычаг теперь скрыт той же
-        // сигнатурой, что и ловушки/триггеры — "две разновидности
-        // механизма с разной видимостью научат игрока неверному правилу".
+        // Владелец, 2026-09-04 (отменяет issue #193): рычаг видим всегда,
+        // не опасность и не скрытый механизм — примеривание не должно
+        // требоваться, чтобы его заметить.
         [Test]
-        public void Tick_LeverTile_RevealsSignature()
+        public void Tick_LeverTile_DoesNotReveal()
         {
             var grid = new TunnelGrid(Width);
             var coordinate = new GridCoordinate(1, 2);
@@ -195,7 +195,7 @@ namespace Burmalda.Movement.Tests
 
             system.Tick(coordinate);
 
-            Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
+            Assert.IsFalse(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
         }
 
         [Test]

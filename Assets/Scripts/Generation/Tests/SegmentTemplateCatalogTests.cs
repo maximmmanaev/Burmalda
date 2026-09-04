@@ -92,6 +92,21 @@ namespace Burmalda.Generation.Tests
             Assert.IsTrue(ContainsTileType(template, SegmentTileType.KeySource));
         }
 
+        // Владелец, 2026-09-04 («размер награды за Воротами»): тайники за
+        // Воротами используют GateVaultKeySource (сумма из
+        // GateVaultPurchases), не общий KeySource — все три шаблона с
+        // Lever/LeverGate в каталоге переведены на новый тип.
+        [TestCase("двор-с-рычагом", 1.0)]
+        [TestCase("ворота-склада", 1.5)]
+        [TestCase("рычаг-в-глубине", 1.5)]
+        public void LeverTemplate_UsesGateVaultKeySource_WithExpectedPurchases(string name, double expectedPurchases)
+        {
+            var template = SegmentTemplateCatalog.All.Single(t => t.Name == name);
+
+            Assert.IsTrue(ContainsTileType(template, SegmentTileType.GateVaultKeySource), $"Шаблон '{name}' должен использовать GateVaultKeySource, не обычный KeySource.");
+            Assert.AreEqual(expectedPurchases, template.GateVaultPurchases);
+        }
+
         private static bool ContainsTileType(SegmentTemplate template, SegmentTileType type)
         {
             for (var r = 0; r < template.RowCount; r++)

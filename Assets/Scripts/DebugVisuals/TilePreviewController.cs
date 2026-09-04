@@ -128,23 +128,21 @@ namespace Burmalda.DebugVisuals
             // строка ("здесь механизм") видна всегда, точный тип только с
             // Идолом Чутья.
             //
-            // Issue #193 (владелец, 2026-09-01): рычаг (IsLever) — ТОЖЕ
-            // механизм, та же общая строка/гейт, что у триггеров ловушек —
-            // "две разновидности механизма с разной видимостью научат
-            // игрока неверному правилу", отдельной ветки для рычага больше
-            // нет.
-            if (tile.ExplosiveTrapTarget.HasValue || tile.TimedTrapTarget.HasValue || tile.IsLever)
+            // Рычаг (IsLever) сюда НЕ входит (владелец, 2026-09-04, отменяет
+            // issue #193) — он не скрытый триггер ловушки, у него своя
+            // безусловная строка ниже, без гейта Идолом Чутья: роль Идола
+            // "отличить механизм от ловушки" исчезла вместе со скрытием
+            // рычага, у Идола осталась только роль "точный тип ЛОВУШКИ".
+            if (tile.ExplosiveTrapTarget.HasValue || tile.TimedTrapTarget.HasValue)
             {
                 lines.Add("Триггер механизма");
                 if (TrapInsight.HasTrapTypeInsight)
                 {
-                    string exactType;
-                    if (tile.IsLever) exactType = "рычаг";
-                    else if (tile.ExplosiveTrapTarget.HasValue) exactType = "взрывная ловушка";
-                    else exactType = tile.TimedTrapKind.ToString();
+                    var exactType = tile.ExplosiveTrapTarget.HasValue ? "взрывная ловушка" : tile.TimedTrapKind.ToString();
                     lines.Add($"(Идол Чутья) Точный тип: {exactType}");
                 }
             }
+            if (tile.IsLever) lines.Add("Рычаг");
             if (tile.IsTimedTrapActive) lines.Add("Ловушка с таймингом СЕЙЧАС активна"); // реальная угроза прямо сейчас — не скрывается, см. TrapSignature
             // Ворота — преграда, видна ВСЕГДА (issue #193: "награды и
             // преграды видны всегда, опасность и механизмы — нет"), в

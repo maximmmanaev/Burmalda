@@ -18,7 +18,7 @@ namespace Burmalda.Currencies
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private readonly Func<Tile, bool> _isSource;
-        private readonly int _amountPerSource;
+        private readonly Func<Tile, int> _amountForTile;
         private readonly float _rewardMultiplier;
         private readonly RunCurrencyAccumulator _accumulator;
         private bool _disposed;
@@ -31,11 +31,25 @@ namespace Burmalda.Currencies
         /// вызывающая сторона (см. Currencies.CurrencyController).
         /// </param>
         public TrailTileCurrencySystem(TunnelGrid grid, GridTraceTrail trail, Func<Tile, bool> isSource, int amountPerSource, RunCurrencyAccumulator accumulator, float rewardMultiplier = 1f)
+            : this(grid, trail, isSource, _ => amountPerSource, accumulator, rewardMultiplier)
+        {
+        }
+
+        /// <summary>
+        /// Перегрузка с суммой, вычисляемой ПО ПЛИТЕ, не единой на все
+        /// источники (задача «видимые рычаги, инвариант лавы, размер
+        /// награды за Воротами», владелец, 2026-09-04): тайник за Воротами
+        /// (<see cref="Tile.KeySourceAmount"/>) даёт свою сумму, отличную
+        /// от обычных источников на пути — <paramref name="amountForTile"/>
+        /// решает это на каждый сбор, а не единая <c>amountPerSource</c>
+        /// выше.
+        /// </summary>
+        public TrailTileCurrencySystem(TunnelGrid grid, GridTraceTrail trail, Func<Tile, bool> isSource, Func<Tile, int> amountForTile, RunCurrencyAccumulator accumulator, float rewardMultiplier = 1f)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
             _isSource = isSource ?? throw new ArgumentNullException(nameof(isSource));
-            _amountPerSource = amountPerSource;
+            _amountForTile = amountForTile ?? throw new ArgumentNullException(nameof(amountForTile));
             _rewardMultiplier = rewardMultiplier;
             _accumulator = accumulator ?? throw new ArgumentNullException(nameof(accumulator));
 
@@ -55,7 +69,7 @@ namespace Burmalda.Currencies
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
             if (!_isSource(tile)) return;
 
-            _accumulator.Add((int)Math.Round(_amountPerSource * _rewardMultiplier));
+            _accumulator.Add((int)Math.Round(_amountForTile(tile) * _rewardMultiplier));
         }
     }
 }

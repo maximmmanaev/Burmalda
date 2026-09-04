@@ -58,6 +58,17 @@ namespace Burmalda.Generation
         /// <summary>Источник Ключей (PRD раздел 5, issue #12) — проходима, не ловушка.</summary>
         KeySource,
 
+        /// <summary>
+        /// Тайник за Воротами (задача «видимые рычаги, инвариант лавы,
+        /// размер награды за Воротами», владелец, 2026-09-04): источник
+        /// Ключей, но сумма — из <see cref="SegmentTemplate.GateVaultPurchases"/>
+        /// этого шаблона через <see cref="GateVaultPricing.ComputeVaultKeys"/>,
+        /// не общий <c>Currencies.CurrencyController.KeysPerSource</c>. Не
+        /// более одного на шаблон (см. <see cref="SegmentTemplate"/>) — тот
+        /// же принцип, что у <see cref="Lever"/>.
+        /// </summary>
+        GateVaultKeySource,
+
         /// <summary>Клетка-Алтарь (PRD раздел 7, issue #19) — проходима, запускает Ритуал.</summary>
         Altar,
 
