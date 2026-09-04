@@ -134,6 +134,22 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
+        public void LethalTrapTriggered_LavaWave_SetsIsAliveFalseAndFiresDiedWithOwnReason()
+        {
+            // issue #216: тот же регресс-тест, что и для BladeTact/ArrowWave/Explosion выше.
+            var (grid, trail, _, runState) = CreateRun();
+            var lavaTile = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lavaTile).TransitionToLethalTrap(LethalTrapType.LavaWave);
+            string firedReason = null;
+            runState.Died += reason => firedReason = reason;
+
+            trail.TryAdvanceTo(lavaTile);
+
+            Assert.IsFalse(runState.IsAlive);
+            Assert.AreEqual("Сгорел в лаве", firedReason);
+        }
+
+        [Test]
         public void TimedTrapTriggered_Arrow_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
             // Issue #45: плита-цель уже активна (снаряд физически проходит) — попытка шагнуть на неё смертельна.
