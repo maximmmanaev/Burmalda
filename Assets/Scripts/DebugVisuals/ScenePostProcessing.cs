@@ -7,7 +7,7 @@ namespace Burmalda.DebugVisuals
     /// <summary>
     /// Поднимает уровень отладочного визуала без единого арт-ассета (прямой
     /// запрос владельца продукта, 2026-08-18) — только встроенные
-    /// инструменты URP: Bloom + Vignette через рантайм-созданный
+    /// инструменты URP: Bloom через рантайм-созданный
     /// <see cref="Volume"/>/<see cref="VolumeProfile"/>, процедурное небо и
     /// туман (issue #192, скрывает обрыв геометрии раскрытых рядов, см.
     /// <see cref="SetupFog"/>) через <c>RenderSettings</c>. Никаких
@@ -27,8 +27,6 @@ namespace Burmalda.DebugVisuals
         // засвечивая экран целиком.
         private const float BloomThreshold = 0.9f;
         private const float BloomIntensity = 0.6f;
-        private const float VignetteIntensity = 0.25f;
-        private const float VignetteSmoothness = 0.6f;
         private const float SaturationBoost = 15f;
 
         // Процедурное небо (2026-08-18, "ещё больше процедурного полиша без
@@ -68,8 +66,20 @@ namespace Burmalda.DebugVisuals
         // (~30% на границе), различимость плиты не теряется (PRD 4.2:
         // честная разведка), полная непрозрачность — сразу за границей, где
         // геометрии всё равно уже нет, скрывая сам факт обрыва.
-        private const float FogStartDistance = 9.5f;
-        private const float FogEndDistance = 11f;
+        //
+        // Владелец, 2026-09-05 («туман — дальше и плотнее»): подтверждено
+        // на устройстве, что 9.5/11 работает (дымка видна, обрыв не
+        // читается), но начало попросили отодвинуть примерно на одну плиту
+        // дальше и убедиться, что за границей не просвечивает НИЧЕГО. Стены
+        // тоннеля (TunnelDebugVisual.CreateWallMaterial) используют тот же
+        // CreateTemplateMaterial(), что и обычные плиты пола (тот же
+        // шейдер "Universal Render Pipeline/Lit", уже в Always Included
+        // Shaders и с фог-вариантами, не вырезаемыми стриппингом —
+        // BuildScript.EnsureFogShaderVariantsNotStripped) — стены гаснут в
+        // тумане тем же градиентом, что и пол, отдельного шейдера под них
+        // нет и заводить не пришлось.
+        private const float FogStartDistance = 10.5f;
+        private const float FogEndDistance = 12f;
         private static readonly Color FogColor = new Color(30f / 255f, 20f / 255f, 14f / 255f);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -145,12 +155,8 @@ namespace Burmalda.DebugVisuals
             bloom.intensity.overrideState = true;
             bloom.intensity.value = BloomIntensity;
 
-            var vignette = profile.Add<Vignette>(true);
-            vignette.intensity.overrideState = true;
-            vignette.intensity.value = VignetteIntensity;
-            vignette.smoothness.overrideState = true;
-            vignette.smoothness.value = VignetteSmoothness;
-
+            // Виньетка убрана целиком (владелец, 2026-09-05, «убрать
+            // виньетку») — тень по краям экрана мешала, Bloom остаётся.
             var colorAdjustments = profile.Add<ColorAdjustments>(true);
             colorAdjustments.saturation.overrideState = true;
             colorAdjustments.saturation.value = SaturationBoost;
