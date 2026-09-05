@@ -55,7 +55,7 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("with-block", 1, SegmentRewardTag.Coins,
                 OpenRowsWithOneBlock(5, blockedRow: 2, blockedColumn: 1));
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
-            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1);
+            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000);
 
             // Незаявленный ряд (за пределами обоих применений шаблона) —
             // единственный, кто имеет право потратить бросок из очереди.
@@ -78,7 +78,7 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("with-block", 1, SegmentRewardTag.Coins,
                 OpenRowsWithOneBlock(5, blockedRow: 2, blockedColumn: 1)); // -> абсолютный row 3, column 1
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
-            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1);
+            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000);
 
             // Ровно те тайлы, которые шаблон сам пометил заблокированными —
             // 5-рядный шаблон применяется дважды подряд (см. предыдущий
@@ -125,17 +125,25 @@ namespace Burmalda.Generation.Tests
         /// и добавить <c>Generation.SegmentGenerationController</c> — то есть
         /// как минимум на первых <see cref="SegmentRowProvider.RowsAheadOfPlayer"/>
         /// рядах забега), обстакловый генератор откликается на уже
-        /// незаявленную на тот момент плиту первым — <c>Tile.MarkLethalTrap</c>
-        /// (guard на уже установленное значение) молча ОТБРАСЫВАЕТ тип,
-        /// который затем пытается назначить шаблон, а не заглушенные полями
-        /// (<c>MarkLever</c>/<c>MarkManaSource</c> и т.п.) — накладываются
-        /// поверх, давая противоречивую плиту (например, одновременно Lava и
-        /// Lever). Тест ниже — не гипотеза, воспроизводит механизм напрямую.
-        /// <b>Не чинится в этой задаче</b> — только диагностика по прямому
-        /// запросу постановки.
+        /// незаявленную на тот момент плиту первым. Владелец, 2026-09-05
+        /// («оставить только пять новых ловушек»): раньше здесь было два
+        /// подслучая — <c>Tile.MarkLethalTrap</c> (guard на уже установленное
+        /// значение) молча ОТБРАСЫВАЛ тип, который затем пытался назначить
+        /// шаблон (Pit против Lava генератора), а не поля БЕЗ такого guard'а
+        /// (триггеры пяти новых ловушек — <c>Tile.MarkArrowWaveTrigger</c> и
+        /// т.п., см. их doc-комментарии — умышленно не гейтятся:
+        /// триггер ловушки должен уметь стоять на клетке с наградой) —
+        /// накладывались поверх, давая тайл сразу с двумя ролями. Pit
+        /// удалён — Lava теперь единственный тип, который генератор и
+        /// шаблон вообще МОГУТ оба захотеть поставить через
+        /// <c>MarkLethalTrap</c>, и тогда они совпадают по значению (нечего
+        /// демонстрировать). Тест ниже проверяет оставшийся, всё ещё
+        /// актуальный подслучай — накладывание поверх (Lava и триггер
+        /// Стрелы одновременно на одной плите). <b>Не чинится в этой
+        /// задаче</b> — только диагностика по прямому запросу постановки.
         /// </summary>
         [Test]
-        public void RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTileTypeSilentlyLost()
+        public void RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerStacksOnTop()
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
@@ -152,30 +160,32 @@ namespace Burmalda.Generation.Tests
             using var obstacles = new TunnelObstacleGenerator(grid, AlwaysLava());
             using var reveal = new TunnelGridReveal(grid, trail);
 
-            // Шаблон говорит: локальная (2,1) → абсолютная (3,1) — Pit.
+            // Шаблон говорит: локальная (2,1) → абсолютная (3,1) — триггер Стрелы.
             var tiles = new SegmentTileType[5, Width];
             for (var r = 0; r < 5; r++)
                 for (var c = 0; c < Width; c++)
                     tiles[r, c] = SegmentTileType.Open;
-            tiles[2, 1] = SegmentTileType.Pit;
+            tiles[2, 1] = SegmentTileType.ArrowWaveTrigger;
 
             var template = new SegmentTemplate("adversarial", 1, SegmentRewardTag.Coins, tiles);
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
-            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1);
+            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000);
 
             var tile = grid.GetOrCreateTile(new GridCoordinate(3, 1));
 
-            // Реальный тип плиты — то, что откатил обстакловый генератор
-            // (Lava), НЕ то, что задумал автор шаблона (Pit): Tile.MarkLethalTrap
-            // молча не сработал повторно (LethalTrap уже был установлен).
+            // Tile.MarkArrowWaveTrigger не вызывает GuardAgainstConflictingRole
+            // вовсе (см. её doc-комментарий) — обе роли накладываются на одну
+            // и ту же плиту, ни одна не побеждает и не бросает исключение.
             Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap,
-                "Тип шаблона (Pit) потерян — плиту раньше материализовал TunnelGridReveal, минуя ClaimRow.");
+                "Lava от обстаклового генератора должна была материализоваться первой.");
+            Assert.IsTrue(tile.ArrowWaveTargetRow.HasValue,
+                "Триггер Стрелы от шаблона наложился поверх Lava, не был отброшен и не бросил исключение — противоречивая плита.");
         }
 
         // Roll, гарантированно попадающий в диапазон Lava (см.
-        // TileMaterialized_RollAtPitThreshold_MarksLethalTrapLava в
+        // TileMaterialized_RollAtFallingRockThreshold_MarksLethalTrapLava в
         // Core.Tests.TunnelObstacleGeneratorTests — тот же приём).
-        private static System.Func<float> AlwaysLava() => () => TunnelObstacleGenerator.PitThreshold;
+        private static System.Func<float> AlwaysLava() => () => TunnelObstacleGenerator.FallingRockThreshold;
 
         /// <summary>
         /// Задача «двойные флаги на плитах»: тест выше

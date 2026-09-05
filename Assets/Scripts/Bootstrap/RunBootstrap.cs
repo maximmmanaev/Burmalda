@@ -51,9 +51,13 @@ namespace Burmalda.Bootstrap
     /// GUID компонента в YAML сцены, не по имени класса — тот же метод, что
     /// нашёл пробел с CurrencyController в задаче 2): <see cref="GridTraceInputController"/>,
     /// <c>Decay.TrailDecayController</c>, <c>RunLifecycle.RunController</c>,
-    /// <c>Movement.TunnelCameraController</c>, <c>Movement.ExplosiveTrapController</c>,
-    /// <c>Movement.TimedTrapController</c>, <c>Movement.TunnelObstacleController</c> —
+    /// <c>Movement.TunnelCameraController</c>, <c>Movement.TunnelObstacleController</c> —
     /// все уже реально размещены и работают, RunBootstrap их не трогает.
+    /// <c>Movement.ExplosiveTrapController</c>/<c>Movement.TimedTrapController</c>
+    /// (старые механики, убраны владельцем 2026-09-05 — см. doc-комментарий
+    /// <c>Core.LethalTrapType</c>) удалены из кода, но их GameObject в
+    /// SampleScene.unity останется с "Missing Script" до ручной правки
+    /// сцены — .unity-файлы не трогаются автономно (docs/rules/forbidden-actions.md).
     ///
     /// <b>Генерация сегментов подключена наряду с уже размещённым на сцене
     /// TunnelObstacleController (переходное состояние, docs/wiki/roadmap.md).</b>
@@ -123,6 +127,15 @@ namespace Burmalda.Bootstrap
 
         /// <summary>Интеграция рычагов — секретные боковые проходы к артефактам (issue #51).</summary>
         public LeverActivationController Lever { get; private set; }
+
+        /// <summary>
+        /// Тикает пять ловушек Спринта 13a (issues #213–#217) — баг с
+        /// устройства (владелец, 2026-09-04, «новых ловушек в игре нет»):
+        /// системы были написаны и протестированы, но без этого Controller'а
+        /// (и без символов шаблона, отдельный фикс) никогда не тикали в
+        /// реальном забеге. Независим от остальных — как и <see cref="Lever"/>.
+        /// </summary>
+        public TurnBasedTrapSystemsController TurnBasedTraps { get; private set; }
 
         /// <summary>
         /// Интеграция Комнаты Босса (вертикальный срез, задача «Комната
@@ -223,6 +236,7 @@ namespace Burmalda.Bootstrap
             if (Boss == null) Boss = GetOrAddComponent<BossController>(host);
             if (Camp == null) Camp = GetOrAddComponent<CampController>(host);
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
+            if (TurnBasedTraps == null) TurnBasedTraps = GetOrAddComponent<TurnBasedTrapSystemsController>(host);
             // Зависит только от Currency (уже создана строкой выше) и
             // RunLifecycle.RunController, который уже размещён на сцене
             // независимо от порядка здесь — см. doc-комментарий BossRoom.

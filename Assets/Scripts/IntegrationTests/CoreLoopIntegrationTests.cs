@@ -93,7 +93,7 @@ namespace Burmalda.IntegrationTests
 
             var runController = _inputObject.AddComponent<RunController>();
             // issue #225: без этого переопределения бросок d20 при попытке
-            // шагнуть на смертельную ловушку ниже (LethalTrapType.Pit) идёт
+            // шагнуть на смертельную ловушку ниже (LethalTrapType.Lava) идёт
             // на процесс-wide UnityEngine.Random.Range — исход (Fortune/
             // Knockback/Death) зависит от того, сколько раз этот RNG успели
             // вызвать ДРУГИЕ тесты, отработавшие раньше в том же прогоне
@@ -152,7 +152,7 @@ namespace Burmalda.IntegrationTests
             var boss = new GridCoordinate(5, 2);
             _input.Grid.GetOrCreateTile(manaSource).MarkManaSource();
             _input.Grid.GetOrCreateTile(keySource).MarkKeySource();
-            _input.Grid.GetOrCreateTile(trap).MarkLethalTrap(LethalTrapType.Pit);
+            _input.Grid.GetOrCreateTile(trap).MarkLethalTrap(LethalTrapType.Lava);
             _input.Grid.GetOrCreateTile(altar).MarkAltar();
             _input.Grid.GetOrCreateTile(boss).MarkBoss();
 
@@ -177,7 +177,7 @@ namespace Burmalda.IntegrationTests
             trail.LethalTrapTriggered += (coord, type) => triggeredTrap = type;
             var steppedOnTrap = trail.TryAdvanceTo(trap);
             Assert.IsFalse(steppedOnTrap, "Шаг на смертельную ловушку не должен засчитываться.");
-            Assert.AreEqual(LethalTrapType.Pit, triggeredTrap);
+            Assert.AreEqual(LethalTrapType.Lava, triggeredTrap);
             Assert.AreEqual(keySource, trail.CurrentPosition, "Позиция не должна была измениться после отказа шагнуть на ловушку.");
 
             // Обходим ловушку по диагонали.

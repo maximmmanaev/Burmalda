@@ -33,21 +33,6 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
-        public void LethalTrapTriggered_Pit_SetsIsAliveFalseAndFiresDied()
-        {
-            var (grid, trail, _, runState) = CreateRun();
-            var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
-            string firedReason = null;
-            runState.Died += reason => firedReason = reason;
-
-            trail.TryAdvanceTo(pit);
-
-            Assert.IsFalse(runState.IsAlive);
-            Assert.IsNotNull(firedReason);
-        }
-
-        [Test]
         public void LethalTrapTriggered_Lava_SetsIsAliveFalseAndFiresDied()
         {
             var (grid, trail, _, runState) = CreateRun();
@@ -63,32 +48,10 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
-        public void LethalTrapTriggered_Explosion_SetsIsAliveFalseAndFiresDiedWithOwnReason()
-        {
-            // Issue #10: до этого при добавлении третьего LethalTrapType
-            // тернарный оператор в RunState свёл бы Explosion к сообщению
-            // "Сгорел в лаве" — явная проверка сообщения ловит такой регресс.
-            var (grid, trail, _, runState) = CreateRun();
-            var trigger = new GridCoordinate(1, 2);
-            var explosive = new GridCoordinate(2, 2);
-            grid.GetOrCreateTile(trigger).MarkExplosiveTrapTrigger(explosive);
-            grid.GetOrCreateTile(explosive).MarkLethalTrap(LethalTrapType.Explosion);
-            trail.TryAdvanceTo(trigger);
-            string firedReason = null;
-            runState.Died += reason => firedReason = reason;
-
-            trail.TryAdvanceTo(explosive);
-
-            Assert.IsFalse(runState.IsAlive);
-            Assert.AreEqual("Подорвался на ловушке", firedReason);
-        }
-
-        [Test]
         public void LethalTrapTriggered_ArrowWave_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
-            // issue #213: тот же регресс-тест, что и для Explosion выше —
-            // новый LethalTrapType не должен провалиться в default ветку
-            // switch-выражения DescribeLethalTrap.
+            // issue #213: новый LethalTrapType не должен провалиться в
+            // default ветку switch-выражения DescribeLethalTrap.
             var (grid, trail, _, runState) = CreateRun();
             var arrowTile = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(arrowTile).TransitionToLethalTrap(LethalTrapType.ArrowWave);
@@ -104,7 +67,7 @@ namespace Burmalda.RunLifecycle.Tests
         [Test]
         public void LethalTrapTriggered_BombBlast_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
-            // issue #214: тот же регресс-тест, что и для ArrowWave/Explosion выше.
+            // issue #214: тот же регресс-тест, что и для ArrowWave выше.
             var (grid, trail, _, runState) = CreateRun();
             var bombTile = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(bombTile).TransitionToLethalTrap(LethalTrapType.BombBlast);
@@ -120,7 +83,7 @@ namespace Burmalda.RunLifecycle.Tests
         [Test]
         public void LethalTrapTriggered_BladeTact_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
-            // issue #215: тот же регресс-тест, что и для ArrowWave/Explosion выше.
+            // issue #215: тот же регресс-тест, что и для ArrowWave выше.
             var (grid, trail, _, runState) = CreateRun();
             var bladeTile = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(bladeTile).TransitionToLethalTrap(LethalTrapType.BladeTact);
@@ -136,7 +99,7 @@ namespace Burmalda.RunLifecycle.Tests
         [Test]
         public void LethalTrapTriggered_LavaWave_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
-            // issue #216: тот же регресс-тест, что и для BladeTact/ArrowWave/Explosion выше.
+            // issue #216: тот же регресс-тест, что и для BladeTact/ArrowWave выше.
             var (grid, trail, _, runState) = CreateRun();
             var lavaTile = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(lavaTile).TransitionToLethalTrap(LethalTrapType.LavaWave);
@@ -147,53 +110,6 @@ namespace Burmalda.RunLifecycle.Tests
 
             Assert.IsFalse(runState.IsAlive);
             Assert.AreEqual("Сгорел в лаве", firedReason);
-        }
-
-        [Test]
-        public void TimedTrapTriggered_Arrow_SetsIsAliveFalseAndFiresDiedWithOwnReason()
-        {
-            // Issue #45: плита-цель уже активна (снаряд физически проходит) — попытка шагнуть на неё смертельна.
-            var (grid, trail, _, runState) = CreateRun();
-            var target = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(target).ArmTimedTrap(TimedTrapType.Arrow);
-            string firedReason = null;
-            runState.Died += reason => firedReason = reason;
-
-            trail.TryAdvanceTo(target);
-
-            Assert.IsFalse(runState.IsAlive);
-            Assert.AreEqual("Пронзён стрелой", firedReason);
-        }
-
-        [Test]
-        public void TimedTrapTriggered_Blade_SetsIsAliveFalseAndFiresDiedWithOwnReason()
-        {
-            var (grid, trail, _, runState) = CreateRun();
-            var target = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(target).ArmTimedTrap(TimedTrapType.Blade);
-            string firedReason = null;
-            runState.Died += reason => firedReason = reason;
-
-            trail.TryAdvanceTo(target);
-
-            Assert.IsFalse(runState.IsAlive);
-            Assert.AreEqual("Разрублен лезвием", firedReason);
-        }
-
-        [Test]
-        public void TimedTrapTriggered_DisarmedTarget_DoesNotKill()
-        {
-            // Снаряд уже прошёл (DisarmTimedTrap) — шаг на бывшую цель безопасен.
-            var (grid, trail, _, runState) = CreateRun();
-            var target = new GridCoordinate(1, 2);
-            var tile = grid.GetOrCreateTile(target);
-            tile.ArmTimedTrap(TimedTrapType.Arrow);
-            tile.DisarmTimedTrap();
-
-            var advanced = trail.TryAdvanceTo(target);
-
-            Assert.IsTrue(advanced);
-            Assert.IsTrue(runState.IsAlive);
         }
 
         [Test]
@@ -257,23 +173,10 @@ namespace Burmalda.RunLifecycle.Tests
         {
             var (grid, trail, _, runState) = CreateRun();
             runState.Dispose();
-            var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
 
-            trail.TryAdvanceTo(pit);
-
-            Assert.IsTrue(runState.IsAlive, "после Dispose RunState не должен реагировать на события трейла");
-        }
-
-        [Test]
-        public void Dispose_StopsReactingToFurtherTimedTrapTriggers()
-        {
-            var (grid, trail, _, runState) = CreateRun();
-            runState.Dispose();
-            var target = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(target).ArmTimedTrap(TimedTrapType.Arrow);
-
-            trail.TryAdvanceTo(target);
+            trail.TryAdvanceTo(lava);
 
             Assert.IsTrue(runState.IsAlive, "после Dispose RunState не должен реагировать на события трейла");
         }
@@ -282,12 +185,12 @@ namespace Burmalda.RunLifecycle.Tests
         public void LethalTrapTriggered_D20Fortune_StaysAliveAndDoesNotFireDied()
         {
             var (grid, trail, _, runState) = CreateRun(d20Roll: 20);
-            var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
             var fired = false;
             runState.Died += _ => fired = true;
 
-            trail.TryAdvanceTo(pit);
+            trail.TryAdvanceTo(lava);
 
             Assert.IsTrue(runState.IsAlive);
             Assert.IsFalse(fired);
@@ -298,10 +201,10 @@ namespace Burmalda.RunLifecycle.Tests
         {
             var (grid, trail, _, runState) = CreateRun(d20Roll: 12);
             var start = trail.CurrentPosition;
-            var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
 
-            trail.TryAdvanceTo(pit);
+            trail.TryAdvanceTo(lava);
 
             Assert.IsTrue(runState.IsAlive);
             Assert.AreEqual(start, trail.CurrentPosition);
@@ -314,10 +217,10 @@ namespace Burmalda.RunLifecycle.Tests
             var altar = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(altar).MarkAltar();
             trail.TryAdvanceTo(altar);
-            var pit = new GridCoordinate(2, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            var lava = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
 
-            trail.TryAdvanceTo(pit);
+            trail.TryAdvanceTo(lava);
 
             Assert.IsTrue(runState.IsAlive);
             Assert.AreEqual(altar, trail.CurrentPosition);
@@ -327,12 +230,12 @@ namespace Burmalda.RunLifecycle.Tests
         public void D20Resolved_FiresWithRolledOutcome()
         {
             var (grid, trail, _, runState) = CreateRun(d20Roll: 20);
-            var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
             D20Outcome? seen = null;
             runState.D20Resolved += outcome => seen = outcome;
 
-            trail.TryAdvanceTo(pit);
+            trail.TryAdvanceTo(lava);
 
             Assert.AreEqual(D20Outcome.Fortune, seen);
         }
@@ -371,9 +274,9 @@ namespace Burmalda.RunLifecycle.Tests
         public void ReportBossDefeat_CalledAfterAlreadyDead_DoesNotFireDiedAgain()
         {
             var (grid, trail, _, runState) = CreateRun(d20Roll: 5); // Death
-            var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
-            trail.TryAdvanceTo(pit); // уже мёртв
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+            trail.TryAdvanceTo(lava); // уже мёртв
             var firedCount = 0;
             runState.Died += _ => firedCount++;
 

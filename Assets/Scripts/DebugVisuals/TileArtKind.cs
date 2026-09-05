@@ -42,24 +42,18 @@ namespace Burmalda.DebugVisuals
         Blocked,
         Lava,
 
-        /// <summary>
-        /// Общая сигнатура для ямы и уже активированного взрыва (issue #163,
-        /// см. <c>Core.TrapSignature</c>) — ОДНА текстура на оба типа,
-        /// намеренно не выдающая, какая именно ловушка под плитой (см.
-        /// <see cref="TileArtKindResolver"/>).
-        /// </summary>
-        HiddenTrapSignature,
-
-        /// <summary>Общая текстура для обеих разновидностей (стрела/лезвие) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.</summary>
+        /// <summary>Общая текстура для всех четырёх ходовых ловушек (ArrowWave/BombBlast/BladeTact/LavaWave) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.</summary>
         TimedTrapActive,
 
         /// <summary>
         /// Задача «сделать тоннель играбельным», часть 3: единая сигнатура
-        /// для ОБОИХ видов триггера (взрывной и с таймингом) — тот же
-        /// принцип, что <see cref="HiddenTrapSignature"/>: факт "здесь
-        /// механизм" виден всегда, тип — нет (см.
+        /// для триггера ЛЮБОЙ из пяти ловушек — факт "здесь механизм" виден
+        /// всегда (после раскрытия примериванием), тип — нет (см.
         /// <see cref="TileArtKindResolver"/>/<see cref="TileDebugColor.TriggerSignatureColor"/>).
-        /// Заменяет прежние раздельные ExplosiveTrigger/TimedTrapTrigger.
+        /// Владелец, 2026-09-05 «оставить только пять новых ловушек»: старые
+        /// раздельные ExplosiveTrigger/TimedTrapTrigger и общая
+        /// HiddenTrapSignature (яма+взрыв) убраны вместе с типами Pit/
+        /// Explosion — эта сигнатура теперь единственная для всех триггеров.
         /// </summary>
         TriggerSignature,
 
@@ -82,6 +76,25 @@ namespace Burmalda.DebugVisuals
         GateOpen,
 
         /// <summary>Алтарь (<c>Core.Tile.IsAltar</c>) — <c>tile-altar.png</c>.</summary>
-        Altar
+        Altar,
+
+        /// <summary>
+        /// Баг с устройства (владелец, 2026-09-04, «вход в Комнату
+        /// Босса — структурная плита маршрута, она обязана читаться»):
+        /// раньше <see cref="TileArtKindResolver"/> возвращал
+        /// <see cref="None"/> для <c>Core.Tile.IsBoss</c> (в тёплом наборе
+        /// не было отдельной текстуры под Босса вовсе) — на устройстве это
+        /// падало на холодный <see cref="TileDebugColor.BossColor"/>,
+        /// единственную несовместимую с палитрой плиту на маршруте.
+        /// Заводить новую текстуру не в скоупе агента (авторство контента,
+        /// docs/rules/forbidden-actions.md) — переиспользует
+        /// <c>tile-altar.png</c> (см. <see cref="TileArtCatalog.Get"/>, та
+        /// же "структурная, не подверженная распаду" категория, что и
+        /// Алтарь), но с собственным тёплым тоном
+        /// (<see cref="TunnelDebugVisual.BossArtTint"/>) — Босс и Алтарь
+        /// стоят рядом на маршруте (2 Алтаря перед Боссом, PRD v9 §8.1) и не
+        /// должны визуально сливаться в одну и ту же плиту.
+        /// </summary>
+        Boss
     }
 }

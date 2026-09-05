@@ -237,7 +237,7 @@ namespace Burmalda.Movement.Tests
             var grid = new TunnelGrid(5);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
             var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Lava);
 
             Assert.IsFalse(trail.CanAdvanceTo(pit));
         }
@@ -263,7 +263,7 @@ namespace Burmalda.Movement.Tests
             var grid = new TunnelGrid(5);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
             var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Pit);
+            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Lava);
             GridCoordinate? firedCoordinate = null;
             LethalTrapType? firedType = null;
             trail.LethalTrapTriggered += (coordinate, type) =>
@@ -275,7 +275,7 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(pit);
 
             Assert.AreEqual(pit, firedCoordinate);
-            Assert.AreEqual(LethalTrapType.Pit, firedType);
+            Assert.AreEqual(LethalTrapType.Lava, firedType);
         }
 
         [Test]
@@ -305,79 +305,15 @@ namespace Burmalda.Movement.Tests
             Assert.IsFalse(fired);
         }
 
-        [Test]
-        public void CanAdvanceTo_ActiveTimedTrapTile_ReturnsFalse()
-        {
-            // #45: пока ловушка с таймингом активна, плита-цель непроходима.
-            var grid = new TunnelGrid(5);
-            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
-            var target = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(target).ArmTimedTrap(TimedTrapType.Arrow);
-
-            Assert.IsFalse(trail.CanAdvanceTo(target));
-        }
-
-        [Test]
-        public void CanAdvanceTo_DisarmedTimedTrapTile_ReturnsTrue()
-        {
-            // Снаряд/лезвие уже прошли — плита снова безопасна.
-            var grid = new TunnelGrid(5);
-            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
-            var target = new GridCoordinate(1, 2);
-            var tile = grid.GetOrCreateTile(target);
-            tile.ArmTimedTrap(TimedTrapType.Arrow);
-            tile.DisarmTimedTrap();
-
-            Assert.IsTrue(trail.CanAdvanceTo(target));
-        }
-
-        [Test]
-        public void TryAdvanceTo_ActiveTimedTrapTile_DoesNotAdvanceAndDoesNotMutatePath()
-        {
-            var grid = new TunnelGrid(5);
-            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
-            var target = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(target).ArmTimedTrap(TimedTrapType.Blade);
-
-            var advanced = trail.TryAdvanceTo(target);
-
-            Assert.IsFalse(advanced);
-            Assert.AreEqual(new GridCoordinate(0, 2), trail.CurrentPosition);
-            Assert.AreEqual(1, trail.Path.Count);
-        }
-
-        [Test]
-        public void TryAdvanceTo_ActiveTimedTrapTile_FiresTimedTrapTriggeredWithCoordinateAndType()
-        {
-            var grid = new TunnelGrid(5);
-            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
-            var target = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(target).ArmTimedTrap(TimedTrapType.Blade);
-            GridCoordinate? firedCoordinate = null;
-            TimedTrapType? firedType = null;
-            trail.TimedTrapTriggered += (coordinate, type) =>
-            {
-                firedCoordinate = coordinate;
-                firedType = type;
-            };
-
-            trail.TryAdvanceTo(target);
-
-            Assert.AreEqual(target, firedCoordinate);
-            Assert.AreEqual(TimedTrapType.Blade, firedType);
-        }
-
-        [Test]
-        public void TryAdvanceTo_ValidMove_DoesNotFireTimedTrapTriggered()
-        {
-            var trail = CreateTrail(new GridCoordinate(0, 2));
-            var fired = false;
-            trail.TimedTrapTriggered += (_, _) => fired = true;
-
-            trail.TryAdvanceTo(new GridCoordinate(1, 2));
-
-            Assert.IsFalse(fired);
-        }
+        // Владелец, 2026-09-05 «оставить только пять новых ловушек»: раньше
+        // здесь были 5 тестов на Tile.ArmTimedTrap/DisarmTimedTrap/
+        // GridTraceTrail.TimedTrapTriggered — вся эта старая механика
+        // реального времени (Movement.TimedTrapSystem, Core.TimedTrapType)
+        // удалена целиком. Турн-баседные ловушки (ArrowWave/BombBlast/
+        // BladeTact/LavaWave/FallingRock) переключают ту же плиту через
+        // MarkLethalTrap/TransitionToLethalTrap и переиспользуют уже
+        // покрытые выше LethalTrapTriggered-тесты — отдельного события для
+        // них не заводилось.
 
         [Test]
         public void TryAdvanceTo_ValidMove_AppendsToPathAndUpdatesCurrentPosition()

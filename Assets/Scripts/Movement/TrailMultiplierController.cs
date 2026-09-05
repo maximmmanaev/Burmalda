@@ -4,9 +4,8 @@ namespace Burmalda.Movement
 {
     /// <summary>
     /// Пересобирает <see cref="TrailMultiplierSystem"/> (PRD 4.3, issue #11)
-    /// на каждый забег — по паттерну <see cref="ExplosiveTrapController"/>
-    /// (реагирует на события трейла, не нужен per-frame Tick, в отличие от
-    /// <see cref="TimedTrapController"/>). Привязка к тому же GameObject,
+    /// на каждый забег (реагирует на события трейла, не нужен per-frame
+    /// Tick). Привязка к тому же GameObject,
     /// что и <see cref="GridTraceInputController"/> — вручную пользователем.
     /// </summary>
     [DisallowMultipleComponent]

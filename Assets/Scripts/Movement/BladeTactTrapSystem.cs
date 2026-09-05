@@ -5,12 +5,12 @@ using Burmalda.Core;
 namespace Burmalda.Movement
 {
     /// <summary>
-    /// Ловушка «Лезвия» (docs/wiki/traps.md, issue #215) — НЕ
-    /// <see cref="Core.TimedTrapType.Blade"/>/<see cref="TimedTrapSystem"/>
-    /// (та же тема ловушки, другая механика: одна плита-цель на реальном
-    /// времени там, пятитактовый паттерн по ряду, тикаемый ХОДАМИ, здесь —
-    /// см. docs/wiki/traps.md «Сверка с уже существующим кодом»). Отдельный
-    /// C#-идентификатор — <see cref="LethalTrapType.BladeTact"/>.
+    /// Ловушка «Лезвия» (docs/wiki/traps.md, issue #215) — раньше сосуществовала
+    /// с более старой одноимённой механикой реального времени (<c>Core.TimedTrapType.Blade</c>/
+    /// <c>Movement.TimedTrapSystem</c>: одна плита-цель на реальном времени,
+    /// не пятитактовый паттерн по ряду ходами) — та старая механика удалена
+    /// целиком владельцем 2026-09-05 («оставить только пять новых
+    /// ловушек»). C#-идентификатор этого такта — <see cref="LethalTrapType.BladeTact"/>.
     ///
     /// Построена на <see cref="TurnBasedThreatScheduler"/> (issue #212, свой
     /// экземпляр на систему): проход трейла через плиту-триггер

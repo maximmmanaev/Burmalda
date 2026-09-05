@@ -9,12 +9,23 @@ namespace Burmalda.Generation
     /// редактора уровней; строки идут от входа (первая строка) к выходу
     /// (последняя).
     ///
-    /// Символ → <see cref="SegmentTileType"/>: '.' Open, '#' Blocked, 'p' Pit,
-    /// 'l' Lava, 'e' ExplosiveTrigger, 'a' TimedTrapArrowTrigger,
-    /// 'b' TimedTrapBladeTrigger, 'L' Lever, 'g' LeverGate, 'm' ManaSource,
-    /// 'k' KeySource, 'v' GateVaultKeySource (тайник за Воротами — сумма из
+    /// Символ → <see cref="SegmentTileType"/>: '.' Open, '#' Blocked,
+    /// 'l' Lava, 'L' Lever, 'g' LeverGate, 'm' ManaSource, 'k' KeySource,
+    /// 'v' GateVaultKeySource (тайник за Воротами — сумма из
     /// <see cref="SegmentTemplate.GateVaultPurchases"/>, не 'k'), 'A' Altar,
-    /// 'B' Boss.
+    /// 'B' Boss. Пять ловушек Спринта 13a (issues #213–#217) — единственные
+    /// ловушки в игре (владелец, 2026-09-05, «оставить только пять новых
+    /// ловушек»: прежние 'p' Pit/'e' ExplosiveTrigger/'a' TimedTrapArrowTrigger/
+    /// 'b' TimedTrapBladeTrigger удалены целиком, их места в раскладках
+    /// заняты — механической заменой символов, без изменения самих
+    /// раскладок — соответствующими новыми: 'w' ArrowWaveTrigger (был 'a'),
+    /// 'x' BombTrigger (был 'e'), 't' BladeTactTrigger (был 'b'),
+    /// 'r' FallingRockTrigger (был 'p'), 'f' LavaWaveTrigger (новый символ,
+    /// не заменял старый — Лава-волна не существовала как старый тип).
+    /// 'A'/'B' встречаются ТОЛЬКО в <see cref="AltarTemplate"/>/
+    /// <see cref="BossTemplate"/> (владелец, 2026-09-04/05: детерминированный
+    /// поток, не случайный отбор) — в остальных шаблонах <see cref="All"/>
+    /// не используются и не должны появляться вновь.
     ///
     /// **Контент-долг**: 40 шаблонов (13 исходных + Партия 2, 13 шаблонов +
     /// Партия 1, 14 шаблонов — обе из задачи «партии 1 и 2 + правила
@@ -39,21 +50,48 @@ namespace Burmalda.Generation
     /// </summary>
     public static class SegmentTemplateCatalog
     {
+        /// <summary>
+        /// Правка по итогам ручной проверки владельца (2026-09-04, «Алтари и
+        /// вход в Комнату — убрать из случайного пула»): PRD v9 требует
+        /// РОВНО два Алтаря фиксированным потоком перед каждой Комнатой
+        /// Босса — структура маршрута, не декорация, которую может выбрать
+        /// или не выбрать <see cref="SegmentSelector"/>. Раньше "зал-алтаря"
+        /// и "арена-босса" сидели в <see cref="All"/> наравне с остальными —
+        /// именно это было настоящей причиной прошлого бага "вход в Комнату
+        /// каждые ~4 ряда" (временный тестовый билд лишь ОБНАЖИЛ проблему
+        /// частотой отбора, не создал её). Оба шаблона вынесены сюда
+        /// отдельными полями — <see cref="Generation.SegmentRowProvider"/>
+        /// применяет их напрямую по достижении границы Яруса
+        /// (<c>SegmentGenerationController.RowsPerDifficultyStep</c>), минуя
+        /// <see cref="SegmentSelector"/> целиком. Раскладки НЕ менялись, только
+        /// место, откуда их берут.
+        /// </summary>
+        public static readonly SegmentTemplate AltarTemplate = new SegmentTemplate("зал-алтаря", 1, SegmentRewardTag.Coins, ParseRows(new[]
+        {
+            ".....",
+            "..A..",
+            ".....",
+            ".....",
+            ".....",
+            ".....",
+        }));
+
+        /// <summary>См. doc-комментарий <see cref="AltarTemplate"/> — тот же вывод из пула, симметрично для входа в Комнату Босса.</summary>
+        public static readonly SegmentTemplate BossTemplate = new SegmentTemplate("арена-босса", 5, SegmentRewardTag.Artifact, ParseRows(new[]
+        {
+            ".....",
+            ".....",
+            "..B..",
+            ".....",
+            ".....",
+        }));
+
         public static IReadOnlyList<SegmentTemplate> All { get; } = new List<SegmentTemplate>
         {
             new SegmentTemplate("пустой-перегон", 1, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
                 ".....",
-                ".....",
-                ".....",
-                ".....",
-            })),
-
-            new SegmentTemplate("зал-алтаря", 1, SegmentRewardTag.Coins, ParseRows(new[]
-            {
-                ".....",
-                "..A..",
                 ".....",
                 ".....",
                 ".....",
@@ -80,18 +118,18 @@ namespace Burmalda.Generation
             new SegmentTemplate("разлом", 2, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "..p..",
-                ".p.p.",
-                "..p..",
+                "..r..",
+                ".r.r.",
+                "..r..",
                 ".....",
             })),
 
             new SegmentTemplate("коридор-со-стрелами", 2, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "..a..",
+                "..w..",
                 ".....",
-                "..a..",
+                "..w..",
                 ".....",
             })),
 
@@ -107,18 +145,18 @@ namespace Burmalda.Generation
             new SegmentTemplate("коридор-с-лезвиями", 3, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "..b..",
+                "..t..",
                 ".....",
-                "..b..",
+                "..t..",
                 ".....",
             })),
 
             new SegmentTemplate("взрывной-проход", 3, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "..e..",
+                "..x..",
                 ".....",
-                "..e..",
+                "..x..",
                 ".....",
             })),
 
@@ -134,35 +172,29 @@ namespace Burmalda.Generation
             new SegmentTemplate("смешанная-опасность", 4, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "#.p.#",
-                "l.b.l",
-                "#.p.#",
+                "#.r.#",
+                "l.t.l",
+                "#.r.#",
                 ".....",
             })),
 
             // Найдено на реальном билде (2026-09-01, живой забег до Яруса 6):
-            // 'e' на (1,1) целился в (2,1)='l' — Tile.MarkLethalTrap(Explosion)
-            // поверх уже стоящей Lava бросало InvalidOperationException в
-            // рантайме (Tile.GuardAgainstConflictingRole, docs/wiki/changelog.md,
-            // задача «двойные флаги на плитах»). Минимальный фикс — 'e'
-            // сдвинут на одну клетку вправо (col1→col2, был открытым полом),
-            // теперь целится в (2,2)='.'; Lava/Blade-триггер не тронуты.
-            // ValidateTriggerTargetsDoNotConflict (Generation.SegmentTemplate)
-            // теперь ловит этот класс ошибки на этапе авторинга.
+            // прежний ExplosiveTrigger ('e', сейчас 'x' BombTrigger после
+            // механической замены символов 2026-09-05) на (1,1) целился в
+            // (2,1)='l' — Tile.MarkLethalTrap(Explosion) поверх уже стоящей
+            // Lava бросало InvalidOperationException в рантайме
+            // (Tile.GuardAgainstConflictingRole, docs/wiki/changelog.md,
+            // задача «двойные флаги на плитах»). Минимальный фикс тогда —
+            // сдвинуть триггер на одну клетку вправо (col1→col2, был
+            // открытым полом); раскладка сохранена без изменений при замене
+            // символов. BombTrigger/FallingRockTrigger/LavaWaveTrigger не
+            // целятся в соседние клетки вовсе (см. SegmentRowProvider.
+            // ApplyTileType) — этот класс ошибки для них не воспроизводим.
             new SegmentTemplate("испытание", 5, SegmentRewardTag.Artifact, ParseRows(new[]
             {
                 ".....",
-                "#.ea#",
-                "#l.b#",
-                ".....",
-                ".....",
-            })),
-
-            new SegmentTemplate("арена-босса", 5, SegmentRewardTag.Artifact, ParseRows(new[]
-            {
-                ".....",
-                ".....",
-                "..B..",
+                "#.xw#",
+                "#l.t#",
                 ".....",
                 ".....",
             })),
@@ -193,7 +225,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".....",
-                "..p..",
+                "..r..",
                 ".....",
                 "..m..",
             })),
@@ -236,7 +268,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..#..",
-                "e.#..",
+                "x.#..",
                 "m.#..",
                 "..#..",
                 ".....",
@@ -316,7 +348,7 @@ namespace Burmalda.Generation
             new SegmentTemplate("караул", 4, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                ".e.e.",
+                ".x.x.",
                 ".....",
                 "..k..",
                 ".....",
@@ -339,11 +371,11 @@ namespace Burmalda.Generation
             new SegmentTemplate("щедрый-риск", 5, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                ".p.p.",
+                ".r.r.",
                 ".k.k.",
-                ".p.p.",
+                ".r.r.",
                 ".k.k.",
-                ".p.p.",
+                ".r.r.",
                 ".....",
             })),
 
@@ -393,9 +425,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("ложная-прямая", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "..e..",
+                "..x..",
                 ".....",
-                "..e..",
+                "..x..",
                 ".....",
             })),
 
@@ -403,9 +435,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("жадный-угол", 2, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                "..pp.",
-                "..pk.",
-                "..pp.",
+                "..rr.",
+                "..rk.",
+                "..rr.",
                 ".....",
             })),
 
@@ -413,9 +445,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("двойная-цена", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                ".p.p.",
+                ".r.r.",
                 ".m.m.",
-                ".p.p.",
+                ".r.r.",
                 ".....",
             })),
 
@@ -434,9 +466,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("коридор-лезвий", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "b...b",
+                "t...t",
                 ".....",
-                ".b.b.",
+                ".t.t.",
                 ".....",
             })),
 
@@ -455,9 +487,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("решето", 4, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "p.p.p",
+                "r.r.r",
                 ".....",
-                "p.p.p",
+                "r.r.r",
                 "..m..",
             })),
 
@@ -471,7 +503,7 @@ namespace Burmalda.Generation
             new SegmentTemplate("выкуп", 4, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                ".e...",
+                ".x...",
                 ".k...",
                 ".....",
                 ".....",
@@ -481,7 +513,7 @@ namespace Burmalda.Generation
             new SegmentTemplate("стрелы-и-жила", 4, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "a.m.a",
+                "w.m.w",
                 ".....",
                 ".m.m.",
                 ".....",
@@ -491,9 +523,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("мост", 5, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "pp.pp",
-                "pp.pp",
-                "pp.pp",
+                "rr.rr",
+                "rr.rr",
+                "rr.rr",
                 "..m..",
             })),
 
@@ -504,7 +536,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".l.l.",
-                ".e.e.",
+                ".x.x.",
                 ".k.k.",
                 ".....",
             })),
@@ -517,6 +549,138 @@ namespace Burmalda.Generation
                 ".#k#.",
                 ".#k#.",
                 ".....",
+            })),
+
+            // ==================== Партия 3 (баг с устройства, 2026-09-04) ====================
+            // Пять ловушек Спринта 13a (issues #213–#217) были написаны и
+            // покрыты тестами, но без символов шаблона не могли попасть на
+            // трассу — см. doc-комментарий SegmentTileType.ArrowWaveTrigger.
+            // Существующие раскладки НЕ переписаны — только новые три.
+
+            // Тир 2. Стрелы новой волновой механики (issue #213) — весь ряд
+            // триггера станет опасным столбец за столбцом через 1 ход, плюс
+            // падающий камень (issue #217) двумя клетками ниже.
+            new SegmentTemplate("рой-стрел", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "..w..",
+                ".....",
+                ".r.r.",
+                "..m..",
+            })),
+
+            // Тир 3. Такт Лезвий (issue #215) — пятитактовый паттерн, ряд
+            // триггера начинает становиться опасным через несколько ходов.
+            new SegmentTemplate("такт-лезвий-волной", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            {
+                ".....",
+                ".t.t.",
+                ".....",
+                "..t..",
+                "..k..",
+            })),
+
+            // Тир 4. Бомба (issue #214, площадь 3×3 через 2 хода) и волна
+            // Лавы (issue #216, идёт назад от триггера — инвариант волны
+            // сам не даст ей перекрыть ряд игрока/впереди него, см.
+            // Movement.LavaWaveTrapSystem).
+            new SegmentTemplate("бомба-и-поток-лавы", 4, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "..x..",
+                ".....",
+                "..f..",
+                ".m.m.",
+            })),
+
+            // ==================== Партия 4 (владелец, 2026-09-05, «новые ловушки встречаются слишком редко») ====================
+            // Партия 3 (выше) заводила по одному образцу каждого из пяти
+            // типов — 3 шаблона из тогдашних 43, ~7% каталога, все пять типов
+            // встречались ровно один раз. Восемь новых шаблонов ниже доводят
+            // суммарно до одиннадцати из сорока одного в случайном пуле
+            // (~27%) — каждый из пяти типов теперь в 3-4 разных шаблонах
+            // разных тиров. Существующие раскладки не тронуты.
+
+            // Тир 1. Первое знакомство с волной Стрел — одна, посреди пути.
+            new SegmentTemplate("стрелы-на-переправе", 1, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "..w..",
+                ".....",
+                ".....",
+                "..m..",
+            })),
+
+            // Тир 2. Два падающих камня по бокам прохода.
+            new SegmentTemplate("камни-в-нише", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                ".....",
+                ".r.r.",
+                ".....",
+                "..m..",
+            })),
+
+            // Тир 2. Такт Лезвий по краям — центр остаётся безопасным дольше.
+            new SegmentTemplate("клинки-по-контуру", 2, SegmentRewardTag.Keys, ParseRows(new[]
+            {
+                ".....",
+                "t...t",
+                ".....",
+                ".....",
+                "..k..",
+            })),
+
+            // Тир 3. Три триггера Бомбы — площади взрыва почти перекрывают весь ряд.
+            new SegmentTemplate("мины-в-проходе", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            {
+                ".....",
+                "x...x",
+                ".....",
+                "..x..",
+                "..k..",
+            })),
+
+            // Тир 3. Волна Лавы у развилки — инвариант волны (не задевает
+            // ряд игрока/впереди) делает её безопасной для авторинга без
+            // ручного расчёта тайминга, см. Movement.LavaWaveTrapSystem.
+            new SegmentTemplate("разлив-у-развилки", 3, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "..f..",
+                ".....",
+                ".....",
+                "..m..",
+            })),
+
+            // Тир 4. Стрелы и Бомба в одном сегменте — два разных момента опасности.
+            new SegmentTemplate("перекрёстный-огонь", 4, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "..w..",
+                ".....",
+                "..x..",
+                ".m.m.",
+            })),
+
+            // Тир 4. Падающие камни ведут к такту Лезвий.
+            new SegmentTemplate("камнепад-и-лезвия", 4, SegmentRewardTag.Keys, ParseRows(new[]
+            {
+                ".....",
+                ".r.r.",
+                ".....",
+                "..t..",
+                "..k..",
+            })),
+
+            // Тир 5. Волна Лавы и Бомба вместе — самый насыщенный из новых.
+            new SegmentTemplate("огненная-теснина", 5, SegmentRewardTag.Keys, ParseRows(new[]
+            {
+                ".....",
+                "..f..",
+                ".....",
+                "..x..",
+                "..k..",
             })),
         };
 
@@ -532,11 +696,7 @@ namespace Burmalda.Generation
                 {
                     '.' => SegmentTileType.Open,
                     '#' => SegmentTileType.Blocked,
-                    'p' => SegmentTileType.Pit,
                     'l' => SegmentTileType.Lava,
-                    'e' => SegmentTileType.ExplosiveTrigger,
-                    'a' => SegmentTileType.TimedTrapArrowTrigger,
-                    'b' => SegmentTileType.TimedTrapBladeTrigger,
                     'L' => SegmentTileType.Lever,
                     'g' => SegmentTileType.LeverGate,
                     'm' => SegmentTileType.ManaSource,
@@ -544,6 +704,11 @@ namespace Burmalda.Generation
                     'v' => SegmentTileType.GateVaultKeySource,
                     'A' => SegmentTileType.Altar,
                     'B' => SegmentTileType.Boss,
+                    'w' => SegmentTileType.ArrowWaveTrigger,
+                    'x' => SegmentTileType.BombTrigger,
+                    't' => SegmentTileType.BladeTactTrigger,
+                    'r' => SegmentTileType.FallingRockTrigger,
+                    'f' => SegmentTileType.LavaWaveTrigger,
                     _ => SegmentTileType.Open
                 };
 

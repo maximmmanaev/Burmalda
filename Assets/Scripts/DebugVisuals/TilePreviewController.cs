@@ -20,12 +20,14 @@ namespace Burmalda.DebugVisuals
     /// не трогает .unity/.prefab (docs/rules/forbidden-actions.md), как и
     /// остальные Controller'ы этого уровня в проекте.
     ///
-    /// <b>Issue #163 (скрытые ловушки):</b> сводка о плите теперь уважает
-    /// <see cref="Core.TrapSignature"/>/<see cref="TrapInsight"/> — скрытая
-    /// ловушка (яма/активированный взрыв) показывает общую сигнатуру
-    /// вместо точного типа, пока не раскрыта соответствующим крючком под
-    /// Идола (по умолчанию оба крючка выключены — базовая сигнатура
-    /// доступна без единого Идола, точный тип/содержимое — нет).
+    /// <b>Issue #163 (скрытые ловушки):</b> сводка о плите уважает
+    /// <see cref="TrapInsight"/> — триггер одной из пяти ловушек показывает
+    /// общую строку ("Триггер механизма") вместо точного типа, пока тип не
+    /// раскрыт Идолом Чутья (по умолчанию выключен — базовая строка доступна
+    /// без единого Идола, точный тип — нет). Владелец, 2026-09-05 «оставить
+    /// только пять новых ловушек»: <c>Core.TrapSignature</c> и понятие
+    /// "скрытая ловушка" (яма/активированный взрыв) удалены — сама ловушка
+    /// (в отличие от её триггера) видна всегда, без гейта Идолом.
     ///
     /// <b>Задача 2 (отладочный HUD):</b> текстовая сводка (координаты/%
     /// распада/тип ловушки) — единственный отладочный вывод в игре с точным
@@ -94,56 +96,43 @@ namespace Burmalda.DebugVisuals
 
             if (tile.IsBlocked) lines.Add("Препятствие (заблокирована)");
 
-            // Issue #163: скрытая ловушка (яма) — базовая сигнатура ВСЕГДА
-            // (без единого Идола, см. TrapInsight), точный тип только с
-            // Идолом Чутья. Лава — вне этого правила, видна как раньше.
-            //
-            // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
-            // сработавший взрыв — БОЛЬШЕ НЕ скрытая ловушка (см.
-            // Core.TrapSignature), но и не "видна как Лава" безусловно с
-            // точным типом — тот же принцип, что IsTimedTrapActive ниже
-            // (активная угроза прямо сейчас, ОБЩЕЕ сообщение, не точный тип
-            // без Идола Чутья) — иначе резолверы (реюз TimedTrapActive,
-            // никакого точного типа без раскрытия) и эта текстовая сводка
-            // разошлись бы в том, что считается "точным типом".
-            var isHiddenTrap = TrapSignature.IsHiddenLethalTrap(tile);
-            if (tile.LethalTrap == LethalTrapType.Explosion)
-            {
-                lines.Add("Ловушка сработала — опасно ПРЯМО СЕЙЧАС");
-                if (TrapInsight.HasTrapTypeInsight) lines.Add("(Идол Чутья) Точный тип: взрывная ловушка");
-            }
-            else if (tile.LethalTrap.HasValue && !isHiddenTrap)
-                lines.Add($"Смертельная ловушка: {tile.LethalTrap.Value}"); // Lava
-            else if (isHiddenTrap)
-            {
-                lines.Add("Сигнатура опасности: с этой плитой что-то не так");
-                if (TrapInsight.HasTrapTypeInsight) lines.Add($"(Идол Чутья) Точный тип: {tile.LethalTrap.Value}");
-            }
+            // Владелец, 2026-09-05 «оставить только пять новых ловушек»:
+            // понятие "скрытая ловушка" (яма/сработавший взрыв,
+            // Core.TrapSignature) удалено вместе с Pit/Explosion — из пяти
+            // оставшихся LethalTrapType ни один не бывает скрытым: Лава
+            // видна всегда по замыслу, а ArrowWave/BombBlast/BladeTact/
+            // LavaWave — активная угроза ПРЯМО СЕЙЧАС, тоже видна всегда
+            // (issue #163 больше не применяется к самой ловушке — только к
+            // её триггеру, см. ниже). Точный тип без Идола Чутья и раньше
+            // не скрывался для Лавы — теперь так же для всех пяти.
+            if (tile.LethalTrap.HasValue)
+                lines.Add($"Смертельная ловушка: {tile.LethalTrap.Value}");
 
-            // Задача «сделать тоннель играбельным», часть 3: раньше эти две
-            // строки выдавали точный тип триггера безусловно (тем самым
-            // TileDebugColor/TileArtKindResolver гейтили цвет/текстуру
-            // единой сигнатурой, а эта строка — нет, несогласованность).
-            // Теперь тот же гейт, что и у скрытой ловушки ниже — базовая
-            // строка ("здесь механизм") видна всегда, точный тип только с
-            // Идолом Чутья.
+            // Задача «сделать тоннель играбельным», часть 3: базовая строка
+            // ("здесь механизм") видна всегда, точный тип — только с Идолом
+            // Чутья (тот же гейт, что TileArtKindResolver/TileDebugColor
+            // применяют к цвету/арту через IsDangerSignatureRevealed).
             //
             // Рычаг (IsLever) сюда НЕ входит (владелец, 2026-09-04, отменяет
             // issue #193) — он не скрытый триггер ловушки, у него своя
-            // безусловная строка ниже, без гейта Идолом Чутья: роль Идола
-            // "отличить механизм от ловушки" исчезла вместе со скрытием
-            // рычага, у Идола осталась только роль "точный тип ЛОВУШКИ".
-            if (tile.ExplosiveTrapTarget.HasValue || tile.TimedTrapTarget.HasValue)
+            // безусловная строка ниже, без гейта Идолом Чутья.
+            var isTrapTrigger = tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
+                tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger || tile.IsLavaTrigger;
+            if (isTrapTrigger)
             {
                 lines.Add("Триггер механизма");
                 if (TrapInsight.HasTrapTypeInsight)
                 {
-                    var exactType = tile.ExplosiveTrapTarget.HasValue ? "взрывная ловушка" : tile.TimedTrapKind.ToString();
+                    string exactType;
+                    if (tile.ArrowWaveTargetRow.HasValue) exactType = "волна стрел";
+                    else if (tile.IsBombTrigger) exactType = "бомба";
+                    else if (tile.BladeTactTargetRow.HasValue) exactType = "такт лезвий";
+                    else if (tile.IsFallingRockTrigger) exactType = "падающий камень";
+                    else exactType = "волна лавы";
                     lines.Add($"(Идол Чутья) Точный тип: {exactType}");
                 }
             }
             if (tile.IsLever) lines.Add("Рычаг");
-            if (tile.IsTimedTrapActive) lines.Add("Ловушка с таймингом СЕЙЧАС активна"); // реальная угроза прямо сейчас — не скрывается, см. TrapSignature
             // Ворота — преграда, видна ВСЕГДА (issue #193: "награды и
             // преграды видны всегда, опасность и механизмы — нет"), в
             // отличие от рычага выше.
@@ -161,23 +150,23 @@ namespace Burmalda.DebugVisuals
                     lines.Add($"Открывашка: {tile.LeverCoordinate.Value}");
             }
 
-            // Issue #163, Идол Жадности: "что ценного скрыто под плитой" — на
-            // скрытой ловушке ценность видна, только если она раскрыта
-            // Идолом; на обычной (не скрытой) плите валюта была видна и
-            // остаётся видна всегда, это не предмет issue #163.
-            //
             // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
             // сегментная генерация ТЕПЕРЬ намеренно совмещает ловушку и
             // валюту на одной плите (шаблоны «выкуп»/«последний-рывок» —
             // "триггер уничтожает собственную награду"). Сработавшая
             // ловушка — явная опасность, а не источник награды (владелец,
-            // дословно): раз tile.LethalTrap выставлен (взрыв сработал),
-            // строка про Ману/Ключ не показывается вовсе — Tile.IsManaSource/
-            // IsKeySource намеренно не сбрасываются (см. их doc-комментарий),
-            // но здесь, в презентации, приоритет у опасности.
+            // дословно): раз tile.LethalTrap выставлен, строка про Ману/Ключ
+            // не показывается вовсе — Tile.IsManaSource/IsKeySource
+            // намеренно не сбрасываются (см. их doc-комментарий), но здесь,
+            // в презентации, приоритет у опасности. Владелец, 2026-09-05
+            // «оставить только пять новых ловушек»: прежний гейт Идолом
+            // Жадности (issue #163, "что ценного скрыто под плитой") был про
+            // теперь-удалённую скрытую ловушку (яму) — валюта на плите без
+            // LethalTrap и раньше была видна безусловно, гейт убран как
+            // мёртвый.
             var hasLethalDanger = tile.LethalTrap.HasValue;
-            AppendValueLine(lines, tile.IsManaSource && !hasLethalDanger, "Источник Кристаллов Маны", isHiddenTrap);
-            AppendValueLine(lines, tile.IsKeySource && !hasLethalDanger, "Источник Ключей", isHiddenTrap);
+            AppendValueLine(lines, tile.IsManaSource && !hasLethalDanger, "Источник Кристаллов Маны");
+            AppendValueLine(lines, tile.IsKeySource && !hasLethalDanger, "Источник Ключей");
 
             if (tile.IsAltar) lines.Add("Алтарь");
             if (tile.IsBoss) lines.Add("Точка Босса");
@@ -202,12 +191,10 @@ namespace Burmalda.DebugVisuals
             }
         }
 
-        private static void AppendValueLine(List<string> lines, bool hasValue, string label, bool isHiddenTrap)
+        private static void AppendValueLine(List<string> lines, bool hasValue, string label)
         {
             if (!hasValue) return;
-            if (isHiddenTrap && !TrapInsight.HasTrapContentsInsight) return; // скрыто, пока не раскрыто Идолом Жадности
-
-            lines.Add(isHiddenTrap ? $"{label} (Идол Жадности)" : label);
+            lines.Add(label);
         }
     }
 }

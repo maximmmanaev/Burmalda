@@ -8,9 +8,10 @@ namespace Burmalda.DebugVisuals
     /// приоритета, что и <see cref="TileDebugColor.Resolve"/> (первая
     /// генерация арта заменяет цвет текстурой, не меняет логику "что
     /// показывать когда", см. задачу "Завести арт в игру"). Состояния, для
-    /// которых в пакете нет готового арта (текущая позиция, вход в Комнату
-    /// Босса), возвращают <see cref="TileArtKind.None"/> — вызывающий код
-    /// решает, чем их закрыть (см. doc-комментарий <see cref="TileArtKind"/>).
+    /// которых в пакете нет готового арта (сейчас — только содержимое самой
+    /// Комнаты Босса, Жила/Резонанс/Эхо), возвращают <see cref="TileArtKind.None"/>
+    /// — вызывающий код решает, чем их закрыть (см. doc-комментарий
+    /// <see cref="TileArtKind"/>).
     ///
     /// Чистая функция — как и <see cref="TileDebugColor.Resolve"/>,
     /// тестируется без сцены и без Unity Texture API.
@@ -33,42 +34,32 @@ namespace Burmalda.DebugVisuals
             if (state.IsStart) return TileArtKind.Start;
             if (state.IsBlocked) return TileArtKind.Blocked;
             if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
-            // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
-            // сработавший взрыв (Tile.TransitionToLethalTrap) — угроза,
-            // происходящая ПРЯМО СЕЙЧАС (тот же принцип, что ActiveTimedTrap
-            // ниже, см. Core.TrapSignature) — видим ВСЕГДА, без гейта
-            // IsDangerSignatureRevealed (в отличие от ямы ниже). Реюз
-            // TileArtKind.TimedTrapActive — тот же смысл "активная угроза
-            // прямо сейчас", отдельной текстуры под "уже взорвалось" в
-            // пакете нет и придумывать её не в скоупе агента.
-            if (state.LethalTrap == LethalTrapType.Explosion) return TileArtKind.TimedTrapActive;
-            // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2
-            // заменяется): яма — единственный оставшийся тип, не выдающий
-            // точный тип до примеривания (см. Core.TrapSignature) — общий
-            // tile-hidden-trap-signature.png, но только ПОСЛЕ того, как
-            // игрок навёл на плиту (state.IsDangerSignatureRevealed, см.
-            // Movement.TrapRevealSystem). Пока не раскрыта — плита
-            // неотличима от обычного пола, ветка ничего не возвращает и
-            // проваливается ниже, до градиента распада в конце.
-            if (state.LethalTrap == LethalTrapType.Pit && state.IsDangerSignatureRevealed)
-                return TileArtKind.HiddenTrapSignature;
-            if (state.ActiveTimedTrap.HasValue) return TileArtKind.TimedTrapActive;
-            // Единая сигнатура триггера (задача «сделать тоннель играбельным»,
-            // часть 3) — тот же принцип, что HiddenTrapSignature выше:
-            // отдельный TileArtKind, но задача «тёплый набор плит»
-            // (владелец, прямое указание) отдаёт под него ТУ ЖЕ САМУЮ
-            // текстуру, что и под HiddenTrapSignature (см. TileArtCatalog.Get)
-            // — PRD v9 §4.2, ловушку от механизма не отличить без Идола Чутья.
-            // Та же гейт-логика раскрытия, что и у ямы/взрыва выше.
-            if ((state.IsExplosiveTrapTrigger || state.IsTimedTrapTrigger) && state.IsDangerSignatureRevealed)
+            // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
+            // смертельной навсегда») — см. подробный doc-комментарий той же
+            // ветки в TileDebugColor.Resolve: настоящая причина — у четырёх
+            // LethalTrapType Спринта 13a (ArrowWave/BombBlast/BladeTact/
+            // LavaWave) не было ветки здесь вовсе, армированная плита
+            // выглядела обычным полом. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА,
+            // без гейта примеривания.
+            if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
+                state.LethalTrap == LethalTrapType.BladeTact || state.LethalTrap == LethalTrapType.LavaWave)
+                return TileArtKind.TimedTrapActive;
+            // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2):
+            // триггер одной из пяти ловушек не отличим от обычного пола,
+            // пока игрок хотя бы раз не навёл на плиту
+            // (state.IsDangerSignatureRevealed, см. Movement.TrapRevealSystem).
+            // Пока не раскрыт — ветка ничего не возвращает и проваливается
+            // ниже, до градиента распада в конце.
+            if (state.IsTrapTrigger && state.IsDangerSignatureRevealed)
                 return TileArtKind.TriggerSignature;
 
-            // Комнаты Босса ещё нет в тёплом наборе (PRD v8/v9 §8) — под вход
-            // и под содержимое Комнаты по-прежнему нет текстур, остаётся на
-            // цветном фолбэке (см. TileDebugColor — там у Жилы/Резонанса/Эха
-            // уже есть различимые цвета, задача «Комната Босса», владелец,
-            // 2026-09-02).
-            if (state.IsBoss) return TileArtKind.None;
+            // Баг с устройства (владелец, 2026-09-04): вход в Комнату — уже
+            // TileArtKind.Boss (см. её doc-комментарий), структурная плита
+            // маршрута обязана читаться. Содержимое САМОЙ Комнаты
+            // (Жила/Резонанс/Эхо) по прямому указанию задачи остаётся на
+            // цветном фолбэке — Комната целиком получит свой визуальный
+            // режим в Спринте 20, чинить его по частям сейчас не просили.
+            if (state.IsBoss) return TileArtKind.Boss;
             if (state.BossRoomTile.HasValue) return TileArtKind.None;
             if (state.IsAltar) return TileArtKind.Altar;
             // Задача «тёплый набор плит»: прежние tile-gate-closed.png/

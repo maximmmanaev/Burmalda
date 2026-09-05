@@ -40,7 +40,9 @@ namespace Burmalda.Generation
         private readonly GridTraceTrail _trail;
         private readonly SegmentSelector _selector;
         private readonly Func<int, int> _maxDifficultyForRow;
+        private readonly int _rowsPerTier;
         private int _appliedThroughRow;
+        private int _nextCapstoneRow;
         private bool _disposed;
 
         /// <param name="maxDifficultyForRow">
@@ -50,14 +52,28 @@ namespace Burmalda.Generation
         /// внедряется явно, чтобы не создавать зависимость на ещё не
         /// реализованную систему.
         /// </param>
-        public SegmentRowProvider(TunnelGrid grid, GridTraceTrail trail, SegmentSelector selector, Func<int, int> maxDifficultyForRow)
+        /// <param name="rowsPerTier">
+        /// Правка по итогам ручной проверки владельца (2026-09-04, «Алтари и
+        /// вход в Комнату — убрать из случайного пула»): период, с которым
+        /// детерминированно ставится связка Алтарь→Алтарь→вход в Комнату
+        /// Босса (см. <see cref="EnsureCoveredThrough"/>) — тот же прокси
+        /// "границы Яруса", что уже использует <paramref name="maxDifficultyForRow"/>
+        /// (на практике оба берут одно значение,
+        /// <c>SegmentGenerationController.RowsPerDifficultyStep</c>, но
+        /// провайдер не завязан на конкретного вызывающего).
+        /// </param>
+        public SegmentRowProvider(TunnelGrid grid, GridTraceTrail trail, SegmentSelector selector, Func<int, int> maxDifficultyForRow, int rowsPerTier)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
             _selector = selector ?? throw new ArgumentNullException(nameof(selector));
             _maxDifficultyForRow = maxDifficultyForRow ?? throw new ArgumentNullException(nameof(maxDifficultyForRow));
+            if (rowsPerTier <= 0)
+                throw new ArgumentOutOfRangeException(nameof(rowsPerTier), rowsPerTier, "Период границы Яруса должен быть положительным.");
+            _rowsPerTier = rowsPerTier;
 
             _appliedThroughRow = trail.CurrentPosition.Row;
+            _nextCapstoneRow = _appliedThroughRow + _rowsPerTier;
             EnsureCoveredThrough(_appliedThroughRow + RowsAheadOfPlayer);
             _trail.PositionChanged += OnPositionChanged;
         }
@@ -76,18 +92,40 @@ namespace Burmalda.Generation
         /// Обеспечивает, что все ряды до <paramref name="row"/> включительно
         /// покрыты применённым сегментом — расширяет вперёд целыми
         /// сегментами (см. класс-докстроку).
+        ///
+        /// <b>Правка по итогам ручной проверки владельца (2026-09-04):</b> по
+        /// достижении границы Яруса (<see cref="_nextCapstoneRow"/>) вместо
+        /// случайного выбора применяется ФИКСИРОВАННАЯ связка
+        /// <see cref="SegmentTemplateCatalog.AltarTemplate"/> ×2 →
+        /// <see cref="SegmentTemplateCatalog.BossTemplate"/> — PRD v9 требует
+        /// ровно два Алтаря перед каждой Комнатой Босса детерминированным
+        /// потоком, не лотереей <see cref="SegmentSelector"/> (тот же
+        /// селектор по-прежнему отвечает за наполнение МЕЖДУ границами).
         /// </summary>
         public void EnsureCoveredThrough(int row)
         {
             while (_appliedThroughRow < row)
             {
                 var baseRow = _appliedThroughRow + 1;
+
+                if (baseRow >= _nextCapstoneRow)
+                {
+                    ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
+                    _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
+                    baseRow = _appliedThroughRow + 1;
+
+                    ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
+                    _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
+                    baseRow = _appliedThroughRow + 1;
+
+                    ApplyTemplate(SegmentTemplateCatalog.BossTemplate, baseRow);
+                    _appliedThroughRow += SegmentTemplateCatalog.BossTemplate.RowCount;
+
+                    _nextCapstoneRow += _rowsPerTier;
+                    continue;
+                }
+
                 var template = _selector.SelectNext(_maxDifficultyForRow(baseRow));
-
-                if (template.Width != _grid.Width)
-                    throw new InvalidOperationException(
-                        $"Ширина шаблона '{template.Name}' ({template.Width}) не совпадает с шириной тоннеля ({_grid.Width}).");
-
                 ApplyTemplate(template, baseRow);
                 _appliedThroughRow += template.RowCount;
             }
@@ -95,6 +133,10 @@ namespace Burmalda.Generation
 
         private void ApplyTemplate(SegmentTemplate template, int baseRow)
         {
+            if (template.Width != _grid.Width)
+                throw new InvalidOperationException(
+                    $"Ширина шаблона '{template.Name}' ({template.Width}) не совпадает с шириной тоннеля ({_grid.Width}).");
+
             // Заявляем ВСЕ ряды шаблона ДО первого GetOrCreateTile ниже —
             // TunnelGrid.TileMaterialized стреляет синхронно внутри
             // GetOrCreateTile, и если Core.TunnelObstacleGenerator тоже
@@ -136,20 +178,8 @@ namespace Burmalda.Generation
                 case SegmentTileType.Blocked:
                     tile.MarkBlocked();
                     break;
-                case SegmentTileType.Pit:
-                    tile.MarkLethalTrap(LethalTrapType.Pit);
-                    break;
                 case SegmentTileType.Lava:
                     tile.MarkLethalTrap(LethalTrapType.Lava);
-                    break;
-                case SegmentTileType.ExplosiveTrigger:
-                    tile.MarkExplosiveTrapTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
-                    break;
-                case SegmentTileType.TimedTrapArrowTrigger:
-                    tile.MarkTimedTrapTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column), TimedTrapType.Arrow);
-                    break;
-                case SegmentTileType.TimedTrapBladeTrigger:
-                    tile.MarkTimedTrapTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column), TimedTrapType.Blade);
                     break;
                 case SegmentTileType.Lever:
                     tile.MarkLever(leverGateTargets);
@@ -179,6 +209,23 @@ namespace Burmalda.Generation
                     break;
                 case SegmentTileType.Boss:
                     tile.MarkBoss();
+                    break;
+                case SegmentTileType.ArrowWaveTrigger:
+                    // Дефолт "ряд самого триггера/слева-направо" — см.
+                    // doc-комментарий SegmentTileType.ArrowWaveTrigger.
+                    tile.MarkArrowWaveTrigger(coordinate.Row, RowWaveDirection.LeftToRight);
+                    break;
+                case SegmentTileType.BombTrigger:
+                    tile.MarkBombTrigger();
+                    break;
+                case SegmentTileType.BladeTactTrigger:
+                    tile.MarkBladeTactTrigger(coordinate.Row);
+                    break;
+                case SegmentTileType.FallingRockTrigger:
+                    tile.MarkFallingRockTrigger();
+                    break;
+                case SegmentTileType.LavaWaveTrigger:
+                    tile.MarkLavaTrigger();
                     break;
                 case SegmentTileType.Open:
                 default:

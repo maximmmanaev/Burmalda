@@ -4,10 +4,12 @@ using System.Collections.Generic;
 namespace Burmalda.Core
 {
     /// <summary>
-    /// Процедурная расстановка препятствий по сетке (PRD 4.2, issues #9/#10/
-    /// #45): заблокированные плиты, статичные смертельные ловушки (яма/
-    /// лава), триггеры динамических мгновенных ловушек (взрыв) и триггеры
-    /// ловушек с таймингом (стрела/лезвие). Реагирует на
+    /// Процедурная расстановка препятствий по сетке (PRD 4.2, issue #9;
+    /// владелец, 2026-09-05, «оставить только пять новых ловушек»):
+    /// заблокированные плиты, статичная Лава, и триггеры пяти ловушек
+    /// Спринта 13a (Падающий камень/Бомба/Стрела/Лезвия — Лава-волна сюда
+    /// не добавлена, у неё нет аналога "цели впереди", класс и так
+    /// недостижим в реальном забеге, см. ниже). Реагирует на
     /// <see cref="TunnelGrid.TileMaterialized"/> — как только плита впервые
     /// появляется в сетке, для неё один раз бросается случайное решение, по
     /// аналогии с genTileType() из legacy/burmolda_demo.html. Материализация
@@ -67,29 +69,28 @@ namespace Burmalda.Core
         // 1.5 раза с сохранением той же пропорции между типами, не выдуманы
         // заново (см. doc-комментарий класса).
         public static float BlockedShare = 0.08f;
-        public static float PitShare = 0.02f;
+        public static float FallingRockShare = 0.02f;
         public static float LavaShare = 0.02f;
-        public static float ExplosiveTriggerShare = 0.045f;
-        public static float TimedTrapArrowShare = 0.02f;
-        public static float TimedTrapBladeShare = 0.02f;
+        public static float BombShare = 0.045f;
+        public static float ArrowWaveShare = 0.02f;
+        public static float BladeTactShare = 0.02f;
 
         // Кумулятивные пороги для роллов в OnTileMaterialized — вычисляются
         // из долей выше при каждом обращении (значения меняются на лету с
-        // дебаг-панели, следующего забега ждать не нужно). Имена и порядок
-        // — те же, что были у прежних const-полей.
+        // дебаг-панели, следующего забега ждать не нужно).
         public static float BlockedThreshold => BlockedShare;
-        public static float PitThreshold => BlockedThreshold + PitShare;
-        public static float LavaThreshold => PitThreshold + LavaShare;
-        public static float ExplosiveTriggerThreshold => LavaThreshold + ExplosiveTriggerShare;
-        public static float TimedTrapArrowThreshold => ExplosiveTriggerThreshold + TimedTrapArrowShare;
-        public static float TimedTrapBladeThreshold => TimedTrapArrowThreshold + TimedTrapBladeShare;
+        public static float FallingRockThreshold => BlockedThreshold + FallingRockShare;
+        public static float LavaThreshold => FallingRockThreshold + LavaShare;
+        public static float BombThreshold => LavaThreshold + BombShare;
+        public static float ArrowWaveThreshold => BombThreshold + ArrowWaveShare;
+        public static float BladeTactThreshold => ArrowWaveThreshold + BladeTactShare;
 
         private readonly TunnelGrid _grid;
         private readonly Func<float> _random01;
         // Координаты плит, зарезервированных как цель уже сгенерированного
-        // триггера (взрыв #10 или тайминг #45) — им нельзя роллить
+        // триггера (Стрела/Лезвия, issues #213/#215) — им нельзя роллить
         // собственный тип, иначе цель могла бы оказаться заранее видимым
-        // препятствием (block/pit/lava), что противоречит идее "не видна
+        // препятствием (block/lava), что противоречит идее "не видна
         // заранее, пока не активирована". Одноразовая резервация — снимается
         // при первой материализации этой координаты (Remove ниже).
         private readonly HashSet<GridCoordinate> _reservedTrapTargets = new HashSet<GridCoordinate>();
@@ -137,39 +138,31 @@ namespace Burmalda.Core
 
             var roll = _random01();
             if (roll < BlockedThreshold) tile.MarkBlocked();
-            else if (roll < PitThreshold) tile.MarkLethalTrap(LethalTrapType.Pit);
+            else if (roll < FallingRockThreshold) tile.MarkFallingRockTrigger(); // камень падает на саму эту плиту — цели/резервации не нужно
             else if (roll < LavaThreshold) tile.MarkLethalTrap(LethalTrapType.Lava);
-            else if (roll < ExplosiveTriggerThreshold)
+            else if (roll < BombThreshold) tile.MarkBombTrigger(); // площадь взрыва центрирована на самой этой плите — цели/резервации не нужно
+            else if (roll < ArrowWaveThreshold)
             {
                 var target = NextRowTarget(tile.Coordinate);
                 if (CanReserveTarget(target))
                 {
-                    tile.MarkExplosiveTrapTrigger(target);
+                    tile.MarkArrowWaveTrigger(target.Row, RowWaveDirection.LeftToRight);
                     _reservedTrapTargets.Add(target);
                 }
             }
-            else if (roll < TimedTrapArrowThreshold)
+            else if (roll < BladeTactThreshold)
             {
                 var target = NextRowTarget(tile.Coordinate);
                 if (CanReserveTarget(target))
                 {
-                    tile.MarkTimedTrapTrigger(target, TimedTrapType.Arrow);
-                    _reservedTrapTargets.Add(target);
-                }
-            }
-            else if (roll < TimedTrapBladeThreshold)
-            {
-                var target = NextRowTarget(tile.Coordinate);
-                if (CanReserveTarget(target))
-                {
-                    tile.MarkTimedTrapTrigger(target, TimedTrapType.Blade);
+                    tile.MarkBladeTactTrigger(target.Row);
                     _reservedTrapTargets.Add(target);
                 }
             }
             // Иначе — ни один порог не пройден, плита остаётся обычной
             // (тот же фолбэк, что и ниже у CanReserveTarget=false): не
             // выдуманное состояние, роллы уже сейчас могут не набрать до
-            // TimedTrapBladeThreshold.
+            // BladeTactThreshold.
         }
 
         /// <summary>
@@ -186,11 +179,14 @@ namespace Burmalda.Core
         /// СОБСТВЕННОГО ролла этого генератора на той же плите, а не от
         /// содержимого, которое туда положит сегмент. Конфликт всплывал не
         /// на этапе генерации (тихо), а в рантайме — когда игрок реально
-        /// доходил до триггера, <see cref="Movement.ExplosiveTrapArmingSystem"/>/
-        /// <c>TimedTrapSystem</c> вызывали <c>Tile.MarkLethalTrap</c> на уже
-        /// занятую источником плиту, и <c>Tile.GuardAgainstConflictingRole</c>
-        /// (задача «двойные флаги на плитах») бросал исключение прямо во
-        /// время хода игрока. Безопасный фолбэк — не ставить триггер вовсе
+        /// доходил до триггера, живая система ловушки вызывала
+        /// <c>Tile.MarkLethalTrap</c> на уже занятую источником плиту, и
+        /// <c>Tile.GuardAgainstConflictingRole</c> (задача «двойные флаги на
+        /// плитах») бросал исключение прямо во время хода игрока (новые пять
+        /// ловушек Спринта 13a используют <c>Tile.TransitionToLethalTrap</c>,
+        /// без стража — но резервация всё равно защищает от менее очевидной
+        /// проблемы, "триггер целится в чужую награду"). Безопасный фолбэк —
+        /// не ставить триггер вовсе
         /// (плита остаётся обычной), тот же принцип, что уже применяется к
         /// зарезервированным целям (см. класс-докстринг про "плита
         /// зарезервирована... остаётся обычной").

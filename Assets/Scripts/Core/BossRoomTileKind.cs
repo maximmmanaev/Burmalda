@@ -3,7 +3,7 @@ namespace Burmalda.Core
     /// <summary>
     /// Тип плиты внутри Комнаты Босса (PRD v8 §8.2) — существуют только
     /// внутри Комнаты, исчезают на выходе. Живёт в Core (как
-    /// <see cref="LethalTrapType"/>/<see cref="TimedTrapType"/>), а не в
+    /// <see cref="LethalTrapType"/>), а не в
     /// сборке BossRoom — <see cref="Tile"/> должен уметь хранить этот тип,
     /// не зная о системе, которая его интерпретирует.
     /// </summary>
