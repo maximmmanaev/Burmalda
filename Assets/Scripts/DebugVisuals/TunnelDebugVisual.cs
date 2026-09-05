@@ -174,10 +174,55 @@ namespace Burmalda.DebugVisuals
         // материализованным рядом).
         private const float WallHeight = 1.1f;
         private const float WallThicknessShare = 0.15f; // доля TileSize — тонкая плита, не толстая стена
+
+        // Баг с устройства (владелец, 2026-09-05, «расширить стены»): при
+        // наведении на крайнюю плиту (столбец 0 или Width-1) ободок
+        // подсветки (Movement.TilePreviewHighlighter) уходит под стену и
+        // обрезается. Диагностика: внешний брусок ободка для крайней плиты
+        // стоит РОВНО на границе сетки плит (±Width*0.5*TileSize — та же
+        // формула, что halfWidth ниже), а стена ДО этой правки центрирована
+        // на той же самой координате — их толщины (WallThicknessShare*TileSize
+        // и TilePreviewHighlighter.FrameThickness) перекрываются почти
+        // целиком, стена физически стоит поверх внутренней половины
+        // ободка. Ширина прохода (Width=5 плит, GridTraceInputController)
+        // не меняется — раздвигается только координата, на которую ставится
+        // стена, сама плитка/сетка не трогается. Margin подобран так, чтобы
+        // внутренняя грань стены оказалась строго за внешней гранью ободка
+        // с запасом: минимум для касания — (WallThicknessShare +
+        // TilePreviewHighlighter.FrameThickness/TileSize)/2 ≈ 0.105 при
+        // TileSize=1 — взят с запасом до 0.15, видимый зазор ~0.045 TileSize.
+        private const float WallOutwardMarginShare = 0.15f; // доля TileSize, добавляется к halfWidth только для стен
         private static readonly Color WallColor = new Color(45f / 255f, 32f / 255f, 22f / 255f);
         private readonly Material _wallMaterial;
         private readonly HashSet<int> _wallRows = new HashSet<int>();
         private readonly List<GameObject> _wallObjects = new List<GameObject>();
+
+        // Владелец, 2026-09-05 («непроходимая плита обязана выглядеть
+        // непроходимой», по итогам ручной проверки — «там где раньше была
+        // скрытая стена пусть станет видимой»): раньше Tile.IsBlocked отличался
+        // от обычного пола ТОЛЬКО текстурой/цветом (BlockedColor/
+        // TileArtKind.Blocked) на той же плоской геометрии высотой TileHeight —
+        // на бегу, с камеры сверху-вниз-вперёд, разница цвета на абсолютно
+        // плоской плите не читалась как преграда, игрок упирался в
+        // невидимую стену. Особенно заметно для Падающего камня (issue
+        // #217, Tile.TransitionToBlocked) — единственного способа плите
+        // СТАТЬ Blocked ПО ХОДУ ЗАБЕГА (раньше — только на генерации, где
+        // игрок видит препятствие заранее и обходит, а не упирается).
+        // Фикс — не новый арт-ассет (не в скоупе агента), а процедурная
+        // геометрия по тому же принципу, что боковые стены/подсказка
+        // направления на Ворота выше: переиспользует уже загруженный
+        // _wallMaterial (тот же "тёсаный камень") и builtin Cube.fbx
+        // (GetGateHintMesh) — булыжник поверх плиты, ощутимо приподнятый над
+        // TileHeight, без коллайдера (тап должен по-прежнему попадать в
+        // BoxCollider самой плиты, не в камень). Действует одинаково для
+        // ЛЮБОГО источника Blocked — сгенерированной стены ('#' шаблона) и
+        // рантайм-перехода (Падающий камень) — Resolve()-приоритет уже и
+        // так был единым для обоих (see TileDebugColor/TileArtKindResolver),
+        // это только геометрия.
+        private const float BlockedObstructionHeight = 0.5f;
+        private const float BlockedObstructionFootprintShare = 0.75f; // доля TileSize
+        private const float BlockedObstructionRotationDegrees = 32f; // не выровнен по сетке — читается как булыжник, не как ещё одна плита
+        private readonly Dictionary<GridCoordinate, GameObject> _blockedObstructions = new Dictionary<GridCoordinate, GameObject>();
 
         public TunnelDebugVisual(TunnelGrid grid, GridTraceTrail trail, WorldGridProjection projection, Transform parent)
         {
@@ -303,6 +348,7 @@ namespace Burmalda.DebugVisuals
                 var kind = ApplyVisual(tileObject, coordinate, state);
                 UpdateCrackOverlay(coordinate, kind, state);
                 UpdateGateDirectionHint(coordinate, tileObject, tile);
+                UpdateBlockedObstruction(coordinate, tileObject, state);
 
                 if (state.IsDestroyed && !_previouslyDestroyed.Contains(coordinate))
                 {
@@ -335,6 +381,10 @@ namespace Burmalda.DebugVisuals
                 foreach (var hintObject in _gateDirectionHints.Values)
                     UnityEngine.Object.Destroy(hintObject);
                 _gateDirectionHints.Clear();
+
+                foreach (var obstructionObject in _blockedObstructions.Values)
+                    UnityEngine.Object.Destroy(obstructionObject);
+                _blockedObstructions.Clear();
 
                 foreach (var wallObject in _wallObjects)
                     UnityEngine.Object.Destroy(wallObject);
@@ -822,6 +872,66 @@ namespace Burmalda.DebugVisuals
             return hint;
         }
 
+        /// <summary>
+        /// Владелец, 2026-09-05 («непроходимая плита обязана выглядеть
+        /// непроходимой»): булыжник поверх Blocked-плиты — лениво создаётся
+        /// при первом Tick(), где плита оказывается Blocked (тот же приём
+        /// "по требованию из реального Tile.cs", что оверлей трещин/
+        /// подсказка направления на Ворота выше), дальше только
+        /// включается/выключается вместе с <see cref="TileVisualState.IsBlocked"/>
+        /// — действует одинаково для стены с генерации ('#' шаблона) и для
+        /// рантайм-перехода <see cref="Tile.TransitionToBlocked"/> (Падающий
+        /// камень, issue #217), симметрично для обоих источников.
+        /// </summary>
+        private void UpdateBlockedObstruction(GridCoordinate coordinate, GameObject tileObject, TileVisualState state)
+        {
+            if (_wallMaterial == null) return;
+
+            if (!state.IsBlocked)
+            {
+                // Плита перестала бы быть Blocked только при полном
+                // пересборе сетки нового забега (Dispose очищает всё) — ни
+                // MarkBlocked, ни TransitionToBlocked не имеют обратного
+                // метода — но защищаемся симметрично на случай уже
+                // созданного булыжника, тот же приём, что UpdateGateDirectionHint.
+                if (_blockedObstructions.TryGetValue(coordinate, out var staleObstruction)) staleObstruction.SetActive(false);
+                return;
+            }
+
+            if (!_blockedObstructions.TryGetValue(coordinate, out var obstruction))
+            {
+                obstruction = CreateBlockedObstruction(coordinate, tileObject.transform.position);
+                _blockedObstructions[coordinate] = obstruction;
+            }
+
+            if (obstruction != null) obstruction.SetActive(true);
+        }
+
+        private GameObject CreateBlockedObstruction(GridCoordinate coordinate, Vector3 tileWorldPosition)
+        {
+            var obstruction = new GameObject($"DebugBlockedObstruction {coordinate}");
+            obstruction.transform.SetParent(_parent, worldPositionStays: false);
+            obstruction.transform.position = tileWorldPosition + Vector3.up * (TileHeight * 0.5f + BlockedObstructionHeight * 0.5f);
+            // Не выровнен по осям сетки — читается как обломок камня, а не
+            // ещё одна аккуратная плита пола (та же логика, что у соседних
+            // процедурных объектов этого класса — без арт-ассета, но не
+            // должен выглядеть как баг геометрии).
+            obstruction.transform.rotation = Quaternion.Euler(0f, BlockedObstructionRotationDegrees, 0f);
+            obstruction.transform.localScale = new Vector3(
+                _projection.TileSize * BlockedObstructionFootprintShare,
+                BlockedObstructionHeight,
+                _projection.TileSize * BlockedObstructionFootprintShare);
+
+            var meshFilter = obstruction.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = GetGateHintMesh();
+            obstruction.AddComponent<MeshRenderer>().sharedMaterial = _wallMaterial;
+            // Ни один Collider не добавляется вообще (тот же приём, что
+            // подсказка направления на Ворота выше) — тап должен по-прежнему
+            // попадать только в BoxCollider самой плиты, не в булыжник поверх.
+
+            return obstruction;
+        }
+
         // Тот же приём, что GetOverlayQuadMesh — берём готовый Cube.fbx
         // напрямую из Resources.GetBuiltinResource, минуя
         // GameObject.CreatePrimitive (сама добавляет коллайдер, см.
@@ -849,7 +959,10 @@ namespace Burmalda.DebugVisuals
             if (!_wallRows.Add(row)) return;
 
             var tileSize = _projection.TileSize;
-            var halfWidth = _projection.Width * 0.5f * tileSize;
+            // Только для размещения стен — не влияет на _projection/сетку
+            // плит и не меняет ширину прохода (см. doc-комментарий
+            // WallOutwardMarginShare).
+            var halfWidth = _projection.Width * 0.5f * tileSize + WallOutwardMarginShare * tileSize;
             var centerZ = (row + 0.5f) * tileSize;
             var thickness = WallThicknessShare * tileSize;
 
