@@ -17,7 +17,31 @@ namespace Burmalda.DebugVisuals
     /// Самостоятельно создаёт себя через <see cref="RuntimeInitializeOnLoadMethodAttribute"/>
     /// — без правки .unity/.prefab (docs/rules/forbidden-actions.md), тот же
     /// паттерн, что <see cref="RestartButton"/>. Свет в сцене уже настроен
-    /// (мягкие тени, intensity 2) — не трогается, здесь только пост-обработка.
+    /// (мягкие тени, intensity 2) — не трогается, кроме одной правки
+    /// направления (см. <see cref="FixDirectionalLightYaw"/>), здесь в
+    /// остальном только пост-обработка.
+    ///
+    /// <b>Баг с устройства (владелец, 2026-09-05, «тень справа»):</b>
+    /// виньетка уже убрана (см. <see cref="CreateGlobalVolume"/>), но
+    /// односторонняя тень осталась — виньетка затемняет края СИММЕТРИЧНО,
+    /// значит причина другая. Диагностика (не гипотеза — прочитан
+    /// <c>Assets/Scenes/SampleScene.unity</c>, единственная сцена в
+    /// <c>ProjectSettings/EditorBuildSettings.asset</c>): единственный Light
+    /// сцены ("Directional Light") имеет <c>m_LocalEulerAnglesHint: {x: 50,
+    /// y: -30, z: 0}</c> — тангаж (50°) совпадает с камерой
+    /// (<c>TunnelCameraFollow.DefaultPitchDegrees</c>), НО рыскание -30°
+    /// ничем не оправдано и не совпадает ни с одной другой геометрией сцены.
+    /// Тоннель и его стены (<see cref="TunnelDebugVisual.CreateWallSegmentsForRow"/>)
+    /// строго симметричны относительно оси Z (стены на -halfWidth/+halfWidth,
+    /// один и тот же материал) — ненулевое рыскание даёт свету
+    /// X-составляющую направления, из-за которой одна стена получает
+    /// прямой свет, а другая (и пол рядом с ней) — идёт в тень: не
+    /// артефакт пост-обработки и не асимметрия геометрии (геометрия
+    /// симметрична по построению), а асимметрия ЕДИНСТВЕННОГО источника
+    /// света относительно симметричной сцены. Правка .unity автономно
+    /// запрещена (docs/rules/forbidden-actions.md) — рыскание обнуляется в
+    /// рантайме (тангаж/крен не трогаются) тем же самобутстрапом, что и
+    /// остальной класс.
     /// </summary>
     public sealed class ScenePostProcessing : MonoBehaviour
     {
@@ -91,6 +115,32 @@ namespace Burmalda.DebugVisuals
 
             SetupProceduralSky();
             SetupFog();
+            FixDirectionalLightYaw();
+        }
+
+        /// <summary>
+        /// Баг с устройства (владелец, 2026-09-05, «тень справа») — см.
+        /// doc-комментарий класса для полной диагностики. Обнуляет ТОЛЬКО
+        /// рыскание (компонент Y поворота) единственного направленного
+        /// света сцены, оставляя тангаж/крен как задал владелец продукта —
+        /// это устраняет именно асимметрию (свет бьёт в обе стены тоннеля
+        /// под одним и тем же углом), не убирает свет/тени целиком.
+        /// Не-op, если направленного света на сцене нет (не должно
+        /// случаться в этом проекте, но тот же оборонительный принцип, что
+        /// у отсутствующего шейдера/камеры в этом классе) или его рыскание
+        /// уже нулевое.
+        /// </summary>
+        private static void FixDirectionalLightYaw()
+        {
+            foreach (var light in FindObjectsByType<Light>(FindObjectsSortMode.None))
+            {
+                if (light.type != LightType.Directional) continue;
+
+                var euler = light.transform.eulerAngles;
+                if (Mathf.Approximately(euler.y, 0f)) continue;
+
+                light.transform.eulerAngles = new Vector3(euler.x, 0f, euler.z);
+            }
         }
 
         private static void SetupFog()
