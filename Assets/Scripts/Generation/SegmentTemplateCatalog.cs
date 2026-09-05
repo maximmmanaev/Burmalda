@@ -9,15 +9,19 @@ namespace Burmalda.Generation
     /// редактора уровней; строки идут от входа (первая строка) к выходу
     /// (последняя).
     ///
-    /// Символ → <see cref="SegmentTileType"/>: '.' Open, '#' Blocked, 'p' Pit,
-    /// 'l' Lava, 'e' ExplosiveTrigger, 'a' TimedTrapArrowTrigger,
-    /// 'b' TimedTrapBladeTrigger, 'L' Lever, 'g' LeverGate, 'm' ManaSource,
-    /// 'k' KeySource, 'v' GateVaultKeySource (тайник за Воротами — сумма из
+    /// Символ → <see cref="SegmentTileType"/>: '.' Open, '#' Blocked,
+    /// 'l' Lava, 'L' Lever, 'g' LeverGate, 'm' ManaSource, 'k' KeySource,
+    /// 'v' GateVaultKeySource (тайник за Воротами — сумма из
     /// <see cref="SegmentTemplate.GateVaultPurchases"/>, не 'k'), 'A' Altar,
-    /// 'B' Boss. Ловушки Спринта 13a (issues #213–#217, найдено при сверке
-    /// 2026-09-04 — были написаны и протестированы, но без символов не
-    /// могли попасть на трассу): 'w' ArrowWaveTrigger, 'x' BombTrigger,
-    /// 't' BladeTactTrigger, 'r' FallingRockTrigger, 'f' LavaWaveTrigger.
+    /// 'B' Boss. Пять ловушек Спринта 13a (issues #213–#217) — единственные
+    /// ловушки в игре (владелец, 2026-09-05, «оставить только пять новых
+    /// ловушек»: прежние 'p' Pit/'e' ExplosiveTrigger/'a' TimedTrapArrowTrigger/
+    /// 'b' TimedTrapBladeTrigger удалены целиком, их места в раскладках
+    /// заняты — механической заменой символов, без изменения самих
+    /// раскладок — соответствующими новыми: 'w' ArrowWaveTrigger (был 'a'),
+    /// 'x' BombTrigger (был 'e'), 't' BladeTactTrigger (был 'b'),
+    /// 'r' FallingRockTrigger (был 'p'), 'f' LavaWaveTrigger (новый символ,
+    /// не заменял старый — Лава-волна не существовала как старый тип).
     /// 'A'/'B' встречаются ТОЛЬКО в <see cref="AltarTemplate"/>/
     /// <see cref="BossTemplate"/> (владелец, 2026-09-04/05: детерминированный
     /// поток, не случайный отбор) — в остальных шаблонах <see cref="All"/>
@@ -114,18 +118,18 @@ namespace Burmalda.Generation
             new SegmentTemplate("разлом", 2, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "..p..",
-                ".p.p.",
-                "..p..",
+                "..r..",
+                ".r.r.",
+                "..r..",
                 ".....",
             })),
 
             new SegmentTemplate("коридор-со-стрелами", 2, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "..a..",
+                "..w..",
                 ".....",
-                "..a..",
+                "..w..",
                 ".....",
             })),
 
@@ -141,18 +145,18 @@ namespace Burmalda.Generation
             new SegmentTemplate("коридор-с-лезвиями", 3, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "..b..",
+                "..t..",
                 ".....",
-                "..b..",
+                "..t..",
                 ".....",
             })),
 
             new SegmentTemplate("взрывной-проход", 3, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "..e..",
+                "..x..",
                 ".....",
-                "..e..",
+                "..x..",
                 ".....",
             })),
 
@@ -168,26 +172,29 @@ namespace Burmalda.Generation
             new SegmentTemplate("смешанная-опасность", 4, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "#.p.#",
-                "l.b.l",
-                "#.p.#",
+                "#.r.#",
+                "l.t.l",
+                "#.r.#",
                 ".....",
             })),
 
             // Найдено на реальном билде (2026-09-01, живой забег до Яруса 6):
-            // 'e' на (1,1) целился в (2,1)='l' — Tile.MarkLethalTrap(Explosion)
-            // поверх уже стоящей Lava бросало InvalidOperationException в
-            // рантайме (Tile.GuardAgainstConflictingRole, docs/wiki/changelog.md,
-            // задача «двойные флаги на плитах»). Минимальный фикс — 'e'
-            // сдвинут на одну клетку вправо (col1→col2, был открытым полом),
-            // теперь целится в (2,2)='.'; Lava/Blade-триггер не тронуты.
-            // ValidateTriggerTargetsDoNotConflict (Generation.SegmentTemplate)
-            // теперь ловит этот класс ошибки на этапе авторинга.
+            // прежний ExplosiveTrigger ('e', сейчас 'x' BombTrigger после
+            // механической замены символов 2026-09-05) на (1,1) целился в
+            // (2,1)='l' — Tile.MarkLethalTrap(Explosion) поверх уже стоящей
+            // Lava бросало InvalidOperationException в рантайме
+            // (Tile.GuardAgainstConflictingRole, docs/wiki/changelog.md,
+            // задача «двойные флаги на плитах»). Минимальный фикс тогда —
+            // сдвинуть триггер на одну клетку вправо (col1→col2, был
+            // открытым полом); раскладка сохранена без изменений при замене
+            // символов. BombTrigger/FallingRockTrigger/LavaWaveTrigger не
+            // целятся в соседние клетки вовсе (см. SegmentRowProvider.
+            // ApplyTileType) — этот класс ошибки для них не воспроизводим.
             new SegmentTemplate("испытание", 5, SegmentRewardTag.Artifact, ParseRows(new[]
             {
                 ".....",
-                "#.ea#",
-                "#l.b#",
+                "#.xw#",
+                "#l.t#",
                 ".....",
                 ".....",
             })),
@@ -218,7 +225,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".....",
-                "..p..",
+                "..r..",
                 ".....",
                 "..m..",
             })),
@@ -261,7 +268,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..#..",
-                "e.#..",
+                "x.#..",
                 "m.#..",
                 "..#..",
                 ".....",
@@ -341,7 +348,7 @@ namespace Burmalda.Generation
             new SegmentTemplate("караул", 4, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                ".e.e.",
+                ".x.x.",
                 ".....",
                 "..k..",
                 ".....",
@@ -364,11 +371,11 @@ namespace Burmalda.Generation
             new SegmentTemplate("щедрый-риск", 5, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                ".p.p.",
+                ".r.r.",
                 ".k.k.",
-                ".p.p.",
+                ".r.r.",
                 ".k.k.",
-                ".p.p.",
+                ".r.r.",
                 ".....",
             })),
 
@@ -418,9 +425,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("ложная-прямая", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "..e..",
+                "..x..",
                 ".....",
-                "..e..",
+                "..x..",
                 ".....",
             })),
 
@@ -428,9 +435,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("жадный-угол", 2, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                "..pp.",
-                "..pk.",
-                "..pp.",
+                "..rr.",
+                "..rk.",
+                "..rr.",
                 ".....",
             })),
 
@@ -438,9 +445,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("двойная-цена", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                ".p.p.",
+                ".r.r.",
                 ".m.m.",
-                ".p.p.",
+                ".r.r.",
                 ".....",
             })),
 
@@ -459,9 +466,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("коридор-лезвий", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "b...b",
+                "t...t",
                 ".....",
-                ".b.b.",
+                ".t.t.",
                 ".....",
             })),
 
@@ -480,9 +487,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("решето", 4, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "p.p.p",
+                "r.r.r",
                 ".....",
-                "p.p.p",
+                "r.r.r",
                 "..m..",
             })),
 
@@ -496,7 +503,7 @@ namespace Burmalda.Generation
             new SegmentTemplate("выкуп", 4, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                ".e...",
+                ".x...",
                 ".k...",
                 ".....",
                 ".....",
@@ -506,7 +513,7 @@ namespace Burmalda.Generation
             new SegmentTemplate("стрелы-и-жила", 4, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "a.m.a",
+                "w.m.w",
                 ".....",
                 ".m.m.",
                 ".....",
@@ -516,9 +523,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("мост", 5, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "pp.pp",
-                "pp.pp",
-                "pp.pp",
+                "rr.rr",
+                "rr.rr",
+                "rr.rr",
                 "..m..",
             })),
 
@@ -529,7 +536,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".l.l.",
-                ".e.e.",
+                ".x.x.",
                 ".k.k.",
                 ".....",
             })),
@@ -689,11 +696,7 @@ namespace Burmalda.Generation
                 {
                     '.' => SegmentTileType.Open,
                     '#' => SegmentTileType.Blocked,
-                    'p' => SegmentTileType.Pit,
                     'l' => SegmentTileType.Lava,
-                    'e' => SegmentTileType.ExplosiveTrigger,
-                    'a' => SegmentTileType.TimedTrapArrowTrigger,
-                    'b' => SegmentTileType.TimedTrapBladeTrigger,
                     'L' => SegmentTileType.Lever,
                     'g' => SegmentTileType.LeverGate,
                     'm' => SegmentTileType.ManaSource,

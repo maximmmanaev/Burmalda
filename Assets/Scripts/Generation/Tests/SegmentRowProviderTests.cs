@@ -62,32 +62,32 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void ApplyTemplate_ExplosiveTrigger_SetsTargetOneRowAheadSameColumn()
+        public void ApplyTemplate_ArrowWaveTrigger_TargetsOwnRowLeftToRight()
         {
             var (grid, trail) = CreateTrail();
             var tiles = OpenRows(5);
-            tiles[1, 2] = SegmentTileType.ExplosiveTrigger; // baseRow=1 => глобально row 2
+            tiles[1, 2] = SegmentTileType.ArrowWaveTrigger; // baseRow=1 => глобально row 2
 
             var template = new SegmentTemplate("with-trigger", 1, SegmentRewardTag.Coins, tiles);
             using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1, rowsPerTier: 1000000);
 
             var triggerTile = grid.GetOrCreateTile(new GridCoordinate(2, 2));
-            Assert.AreEqual(new GridCoordinate(3, 2), triggerTile.ExplosiveTrapTarget);
+            Assert.AreEqual(2, triggerTile.ArrowWaveTargetRow);
+            Assert.AreEqual(RowWaveDirection.LeftToRight, triggerTile.ArrowWaveDirection);
         }
 
         [Test]
-        public void ApplyTemplate_TimedTrapTrigger_SetsTargetAndKind()
+        public void ApplyTemplate_BladeTactTrigger_TargetsOwnRow()
         {
             var (grid, trail) = CreateTrail();
             var tiles = OpenRows(5);
-            tiles[1, 2] = SegmentTileType.TimedTrapBladeTrigger;
+            tiles[1, 2] = SegmentTileType.BladeTactTrigger;
 
             var template = new SegmentTemplate("with-timed", 1, SegmentRewardTag.Coins, tiles);
             using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1, rowsPerTier: 1000000);
 
             var triggerTile = grid.GetOrCreateTile(new GridCoordinate(2, 2));
-            Assert.AreEqual(new GridCoordinate(3, 2), triggerTile.TimedTrapTarget);
-            Assert.AreEqual(TimedTrapType.Blade, triggerTile.TimedTrapKind);
+            Assert.AreEqual(2, triggerTile.BladeTactTargetRow);
         }
 
         [Test]

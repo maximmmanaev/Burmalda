@@ -15,7 +15,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Destroyed_ReturnsDestroyed_RegardlessOfOtherFlags()
         {
-            var state = new TileVisualState(isStart: true, isCurrentPosition: true, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: true, isCurrentPosition: true, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Destroyed, TileArtKindResolver.Resolve(state));
         }
@@ -26,7 +26,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_CurrentPosition_NotDestroyed_ReturnsCurrentPosition_EvenIfAlsoStart()
         {
-            var state = new TileVisualState(isStart: true, isCurrentPosition: true, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: true, isCurrentPosition: true, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.CurrentPosition, TileArtKindResolver.Resolve(state));
         }
@@ -34,7 +34,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Start_NotCurrentNotDestroyed_ReturnsStart()
         {
-            var state = new TileVisualState(isStart: true, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: true, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Start, TileArtKindResolver.Resolve(state));
         }
@@ -42,7 +42,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Blocked_NotStartNotCurrentNotDestroyed_ReturnsBlocked()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Blocked, TileArtKindResolver.Resolve(state));
         }
@@ -53,7 +53,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_NotStartNotCurrentNotDestroyed_ReturnsBoss()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true);
 
             Assert.AreEqual(TileArtKind.Boss, TileArtKindResolver.Resolve(state));
         }
@@ -61,7 +61,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_ButDestroyed_DestroyedTakesPriority()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true);
 
             Assert.AreEqual(TileArtKind.Destroyed, TileArtKindResolver.Resolve(state));
         }
@@ -69,113 +69,48 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Blocked_IgnoresDecayProgress()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0.9f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0.9f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Blocked, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
-        public void Resolve_Pit_Revealed_ReturnsHiddenTrapSignature()
-        {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Pit, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
-
-            Assert.AreEqual(TileArtKind.HiddenTrapSignature, TileArtKindResolver.Resolve(state));
-        }
-
-        [Test]
         public void Resolve_Lava_ReturnsLava()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Lava, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Lava, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Lava, TileArtKindResolver.Resolve(state));
         }
 
-        // Задача «разрушение плиты», продолжение (владелец, 2026-09-01):
-        // сработавший взрыв — угроза прямо сейчас, БОЛЬШЕ НЕ прячется за
-        // сигнатурой ямы (см. Core.TrapSignature) — реюзит TimedTrapActive,
-        // видим ВСЕГДА, даже без раскрытия.
-        [Test]
-        public void Resolve_Explosion_AlwaysReturnsTimedTrapActive_RegardlessOfRevealed()
-        {
-            var revealed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
-            var notRevealed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
-
-            Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(revealed));
-            Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(notRevealed));
-        }
-
-        // Баг с устройства (владелец, 2026-09-05, «стрела остаётся смертельной
-        // навсегда») — см. подробности в TileDebugColorTests: у этих четырёх
-        // не было ветки здесь вовсе, армированная плита выглядела обычным
-        // полом. Тот же реюз TimedTrapActive, что у Explosion.
+        // Владелец, 2026-09-05 («оставить только пять новых ловушек») —
+        // Pit/Explosion убраны из игры целиком, вместе со своими ветками
+        // HiddenTrapSignature/скрытой сигнатурой (у оставшихся типов —
+        // Лава статична и всегда видна, у Стрелы/Бомбы/Лезвий/Лавы-волны
+        // сама угроза видна ВСЕГДА, скрыт только триггер, не угроза).
         [TestCase(LethalTrapType.ArrowWave)]
         [TestCase(LethalTrapType.BombBlast)]
         [TestCase(LethalTrapType.BladeTact)]
         [TestCase(LethalTrapType.LavaWave)]
         public void Resolve_NewTurnBasedTrapTypes_ReturnTimedTrapActive(LethalTrapType trapType)
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: trapType, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
-
-            Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(state));
-        }
-
-        // Pit и Explosion теперь РАЗНЫЕ категории — Pit прячется, Explosion нет.
-        [Test]
-        public void Resolve_PitRevealed_AndExplosion_ProduceDifferentKinds()
-        {
-            var pitState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Pit, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
-            var explosionState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Explosion, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
-
-            Assert.AreNotEqual(TileArtKindResolver.Resolve(pitState), TileArtKindResolver.Resolve(explosionState));
-        }
-
-        [Test]
-        public void Resolve_ExplosiveTrapTrigger_Revealed_ReturnsTriggerSignature()
-        {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: true, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
-
-            Assert.AreEqual(TileArtKind.TriggerSignature, TileArtKindResolver.Resolve(state));
-        }
-
-        // Задача «сделать тоннель играбельным», часть 3: единая сигнатура —
-        // тот же принцип, что уже есть для Pit/Explosion (issue #163).
-        [Test]
-        public void Resolve_ExplosiveTrigger_AndTimedTrapTrigger_ProduceIdenticalKind()
-        {
-            var explosiveState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: true, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: true);
-            var timedState = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: true, activeTimedTrap: null, isDangerSignatureRevealed: true);
-
-            Assert.AreEqual(TileArtKindResolver.Resolve(explosiveState), TileArtKindResolver.Resolve(timedState));
-        }
-
-        [Test]
-        public void Resolve_TimedTrapActive_Arrow_ReturnsTimedTrapActive()
-        {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: TimedTrapType.Arrow);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: trapType, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
-        public void Resolve_TimedTrapActive_Blade_ReturnsSameKindAsArrow()
+        public void Resolve_TrapTrigger_Revealed_ReturnsTriggerSignature()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: TimedTrapType.Blade);
-
-            Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(state));
-        }
-
-        [Test]
-        public void Resolve_TimedTrapTrigger_Revealed_ReturnsTriggerSignature()
-        {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: true, activeTimedTrap: null, isDangerSignatureRevealed: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: true, isDangerSignatureRevealed: true);
 
             Assert.AreEqual(TileArtKind.TriggerSignature, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
-        public void Resolve_TimedTrapActive_TakesPriorityOverTimedTrapTrigger()
+        public void Resolve_ActiveTrap_TakesPriorityOverTrapTrigger()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: true, activeTimedTrap: TimedTrapType.Arrow);
+            // Не должно случиться одновременно по построению генератора, но проверяем приоритет ветвления явно.
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.ArrowWave, decayProgress01: 0f, isTrapTrigger: true, isDangerSignatureRevealed: true);
 
             Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(state));
         }
@@ -183,7 +118,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_RegularTile_ZeroDecayProgress_ReturnsFresh()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
@@ -199,7 +134,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_RegularTile_HalfDecayProgress_StaysFresh_OverlayCarriesProgressNow()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.5f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.5f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
@@ -207,7 +142,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_RegularTile_FullDecayProgress_StaysFresh_OverlayCarriesProgressNow()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 1f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 1f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
@@ -215,7 +150,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_ProgressAboveOne_StaysFresh_OverlayCarriesProgressNow()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 5f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 5f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
@@ -223,7 +158,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_ProgressBelowZero_ClampsToFresh()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: -1f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: -1f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(state));
         }
@@ -234,7 +169,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_ManaSource_ReturnsManaSource_NotDecayGradient()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isManaSource: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isManaSource: true);
 
             Assert.AreEqual(TileArtKind.ManaSource, TileArtKindResolver.Resolve(state));
         }
@@ -242,7 +177,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_KeySource_ReturnsKeySource_NotDecayGradient()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isKeySource: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isKeySource: true);
 
             Assert.AreEqual(TileArtKind.KeySource, TileArtKindResolver.Resolve(state));
         }
@@ -254,7 +189,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Lever_NotRevealed_ReturnsLever()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: false);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isLever: true, isDangerSignatureRevealed: false);
 
             Assert.AreEqual(TileArtKind.Lever, TileArtKindResolver.Resolve(state));
         }
@@ -263,7 +198,7 @@ namespace Burmalda.DebugVisuals.Tests
         public void Resolve_Lever_Revealed_StillReturnsLever()
         {
             // isDangerSignatureRevealed не влияет на рычаг вообще.
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true, isDangerSignatureRevealed: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isLever: true, isDangerSignatureRevealed: true);
 
             Assert.AreEqual(TileArtKind.Lever, TileArtKindResolver.Resolve(state));
         }
@@ -271,8 +206,8 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_GatedClosedOrOpen_ReturnsDistinctKinds_NotDecayGradient()
         {
-            var closed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isGated: true, isLeverGateOpen: false);
-            var open = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isGated: true, isLeverGateOpen: true);
+            var closed = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isGated: true, isLeverGateOpen: false);
+            var open = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isGated: true, isLeverGateOpen: true);
 
             Assert.AreEqual(TileArtKind.GateClosed, TileArtKindResolver.Resolve(closed));
             Assert.AreEqual(TileArtKind.GateOpen, TileArtKindResolver.Resolve(open));
@@ -283,7 +218,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Altar_ReturnsAltar()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isAltar: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isAltar: true);
 
             Assert.AreEqual(TileArtKind.Altar, TileArtKindResolver.Resolve(state));
         }
@@ -291,7 +226,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_TakesPriorityOverAltar()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true, isAltar: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true, isAltar: true);
 
             Assert.AreEqual(TileArtKind.Boss, TileArtKindResolver.Resolve(state));
         }
@@ -299,8 +234,8 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Altar_TakesPriorityOverGatedAndLever()
         {
-            var gatedAltar = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isAltar: true, isGated: true);
-            var leverAltar = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isAltar: true, isLever: true);
+            var gatedAltar = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isAltar: true, isGated: true);
+            var leverAltar = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isAltar: true, isLever: true);
 
             Assert.AreEqual(TileArtKind.Altar, TileArtKindResolver.Resolve(gatedAltar));
             Assert.AreEqual(TileArtKind.Altar, TileArtKindResolver.Resolve(leverAltar));
@@ -311,7 +246,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_AlsoBlocked_BlockedTakesPriority()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isBoss: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true);
 
             Assert.AreEqual(TileArtKind.Blocked, TileArtKindResolver.Resolve(state));
         }
@@ -319,7 +254,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_LethalTrap_AlsoBlocked_BlockedTakesPriority()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: LethalTrapType.Pit, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: LethalTrapType.Lava, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.Blocked, TileArtKindResolver.Resolve(state));
         }
@@ -327,34 +262,27 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Lever_AlsoBlocked_BlockedTakesPriority()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isLever: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isLever: true);
 
             Assert.AreEqual(TileArtKind.Blocked, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
-        public void Resolve_ManaSource_AlsoLethalTrap_HiddenTrapSignatureTakesPriority()
+        public void Resolve_ManaSource_AlsoLethalTrap_LethalTrapTakesPriority()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Pit, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isManaSource: true, isDangerSignatureRevealed: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Lava, decayProgress01: 0f, isTrapTrigger: false, isManaSource: true);
 
-            Assert.AreEqual(TileArtKind.HiddenTrapSignature, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.Lava, TileArtKindResolver.Resolve(state));
         }
 
         // Задача «раскрытие опасности при примеривании»: то же правило,
-        // что в TileDebugColorTests — до раскрытия плита не отличима от
-        // обычного пола (одного и того же градиента распада).
+        // что в TileDebugColorTests — до раскрытия триггер не отличим от
+        // обычного пола (одного и того же градиента распада). Сама угроза
+        // (LethalTrap) скрытию не подлежит — только триггер.
         [Test]
-        public void Resolve_Pit_NotRevealed_LooksLikeOrdinaryFreshTile()
+        public void Resolve_TrapTrigger_NotRevealed_LooksLikeOrdinaryFreshTile()
         {
-            var hidden = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Pit, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
-
-            Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(hidden));
-        }
-
-        [Test]
-        public void Resolve_ExplosiveTrigger_NotRevealed_LooksLikeOrdinaryFreshTile()
-        {
-            var hidden = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: true, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
+            var hidden = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: true, isDangerSignatureRevealed: false);
 
             Assert.AreEqual(TileArtKind.Fresh, TileArtKindResolver.Resolve(hidden));
         }
@@ -362,7 +290,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Lava_NotRevealed_StillReturnsLava()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Lava, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: null, isDangerSignatureRevealed: false);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.Lava, decayProgress01: 0f, isTrapTrigger: false, isDangerSignatureRevealed: false);
 
             Assert.AreEqual(TileArtKind.Lava, TileArtKindResolver.Resolve(state));
         }
@@ -370,7 +298,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_TimedTrapActive_NotRevealed_StillReturnsTimedTrapActive()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isExplosiveTrapTrigger: false, isTimedTrapTrigger: false, activeTimedTrap: TimedTrapType.Blade, isDangerSignatureRevealed: false);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.BladeTact, decayProgress01: 0f, isTrapTrigger: false, isDangerSignatureRevealed: false);
 
             Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(state));
         }

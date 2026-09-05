@@ -5,9 +5,8 @@ namespace Burmalda.Generation
 {
     /// <summary>
     /// Пересобирает <see cref="LeverActivationSystem"/> (issue #51) на
-    /// каждый забег — по паттерну <see cref="ExplosiveTrapController"/>/
-    /// <see cref="TimedTrapController"/> (реагирует на события трейла, не
-    /// нужен per-frame Tick). Привязка к тому же GameObject, что и
+    /// каждый забег — по паттерну <see cref="TrailMultiplierController"/>
+    /// (реагирует на события трейла, не нужен per-frame Tick). Привязка к тому же GameObject, что и
     /// <see cref="GridTraceInputController"/> — вручную пользователем.
     /// </summary>
     [DisallowMultipleComponent]

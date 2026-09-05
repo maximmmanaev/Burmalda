@@ -160,12 +160,11 @@ namespace Burmalda.Core
         /// награду" — срабатывание обязано превратить плиту в смертельную,
         /// не бросить исключение.
         ///
-        /// Используется <c>Movement.ExplosiveTrapArmingSystem</c> сейчас; тем
-        /// же методом (не новым частным случаем страж) будут пользоваться
-        /// будущие рантайм-угрозы того же семейства (напр. Лава-волна,
-        /// docs/wiki/traps.md, ещё не реализована) — список рантайм-переходов
-        /// растёт РАЗДЕЛЕНИЕМ ФАЗ (генерация/рантайм), а не перечислением
-        /// исключений в страже, см. его doc-комментарий.
+        /// Используется всеми пятью ловушками Спринта 13a (docs/wiki/traps.md,
+        /// <c>Movement.ArrowWaveTrapSystem</c>/<c>BombTrapSystem</c>/
+        /// <c>BladeTactTrapSystem</c>/<c>LavaWaveTrapSystem</c>) — список
+        /// рантайм-переходов растёт РАЗДЕЛЕНИЕМ ФАЗ (генерация/рантайм), а не
+        /// перечислением исключений в страже, см. его doc-комментарий.
         /// </summary>
         public void TransitionToLethalTrap(LethalTrapType trapType)
         {
@@ -178,11 +177,10 @@ namespace Burmalda.Core
         /// обычному полу. Введён для ловушки «Стрела» (docs/wiki/traps.md,
         /// issue #213, <c>Movement.ArrowWaveTrapSystem</c>): «каждая плита
         /// опасна короткий момент, пока волна проходит, затем снова
-        /// безопасна» — в отличие от <see cref="LethalTrapType.Pit"/>/
-        /// <see cref="LethalTrapType.Lava"/> (постоянны с генерации) и уже
-        /// сработавшего <see cref="LethalTrapType.Explosion"/> (постоянен
-        /// после активации), опасность волны Стрелы временная НА КАЖДОЙ
-        /// отдельной плите ряда.
+        /// безопасна» — в отличие от <see cref="LethalTrapType.Lava"/>
+        /// (постоянна с генерации) и <see cref="LethalTrapType.LavaWave"/>
+        /// (постоянна с момента активации), опасность волны Стрелы
+        /// временная НА КАЖДОЙ отдельной плите ряда.
         ///
         /// Вызывать ТОЛЬКО на плите, которую сама вызывающая система же и
         /// сделала смертельной через <see cref="TransitionToLethalTrap"/> в
@@ -194,64 +192,6 @@ namespace Burmalda.Core
         public void ClearLethalTrap()
         {
             LethalTrap = null;
-        }
-
-        /// <summary>
-        /// Плита — триггер динамической мгновенной ловушки (PRD 4.2, issue
-        /// #10): координата связанной плиты-взрыва, которая становится
-        /// смертельной (<see cref="LethalTrapType.Explosion"/>), когда трейл
-        /// проходит через эту плиту-триггер. Null — плита не триггер. Сама
-        /// эта плита-триггер безопасна для прохода — опасна именно связанная
-        /// плита-цель.
-        /// </summary>
-        public GridCoordinate? ExplosiveTrapTarget { get; private set; }
-
-        /// <summary>Помечает плиту как триггер, связанный с плитой-целью. Повторные вызовы сохраняют первую цель.</summary>
-        public void MarkExplosiveTrapTrigger(GridCoordinate targetCoordinate)
-        {
-            if (ExplosiveTrapTarget.HasValue) return;
-            ExplosiveTrapTarget = targetCoordinate;
-        }
-
-        /// <summary>
-        /// Плита — триггер подвижной ловушки с таймингом (PRD v5 4.2, issue
-        /// #45): координата связанной плиты-цели. В отличие от взрыва (#10),
-        /// опасность цели не постоянна — включается/выключается по времени,
-        /// см. <see cref="IsTimedTrapActive"/> и <c>Burmalda.Movement.TimedTrapSystem</c>.
-        /// Сама плита-триггер всегда безопасна для прохода.
-        /// </summary>
-        public GridCoordinate? TimedTrapTarget { get; private set; }
-
-        /// <summary>
-        /// Тип ловушки с таймингом — актуален и на плите-триггере (какую цель
-        /// готовит <see cref="TimedTrapTarget"/>), и на плите-цели, пока
-        /// <see cref="IsTimedTrapActive"/> (какой тип сейчас активен). Одна и
-        /// та же плита никогда не занимает обе роли одновременно — резервация
-        /// цели в генераторе исключает эту коллизию.
-        /// </summary>
-        public TimedTrapType? TimedTrapKind { get; private set; }
-
-        /// <summary>Помечает плиту как триггер ловушки с таймингом заданного типа, связанный с плитой-целью. Повторные вызовы сохраняют первые значения.</summary>
-        public void MarkTimedTrapTrigger(GridCoordinate targetCoordinate, TimedTrapType kind)
-        {
-            if (TimedTrapTarget.HasValue) return;
-            TimedTrapTarget = targetCoordinate;
-            TimedTrapKind = kind;
-        }
-
-        /// <summary>
-        /// Плита-цель ловушки с таймингом сейчас физически опасна (снаряд/
-        /// лезвие проходит через неё) — в отличие от прочих ловушек это
-        /// временное состояние, включается и выключается
-        /// <c>Burmalda.Movement.TimedTrapSystem</c> по реальному времени.
-        /// </summary>
-        public bool IsTimedTrapActive { get; private set; }
-
-        /// <summary>Делает плиту-цель опасной прямо сейчас и запоминает тип (для сообщения о смерти/визуала).</summary>
-        public void ArmTimedTrap(TimedTrapType kind)
-        {
-            TimedTrapKind = kind;
-            IsTimedTrapActive = true;
         }
 
         /// <summary>
@@ -282,9 +222,8 @@ namespace Burmalda.Core
 
         /// <summary>
         /// Плита — триггер ловушки «Бомба» (docs/wiki/traps.md, issue #214):
-        /// в отличие от <see cref="ArrowWaveTargetRow"/>/<see cref="ExplosiveTrapTarget"/>/
-        /// <see cref="TimedTrapTarget"/> не хранит отдельную координату
-        /// цели — площадь взрыва (радиус <c>Movement.BombTrapSystem.RadiusTiles</c>)
+        /// в отличие от <see cref="ArrowWaveTargetRow"/> не хранит отдельную
+        /// координату цели — площадь взрыва (радиус <c>Movement.BombTrapSystem.RadiusTiles</c>)
         /// вычисляется вокруг координаты САМОЙ этой плиты (владелец: «восемь
         /// соседей плюс сама плита-триггер», взрыв центрирован на триггере,
         /// не смещён на отдельную цель). Сама плита-триггер входит в площадь
@@ -347,26 +286,20 @@ namespace Burmalda.Core
             IsLavaTrigger = true;
         }
 
-        /// <summary>Снимает опасность с плиты-цели — окончательно, снаряд/лезвие уже прошли (одноразовая ловушка).</summary>
-        public void DisarmTimedTrap()
-        {
-            IsTimedTrapActive = false;
-        }
-
         /// <summary>
         /// Задача «раскрытие опасности при примеривании» (PRD v9 §4.2
         /// заменяется — сигнатура опасности видна не всегда, а только после
         /// примеривания): истинно, если игрок хотя бы раз навёл на эту
         /// плиту (<c>Movement.TrapRevealSystem</c>) и её скрытая опасность
-        /// (яма/активированный взрыв — <see cref="Core.TrapSignature.IsHiddenLethalTrap"/>
-        /// — или триггер механизма, <see cref="ExplosiveTrapTarget"/>/
-        /// <see cref="TimedTrapTarget"/>) была раскрыта. НЕ про точный тип —
-        /// это по-прежнему <c>Movement.TrapInsight.HasTrapTypeInsight</c>
-        /// (Идол Чутья), а про сам факт "здесь что-то не так". Раз раскрыто —
-        /// навсегда до конца забега (нет метода, который бы это снимал) —
-        /// разведка не должна превращаться в проверку памяти. Лава/активная
-        /// ловушка с таймингом сюда не относятся — они видимы всегда, вне
-        /// зависимости от этого флага (см. <c>TrapSignature</c>).
+        /// (триггер одной из пяти ловушек — Стрела/Бомба/Лезвия/Падающий
+        /// камень/Лава, см. <c>Movement.TrapRevealSystem.HasHiddenDanger</c>)
+        /// была раскрыта. НЕ про точный тип — это по-прежнему
+        /// <c>Movement.TrapInsight.HasTrapTypeInsight</c> (Идол Чутья), а про
+        /// сам факт "здесь что-то не так". Раз раскрыто — навсегда до конца
+        /// забега (нет метода, который бы это снимал) — разведка не должна
+        /// превращаться в проверку памяти. Статичная Лава/уже активная
+        /// (сработавшая) ловушка сюда не относятся — они видимы всегда, вне
+        /// зависимости от этого флага.
         /// </summary>
         public bool IsDangerSignatureRevealed { get; private set; }
 

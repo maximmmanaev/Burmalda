@@ -5,11 +5,14 @@ namespace Burmalda.Movement
 {
     /// <summary>
     /// Задача «раскрытие опасности при примеривании» — заменяет прежнее
-    /// правило PRD v9 §4.2 ("сигнатура опасности видна всегда"): скрытая
-    /// опасность (яма/сработавший взрыв — <see cref="TrapSignature.IsHiddenLethalTrap"/>
-    /// — или триггер ЛОВУШКИ, взрывной/с таймингом/Стрелы/Бомбы/Лезвий/
-    /// Падающего камня/Лавы) ничем не отличается от обычного пола, пока
-    /// игрок хотя бы раз не навёл на плиту палец (<see cref="GridTraceInputController.PreviewTarget"/>).
+    /// правило PRD v9 §4.2 ("сигнатура опасности видна всегда"): триггер
+    /// одной из пяти ловушек (Стрелы/Бомбы/Лезвий/Падающего камня/Лавы)
+    /// ничем не отличается от обычного пола, пока игрок хотя бы раз не
+    /// навёл на плиту палец (<see cref="GridTraceInputController.PreviewTarget"/>).
+    /// Владелец, 2026-09-05 «оставить только пять новых ловушек»: прежние
+    /// Pit/Explosion и <c>Core.TrapSignature.IsHiddenLethalTrap</c> удалены —
+    /// эта система больше не различает "скрытая опасность" от "триггер
+    /// ловушки", это одна и та же категория.
     /// Раскрытие — разовое и постоянное: <see cref="Tile.RevealDangerSignature"/>
     /// не имеет обратного метода, "отвёл палец" не прячет сигнатуру обратно
     /// — иначе механика станет проверкой памяти вместо разведки (прямое
@@ -69,20 +72,16 @@ namespace Burmalda.Movement
             SignatureRevealed?.Invoke(previewTarget.Value);
         }
 
-        // Ровно те же состояния, что делят одну сигнатуру в
-        // DebugVisuals.TileDebugColor/TileArtKindResolver (HiddenTrapSignature/
-        // TriggerSignature) — лава и активная ловушка с таймингом сюда не
-        // входят намеренно (TrapSignature.IsHiddenLethalTrap их и так
-        // исключает; ActiveTimedTrap — отдельная, всегда видимая ветка).
+        // Ровно то же состояние, что рисует единую TriggerSignature в
+        // DebugVisuals.TileDebugColor/TileArtKindResolver — активная лава/
+        // ловушка с таймингом (LethalTrapType) сюда не входит намеренно,
+        // это отдельная, всегда видимая ветка (ActiveTimedTrap).
         //
         // IsLever намеренно НЕ здесь — владелец, 2026-09-04: рычаг видим
         // всегда, не опасность и не скрытый механизм (см. doc-комментарий
         // класса, отменяет решение issue #193).
         private static bool HasHiddenDanger(Tile tile) =>
-            TrapSignature.IsHiddenLethalTrap(tile)
-            || tile.ExplosiveTrapTarget.HasValue
-            || tile.TimedTrapTarget.HasValue
-            || tile.ArrowWaveTargetRow.HasValue // триггер Стрелы (issue #213) — тот же приём, что и прочие триггеры выше
+            tile.ArrowWaveTargetRow.HasValue // триггер Стрелы (issue #213) — тот же приём, что и прочие триггеры ниже
             || tile.IsBombTrigger // триггер Бомбы (issue #214) — тот же приём
             || tile.BladeTactTargetRow.HasValue // триггер Лезвий (issue #215) — тот же приём
             || tile.IsFallingRockTrigger // триггер Падающего камня (issue #217) — тот же приём

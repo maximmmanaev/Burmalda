@@ -13,8 +13,9 @@ namespace Burmalda.Movement
     /// нужны вместе — символ без тикающей системы ничего не сделает, а
     /// система без символа никогда не увидит триггер.
     ///
-    /// По паттерну <see cref="TimedTrapController"/> (тикается по ходу, а не
-    /// по кадру real-time) — но здесь "ход" это <see cref="GridTraceTrail.PositionChanged"/>,
+    /// Тот же паттерн, что был у старых (удалённых 2026-09-05) контроллеров
+    /// ловушек реального времени — тикается по ходу, а не по кадру, но здесь
+    /// "ход" это <see cref="GridTraceTrail.PositionChanged"/>,
     /// а не <c>Time.deltaTime</c> (см. <see cref="TurnBasedThreatScheduler"/>).
     /// Добавляется динамически через <c>Bootstrap.RunBootstrap</c>, а не
     /// вручную в Editor — ровно то, чего не хватало: MonoBehaviour-driver,
@@ -71,9 +72,10 @@ namespace Burmalda.Movement
             var grid = _input.Grid;
 
             // Каждая система — свой независимый TurnBasedThreatScheduler
-            // (тот же принцип, что отдельные экземпляры TimedTrapSystem/
-            // ExplosiveTrapArmingSystem на забег, см. doc-комментарий
-            // TurnBasedThreatScheduler) — конструкторы подписываются на
+            // (тот же принцип, что был у отдельных экземпляров старых,
+            // удалённых 2026-09-05 контроллеров ловушек реального времени —
+            // см. doc-комментарий TurnBasedThreatScheduler) — конструкторы
+            // подписываются на
             // _trail.PositionChanged здесь, ДО TickAllSystems ниже.
             _arrowWave = new ArrowWaveTrapSystem(grid, _trail, new TurnBasedThreatScheduler());
             _bomb = new BombTrapSystem(grid, _trail, new TurnBasedThreatScheduler());

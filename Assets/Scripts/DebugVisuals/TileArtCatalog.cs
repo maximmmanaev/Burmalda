@@ -103,17 +103,14 @@ namespace Burmalda.DebugVisuals
                 case TileArtKind.Start: return _start;
                 case TileArtKind.Blocked: return _blocked;
                 case TileArtKind.Lava: return _lava;
-                case TileArtKind.HiddenTrapSignature: return _hiddenTrapSignature;
                 case TileArtKind.TimedTrapActive: return _timedTrapActive;
-                // PRD v9 §4.2: до Идола Чутья игрок не должен уметь отличить
-                // ЛОВУШКУ (яма/сработавший взрыв — HiddenTrapSignature) от
-                // МЕХАНИЗМА, который вооружает ловушку где-то ещё (оба вида
-                // триггера — TriggerSignature) — намеренно одна и та же
-                // текстура на оба TileArtKind, не два похожих файла. Разведёт
-                // их снова кто-то в будущем перегенерацией одной из них по
-                // отдельности — механика разведки сломается молча, без
-                // единого падающего теста (тесты проверяют TileArtKind,
-                // текстуру за ним TileArtCatalog не различает вовсе).
+                // Владелец, 2026-09-05 «оставить только пять новых ловушек»:
+                // раньше это поле обслуживало ДВА TileArtKind (HiddenTrapSignature
+                // для ямы/взрыва и TriggerSignature для триггеров) — с уходом
+                // Pit/Explosion HiddenTrapSignature удалён целиком, поле
+                // (_hiddenTrapSignature, имя не переименовано — сериализовано
+                // в TileArtCatalog.asset) теперь обслуживает только
+                // TriggerSignature.
                 case TileArtKind.TriggerSignature: return _hiddenTrapSignature;
                 case TileArtKind.CurrentPosition: return _currentPosition;
                 case TileArtKind.ManaSource: return _manaSource;

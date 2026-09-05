@@ -42,24 +42,18 @@ namespace Burmalda.DebugVisuals
         Blocked,
         Lava,
 
-        /// <summary>
-        /// Общая сигнатура для ямы и уже активированного взрыва (issue #163,
-        /// см. <c>Core.TrapSignature</c>) — ОДНА текстура на оба типа,
-        /// намеренно не выдающая, какая именно ловушка под плитой (см.
-        /// <see cref="TileArtKindResolver"/>).
-        /// </summary>
-        HiddenTrapSignature,
-
-        /// <summary>Общая текстура для обеих разновидностей (стрела/лезвие) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.</summary>
+        /// <summary>Общая текстура для всех четырёх ходовых ловушек (ArrowWave/BombBlast/BladeTact/LavaWave) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.</summary>
         TimedTrapActive,
 
         /// <summary>
         /// Задача «сделать тоннель играбельным», часть 3: единая сигнатура
-        /// для ОБОИХ видов триггера (взрывной и с таймингом) — тот же
-        /// принцип, что <see cref="HiddenTrapSignature"/>: факт "здесь
-        /// механизм" виден всегда, тип — нет (см.
+        /// для триггера ЛЮБОЙ из пяти ловушек — факт "здесь механизм" виден
+        /// всегда (после раскрытия примериванием), тип — нет (см.
         /// <see cref="TileArtKindResolver"/>/<see cref="TileDebugColor.TriggerSignatureColor"/>).
-        /// Заменяет прежние раздельные ExplosiveTrigger/TimedTrapTrigger.
+        /// Владелец, 2026-09-05 «оставить только пять новых ловушек»: старые
+        /// раздельные ExplosiveTrigger/TimedTrapTrigger и общая
+        /// HiddenTrapSignature (яма+взрыв) убраны вместе с типами Pit/
+        /// Explosion — эта сигнатура теперь единственная для всех триггеров.
         /// </summary>
         TriggerSignature,
 

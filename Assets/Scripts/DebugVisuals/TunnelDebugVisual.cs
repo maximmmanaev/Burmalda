@@ -271,9 +271,12 @@ namespace Burmalda.DebugVisuals
                     isBlocked: tile.IsBlocked,
                     lethalTrap: tile.LethalTrap,
                     decayProgress01: tile.DecayProgress01,
-                    isExplosiveTrapTrigger: tile.ExplosiveTrapTarget.HasValue,
-                    isTimedTrapTrigger: tile.TimedTrapTarget.HasValue,
-                    activeTimedTrap: tile.IsTimedTrapActive ? tile.TimedTrapKind : null,
+                    // Владелец, 2026-09-05 «оставить только пять новых
+                    // ловушек»: единый флаг вместо прежних раздельных
+                    // isExplosiveTrapTrigger/isTimedTrapTrigger/activeTimedTrap —
+                    // тот же набор триггеров, что в Movement.TrapRevealSystem.HasHiddenDanger.
+                    isTrapTrigger: tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
+                        tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger || tile.IsLavaTrigger,
                     isBoss: tile.IsBoss,
                     // Задача «тёплый набор плит» (владелец): «плитка с ключом
                     // и маной после сбора должна становиться обычной, ключ и

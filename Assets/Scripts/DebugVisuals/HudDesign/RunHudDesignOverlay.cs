@@ -184,22 +184,26 @@ namespace Burmalda.DebugVisuals.HudDesign
             // примериваемой плите (aiming == target.HasValue, без проверки
             // содержимого) — "непонятный тултип при наведении на каждую
             // плитку". Подсказка "с этой плитой что-то не так" осмысленна
-            // только для скрытой ловушки (Core.TrapSignature.IsHiddenLethalTrap,
-            // тот же признак, что уже гейтит текстовую строку в
-            // TilePreviewController) — активная ловушка с таймингом
-            // (Tile.IsTimedTrapActive) уже видна собственным цветом/текстурой
-            // на полу (TrapSignature намеренно не считает её скрытой, см. её
-            // doc-комментарий), повторный неспецифичный тултип по ней был бы
-            // избыточен и путал бы с реальной сигнатурой.
-            var showDangerSignature = aiming && IsHiddenTrapTile(target.Value);
+            // только для триггера одной из пяти ловушек (тот же признак, что
+            // уже гейтит текстовую строку в TilePreviewController) — активная
+            // ловушка (Tile.LethalTrap) уже видна собственным цветом/
+            // текстурой на полу (владелец, 2026-09-05 «оставить только пять
+            // новых ловушек»: понятие "скрытая ловушка" и Core.TrapSignature
+            // удалены — ни один LethalTrapType больше не бывает скрытым),
+            // повторный неспецифичный тултип по ней был бы избыточен и
+            // путал бы с реальной сигнатурой.
+            var showDangerSignature = aiming && IsTrapTriggerTile(target.Value);
             _aimHighlight.SetActive(showDangerSignature);
             _aimTooltipRoot.SetActive(showDangerSignature);
 
             if (showDangerSignature) PositionAimVisuals(target.Value);
         }
 
-        private bool IsHiddenTrapTile(GridCoordinate coordinate) =>
-            _input.Grid != null && _input.Grid.TryGetTile(coordinate, out var tile) && TrapSignature.IsHiddenLethalTrap(tile);
+        // Тот же набор триггеров, что Movement.TrapRevealSystem.HasHiddenDanger.
+        private bool IsTrapTriggerTile(GridCoordinate coordinate) =>
+            _input.Grid != null && _input.Grid.TryGetTile(coordinate, out var tile) &&
+            (tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger || tile.BladeTactTargetRow.HasValue ||
+             tile.IsFallingRockTrigger || tile.IsLavaTrigger);
 
         private void PositionAimVisuals(GridCoordinate coordinate)
         {

@@ -178,20 +178,8 @@ namespace Burmalda.Generation
                 case SegmentTileType.Blocked:
                     tile.MarkBlocked();
                     break;
-                case SegmentTileType.Pit:
-                    tile.MarkLethalTrap(LethalTrapType.Pit);
-                    break;
                 case SegmentTileType.Lava:
                     tile.MarkLethalTrap(LethalTrapType.Lava);
-                    break;
-                case SegmentTileType.ExplosiveTrigger:
-                    tile.MarkExplosiveTrapTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
-                    break;
-                case SegmentTileType.TimedTrapArrowTrigger:
-                    tile.MarkTimedTrapTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column), TimedTrapType.Arrow);
-                    break;
-                case SegmentTileType.TimedTrapBladeTrigger:
-                    tile.MarkTimedTrapTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column), TimedTrapType.Blade);
                     break;
                 case SegmentTileType.Lever:
                     tile.MarkLever(leverGateTargets);

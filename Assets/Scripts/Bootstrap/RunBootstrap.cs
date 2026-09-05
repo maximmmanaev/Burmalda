@@ -51,9 +51,13 @@ namespace Burmalda.Bootstrap
     /// GUID компонента в YAML сцены, не по имени класса — тот же метод, что
     /// нашёл пробел с CurrencyController в задаче 2): <see cref="GridTraceInputController"/>,
     /// <c>Decay.TrailDecayController</c>, <c>RunLifecycle.RunController</c>,
-    /// <c>Movement.TunnelCameraController</c>, <c>Movement.ExplosiveTrapController</c>,
-    /// <c>Movement.TimedTrapController</c>, <c>Movement.TunnelObstacleController</c> —
+    /// <c>Movement.TunnelCameraController</c>, <c>Movement.TunnelObstacleController</c> —
     /// все уже реально размещены и работают, RunBootstrap их не трогает.
+    /// <c>Movement.ExplosiveTrapController</c>/<c>Movement.TimedTrapController</c>
+    /// (старые механики, убраны владельцем 2026-09-05 — см. doc-комментарий
+    /// <c>Core.LethalTrapType</c>) удалены из кода, но их GameObject в
+    /// SampleScene.unity останется с "Missing Script" до ручной правки
+    /// сцены — .unity-файлы не трогаются автономно (docs/rules/forbidden-actions.md).
     ///
     /// <b>Генерация сегментов подключена наряду с уже размещённым на сцене
     /// TunnelObstacleController (переходное состояние, docs/wiki/roadmap.md).</b>

@@ -155,16 +155,16 @@ namespace Burmalda.DebugVisuals
 
             BuildRow(_panelRoot.transform, 0, "Заблокировано", 0f, MaxShare, TunnelObstacleGenerator.BlockedShare,
                 v => TunnelObstacleGenerator.BlockedShare = v, FormatPercent);
-            BuildRow(_panelRoot.transform, 1, "Яма", 0f, MaxShare, TunnelObstacleGenerator.PitShare,
-                v => TunnelObstacleGenerator.PitShare = v, FormatPercent);
+            BuildRow(_panelRoot.transform, 1, "Падающий камень", 0f, MaxShare, TunnelObstacleGenerator.FallingRockShare,
+                v => TunnelObstacleGenerator.FallingRockShare = v, FormatPercent);
             BuildRow(_panelRoot.transform, 2, "Лава", 0f, MaxShare, TunnelObstacleGenerator.LavaShare,
                 v => TunnelObstacleGenerator.LavaShare = v, FormatPercent);
-            BuildRow(_panelRoot.transform, 3, "Триггер взрыва", 0f, MaxShare, TunnelObstacleGenerator.ExplosiveTriggerShare,
-                v => TunnelObstacleGenerator.ExplosiveTriggerShare = v, FormatPercent);
-            BuildRow(_panelRoot.transform, 4, "Триггер стрелы", 0f, MaxShare, TunnelObstacleGenerator.TimedTrapArrowShare,
-                v => TunnelObstacleGenerator.TimedTrapArrowShare = v, FormatPercent);
-            BuildRow(_panelRoot.transform, 5, "Триггер лезвия", 0f, MaxShare, TunnelObstacleGenerator.TimedTrapBladeShare,
-                v => TunnelObstacleGenerator.TimedTrapBladeShare = v, FormatPercent);
+            BuildRow(_panelRoot.transform, 3, "Триггер бомбы", 0f, MaxShare, TunnelObstacleGenerator.BombShare,
+                v => TunnelObstacleGenerator.BombShare = v, FormatPercent);
+            BuildRow(_panelRoot.transform, 4, "Триггер волны стрел", 0f, MaxShare, TunnelObstacleGenerator.ArrowWaveShare,
+                v => TunnelObstacleGenerator.ArrowWaveShare = v, FormatPercent);
+            BuildRow(_panelRoot.transform, 5, "Триггер такта лезвий", 0f, MaxShare, TunnelObstacleGenerator.BladeTactShare,
+                v => TunnelObstacleGenerator.BladeTactShare = v, FormatPercent);
 
             // Задача «партии 1 и 2 + правила отбора», часть 3: окно тиров
             // сегментов — "рядом с плотностью генерации".
