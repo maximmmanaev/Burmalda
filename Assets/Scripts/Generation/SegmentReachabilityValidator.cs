@@ -28,6 +28,13 @@ namespace Burmalda.Generation
     /// кроме самой награды за ней — "карман" замкнут сам на себя и не
     /// соединён с остальным сегментом даже при открытых воротах. См.
     /// <see cref="LeverVaultIsReachable"/> — это её ловит.
+    ///
+    /// <b>Неизбежность ловушки, не количество (владелец, 2026-09-08):</b>
+    /// "плотность ловушечных плит подняли, плотность встреч — нет" —
+    /// одиночный триггер в сегменте 5×6 обходится по краю. См.
+    /// <see cref="IsToothless"/> — тот же граф, что <see cref="IsTraversable"/>,
+    /// но плиты-ловушки в нём тоже считаются непроходимыми (мы ищем путь,
+    /// который их избегает).
     /// </summary>
     public static class SegmentReachabilityValidator
     {
@@ -125,6 +132,71 @@ namespace Burmalda.Generation
                         return false;
 
             return true;
+        }
+
+        /// <summary>
+        /// Владелец, 2026-09-08 («ловушек по-прежнему мало в ощущении»):
+        /// "плотность ловушечных ПЛИТ подняли, плотность ВСТРЕЧ — нет"
+        /// — одиночный триггер в сегменте 5×6 обходится по краю, игрок
+        /// физически может пройти весь тоннель, ни разу не задев ловушку.
+        /// Главное правило — неизбежность, а не количество: истинно, если
+        /// существует путь вход→выход, который не проходит НИ ЧЕРЕЗ ОДНУ
+        /// плиту-ловушку (см. <see cref="IsTrapTile"/>) — то есть шаблон
+        /// можно пройти начисто, обходом по краю. Такой шаблон считается
+        /// «беззубым».
+        ///
+        /// Тот же граф, что <see cref="IsTraversable"/> (Blocked/LeverGate
+        /// закрыты, 8-направленное соседство, ворота закрыты по умолчанию —
+        /// открытые ворота открывают ДОПОЛНИТЕЛЬНЫЙ путь, не убирают уже
+        /// существующий обходной), плюс плиты-ловушки ТОЖЕ непроходимы для
+        /// этой проверки — не потому что игрок физически не может на них
+        /// шагнуть (может, там и весь риск), а потому что мы ищем путь,
+        /// который их избегает: если такой путь существует в этом графе, он
+        /// существует и в игре.
+        ///
+        /// Тир не учитывается здесь — владелец просил применять только к
+        /// тиру 2+ (тир 1 намеренно может быть безопасным целиком), это
+        /// решение вызывающей стороны (см. <c>SegmentTemplateCatalogTests</c>),
+        /// не этого метода — как и <see cref="IsTraversable"/>, он — чистая
+        /// геометрия шаблона.
+        /// </summary>
+        public static bool IsToothless(SegmentTemplate template)
+        {
+            var componentId = ComputeComponents(template, IsPassableAvoidingTraps);
+
+            var exitComponents = new HashSet<int>();
+            var exitRow = template.RowCount - 1;
+            for (var c = 0; c < template.Width; c++)
+                if (IsPassableAvoidingTraps(template, exitRow, c))
+                    exitComponents.Add(componentId[exitRow, c]);
+
+            if (exitComponents.Count == 0) return false; // выход сам по себе — ловушка/стена на каждом столбце — обойти нечем, точно не беззубый
+
+            for (var c = 0; c < template.Width; c++)
+            {
+                if (!IsPassableAvoidingTraps(template, 0, c)) continue;
+                if (exitComponents.Contains(componentId[0, c])) return true; // нашли хотя бы одну плиту входа, безопасно связанную с выходом
+            }
+
+            return false; // либо весь вход — ловушки, либо ни одна безопасная плита входа не связана с безопасным выходом
+        }
+
+        /// <summary>Плиты-ловушки для <see cref="IsToothless"/> — пять новых триггеров (issues #213–#217) и статичная Лава. Заблокированные плиты сюда не входят — они уже непроходимы физически, отдельная роль, не ловушка (см. её же комментарий в <see cref="SegmentTileType"/>).</summary>
+        private static bool IsTrapTile(SegmentTileType type) => type switch
+        {
+            SegmentTileType.Lava => true,
+            SegmentTileType.ArrowWaveTrigger => true,
+            SegmentTileType.BombTrigger => true,
+            SegmentTileType.BladeTactTrigger => true,
+            SegmentTileType.FallingRockTrigger => true,
+            SegmentTileType.LavaWaveTrigger => true,
+            _ => false,
+        };
+
+        private static bool IsPassableAvoidingTraps(SegmentTemplate template, int row, int column)
+        {
+            var type = template.TileAt(row, column);
+            return type != SegmentTileType.Blocked && type != SegmentTileType.LeverGate && !IsTrapTile(type);
         }
 
         private static bool IsPassableGateClosed(SegmentTemplate template, int row, int column)

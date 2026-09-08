@@ -39,6 +39,54 @@ namespace Burmalda.Generation.Tests
                 $"Шаблон '{name}': возврат от тайника за воротами к выходу сегмента невозможен даже при открытых воротах.");
         }
 
+        // Владелец, 2026-09-08 («ловушек по-прежнему мало в ощущении»):
+        // "плотность ловушечных плит подняли, плотность встреч — нет" —
+        // одиночный триггер в сегменте 5×6 обходится по краю. Главное
+        // правило — неизбежность, а не количество (см. doc-комментарий
+        // SegmentReachabilityValidator.IsToothless). Прогон по каталогу
+        // (2026-09-08) нашёл 42 из 42 тир 2+ шаблонов беззубыми — 31 уже
+        // содержали ловушку, но обходимую, механически закрыты добавлением
+        // ЕЩЁ плит того же уже существующего в шаблоне типа (позиции
+        // существующих плит не переставлялись, только добавлялись новые —
+        // где нужно было перекрыть весь ряд, ряд перекрыт целиком тем же
+        // типом, не смесью). Оставшиеся 11 совсем не содержали ни одной
+        // ловушки — вводить тип с нуля для них было бы авторством контента
+        // (решение, КАКОЙ из пяти типов вводить), не механической правкой,
+        // поэтому пропущены и вынесены в отдельный allowlist ниже: они
+        // ЗНАЮТ, что не проходят это правило, и ждут решения владельца, а
+        // не тихо выпадают из проверки.
+        private static readonly string[] TemplatesWithoutAnyTrapType =
+        {
+            "зал-с-рычагом", "качели", "предбанник", // тир 2
+            "богатый-карман", "ворота-склада", "двор-с-рычагом", "пещера-за-рычагом", "узкий-проход", // тир 3
+            "рычаг-в-глубине", // тир 4
+            "двойная-жила", "шахта-жадности", // тир 5
+        };
+
+        [TestCaseSource(nameof(Tier2AndAboveTemplateNamesWithATrapType))]
+        public void Template_Tier2AndAbove_IsNotToothless(string name)
+        {
+            var template = SegmentTemplateCatalog.All.Single(t => t.Name == name);
+            Assert.IsFalse(SegmentReachabilityValidator.IsToothless(template),
+                $"Шаблон '{name}' (тир {template.DifficultyTier}) беззубый — существует путь вход→выход, не задевающий ни одной ловушки.");
+        }
+
+        private static string[] Tier2AndAboveTemplateNamesWithATrapType() => SegmentTemplateCatalog.All
+            .Where(t => t.DifficultyTier >= 2 && !TemplatesWithoutAnyTrapType.Contains(t.Name))
+            .Select(t => t.Name)
+            .ToArray();
+
+        // Обратная сторона allowlist выше — сам список не должен тихо
+        // устареть (шаблон переименовали/удалили, а имя осталось висеть
+        // в allowlist, маскируя то, что реальный шаблон снова не
+        // проверяется вовсе).
+        [Test]
+        public void TemplatesWithoutAnyTrapType_AllNamesExistInCatalog()
+        {
+            foreach (var name in TemplatesWithoutAnyTrapType)
+                Assert.IsTrue(SegmentTemplateCatalog.All.Any(t => t.Name == name), $"'{name}' из allowlist больше не существует в каталоге.");
+        }
+
         private static string[] TemplateNames() => SegmentTemplateCatalog.All.Select(t => t.Name).ToArray();
 
         [Test]

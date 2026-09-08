@@ -119,7 +119,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..r..",
-                ".r.r.",
+                "rrrrr",
                 "..r..",
                 ".....",
             })),
@@ -128,7 +128,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..w..",
-                ".....",
+                "wwwww",
                 "..w..",
                 ".....",
             })),
@@ -146,7 +146,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..t..",
-                ".....",
+                "ttttt",
                 "..t..",
                 ".....",
             })),
@@ -155,7 +155,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..x..",
-                ".....",
+                "xxxxx",
                 "..x..",
                 ".....",
             })),
@@ -173,7 +173,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "#.r.#",
-                "l.t.l",
+                "lrtrl",
                 "#.r.#",
                 ".....",
             })),
@@ -194,7 +194,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "#.xw#",
-                "#l.t#",
+                "#lxt#",
                 ".....",
                 ".....",
             })),
@@ -225,7 +225,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".....",
-                "..r..",
+                "rrrrr",
                 ".....",
                 "..m..",
             })),
@@ -269,8 +269,8 @@ namespace Burmalda.Generation
                 ".....",
                 "..#..",
                 "x.#..",
-                "m.#..",
-                "..#..",
+                "m.#xx",
+                "xx#..",
                 ".....",
             })),
 
@@ -350,8 +350,8 @@ namespace Burmalda.Generation
                 ".....",
                 ".x.x.",
                 ".....",
-                "..k..",
-                ".....",
+                "xxkxx",
+                ".xxx.",
                 ".....",
             })),
 
@@ -361,7 +361,7 @@ namespace Burmalda.Generation
                 ".....",
                 "ll.ll",
                 "ll.ll",
-                "ll.ll",
+                "lllll",
                 ".....",
                 "..m..",
             })),
@@ -373,7 +373,7 @@ namespace Burmalda.Generation
                 ".....",
                 ".r.r.",
                 ".k.k.",
-                ".r.r.",
+                "rrrrr",
                 ".k.k.",
                 ".r.r.",
                 ".....",
@@ -426,7 +426,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..x..",
-                ".....",
+                "xxxxx",
                 "..x..",
                 ".....",
             })),
@@ -436,8 +436,8 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..rr.",
-                "..rk.",
-                "..rr.",
+                "rrrk.",
+                "..rrr",
                 ".....",
             })),
 
@@ -446,8 +446,8 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".r.r.",
-                ".m.m.",
-                ".r.r.",
+                "rm.m.",
+                "rrrrr",
                 ".....",
             })),
 
@@ -467,7 +467,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "t...t",
-                ".....",
+                "ttttt",
                 ".t.t.",
                 ".....",
             })),
@@ -477,8 +477,8 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".lll.",
-                ".llk.",
-                ".lll.",
+                "lllk.",
+                ".llll",
                 ".....",
             })),
 
@@ -488,7 +488,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "r.r.r",
-                ".....",
+                "rrrrr",
                 "r.r.r",
                 "..m..",
             })),
@@ -504,8 +504,8 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".x...",
-                ".k...",
-                ".....",
+                "xkxxx",
+                "xxx..",
                 ".....",
             })),
 
@@ -514,7 +514,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "w.m.w",
-                ".....",
+                "wwwww",
                 ".m.m.",
                 ".....",
             })),
@@ -524,7 +524,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "rr.rr",
-                "rr.rr",
+                "rrrrr",
                 "rr.rr",
                 "..m..",
             })),
@@ -536,7 +536,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".l.l.",
-                ".x.x.",
+                "lxlxl",
                 ".k.k.",
                 ".....",
             })),
@@ -564,7 +564,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..w..",
-                ".....",
+                "rrrrr",
                 ".r.r.",
                 "..m..",
             })),
@@ -575,7 +575,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".t.t.",
-                ".....",
+                "ttttt",
                 "..t..",
                 "..k..",
             })),
@@ -588,7 +588,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..x..",
-                ".....",
+                "xxxxx",
                 "..f..",
                 ".m.m.",
             })),
@@ -616,7 +616,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".....",
-                ".r.r.",
+                "rrrrr",
                 ".....",
                 "..m..",
             })),
@@ -626,7 +626,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "t...t",
-                ".....",
+                "ttttt",
                 ".....",
                 "..k..",
             })),
@@ -636,7 +636,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "x...x",
-                ".....",
+                "xxxxx",
                 "..x..",
                 "..k..",
             })),
@@ -648,7 +648,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..f..",
-                ".....",
+                "fffff",
                 ".....",
                 "..m..",
             })),
@@ -658,7 +658,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..w..",
-                ".....",
+                "wwwww",
                 "..x..",
                 ".m.m.",
             })),
@@ -668,7 +668,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 ".r.r.",
-                ".....",
+                "rrrrr",
                 "..t..",
                 "..k..",
             })),
@@ -678,7 +678,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..f..",
-                ".....",
+                "fffff",
                 "..x..",
                 "..k..",
             })),
