@@ -67,6 +67,17 @@ namespace Burmalda.DebugVisuals
         private GridTraceInputController _input;
         private CurrencyController _currency;
 
+        // Задача «закрыть вертикальный срез — плита Эхо» (владелец,
+        // 2026-09-05): «момент взятия Эха — событие... экран реагирует
+        // целиком». BossRoom пересобирается на каждый заход (новый
+        // экземпляр — см. её doc-комментарий), поэтому подписка живёт по
+        // тому же паттерну "отследить смену ссылки", что уже есть в
+        // RunFeedbackDebugUI (_wiredBossController) — не переподписываемся
+        // каждый кадр, только когда экземпляр реально сменился.
+        private Burmalda.BossRoom.BossRoom _wiredBossRoom;
+        private const float EchoFlashDurationSeconds = 0.5f;
+        private float _echoFlashExpiresAtTime = -1f;
+
         private void Update()
         {
             // Читаем из RunBootstrap (задача "композиционный корень
@@ -82,8 +93,24 @@ namespace Burmalda.DebugVisuals
             // экземпляр из RunBootstrap.BossRoom на каждый кадр, как и
             // Input/Currency выше. DrawBossRoomBlock() ниже уже был готов
             // читать это поле — правка ограничена этой одной строкой.
-            RunHudDataSources.ActiveBossRoom = RunBootstrap.Instance?.BossRoom?.ActiveRoom;
+            var activeRoom = RunBootstrap.Instance?.BossRoom?.ActiveRoom;
+            RunHudDataSources.ActiveBossRoom = activeRoom;
+
+            if (activeRoom != _wiredBossRoom)
+            {
+                if (_wiredBossRoom != null) _wiredBossRoom.EchoCollected -= HandleEchoCollected;
+                _wiredBossRoom = activeRoom;
+                if (_wiredBossRoom != null) _wiredBossRoom.EchoCollected += HandleEchoCollected;
+            }
         }
+
+        private void OnDisable()
+        {
+            if (_wiredBossRoom != null) _wiredBossRoom.EchoCollected -= HandleEchoCollected;
+            _wiredBossRoom = null;
+        }
+
+        private void HandleEchoCollected() => _echoFlashExpiresAtTime = Time.time + EchoFlashDurationSeconds;
 
         private void OnGUI()
         {
@@ -148,19 +175,41 @@ namespace Burmalda.DebugVisuals
             GUI.Box(new Rect(20f, 300f, 500f, 140f), text, style);
         }
 
+        // Владелец, 2026-09-05 («закрыть вертикальный срез — плита Эхо»):
+        // самый крупный элемент экрана в момент взятия Эха увеличивается
+        // ещё, и на весь экран накладывается затухающая вспышка в цвет
+        // Эха (см. <see cref="TileDebugColor.BossRoomEchoColor"/>) — "экран
+        // реагирует целиком", не только число. Уровень исполнения тот же,
+        // что у всего класса: функциональная вспышка через GUI.DrawTexture,
+        // не финальный VFX.
+        private const int MultiplierBaseFontSize = 140;
+        private const int MultiplierEchoPopFontSize = 175;
+
         // Множитель Комнаты — самый крупный элемент экрана, ТОЛЬКО внутри
         // Комнаты (RunHudDataSources.ActiveBossRoom != null И ещё активна).
         // Дистанция до волны — рядом, когда волна есть (у BossRoom она есть
-        // всегда с момента создания). Оба пусты сейчас, см. doc-комментарий
-        // класса — Комната Босса ни разу не создаётся в реальной игре.
+        // всегда с момента создания).
         private void DrawBossRoomBlock()
         {
             var room = RunHudDataSources.ActiveBossRoom;
             if (room == null || !room.IsActive) return;
 
+            var echoFlashRemaining = _echoFlashExpiresAtTime - Time.time;
+            var echoFlashProgress01 = echoFlashRemaining > 0f ? echoFlashRemaining / EchoFlashDurationSeconds : 0f;
+
+            if (echoFlashProgress01 > 0f)
+            {
+                var previousColor = GUI.color;
+                var flashColor = TileDebugColor.BossRoomEchoColor;
+                flashColor.a = echoFlashProgress01 * 0.45f; // затухает до полностью прозрачного к концу вспышки
+                GUI.color = flashColor;
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = previousColor;
+            }
+
             var multiplierStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 140,
+                fontSize = Mathf.RoundToInt(Mathf.Lerp(MultiplierBaseFontSize, MultiplierEchoPopFontSize, echoFlashProgress01)),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
                 normal = { textColor = Color.white }

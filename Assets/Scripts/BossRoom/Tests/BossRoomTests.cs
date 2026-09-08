@@ -76,6 +76,34 @@ namespace Burmalda.BossRoom.Tests
             Assert.AreEqual(2f, room.Multiplier.CurrentMultiplier, 1e-5f);
         }
 
+        // Владелец, 2026-09-05: «момент взятия Эха — событие: множитель на
+        // HUD скачком удваивается, экран реагирует целиком».
+        [Test]
+        public void CollectEcho_RaisesEchoCollectedEvent()
+        {
+            var room = new BossRoom(entryRow: 0, exitRow: 10, waveRowsPerSecond: 1f);
+            var raised = false;
+            room.EchoCollected += () => raised = true;
+
+            room.CollectEcho();
+
+            Assert.IsTrue(raised);
+        }
+
+        [Test]
+        public void CollectEcho_RoomInactive_DoesNotRaiseEchoCollectedEvent()
+        {
+            var room = new BossRoom(entryRow: 0, exitRow: 10, waveRowsPerSecond: 1f);
+            room.ReportPlayerRow(10); // пересекает выход — Комната больше не активна
+            var raised = false;
+            room.EchoCollected += () => raised = true;
+
+            room.CollectEcho();
+
+            Assert.IsFalse(raised);
+            Assert.AreEqual(1f, room.Multiplier.CurrentMultiplier, 1e-5f, "неактивная Комната не должна применять множитель тоже.");
+        }
+
         // PRD v9 §8.3, таблица "Математика взрыва": порядок имеет значение.
         [Test]
         public void CollectEcho_AfterTwoResonances_MatchesPrdWorkedExample_TimesFour()
