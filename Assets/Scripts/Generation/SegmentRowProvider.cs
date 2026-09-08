@@ -228,7 +228,46 @@ namespace Burmalda.Generation
                     tile.MarkLavaTrigger();
                     break;
                 case SegmentTileType.Open:
+                    ApplyExtraTrapDensity(tile, coordinate);
+                    break;
                 default:
+                    break;
+            }
+        }
+
+        // Задача «параметр плотности» (владелец, 2026-09-08) — см.
+        // doc-комментарий ExtraTrapDensity. Проверка > 0f первой строкой —
+        // не только отсечка "нечего делать", а гарантия, что при дефолтном
+        // (нейтральном) значении UnityEngine.Random вообще не вызывается:
+        // EditMode-тесты каталога (SegmentRowProviderTests и другие,
+        // ExtraTrapDensity.Chance никогда не трогают) остаются полностью
+        // детерминированными.
+        private static void ApplyExtraTrapDensity(Tile tile, GridCoordinate coordinate)
+        {
+            var chance = ExtraTrapDensity.Chance;
+            if (chance <= 0f) return;
+            if (UnityEngine.Random.value >= chance) return;
+
+            // Равновероятный выбор среди всех пяти — дебаг-стресс-тест
+            // плотности, не авторский подбор конкретного типа под конкретную
+            // плиту (это и есть отличие от авторских шаблонов, которые этот
+            // рычаг намеренно дополняет, а не заменяет).
+            switch (UnityEngine.Random.Range(0, 5))
+            {
+                case 0:
+                    tile.MarkArrowWaveTrigger(coordinate.Row, RowWaveDirection.LeftToRight);
+                    break;
+                case 1:
+                    tile.MarkBombTrigger();
+                    break;
+                case 2:
+                    tile.MarkBladeTactTrigger(coordinate.Row);
+                    break;
+                case 3:
+                    tile.MarkFallingRockTrigger();
+                    break;
+                case 4:
+                    tile.MarkLavaTrigger();
                     break;
             }
         }

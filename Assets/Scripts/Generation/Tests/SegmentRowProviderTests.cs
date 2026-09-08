@@ -255,6 +255,58 @@ namespace Burmalda.Generation.Tests
             Assert.IsFalse(grid.TryGetTile(new GridCoordinate(15, 0), out _), "после Dispose сегменты по всей ширине больше не применяются");
         }
 
+        // Задача «параметр плотности» (владелец, 2026-09-08) — тот же
+        // save/restore принцип, что TunnelObstacleGeneratorTests для *Share:
+        // ExtraTrapDensity.Chance — mutable static, тест, меняющий её, не
+        // должен отравлять дефолт для остальных тестов файла (порядок
+        // выполнения NUnit не гарантирован).
+        private float _savedExtraTrapChance;
+
+        [SetUp]
+        public void SaveExtraTrapChance() => _savedExtraTrapChance = ExtraTrapDensity.Chance;
+
+        [TearDown]
+        public void RestoreExtraTrapChance() => ExtraTrapDensity.Chance = _savedExtraTrapChance;
+
+        [Test]
+        public void ApplyTemplate_ExtraTrapChanceZero_OpenTileStaysOpen()
+        {
+            // 0 — нейтральное значение (владелец: "стартовое значение —
+            // нейтральное") — гарантирует, что все ОСТАЛЬНЫЕ тесты этого
+            // файла (которые ExtraTrapDensity вообще не трогают) остаются
+            // полностью детерминированными.
+            ExtraTrapDensity.Chance = 0f;
+            var (grid, trail) = CreateTrail();
+            var template = new SegmentTemplate("open-5-density-off", 1, SegmentRewardTag.Coins, OpenRows(5));
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1, rowsPerTier: 1000000);
+
+            var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+            Assert.IsFalse(tile.LethalTrap.HasValue);
+            Assert.IsFalse(tile.ArrowWaveTargetRow.HasValue);
+            Assert.IsFalse(tile.IsBombTrigger);
+            Assert.IsFalse(tile.BladeTactTargetRow.HasValue);
+            Assert.IsFalse(tile.IsFallingRockTrigger);
+            Assert.IsFalse(tile.IsLavaTrigger);
+        }
+
+        [Test]
+        public void ApplyTemplate_ExtraTrapChanceOne_OpenTileBecomesSomeTrap()
+        {
+            // 1 — гарантированно конвертирует КАЖДУЮ Open-плиту материализуемого
+            // сегмента в один из пяти типов (какой именно — равновероятный
+            // случайный выбор, см. SegmentRowProvider.ApplyExtraTrapDensity) —
+            // проверяем только сам факт превращения, не конкретный тип.
+            ExtraTrapDensity.Chance = 1f;
+            var (grid, trail) = CreateTrail();
+            var template = new SegmentTemplate("open-5-density-max", 1, SegmentRewardTag.Coins, OpenRows(5));
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1, rowsPerTier: 1000000);
+
+            var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+            var isSomeTrap = tile.LethalTrap.HasValue || tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
+                              tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger || tile.IsLavaTrigger;
+            Assert.IsTrue(isSomeTrap, "при шансе 1 Open-плита должна была стать каким-то триггером ловушки.");
+        }
+
         [Test]
         public void RowZero_NeverTouchedByTemplateApplication()
         {
