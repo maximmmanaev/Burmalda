@@ -18,6 +18,14 @@ namespace Burmalda.BossRoom
     /// <see cref="TunnelObstacleGenerator"/> засеять те же ряды собственным
     /// броском.
     ///
+    /// <b>Порядок маршрута (владелец, 2026-09-05):</b> каждая плита-Эхо
+    /// лежит строго глубже ЛЮБОЙ плиты-Резонанса этого захода — дойти до
+    /// Эха можно только после всех Резонансов (иначе (1×2)+0.5+0.5=×3
+    /// вместо задуманного (1+0.5+0.5)×2=×4, см.
+    /// <see cref="RoomMultiplier.ApplyEchoTile"/>). Реализовано сортировкой
+    /// кандидатов по <see cref="GridCoordinate.Row"/> перед распределением
+    /// ролей, не отдельной проверкой после — см. <see cref="Generate"/>.
+    ///
     /// <b>Известное ограничение вертикального среза (см. отчёт задачи):</b>
     /// вход в Комнату определяется по <see cref="Tile.IsBoss"/> уже ПОСЛЕ
     /// того, как игрок реально ступил на эту плиту — но
@@ -92,20 +100,55 @@ namespace Burmalda.BossRoom
             }
 
             Shuffle(candidates);
+            // Владелец (2026-09-05, «закрыть вертикальный срез — плита
+            // Эхо»): «Эхо должно лежать так, чтобы дойти до него можно было
+            // только после Резонансов» — (1+0.5+0.5)×2=×4 против
+            // (1×2)+0.5+0.5=×3 (см. RoomMultiplier.ApplyEchoTile). Сортировка
+            // по Row ПОСЛЕ Shuffle: столбец внутри ряда остаётся случайным
+            // (Shuffle отработал раньше), но весь список теперь идёт по
+            // возрастанию глубины — нужно, чтобы отделить "мелкую" зону
+            // (Резонанс/Жила) от "глубокой" (Эхо, самая опасная точка
+            // Комнаты — глубже всех Резонансов, ближе к волне, которая
+            // наступает по мере хода времени).
+            candidates.Sort((a, b) => a.Row.CompareTo(b.Row));
 
-            var resonanceCount = Math.Min(RollCount(ResonanceCountMin, ResonanceCountMax), candidates.Count);
-            var echoCount = Math.Min(RollCount(EchoCountMin, EchoCountMax), candidates.Count - resonanceCount);
+            var echoCount = Math.Min(RollCount(EchoCountMin, EchoCountMax), candidates.Count);
+            var echoStartIndex = candidates.Count - echoCount;
+            var minEchoRow = echoCount > 0 ? candidates[echoStartIndex].Row : int.MaxValue;
+
+            // Резонанс — СТРОГО мельче minEchoRow, не просто "не тот же
+            // кандидат": если бы Резонанс оказался на ОДНОМ ряду с Эхо (в
+            // другом столбце), игрок мог бы дойти до Эха тем же рядом в
+            // обход Резонанса — порядок маршрута из doc-комментария выше
+            // сломался бы. veinPool — кандидаты на ряду Эха или глубже, но
+            // сами не выбранные под Эхо: только Жила, не Резонанс.
+            var resonancePool = new List<GridCoordinate>();
+            var veinPool = new List<GridCoordinate>();
+            for (var i = 0; i < echoStartIndex; i++)
+            {
+                if (candidates[i].Row < minEchoRow) resonancePool.Add(candidates[i]);
+                else veinPool.Add(candidates[i]);
+            }
+
+            Shuffle(resonancePool); // сортировка по Row выше уничтожила случайный порядок внутри пула — восстанавливаем для честного отбора Резонанс/Жила
+
+            var resonanceCount = Math.Min(RollCount(ResonanceCountMin, ResonanceCountMax), resonancePool.Count);
 
             var index = 0;
             for (; index < resonanceCount; index++)
-                _grid.GetOrCreateTile(candidates[index]).MarkBossRoomTile(BossRoomTileKind.Resonance);
-            for (; index < resonanceCount + echoCount; index++)
-                _grid.GetOrCreateTile(candidates[index]).MarkBossRoomTile(BossRoomTileKind.Echo);
-            for (; index < candidates.Count; index++)
+                _grid.GetOrCreateTile(resonancePool[index]).MarkBossRoomTile(BossRoomTileKind.Resonance);
+            for (; index < resonancePool.Count; index++)
             {
                 if (_random01() < VeinShareOfRemaining)
-                    _grid.GetOrCreateTile(candidates[index]).MarkBossRoomTile(BossRoomTileKind.Vein);
+                    _grid.GetOrCreateTile(resonancePool[index]).MarkBossRoomTile(BossRoomTileKind.Vein);
             }
+            foreach (var coordinate in veinPool)
+            {
+                if (_random01() < VeinShareOfRemaining)
+                    _grid.GetOrCreateTile(coordinate).MarkBossRoomTile(BossRoomTileKind.Vein);
+            }
+            for (var i = echoStartIndex; i < candidates.Count; i++)
+                _grid.GetOrCreateTile(candidates[i]).MarkBossRoomTile(BossRoomTileKind.Echo);
         }
 
         // Защитно: клетка уже несёт роль от другого генератора (окно
