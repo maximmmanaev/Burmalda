@@ -7,7 +7,7 @@ namespace Burmalda.DebugVisuals
     /// <summary>
     /// Поднимает уровень отладочного визуала без единого арт-ассета (прямой
     /// запрос владельца продукта, 2026-08-18) — только встроенные
-    /// инструменты URP: Bloom + Vignette через рантайм-созданный
+    /// инструменты URP: Bloom через рантайм-созданный
     /// <see cref="Volume"/>/<see cref="VolumeProfile"/>, процедурное небо и
     /// туман (issue #192, скрывает обрыв геометрии раскрытых рядов, см.
     /// <see cref="SetupFog"/>) через <c>RenderSettings</c>. Никаких
@@ -17,7 +17,49 @@ namespace Burmalda.DebugVisuals
     /// Самостоятельно создаёт себя через <see cref="RuntimeInitializeOnLoadMethodAttribute"/>
     /// — без правки .unity/.prefab (docs/rules/forbidden-actions.md), тот же
     /// паттерн, что <see cref="RestartButton"/>. Свет в сцене уже настроен
-    /// (мягкие тени, intensity 2) — не трогается, здесь только пост-обработка.
+    /// (мягкие тени, intensity 2) — не трогается, кроме одной правки
+    /// направления (см. <see cref="FixDirectionalLightYaw"/>), здесь в
+    /// остальном только пост-обработка.
+    ///
+    /// <b>Баг с устройства (владелец, 2026-09-05, «тень справа»):</b>
+    /// виньетка уже убрана (см. <see cref="CreateGlobalVolume"/>), но
+    /// односторонняя тень осталась — виньетка затемняет края СИММЕТРИЧНО,
+    /// значит причина другая. Диагностика (не гипотеза — прочитан
+    /// <c>Assets/Scenes/SampleScene.unity</c>, единственная сцена в
+    /// <c>ProjectSettings/EditorBuildSettings.asset</c>): единственный Light
+    /// сцены ("Directional Light") имеет <c>m_LocalEulerAnglesHint: {x: 50,
+    /// y: -30, z: 0}</c> — тангаж (50°) совпадает с камерой
+    /// (<c>TunnelCameraFollow.DefaultPitchDegrees</c>), НО рыскание -30°
+    /// ничем не оправдано и не совпадает ни с одной другой геометрией сцены.
+    /// Тоннель и его стены (<see cref="TunnelDebugVisual.CreateWallSegmentsForRow"/>)
+    /// строго симметричны относительно оси Z (стены на -halfWidth/+halfWidth,
+    /// один и тот же материал) — ненулевое рыскание даёт свету
+    /// X-составляющую направления, из-за которой одна стена получает
+    /// прямой свет, а другая (и пол рядом с ней) — идёт в тень: не
+    /// артефакт пост-обработки и не асимметрия геометрии (геометрия
+    /// симметрична по построению), а асимметрия ЕДИНСТВЕННОГО источника
+    /// света относительно симметричной сцены. Правка .unity автономно
+    /// запрещена (docs/rules/forbidden-actions.md) — рыскание обнуляется в
+    /// рантайме (тангаж/крен не трогаются) тем же самобутстрапом, что и
+    /// остальной класс.
+    ///
+    /// <b>Баг с устройства, продолжение (владелец, 2026-09-05): «эту
+    /// виньетку я вижу до сих пор».</b> Причина — не эта виньетка (её
+    /// действительно нет, <see cref="CreateGlobalVolume"/> её не создаёт), а
+    /// ВТОРОЙ, независимый <see cref="Volume"/> прямо в
+    /// <c>SampleScene.unity</c> (GameObject "Global Volume") со стоковым
+    /// профилем Unity-шаблона (<c>Assets/Settings/SampleSceneProfile.asset</c>):
+    /// активная Vignette (intensity 0.2), второй Bloom, Tonemapping — никто
+    /// их не создавал намеренно, это заводской мусор из создания проекта,
+    /// но он `isGlobal: 1`, значит действует наравне с этим классом. Правка
+    /// .unity/.asset запрещена — вместо этого класс забирает пост-обработку
+    /// под свой контроль целиком: <see cref="DisableForeignVolumes"/>
+    /// находит и выключает ЛЮБОЙ уже существующий в сцене <see cref="Volume"/>
+    /// (свой ещё не создан на момент вызова в <see cref="Bootstrap"/>, значит
+    /// "любой найденный" не может оказаться своим же) перед тем, как
+    /// появится собственный — код становится единственным источником
+    /// пост-обработки, и такой же мусор, случайно оставленный в будущем,
+    /// перестаёт на что-либо влиять без необходимости искать его вручную.
     /// </summary>
     public sealed class ScenePostProcessing : MonoBehaviour
     {
@@ -27,8 +69,6 @@ namespace Burmalda.DebugVisuals
         // засвечивая экран целиком.
         private const float BloomThreshold = 0.9f;
         private const float BloomIntensity = 0.6f;
-        private const float VignetteIntensity = 0.25f;
-        private const float VignetteSmoothness = 0.6f;
         private const float SaturationBoost = 15f;
 
         // Процедурное небо (2026-08-18, "ещё больше процедурного полиша без
@@ -68,19 +108,86 @@ namespace Burmalda.DebugVisuals
         // (~30% на границе), различимость плиты не теряется (PRD 4.2:
         // честная разведка), полная непрозрачность — сразу за границей, где
         // геометрии всё равно уже нет, скрывая сам факт обрыва.
-        private const float FogStartDistance = 9.5f;
-        private const float FogEndDistance = 11f;
+        //
+        // Владелец, 2026-09-05 («туман — дальше и плотнее»): подтверждено
+        // на устройстве, что 9.5/11 работает (дымка видна, обрыв не
+        // читается), но начало попросили отодвинуть примерно на одну плиту
+        // дальше и убедиться, что за границей не просвечивает НИЧЕГО. Стены
+        // тоннеля (TunnelDebugVisual.CreateWallMaterial) используют тот же
+        // CreateTemplateMaterial(), что и обычные плиты пола (тот же
+        // шейдер "Universal Render Pipeline/Lit", уже в Always Included
+        // Shaders и с фог-вариантами, не вырезаемыми стриппингом —
+        // BuildScript.EnsureFogShaderVariantsNotStripped) — стены гаснут в
+        // тумане тем же градиентом, что и пол, отдельного шейдера под них
+        // нет и заводить не пришлось.
+        private const float FogStartDistance = 10.5f;
+        private const float FogEndDistance = 12f;
         private static readonly Color FogColor = new Color(30f / 255f, 20f / 255f, 14f / 255f);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
+            // См. doc-комментарий Movement.GridTraceInputController.Bootstrap() —
+            // та же защита от повторного срабатывания AfterSceneLoad,
+            // подтверждённого на реальном устройстве: без неё второй вызов
+            // создал бы второй Volume и повторно дёргал FixDirectionalLightYaw
+            // на уже поправленном свете.
+            if (FindFirstObjectByType<ScenePostProcessing>() != null) return;
+
             var host = new GameObject(nameof(ScenePostProcessing));
             host.AddComponent<ScenePostProcessing>();
             DontDestroyOnLoad(host);
 
             SetupProceduralSky();
             SetupFog();
+            FixDirectionalLightYaw();
+            DisableForeignVolumes();
+        }
+
+        /// <summary>
+        /// Баг с устройства, продолжение (владелец, 2026-09-05, «эту
+        /// виньетку я вижу до сих пор») — см. doc-комментарий класса.
+        /// Выключает ЛЮБОЙ <see cref="Volume"/>, уже существующий в сцене
+        /// на момент вызова — свой собственный (<see cref="CreateGlobalVolume"/>)
+        /// на этот момент ещё не создан (вызывается раньше в <see cref="Bootstrap"/>,
+        /// а <see cref="CreateGlobalVolume"/> — лениво, из <see cref="Update"/>,
+        /// когда найдётся камера), поэтому "любой найденный" не может
+        /// оказаться своим же — не полагается на имя/тег/профиль, просто
+        /// гасит всё стороннее, что могло прийти из .unity/.prefab. Вызван
+        /// и здесь (сразу на старте), и повторно прямо перед
+        /// <see cref="CreateGlobalVolume"/> — второй вызов страхует, если
+        /// что-то попало в сцену уже после старта (или тест вызывает
+        /// <see cref="Update"/> напрямую, минуя <see cref="Bootstrap"/>).
+        /// </summary>
+        private static void DisableForeignVolumes()
+        {
+            foreach (var volume in FindObjectsByType<Volume>(FindObjectsSortMode.None))
+                volume.enabled = false;
+        }
+
+        /// <summary>
+        /// Баг с устройства (владелец, 2026-09-05, «тень справа») — см.
+        /// doc-комментарий класса для полной диагностики. Обнуляет ТОЛЬКО
+        /// рыскание (компонент Y поворота) единственного направленного
+        /// света сцены, оставляя тангаж/крен как задал владелец продукта —
+        /// это устраняет именно асимметрию (свет бьёт в обе стены тоннеля
+        /// под одним и тем же углом), не убирает свет/тени целиком.
+        /// Не-op, если направленного света на сцене нет (не должно
+        /// случаться в этом проекте, но тот же оборонительный принцип, что
+        /// у отсутствующего шейдера/камеры в этом классе) или его рыскание
+        /// уже нулевое.
+        /// </summary>
+        private static void FixDirectionalLightYaw()
+        {
+            foreach (var light in FindObjectsByType<Light>(FindObjectsSortMode.None))
+            {
+                if (light.type != LightType.Directional) continue;
+
+                var euler = light.transform.eulerAngles;
+                if (Mathf.Approximately(euler.y, 0f)) continue;
+
+                light.transform.eulerAngles = new Vector3(euler.x, 0f, euler.z);
+            }
         }
 
         private static void SetupFog()
@@ -134,8 +241,14 @@ namespace Burmalda.DebugVisuals
 
         private static void CreateGlobalVolume()
         {
+            DisableForeignVolumes();
+
             var host = new GameObject(nameof(ScenePostProcessing) + "_Volume");
-            DontDestroyOnLoad(host);
+            // DontDestroyOnLoad бросает InvalidOperationException вне Play
+            // Mode (issue "прогнать вызов Update() напрямую из EditMode-теста" —
+            // ScenePostProcessingTests) — реальная игра всегда Application.
+            // isPlaying, гейт не меняет поведение в билде/Play Mode.
+            if (Application.isPlaying) DontDestroyOnLoad(host);
 
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
 
@@ -145,12 +258,8 @@ namespace Burmalda.DebugVisuals
             bloom.intensity.overrideState = true;
             bloom.intensity.value = BloomIntensity;
 
-            var vignette = profile.Add<Vignette>(true);
-            vignette.intensity.overrideState = true;
-            vignette.intensity.value = VignetteIntensity;
-            vignette.smoothness.overrideState = true;
-            vignette.smoothness.value = VignetteSmoothness;
-
+            // Виньетка убрана целиком (владелец, 2026-09-05, «убрать
+            // виньетку») — тень по краям экрана мешала, Bloom остаётся.
             var colorAdjustments = profile.Add<ColorAdjustments>(true);
             colorAdjustments.saturation.overrideState = true;
             colorAdjustments.saturation.value = SaturationBoost;

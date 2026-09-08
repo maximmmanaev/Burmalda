@@ -64,16 +64,16 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void IsTraversable_PitLavaAndTriggers_DoNotBlockPath()
+        public void IsTraversable_LavaAndTriggers_DoNotBlockPath()
         {
-            // Опасные-но-не-заблокированные плиты (яма/лава/триггеры) —
+            // Опасные-но-не-заблокированные плиты (лава/триггеры) —
             // проходимы для целей гарантии проходимости: игрок физически
             // МОЖЕТ пройти (рискуя), просто не должен. Заблокирован путь
             // считается только по Blocked/LeverGate.
             var tiles = OpenRows(5);
-            tiles[1, 1] = SegmentTileType.Pit;
-            tiles[2, 1] = SegmentTileType.Lava;
-            tiles[3, 1] = SegmentTileType.TimedTrapArrowTrigger;
+            tiles[1, 1] = SegmentTileType.Lava;
+            tiles[2, 1] = SegmentTileType.ArrowWaveTrigger;
+            tiles[3, 1] = SegmentTileType.BladeTactTrigger;
 
             var template = new SegmentTemplate("hazards", 1, SegmentRewardTag.Coins, tiles);
             Assert.IsTrue(SegmentReachabilityValidator.IsTraversable(template));

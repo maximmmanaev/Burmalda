@@ -119,6 +119,39 @@ namespace Burmalda.EditorTools
             // Sprites/Default тоже, в проекте нет ни одного SpriteRenderer).
             EnsureAlwaysIncludedShader("Sprites/Default");
             DisableBrokenRendererFeature("Assets/Settings/PC_Renderer.asset", "ScreenSpaceAmbientOcclusion");
+            EnsureFogShaderVariantsNotStripped();
+        }
+
+        /// <summary>
+        /// Баг с устройства (владелец, 2026-09-04, «тумана нет») — issue
+        /// #192/PR #231 включает <c>RenderSettings.fog</c> из кода
+        /// (<see cref="DebugVisuals.ScenePostProcessing.SetupFog"/>), не из
+        /// запечённых Lighting-настроек сцены. <c>m_FogStripping: 0</c>
+        /// (Automatic) в ProjectSettings/GraphicsSettings.asset — тот же
+        /// класс бага, что уже ловили на "Universal Render Pipeline/Lit" и
+        /// "Sprites/Default" (2026-08-14/2026-09-01): автоматический
+        /// шейдер-стриппинг решает, какие варианты тумана оставить, по
+        /// тому, что запечено в СЦЕНЕ на момент сборки — скрипт, включающий
+        /// туман в рантайме, ему не виден, поэтому варианты тумана
+        /// вырезаются из билда целиком, несмотря на m_FogKeepLinear/Exp/
+        /// Exp2 = 1 (эти три флага работают только в режиме Custom).
+        /// Переключаем на Custom (1) — тот же приём, что
+        /// <see cref="EnsureAlwaysIncludedShader"/>, через SerializedObject,
+        /// не руками в YAML.
+        /// </summary>
+        private static void EnsureFogShaderVariantsNotStripped()
+        {
+            var graphicsSettings = AssetDatabase.LoadAssetAtPath<Object>("ProjectSettings/GraphicsSettings.asset");
+            var serializedObject = new SerializedObject(graphicsSettings);
+            var fogStrippingProp = serializedObject.FindProperty("m_FogStripping");
+            if (fogStrippingProp == null) return; // на случай изменения имени поля в будущей версии Unity — не падаем, просто не чиним
+
+            const int customFogStripping = 1; // UnityEditor.Rendering.FogStrippingMode.Custom
+            if (fogStrippingProp.intValue == customFogStripping) return; // уже настроено — не дублируем SaveAssets
+
+            fogStrippingProp.intValue = customFogStripping;
+            serializedObject.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
         }
 
         private static void EnsureAlwaysIncludedShader(string shaderName)

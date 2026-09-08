@@ -23,9 +23,10 @@ namespace Burmalda.DebugVisuals.Tests
     /// <c>AssetDatabase.GetAssetPath</c>: если два концептуально разных слота
     /// каталога указывают на файлы с ОДИНАКОВЫМ содержимым, это почти всегда
     /// ошибка копипаста/перезаписи, а не совпадение. Единственное намеренное
-    /// исключение — <see cref="TileArtKind.HiddenTrapSignature"/>/
-    /// <see cref="TileArtKind.TriggerSignature"/> (см. <see cref="TileArtCatalog.Get"/>
-    /// — одна текстура на обе роли по прямому указанию владельца, PRD v9 §4.2).
+    /// исключение на момент написания теста — см. AllowedDuplicateContentPairs
+    /// ниже. Владелец, 2026-09-05 «оставить только пять новых ловушек»: пара
+    /// HiddenTrapSignature/TriggerSignature ушла вместе с самим TileArtKind.HiddenTrapSignature
+    /// (яма/взрыв удалены из игры).
     /// </summary>
     public class TileArtCatalogTests
     {
@@ -50,7 +51,6 @@ namespace Burmalda.DebugVisuals.Tests
             TileArtKind.Start,
             TileArtKind.Blocked,
             TileArtKind.Lava,
-            TileArtKind.HiddenTrapSignature,
             TileArtKind.TimedTrapActive,
             TileArtKind.TriggerSignature,
             TileArtKind.CurrentPosition,
@@ -107,7 +107,6 @@ namespace Burmalda.DebugVisuals.Tests
         // содержимым — предположительно ошибка, тест обязан её найти.
         private static readonly (TileArtKind A, TileArtKind B)[] AllowedDuplicateContentPairs =
         {
-            (TileArtKind.HiddenTrapSignature, TileArtKind.TriggerSignature),
             // tile-start.png не вошла в тёплый лист — владелец прямо
             // попросил временно использовать tile-fresh.png (см.
             // ArtIntegrationSetup.BuildTileArtCatalog) до отдельной

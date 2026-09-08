@@ -4,9 +4,11 @@ using Burmalda.Boss;
 using Burmalda.BossRoom;
 using Burmalda.Camp;
 using Burmalda.Currencies;
+using Burmalda.Decay;
 using Burmalda.Generation;
 using Burmalda.Movement;
 using Burmalda.Progression;
+using Burmalda.RunLifecycle;
 using UnityEngine;
 
 namespace Burmalda.Bootstrap
@@ -47,13 +49,39 @@ namespace Burmalda.Bootstrap
     /// <see cref="GridTraceInputController"/>) → валюты → Алтарь (пул/коллекция
     /// нужны и лоадауту, и Боссу) → Босс (Ярус Глубины) → Лагерь → рычаги.
     ///
-    /// <b>Что уже было на сцене и не требует вмешательства</b> (проверено по
-    /// GUID компонента в YAML сцены, не по имени класса — тот же метод, что
-    /// нашёл пробел с CurrencyController в задаче 2): <see cref="GridTraceInputController"/>,
-    /// <c>Decay.TrailDecayController</c>, <c>RunLifecycle.RunController</c>,
-    /// <c>Movement.TunnelCameraController</c>, <c>Movement.ExplosiveTrapController</c>,
-    /// <c>Movement.TimedTrapController</c>, <c>Movement.TunnelObstacleController</c> —
-    /// все уже реально размещены и работают, RunBootstrap их не трогает.
+    /// <b>Миграция на самобутстрап (владелец, 2026-09-08, «на сценах не
+    /// остаётся ничего, кроме камеры и света»):</b> раньше
+    /// <see cref="GridTraceInputController"/>/<c>Decay.TrailDecayController</c>/
+    /// <c>RunLifecycle.RunController</c> были реально размещены на
+    /// GameObject "GameController" в <c>SampleScene.unity</c> (проверено
+    /// чтением YAML сцены до правки — все их сериализованные поля были
+    /// дефолтными/null, переносить было нечего). Теперь
+    /// <see cref="GridTraceInputController"/> создаёт себя сама (см. её
+    /// doc-комментарий), а <see cref="Decay"/>/<see cref="Run"/> добавляет
+    /// сюда этот класс — СТРОГО первыми, до <see cref="Segments"/> и
+    /// остального: и они сами (через <c>GetComponent</c>), и их
+    /// нижестоящие потребители (<see cref="Boss"/>/<see cref="Camp"/>/
+    /// <see cref="BossRoom"/> читают <see cref="Run"/> тем же способом)
+    /// требуют совместного размещения на одном GameObject.
+    /// <c>DebugVisuals.TunnelDebugVisualController</c> мигрировал
+    /// отдельно, самобутстрапом на собственном GameObject (не отсюда —
+    /// <c>Burmalda.DebugVisuals</c> уже ссылается на <c>Burmalda.Bootstrap</c>,
+    /// обратная ссылка была бы циклической зависимостью сборок).
+    /// <c>Movement.TunnelCameraController</c> остался на сцене (на камере,
+    /// вне скоупа миграции — исключено владельцем явно), но её
+    /// сериализованная ссылка на <see cref="GridTraceInputController"/>
+    /// заменена на рантайм-поиск (см. её doc-комментарий) — иначе эта
+    /// миграция обрывала бы её молча. <c>Movement.TunnelObstacleController</c>
+    /// остаётся на сцене нетронутым — уходит вместе с легаси-генератором
+    /// целиком, не раньше (см. ниже, <see cref="SyncLegacyObstacleGenerator"/>
+    /// теперь ищет его глобально, а не через <c>GetComponent</c> на
+    /// <see cref="Input"/> — они больше не обязаны жить на одном GameObject).
+    /// <c>Movement.ExplosiveTrapController</c>/<c>Movement.TimedTrapController</c>
+    /// (старые механики, убраны владельцем 2026-09-05 — см. doc-комментарий
+    /// <c>Core.LethalTrapType</c>) удалены из кода — их GameObject в
+    /// SampleScene.unity/RunLevel.unity остаётся с "Missing Script" до
+    /// ручной правки сцены владельцем; .unity-файлы не трогаются
+    /// автономно (docs/rules/forbidden-actions.md).
     ///
     /// <b>Генерация сегментов подключена наряду с уже размещённым на сцене
     /// TunnelObstacleController (переходное состояние, docs/wiki/roadmap.md).</b>
@@ -97,8 +125,27 @@ namespace Burmalda.Bootstrap
         private bool _controllersWired;
         private bool _subscribedToRunStarted;
 
-        /// <summary>Контроллер ввода/трейла текущего забега — тот же, что уже был на сцене.</summary>
+        /// <summary>Контроллер ввода/трейла текущего забега — создаёт себя сам (см. её doc-комментарий), этот класс только находит и достраивает вокруг него остальное.</summary>
         public GridTraceInputController Input => _input;
+
+        /// <summary>
+        /// Распад трейла (PRD 4.1/16) — раньше жил компонентом рядом с
+        /// <see cref="Input"/> на сцене (все поля дефолтные/null — переносить
+        /// было нечего), теперь этот класс добавляет его на тот же
+        /// GameObject первым, до всего остального: <see cref="RunLifecycle.RunController"/>
+        /// читает его через <c>GetComponent</c> (см. её doc-комментарий).
+        /// </summary>
+        public TrailDecayController Decay { get; private set; }
+
+        /// <summary>
+        /// Жизненный цикл забега (d20-испытание, смерть/рестарт) — та же
+        /// история миграции, что <see cref="Decay"/>. Добавляется СРАЗУ
+        /// после <see cref="Decay"/> и ДО всех остальных ниже —
+        /// <see cref="Boss"/>/<see cref="Camp"/>/<see cref="BossRoom"/>
+        /// читают его через <c>GetComponent&lt;RunLifecycle.RunController&gt;()</c>,
+        /// который требует совместного размещения на одном GameObject.
+        /// </summary>
+        public RunController Run { get; private set; }
 
         /// <summary>
         /// Целевая генерация содержимого тоннеля целыми сегментами (PRD v7
@@ -123,6 +170,15 @@ namespace Burmalda.Bootstrap
 
         /// <summary>Интеграция рычагов — секретные боковые проходы к артефактам (issue #51).</summary>
         public LeverActivationController Lever { get; private set; }
+
+        /// <summary>
+        /// Тикает пять ловушек Спринта 13a (issues #213–#217) — баг с
+        /// устройства (владелец, 2026-09-04, «новых ловушек в игре нет»):
+        /// системы были написаны и протестированы, но без этого Controller'а
+        /// (и без символов шаблона, отдельный фикс) никогда не тикали в
+        /// реальном забеге. Независим от остальных — как и <see cref="Lever"/>.
+        /// </summary>
+        public TurnBasedTrapSystemsController TurnBasedTraps { get; private set; }
 
         /// <summary>
         /// Интеграция Комнаты Босса (вертикальный срез, задача «Комната
@@ -155,6 +211,14 @@ namespace Burmalda.Bootstrap
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
+            // Баг с устройства (владелец, 2026-09-08): на части ROM/сценариев
+            // AfterSceneLoad-колбэк класса может сработать больше одного
+            // раза за запуск (подтверждено на реальном устройстве для
+            // GridTraceInputController — см. её doc-комментарий Bootstrap()) —
+            // без этой защиты второй вызов создал бы второй RunBootstrap,
+            // молча переписав Instance и оставив первый как утечку.
+            if (FindFirstObjectByType<RunBootstrap>() != null) return;
+
             var host = new GameObject(nameof(RunBootstrap));
             host.AddComponent<RunBootstrap>();
             DontDestroyOnLoad(host);
@@ -199,18 +263,28 @@ namespace Burmalda.Bootstrap
             EnsureLoadoutReady(); // тот же паттерн, что у Decay/Altar/Boss: ловим самый первый RunStarted, поднятый GridTraceInputController.Awake() ДО того, как этот компонент вообще появился
         }
 
-        // Явный порядок (см. doc-комментарий класса) — генерация сегментов
-        // первой (ни от кого из перечисленных не зависит), затем валюты (ни
-        // от кого не зависят, кроме уже существующего GridTraceInputController),
-        // затем Алтарь (нужен Currency), затем Босс и Лагерь (нужны и
-        // Currency, и Altar, и уже существующий на сцене RunController),
-        // рычаги — независимы, могут быть где угодно, оставлены последними
-        // по списку задачи.
+        // Явный порядок (см. doc-комментарий класса) — Decay/Run первыми
+        // (сами друг от друга зависят через GetComponent, и от них зависит
+        // всё остальное ниже), затем генерация сегментов (ни от кого из
+        // перечисленных не зависит), затем валюты (ни от кого не зависят,
+        // кроме уже существующего GridTraceInputController), затем Алтарь
+        // (нужен Currency), затем Босс и Лагерь (нужны и Currency, и Altar,
+        // и уже добавленный на этот же host RunController), рычаги —
+        // независимы, могут быть где угодно, оставлены последними по списку
+        // задачи.
         private void EnsureControllersWired()
         {
             if (_controllersWired) return;
 
             var host = _input.gameObject;
+            // Владелец, 2026-09-08 («миграция контроллеров на самобутстрап»):
+            // Decay/Run добавляются СТРОГО первыми — Run.Awake() читает Decay
+            // через GetComponent (RunController.cs), а Boss/Camp/BossRoom
+            // ниже читают Run тем же способом. Раньше оба жили на сцене уже
+            // собранными до первого Update() этого класса — здесь тот же
+            // порядок воспроизведён явно.
+            if (Decay == null) Decay = GetOrAddComponent<TrailDecayController>(host);
+            if (Run == null) Run = GetOrAddComponent<RunController>(host);
             if (Segments == null) Segments = GetOrAddComponent<SegmentGenerationController>(host);
             // Задача «двойные флаги на плитах»: форсируем первую сборку
             // Generation.SegmentRowProvider СИНХРОННО здесь — до того, как
@@ -223,9 +297,10 @@ namespace Burmalda.Bootstrap
             if (Boss == null) Boss = GetOrAddComponent<BossController>(host);
             if (Camp == null) Camp = GetOrAddComponent<CampController>(host);
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
+            if (TurnBasedTraps == null) TurnBasedTraps = GetOrAddComponent<TurnBasedTrapSystemsController>(host);
             // Зависит только от Currency (уже создана строкой выше) и
-            // RunLifecycle.RunController, который уже размещён на сцене
-            // независимо от порядка здесь — см. doc-комментарий BossRoom.
+            // RunLifecycle.RunController (уже добавлен на этот host первым
+            // делом выше) — см. doc-комментарий BossRoom.
             if (BossRoom == null) BossRoom = GetOrAddComponent<BossRoomController>(host);
 
             _controllersWired = true;
@@ -248,7 +323,7 @@ namespace Burmalda.Bootstrap
         /// раньше, чем <c>Generation.SegmentRowProvider</c> успевал их
         /// заявить (<c>Core.TunnelGrid.ClaimRow</c>) — см.
         /// <c>Generation.Tests.SegmentGenerationCoexistenceTests.
-        /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTileTypeSilentlyLost</c>.
+        /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerStacksOnTop</c>.
         /// Теперь <c>TunnelObstacleController</c> сам на RunStarted не
         /// подписан — этот метод единственный, кто его (пере)собирает,
         /// СТРОГО после того, как <see cref="Segments"/> уже заявил свои
@@ -256,10 +331,21 @@ namespace Burmalda.Bootstrap
         /// <see cref="Generation.SegmentGenerationController.EnsureBuilt"/>
         /// выше, либо после его же <c>RebuildProvider</c> на рестарте — см.
         /// <see cref="HandleRunStarted"/>).
+        ///
+        /// Владелец, 2026-09-08 («миграция контроллеров на самобутстрап»):
+        /// раньше искался через <c>_input.GetComponent&lt;TunnelObstacleController&gt;()</c>
+        /// — требовало совместного размещения с <see cref="Input"/> на одном
+        /// GameObject. <see cref="Input"/> теперь самобутстрапится на
+        /// СВОЁМ отдельном GameObject, а <c>TunnelObstacleController</c>
+        /// сознательно НЕ мигрирует (уходит целиком вместе с легаси-
+        /// генератором, не раньше — см. doc-комментарий класса) и остаётся
+        /// на прежнем месте на сцене — глобальный поиск вместо GetComponent
+        /// развязывает эту пару, единственный экземпляр в сцене гарантирован
+        /// тем же способом, что и раньше (сцена размещает ровно один).
         /// </summary>
         private void SyncLegacyObstacleGenerator(bool forceRebuild)
         {
-            var obstacle = _input.GetComponent<TunnelObstacleController>();
+            var obstacle = FindFirstObjectByType<TunnelObstacleController>();
             if (obstacle == null) return;
 
             if (forceRebuild) obstacle.EnsureRebuilt();

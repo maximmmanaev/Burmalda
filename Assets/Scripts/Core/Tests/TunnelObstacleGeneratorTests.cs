@@ -9,28 +9,28 @@ namespace Burmalda.Core.Tests
         // static-поля (дебаг-панель их трогает в рантайме), снимок/восстановление
         // вокруг КАЖДОГО теста — иначе тест, меняющий долю, отравил бы дефолты
         // для остальных тестов файла (порядок выполнения NUnit не гарантирован).
-        private float _savedBlockedShare, _savedPitShare, _savedLavaShare, _savedExplosiveTriggerShare, _savedTimedTrapArrowShare, _savedTimedTrapBladeShare;
+        private float _savedBlockedShare, _savedFallingRockShare, _savedLavaShare, _savedBombShare, _savedArrowWaveShare, _savedBladeTactShare;
 
         [SetUp]
         public void SaveShares()
         {
             _savedBlockedShare = TunnelObstacleGenerator.BlockedShare;
-            _savedPitShare = TunnelObstacleGenerator.PitShare;
+            _savedFallingRockShare = TunnelObstacleGenerator.FallingRockShare;
             _savedLavaShare = TunnelObstacleGenerator.LavaShare;
-            _savedExplosiveTriggerShare = TunnelObstacleGenerator.ExplosiveTriggerShare;
-            _savedTimedTrapArrowShare = TunnelObstacleGenerator.TimedTrapArrowShare;
-            _savedTimedTrapBladeShare = TunnelObstacleGenerator.TimedTrapBladeShare;
+            _savedBombShare = TunnelObstacleGenerator.BombShare;
+            _savedArrowWaveShare = TunnelObstacleGenerator.ArrowWaveShare;
+            _savedBladeTactShare = TunnelObstacleGenerator.BladeTactShare;
         }
 
         [TearDown]
         public void RestoreShares()
         {
             TunnelObstacleGenerator.BlockedShare = _savedBlockedShare;
-            TunnelObstacleGenerator.PitShare = _savedPitShare;
+            TunnelObstacleGenerator.FallingRockShare = _savedFallingRockShare;
             TunnelObstacleGenerator.LavaShare = _savedLavaShare;
-            TunnelObstacleGenerator.ExplosiveTriggerShare = _savedExplosiveTriggerShare;
-            TunnelObstacleGenerator.TimedTrapArrowShare = _savedTimedTrapArrowShare;
-            TunnelObstacleGenerator.TimedTrapBladeShare = _savedTimedTrapBladeShare;
+            TunnelObstacleGenerator.BombShare = _savedBombShare;
+            TunnelObstacleGenerator.ArrowWaveShare = _savedArrowWaveShare;
+            TunnelObstacleGenerator.BladeTactShare = _savedBladeTactShare;
         }
 
         private static System.Func<float> Sequence(params float[] rolls)
@@ -52,23 +52,23 @@ namespace Burmalda.Core.Tests
         }
 
         [Test]
-        public void TileMaterialized_RollAtBlockedThreshold_MarksLethalTrapPit()
+        public void TileMaterialized_RollAtBlockedThreshold_MarksFallingRockTrigger()
         {
-            // Верхняя граница диапазона block — начало диапазона pit (полуинтервалы: [0, Blocked) block, [Blocked, Pit) pit).
+            // Верхняя граница диапазона block — начало диапазона falling rock (полуинтервалы).
             var grid = new TunnelGrid(5);
             using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BlockedThreshold));
 
             var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
 
             Assert.IsFalse(tile.IsBlocked);
-            Assert.AreEqual(LethalTrapType.Pit, tile.LethalTrap);
+            Assert.IsTrue(tile.IsFallingRockTrigger);
         }
 
         [Test]
-        public void TileMaterialized_RollAtPitThreshold_MarksLethalTrapLava()
+        public void TileMaterialized_RollAtFallingRockThreshold_MarksLethalTrapLava()
         {
             var grid = new TunnelGrid(5);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.PitThreshold));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.FallingRockThreshold));
 
             var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
 
@@ -77,7 +77,7 @@ namespace Burmalda.Core.Tests
         }
 
         [Test]
-        public void TileMaterialized_RollAtLavaThreshold_MarksExplosiveTrapTrigger()
+        public void TileMaterialized_RollAtLavaThreshold_MarksBombTrigger()
         {
             var grid = new TunnelGrid(5);
             using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold));
@@ -87,61 +87,60 @@ namespace Burmalda.Core.Tests
 
             Assert.IsFalse(tile.IsBlocked);
             Assert.IsFalse(tile.LethalTrap.HasValue);
-            Assert.AreEqual(new GridCoordinate(2, 0), tile.ExplosiveTrapTarget);
+            Assert.IsTrue(tile.IsBombTrigger);
         }
 
         [Test]
-        public void TileMaterialized_RollAtExplosiveTriggerThreshold_MarksTimedTrapTriggerArrow()
+        public void TileMaterialized_RollAtBombThreshold_MarksArrowWaveTrigger()
         {
             var grid = new TunnelGrid(5);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.ExplosiveTriggerThreshold));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BombThreshold));
 
             var trigger = new GridCoordinate(1, 0);
             var tile = grid.GetOrCreateTile(trigger);
 
             Assert.IsFalse(tile.IsBlocked);
             Assert.IsFalse(tile.LethalTrap.HasValue);
-            Assert.AreEqual(new GridCoordinate(2, 0), tile.TimedTrapTarget);
-            Assert.AreEqual(TimedTrapType.Arrow, tile.TimedTrapKind);
+            Assert.AreEqual(2, tile.ArrowWaveTargetRow);
+            Assert.AreEqual(RowWaveDirection.LeftToRight, tile.ArrowWaveDirection);
         }
 
         [Test]
-        public void TileMaterialized_RollAtTimedTrapArrowThreshold_MarksTimedTrapTriggerBlade()
+        public void TileMaterialized_RollAtArrowWaveThreshold_MarksBladeTactTrigger()
         {
             var grid = new TunnelGrid(5);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.TimedTrapArrowThreshold));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.ArrowWaveThreshold));
 
             var trigger = new GridCoordinate(1, 0);
             var tile = grid.GetOrCreateTile(trigger);
 
-            Assert.AreEqual(new GridCoordinate(2, 0), tile.TimedTrapTarget);
-            Assert.AreEqual(TimedTrapType.Blade, tile.TimedTrapKind);
+            Assert.AreEqual(2, tile.BladeTactTargetRow);
         }
 
         [Test]
-        public void TileMaterialized_RollAtOrAboveTimedTrapBladeThreshold_TileStaysPassable()
+        public void TileMaterialized_RollAtOrAboveBladeTactThreshold_TileStaysPassable()
         {
             var grid = new TunnelGrid(5);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.TimedTrapBladeThreshold));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BladeTactThreshold));
 
             var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
 
             Assert.IsFalse(tile.IsBlocked);
             Assert.IsFalse(tile.LethalTrap.HasValue);
-            Assert.IsFalse(tile.ExplosiveTrapTarget.HasValue);
-            Assert.IsFalse(tile.TimedTrapTarget.HasValue);
+            Assert.IsFalse(tile.ArrowWaveTargetRow.HasValue);
+            Assert.IsFalse(tile.BladeTactTargetRow.HasValue);
         }
 
         [Test]
-        public void TileMaterialized_TargetOfExplosiveTrigger_IsNotIndependentlyRolled()
+        public void TileMaterialized_TargetOfArrowWaveTrigger_IsNotIndependentlyRolled()
         {
             // Плита-цель триггера — резервирована: даже если бы ей самой
             // выпал бросок "заблокировано", она должна остаться обычной
             // (см. комментарий про _reservedTrapTargets в генераторе).
             var grid = new TunnelGrid(5);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold, 0f));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BombThreshold, 0f));
 
-            grid.GetOrCreateTile(new GridCoordinate(1, 0)); // становится триггером на (2, 0), резервирует цель
+            grid.GetOrCreateTile(new GridCoordinate(1, 0)); // становится триггером волны Стрел на ряд 2, резервирует цель
             var target = grid.GetOrCreateTile(new GridCoordinate(2, 0));
 
             Assert.IsFalse(target.IsBlocked);
@@ -149,26 +148,25 @@ namespace Burmalda.Core.Tests
         }
 
         [Test]
-        public void TileMaterialized_TargetOfTimedTrapTrigger_IsNotIndependentlyRolled()
+        public void TileMaterialized_TargetOfBladeTactTrigger_IsNotIndependentlyRolled()
         {
             var grid = new TunnelGrid(5);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.ExplosiveTriggerThreshold, 0f));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.ArrowWaveThreshold, 0f));
 
-            grid.GetOrCreateTile(new GridCoordinate(1, 0)); // становится триггером стрелы на (2, 0), резервирует цель
+            grid.GetOrCreateTile(new GridCoordinate(1, 0)); // становится триггером такта Лезвий на ряд 2, резервирует цель
             var target = grid.GetOrCreateTile(new GridCoordinate(2, 0));
 
             Assert.IsFalse(target.IsBlocked);
-            Assert.IsFalse(target.IsTimedTrapActive);
         }
 
         [Test]
-        public void TileMaterialized_TargetOfExplosiveTrigger_ResolvedOnceThenRollsNormallyAgain()
+        public void TileMaterialized_TargetOfArrowWaveTrigger_ResolvedOnceThenRollsNormallyAgain()
         {
             // Резервация одноразовая: другая, никак не связанная плита с той
             // же координатой (в теории — другой забег/сетка) не должна
             // случайно остаться навсегда защищённой от бросков.
             var grid = new TunnelGrid(5);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold, 0f));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BombThreshold, 0f));
 
             grid.GetOrCreateTile(new GridCoordinate(1, 0)); // триггер → резервирует (2, 0)
             grid.GetOrCreateTile(new GridCoordinate(2, 0)); // резервированная цель — бросок не тратится, снимается резервация
@@ -218,8 +216,8 @@ namespace Burmalda.Core.Tests
 
             Assert.IsFalse(tile.IsBlocked);
             Assert.IsFalse(tile.LethalTrap.HasValue);
-            Assert.IsFalse(tile.ExplosiveTrapTarget.HasValue);
-            Assert.IsFalse(tile.TimedTrapTarget.HasValue);
+            Assert.IsFalse(tile.ArrowWaveTargetRow.HasValue);
+            Assert.IsFalse(tile.BladeTactTargetRow.HasValue);
         }
 
         [Test]
@@ -255,18 +253,18 @@ namespace Burmalda.Core.Tests
         public void CumulativeThresholds_AreComputedFromSharesInOrder()
         {
             TunnelObstacleGenerator.BlockedShare = 0.10f;
-            TunnelObstacleGenerator.PitShare = 0.05f;
+            TunnelObstacleGenerator.FallingRockShare = 0.05f;
             TunnelObstacleGenerator.LavaShare = 0.03f;
-            TunnelObstacleGenerator.ExplosiveTriggerShare = 0.04f;
-            TunnelObstacleGenerator.TimedTrapArrowShare = 0.02f;
-            TunnelObstacleGenerator.TimedTrapBladeShare = 0.01f;
+            TunnelObstacleGenerator.BombShare = 0.04f;
+            TunnelObstacleGenerator.ArrowWaveShare = 0.02f;
+            TunnelObstacleGenerator.BladeTactShare = 0.01f;
 
             Assert.AreEqual(0.10f, TunnelObstacleGenerator.BlockedThreshold, 1e-6f);
-            Assert.AreEqual(0.15f, TunnelObstacleGenerator.PitThreshold, 1e-6f);
+            Assert.AreEqual(0.15f, TunnelObstacleGenerator.FallingRockThreshold, 1e-6f);
             Assert.AreEqual(0.18f, TunnelObstacleGenerator.LavaThreshold, 1e-6f);
-            Assert.AreEqual(0.22f, TunnelObstacleGenerator.ExplosiveTriggerThreshold, 1e-6f);
-            Assert.AreEqual(0.24f, TunnelObstacleGenerator.TimedTrapArrowThreshold, 1e-6f);
-            Assert.AreEqual(0.25f, TunnelObstacleGenerator.TimedTrapBladeThreshold, 1e-6f);
+            Assert.AreEqual(0.22f, TunnelObstacleGenerator.BombThreshold, 1e-6f);
+            Assert.AreEqual(0.24f, TunnelObstacleGenerator.ArrowWaveThreshold, 1e-6f);
+            Assert.AreEqual(0.25f, TunnelObstacleGenerator.BladeTactThreshold, 1e-6f);
         }
 
         [Test]
@@ -287,14 +285,14 @@ namespace Burmalda.Core.Tests
         public void ZeroShare_ForAGivenType_NeverRollsThatType()
         {
             // Ширина полосы 0 — тип пропускается полностью, следующий начинается сразу на том же пороге.
-            TunnelObstacleGenerator.PitShare = 0f;
+            TunnelObstacleGenerator.FallingRockShare = 0f;
             var grid = new TunnelGrid(5);
             using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BlockedThreshold));
 
             var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
 
             Assert.IsFalse(tile.IsBlocked);
-            Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap); // не Pit — полоса нулевой ширины
+            Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap); // не FallingRock — полоса нулевой ширины
         }
 
         // Найдено на реальном билде (2026-09-01, Ярус 3 живого забега):
@@ -303,17 +301,18 @@ namespace Burmalda.Core.Tests
         // генерацией и получил от неё ManaSource/KeySource. Резервация
         // (_reservedTrapTargets) защищает только от собственного ролла
         // ЭТОГО генератора — не от содержимого, которое положит туда
-        // сегмент. Три теста ниже — по одному на тип триггера (см.
-        // CanReserveTarget в генераторе).
+        // сегмент. Два теста ниже — по одному на тип триггера с целью
+        // впереди (Падающий камень/Бомба сами себе цель, см. CanReserveTarget
+        // в генераторе).
         [Test]
-        public void TileMaterialized_ExplosiveTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
+        public void TileMaterialized_ArrowWaveTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
         {
             var grid = new TunnelGrid(5);
             grid.ClaimRow(2); // ряд цели уже заявлен сегментной генерацией — как в баге на устройстве
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold, 0f));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BombThreshold, 0f));
 
             var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
-            Assert.IsFalse(trigger.ExplosiveTrapTarget.HasValue, "Триггер не должен был поставиться — цель на уже заявленном ряду.");
+            Assert.IsFalse(trigger.ArrowWaveTargetRow.HasValue, "Триггер не должен был поставиться — цель на уже заявленном ряду.");
             Assert.IsFalse(trigger.IsBlocked);
             Assert.IsFalse(trigger.LethalTrap.HasValue);
 
@@ -326,41 +325,29 @@ namespace Burmalda.Core.Tests
         }
 
         [Test]
-        public void TileMaterialized_TimedTrapArrowTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
+        public void TileMaterialized_BladeTactTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
         {
             var grid = new TunnelGrid(5);
             grid.ClaimRow(2);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.ExplosiveTriggerThreshold));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.ArrowWaveThreshold));
 
             var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
 
-            Assert.IsFalse(trigger.TimedTrapTarget.HasValue, "Триггер не должен был поставиться — цель на уже заявленном ряду.");
+            Assert.IsFalse(trigger.BladeTactTargetRow.HasValue, "Триггер не должен был поставиться — цель на уже заявленном ряду.");
         }
 
         [Test]
-        public void TileMaterialized_TimedTrapBladeTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
-        {
-            var grid = new TunnelGrid(5);
-            grid.ClaimRow(2);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.TimedTrapArrowThreshold));
-
-            var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
-
-            Assert.IsFalse(trigger.TimedTrapTarget.HasValue, "Триггер не должен был поставиться — цель на уже заявленном ряду.");
-        }
-
-        [Test]
-        public void TileMaterialized_ExplosiveTrigger_TargetRowNotClaimed_StillPlacesTriggerNormally()
+        public void TileMaterialized_ArrowWaveTrigger_TargetRowNotClaimed_StillPlacesTriggerNormally()
         {
             // Контрольный тест — фикс не должен был сломать обычный случай
-            // (уже покрыт TileMaterialized_RollAtLavaThreshold_MarksExplosiveTrapTrigger
+            // (уже покрыт TileMaterialized_RollAtBombThreshold_MarksArrowWaveTrigger
             // выше, но явно проверяет именно CanReserveTarget=true ветку).
             var grid = new TunnelGrid(5);
-            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.LavaThreshold));
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BombThreshold));
 
             var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
 
-            Assert.AreEqual(new GridCoordinate(2, 0), trigger.ExplosiveTrapTarget);
+            Assert.AreEqual(2, trigger.ArrowWaveTargetRow);
         }
 
         [Test]

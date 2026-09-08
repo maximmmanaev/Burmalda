@@ -4,6 +4,7 @@
     "references": [
         "Burmalda.Core",
         "Burmalda.Movement",
+        "Burmalda.Decay",
         "Burmalda.Currencies",
         "Burmalda.Altar",
         "Burmalda.Boss",

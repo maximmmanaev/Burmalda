@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Burmalda.Core;
 using Burmalda.Currencies;
 using Burmalda.Movement;
@@ -36,11 +37,19 @@ namespace Burmalda.BossRoom
         // BossWave.DefaultStartingMarginRows/BossRoomGenerator.*Count*.
         public static float WaveRowsPerSecond = 1.5f;
 
+        // Тот же смысл и тот же запас, что Movement.TunnelGridReveal.RowsAheadOfPlayer/
+        // Generation.SegmentRowProvider.RowsAheadOfPlayer (дублирование по
+        // тому же принципу, что и у них — см. их doc-комментарии, отдельная
+        // ссылка на сборку Burmalda.Generation ради одной константы не
+        // стоит того). Здесь — окно опроса Tick(), не материализации.
+        private const int BossTileScanRowsAhead = 8;
+
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private readonly RunCurrencyAccumulator _mana;
         private readonly Action<string> _reportBossDefeat;
         private readonly BossRoomGenerator _generator;
+        private readonly HashSet<int> _generatedBossEntryRows = new HashSet<int>();
         private bool _disposed;
 
         public BossRoomRunSystem(TunnelGrid grid, GridTraceTrail trail, RunCurrencyAccumulator mana, Func<float> random01, Action<string> reportBossDefeat)
@@ -68,10 +77,67 @@ namespace Burmalda.BossRoom
             _disposed = true;
         }
 
-        /// <summary>Тикает волну реальным временем — вызывать из Update() владеющего MonoBehaviour.</summary>
+        /// <summary>
+        /// Тикает волну реальным временем — вызывать из Update() владеющего
+        /// MonoBehaviour. Заодно опрашивает окно впереди игрока на предмет
+        /// уже материализованной плиты-Босса — см. <see cref="ScanForUpcomingBossTile"/>.
+        /// </summary>
         public void Tick(float deltaSeconds)
         {
             ActiveRoom?.TickWave(deltaSeconds);
+            ScanForUpcomingBossTile();
+        }
+
+        /// <summary>
+        /// Баг с устройства (владелец, 2026-09-04, «вход в Комнату блокирует
+        /// движение»): <see cref="Movement.TunnelGridReveal"/> (плюс
+        /// <c>Generation.SegmentRowProvider</c> для авторских шаблонов)
+        /// материализует ряды на несколько рядов ВПЕРЕДИ игрока непрерывно,
+        /// независимо от Комнаты Босса — к моменту, когда игрок реально
+        /// ступает на плиту-Босса и раньше только ТОГДА запускалась
+        /// генерация Комнаты, первые несколько рядов Комнаты УЖЕ были
+        /// материализованы и обкатаны <c>Core.TunnelObstacleGenerator</c>
+        /// (тот уважает <see cref="TunnelGrid.IsRowClaimed"/>, но ряды
+        /// Комнаты на тот момент ещё не заявлены — заявка происходила
+        /// только при шаге). Результат — случайная стена/яма/ловушка от
+        /// чужого генератора могла перекрыть столбцы одного из первых рядов
+        /// Комнаты, и <see cref="BossRoomGenerator.HasForeignRole"/>
+        /// корректно пропускал такую плиту (не портил чужую роль), но и не
+        /// снимал её непроходимость — тупик без выхода.
+        ///
+        /// Фикс — генерировать содержимое Комнаты не в момент шага на плиту-
+        /// Босса, а как только эта плита где-то в окне впереди игрока
+        /// материализуется с ролью Босса. <see cref="TunnelGrid.TileMaterialized"/>
+        /// для этого НЕ подходит: он стреляет прямо внутри
+        /// <c>TunnelGrid.GetOrCreateTile</c>, ДО того как вызывающая сторона
+        /// (<c>SegmentRowProvider.ApplyTileType</c>) успевает вызвать
+        /// <c>Tile.MarkBoss()</c> на уже созданной плите — <c>tile.IsBoss</c>
+        /// в момент события ещё false. Опрос раз в кадр (не событие) снимает
+        /// эту гонку: к следующему Update() вся синхронная материализация
+        /// текущего хода уже отработала целиком.
+        /// </summary>
+        private void ScanForUpcomingBossTile()
+        {
+            var fromRow = _trail.CurrentPosition.Row;
+            var toRow = fromRow + BossTileScanRowsAhead;
+            for (var row = fromRow; row <= toRow; row++)
+            {
+                if (_generatedBossEntryRows.Contains(row)) continue;
+
+                for (var column = 0; column < _grid.Width; column++)
+                {
+                    if (!_grid.TryGetTile(new GridCoordinate(row, column), out var tile) || !tile.IsBoss) continue;
+                    EnsureRoomGenerated(row);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>Генерирует содержимое Комнаты ровно один раз на вход — не-op при повторном вызове с тем же <paramref name="entryRow"/>.</summary>
+        private void EnsureRoomGenerated(int entryRow)
+        {
+            if (!_generatedBossEntryRows.Add(entryRow)) return;
+            _generator.Generate(entryRow, BossRoomGenerator.DefaultRoomLengthRows);
         }
 
         private void OnAdvanced(GridCoordinate coordinate)
@@ -80,6 +146,10 @@ namespace Burmalda.BossRoom
 
             if (ActiveRoom == null)
             {
+                // Подстраховка: обычно к этому моменту ScanForUpcomingBossTile
+                // уже сгенерировал Комнату несколько кадров назад — но если
+                // почему-то не успел (первый же ход забега, до первого
+                // Tick()), EnsureRoomGenerated — не-op в остальных случаях.
                 if (tile.IsBoss) EnterRoom(coordinate.Row);
                 return;
             }
@@ -107,9 +177,11 @@ namespace Burmalda.BossRoom
 
         private void EnterRoom(int entryRow)
         {
-            var roomLength = BossRoomGenerator.DefaultRoomLengthRows;
-            _generator.Generate(entryRow, roomLength);
-            ActiveRoom = new BossRoom(entryRow, entryRow + roomLength, WaveRowsPerSecond);
+            // Обычно уже сгенерировано в ScanForUpcomingBossTile — здесь
+            // не-op в подавляющем большинстве случаев, кроме подстраховки
+            // из doc-комментария OnAdvanced.
+            EnsureRoomGenerated(entryRow);
+            ActiveRoom = new BossRoom(entryRow, entryRow + BossRoomGenerator.DefaultRoomLengthRows, WaveRowsPerSecond);
         }
 
         private void CollectTile(Tile tile)

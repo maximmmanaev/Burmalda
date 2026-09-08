@@ -162,6 +162,24 @@ namespace Burmalda.BossRoom.Tests
             Assert.AreEqual(0, mana.Total); // волна поймала — счёт Комнаты не начисляется
         }
 
+        // Баг с устройства (владелец, 2026-09-04, «вход в Комнату блокирует
+        // движение»): содержимое Комнаты обязано появиться ДО того, как
+        // игрок реально доходит до плиты-Босса — иначе чужой генератор
+        // успевает засеять первые ряды Комнаты раньше и застолбить их себе
+        // непроходимой ролью, см. doc-комментарий ScanForUpcomingBossTile.
+        [Test]
+        public void Tick_BossTileAheadOfPlayer_GeneratesRoomContentBeforePlayerArrives()
+        {
+            var (grid, trail, mana, defeats) = BuildHarness(bossRow: 5);
+            using var system = new BossRoomRunSystem(grid, trail, mana, Constant(0f), defeats.Add);
+
+            system.Tick(0f); // игрок всё ещё на старте (ряд 0), плита-Босс — на ряду 5, но уже в окне опроса
+
+            Assert.IsNull(system.ActiveRoom, "Комната ещё не должна считаться активной — игрок физически не заходил.");
+            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(6, 0)).BossRoomTile.HasValue,
+                "Первая клетка Комнаты должна нести роль Комнаты уже сейчас, а не только в момент шага на плиту-Босса.");
+        }
+
         [Test]
         public void Dispose_UnsubscribesFromTrail_BossTileNoLongerEntersRoom()
         {

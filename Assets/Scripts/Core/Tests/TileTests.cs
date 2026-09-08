@@ -158,10 +158,10 @@ namespace Burmalda.Core.Tests
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkLethalTrap(LethalTrapType.Pit);
             tile.MarkLethalTrap(LethalTrapType.Lava);
+            tile.MarkLethalTrap(LethalTrapType.ArrowWave);
 
-            Assert.AreEqual(LethalTrapType.Pit, tile.LethalTrap);
+            Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap);
         }
 
         // Владелец, задача «разрушение плиты», продолжение (2026-09-01):
@@ -174,9 +174,9 @@ namespace Burmalda.Core.Tests
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.TransitionToLethalTrap(LethalTrapType.Explosion);
+            tile.TransitionToLethalTrap(LethalTrapType.ArrowWave);
 
-            Assert.AreEqual(LethalTrapType.Explosion, tile.LethalTrap);
+            Assert.AreEqual(LethalTrapType.ArrowWave, tile.LethalTrap);
         }
 
         [TestCase(nameof(Tile.MarkManaSource))]
@@ -196,8 +196,8 @@ namespace Burmalda.Core.Tests
                 case nameof(Tile.MarkBoss): tile.MarkBoss(); break;
             }
 
-            Assert.DoesNotThrow(() => tile.TransitionToLethalTrap(LethalTrapType.Explosion));
-            Assert.AreEqual(LethalTrapType.Explosion, tile.LethalTrap);
+            Assert.DoesNotThrow(() => tile.TransitionToLethalTrap(LethalTrapType.ArrowWave));
+            Assert.AreEqual(LethalTrapType.ArrowWave, tile.LethalTrap);
         }
 
         [Test]
@@ -209,7 +209,7 @@ namespace Burmalda.Core.Tests
             var tile = new Tile(new GridCoordinate(1, 1));
             tile.MarkManaSource();
 
-            tile.TransitionToLethalTrap(LethalTrapType.Explosion);
+            tile.TransitionToLethalTrap(LethalTrapType.ArrowWave);
 
             Assert.IsTrue(tile.IsManaSource);
         }
@@ -222,96 +222,7 @@ namespace Burmalda.Core.Tests
             var tile = new Tile(new GridCoordinate(1, 1));
             tile.MarkManaSource();
 
-            Assert.Throws<InvalidOperationException>(() => tile.MarkLethalTrap(LethalTrapType.Pit));
-        }
-
-        [Test]
-        public void NewTile_HasNoExplosiveTrapTarget()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-
-            Assert.IsFalse(tile.ExplosiveTrapTarget.HasValue);
-        }
-
-        [Test]
-        public void MarkExplosiveTrapTrigger_SetsTargetCoordinate()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-            var target = new GridCoordinate(2, 1);
-
-            tile.MarkExplosiveTrapTrigger(target);
-
-            Assert.AreEqual(target, tile.ExplosiveTrapTarget);
-        }
-
-        [Test]
-        public void MarkExplosiveTrapTrigger_CalledTwice_KeepsFirstTarget()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-            var firstTarget = new GridCoordinate(2, 1);
-
-            tile.MarkExplosiveTrapTrigger(firstTarget);
-            tile.MarkExplosiveTrapTrigger(new GridCoordinate(5, 3));
-
-            Assert.AreEqual(firstTarget, tile.ExplosiveTrapTarget);
-        }
-
-        [Test]
-        public void NewTile_HasNoTimedTrapTargetAndIsNotActive()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-
-            Assert.IsFalse(tile.TimedTrapTarget.HasValue);
-            Assert.IsFalse(tile.TimedTrapKind.HasValue);
-            Assert.IsFalse(tile.IsTimedTrapActive);
-        }
-
-        [Test]
-        public void MarkTimedTrapTrigger_SetsTargetCoordinateAndKind()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-            var target = new GridCoordinate(2, 1);
-
-            tile.MarkTimedTrapTrigger(target, TimedTrapType.Blade);
-
-            Assert.AreEqual(target, tile.TimedTrapTarget);
-            Assert.AreEqual(TimedTrapType.Blade, tile.TimedTrapKind);
-        }
-
-        [Test]
-        public void MarkTimedTrapTrigger_CalledTwice_KeepsFirstTargetAndKind()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-            var firstTarget = new GridCoordinate(2, 1);
-
-            tile.MarkTimedTrapTrigger(firstTarget, TimedTrapType.Arrow);
-            tile.MarkTimedTrapTrigger(new GridCoordinate(5, 3), TimedTrapType.Blade);
-
-            Assert.AreEqual(firstTarget, tile.TimedTrapTarget);
-            Assert.AreEqual(TimedTrapType.Arrow, tile.TimedTrapKind);
-        }
-
-        [Test]
-        public void ArmTimedTrap_SetsActiveAndKind()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-
-            tile.ArmTimedTrap(TimedTrapType.Arrow);
-
-            Assert.IsTrue(tile.IsTimedTrapActive);
-            Assert.AreEqual(TimedTrapType.Arrow, tile.TimedTrapKind);
-        }
-
-        [Test]
-        public void DisarmTimedTrap_ClearsActive_KeepsKind()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-            tile.ArmTimedTrap(TimedTrapType.Blade);
-
-            tile.DisarmTimedTrap();
-
-            Assert.IsFalse(tile.IsTimedTrapActive);
-            Assert.AreEqual(TimedTrapType.Blade, tile.TimedTrapKind); // историческое значение, IsTimedTrapActive уже false — не опасна
+            Assert.Throws<InvalidOperationException>(() => tile.MarkLethalTrap(LethalTrapType.Lava));
         }
 
         [Test]
@@ -656,7 +567,7 @@ namespace Burmalda.Core.Tests
             // проверяет LethalTrap раньше ManaSource, поэтому такая плита
             // выглядела бы как ловушка, а не как источник.
             var tile = new Tile(new GridCoordinate(1, 1));
-            tile.MarkLethalTrap(LethalTrapType.Pit);
+            tile.MarkLethalTrap(LethalTrapType.Lava);
 
             Assert.Throws<InvalidOperationException>(() => tile.MarkManaSource());
         }

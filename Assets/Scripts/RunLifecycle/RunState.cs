@@ -11,10 +11,8 @@ namespace Burmalda.RunLifecycle
     /// обвала плиты запускает d20-испытание вместо мгновенного проигрыша —
     /// см. <see cref="ResolveHazard"/>. Слушает источники опасности —
     /// попытку шагнуть на смертельную ловушку
-    /// (<see cref="GridTraceTrail.LethalTrapTriggered"/>, PRD 4.2), попытку
-    /// шагнуть на активную прямо сейчас плиту-цель ловушки с таймингом
-    /// (<see cref="GridTraceTrail.TimedTrapTriggered"/>, PRD v5 4.2, issue
-    /// #45) и обрушение плиты под ногами игрока
+    /// (<see cref="GridTraceTrail.LethalTrapTriggered"/>, PRD 4.2) и
+    /// обрушение плиты под ногами игрока
     /// (<see cref="TrailDecaySystem.TileDestroyed"/> для текущей позиции) —
     /// по аналогии с legacy/burmolda_demo.html, attemptDeath().
     /// Поражение от Босса — отдельный путь, <see cref="ReportBossDefeat"/>:
@@ -43,7 +41,6 @@ namespace Burmalda.RunLifecycle
             _lastAltarCoordinate = trail.CurrentPosition;
 
             _trail.LethalTrapTriggered += OnLethalTrapTriggered;
-            _trail.TimedTrapTriggered += OnTimedTrapTriggered;
             _decay.TileDestroyed += OnTileDestroyed;
             _trail.PositionChanged += OnPositionChanged;
         }
@@ -62,7 +59,6 @@ namespace Burmalda.RunLifecycle
         {
             if (_disposed) return;
             _trail.LethalTrapTriggered -= OnLethalTrapTriggered;
-            _trail.TimedTrapTriggered -= OnTimedTrapTriggered;
             _decay.TileDestroyed -= OnTileDestroyed;
             _trail.PositionChanged -= OnPositionChanged;
             _disposed = true;
@@ -82,23 +78,11 @@ namespace Burmalda.RunLifecycle
 
         private static string DescribeLethalTrap(LethalTrapType trapType) => trapType switch
         {
-            LethalTrapType.Pit => "Провалился в яму",
             LethalTrapType.Lava => "Сгорел в лаве",
-            LethalTrapType.Explosion => "Подорвался на ловушке",
             LethalTrapType.ArrowWave => "Пронзён стрелой",
             LethalTrapType.BombBlast => "Подорвался на бомбе",
             LethalTrapType.BladeTact => "Разрублен лезвием",
             LethalTrapType.LavaWave => "Сгорел в лаве",
-            _ => "Сработала ловушка"
-        };
-
-        private void OnTimedTrapTriggered(GridCoordinate coordinate, TimedTrapType trapType) =>
-            ResolveHazard(DescribeTimedTrap(trapType));
-
-        private static string DescribeTimedTrap(TimedTrapType trapType) => trapType switch
-        {
-            TimedTrapType.Arrow => "Пронзён стрелой",
-            TimedTrapType.Blade => "Разрублен лезвием",
             _ => "Сработала ловушка"
         };
 

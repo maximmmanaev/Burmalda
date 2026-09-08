@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isExplosiveTrapTrigger, bool isTimedTrapTrigger, TimedTrapType? activeTimedTrap, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, BossRoomTileKind? bossRoomTile = null)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isTrapTrigger, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, BossRoomTileKind? bossRoomTile = null)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -18,9 +18,7 @@ namespace Burmalda.DebugVisuals
             IsBlocked = isBlocked;
             LethalTrap = lethalTrap;
             DecayProgress01 = decayProgress01;
-            IsExplosiveTrapTrigger = isExplosiveTrapTrigger;
-            IsTimedTrapTrigger = isTimedTrapTrigger;
-            ActiveTimedTrap = activeTimedTrap;
+            IsTrapTrigger = isTrapTrigger;
             IsBoss = isBoss;
             IsManaSource = isManaSource;
             IsKeySource = isKeySource;
@@ -51,26 +49,19 @@ namespace Burmalda.DebugVisuals
         public float DecayProgress01 { get; }
 
         /// <summary>
-        /// Плита — триггер динамической мгновенной ловушки, PRD 4.2, issue
-        /// #10 (см. <c>Core.Tile.ExplosiveTrapTarget</c>). Сама плита-триггер
-        /// не опасна — цветом отмечена только для ручного тестирования
-        /// (в финальном арте, возможно, останется невидимой для игрока).
+        /// Плита — триггер одной из пяти ловушек (Стрела/Бомба/Лезвия/
+        /// Падающий камень/Лава — см. <c>Core.Tile.ArrowWaveTargetRow</c>/
+        /// <c>IsBombTrigger</c>/<c>BladeTactTargetRow</c>/<c>IsFallingRockTrigger</c>/
+        /// <c>IsLavaTrigger</c>). Сама плита-триггер не опасна — цветом/артом
+        /// отмечена только после раскрытия примериванием
+        /// (<see cref="IsDangerSignatureRevealed"/>), не выдаёт, КАКАЯ именно
+        /// из пяти это ловушка (см. <c>TileArtKindResolver</c>). Владелец,
+        /// 2026-09-05 «оставить только пять новых ловушек»: заменяет прежние
+        /// раздельные IsExplosiveTrapTrigger/IsTimedTrapTrigger — render-слой
+        /// никогда не различал их (одна и та же TriggerSignature), раздельные
+        /// поля были мёртвым различием.
         /// </summary>
-        public bool IsExplosiveTrapTrigger { get; }
-
-        /// <summary>
-        /// Плита — триггер ловушки с таймингом, PRD v5 4.2, issue #45 (см.
-        /// <c>Core.Tile.TimedTrapTarget</c>). Сама плита-триггер не опасна —
-        /// цветом отмечена только для ручного тестирования.
-        /// </summary>
-        public bool IsTimedTrapTrigger { get; }
-
-        /// <summary>
-        /// Плита — цель ловушки с таймингом, физически опасна прямо сейчас
-        /// (см. <c>Core.Tile.IsTimedTrapActive</c>/<c>Core.Tile.TimedTrapKind</c>).
-        /// Null — не активна (ещё не сработала или снаряд/лезвие уже прошли).
-        /// </summary>
-        public TimedTrapType? ActiveTimedTrap { get; }
+        public bool IsTrapTrigger { get; }
 
         /// <summary>
         /// Плита — вход в Комнату Босса (PRD v8 §8.1, см. <c>Core.Tile.IsBoss</c>).
@@ -129,11 +120,10 @@ namespace Burmalda.DebugVisuals
 
         /// <summary>
         /// Задача «раскрытие опасности при примеривании»: осмысленно только
-        /// для скрытых состояний (<see cref="LethalTrap"/> Pit/Explosion,
-        /// <see cref="IsExplosiveTrapTrigger"/>/<see cref="IsTimedTrapTrigger"/>)
-        /// — см. <c>Core.Tile.IsDangerSignatureRevealed</c>. Пока ложно, эти
-        /// состояния рисуются НЕОТЛИЧИМО от обычного пола (не сигнатурой) —
-        /// раньше сигнатура была видна всегда, PRD v9 §4.2 заменяется.
+        /// для <see cref="IsTrapTrigger"/> — см.
+        /// <c>Core.Tile.IsDangerSignatureRevealed</c>. Пока ложно, эта плита
+        /// рисуется НЕОТЛИЧИМО от обычного пола (не сигнатурой) — раньше
+        /// сигнатура была видна всегда, PRD v9 §4.2 заменяется.
         /// </summary>
         public bool IsDangerSignatureRevealed { get; }
 

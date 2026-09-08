@@ -91,16 +91,12 @@ namespace Burmalda.DebugVisuals.HudDesign
 
         private GridTraceInputController _input;
         private CurrencyController _currency;
-        private Camera _mainCamera;
 
-        private RectTransform _canvasRect;
         private CanvasGroup _dimGroup;
         private HudCounterAnimator _manaAnimator;
         private HudCounterAnimator _keysAnimator;
         private Text _tierText;
 
-        private GameObject _aimTooltipRoot;
-        private RectTransform _aimTooltipRect;
         private GameObject _aimHighlight;
 
         private GameObject _bossRoomRoot;
@@ -128,7 +124,6 @@ namespace Burmalda.DebugVisuals.HudDesign
             // RunBootstrap") — единственный источник живых игровых систем.
             _input = RunBootstrap.Instance?.Input;
             _currency = RunBootstrap.Instance?.Currency;
-            if (_mainCamera == null) _mainCamera = Camera.main;
 
             UpdateCurrencyCounters();
             UpdateAimState();
@@ -183,34 +178,34 @@ namespace Burmalda.DebugVisuals.HudDesign
             // владельца): раньше рамка+подсказка показывались на КАЖДОЙ
             // примериваемой плите (aiming == target.HasValue, без проверки
             // содержимого) — "непонятный тултип при наведении на каждую
-            // плитку". Подсказка "с этой плитой что-то не так" осмысленна
-            // только для скрытой ловушки (Core.TrapSignature.IsHiddenLethalTrap,
-            // тот же признак, что уже гейтит текстовую строку в
-            // TilePreviewController) — активная ловушка с таймингом
-            // (Tile.IsTimedTrapActive) уже видна собственным цветом/текстурой
-            // на полу (TrapSignature намеренно не считает её скрытой, см. её
-            // doc-комментарий), повторный неспецифичный тултип по ней был бы
-            // избыточен и путал бы с реальной сигнатурой.
-            var showDangerSignature = aiming && IsHiddenTrapTile(target.Value);
+            // плитку". Рамка осмысленна только для триггера одной из пяти
+            // ловушек (тот же признак, что уже гейтит текстовую строку в
+            // TilePreviewController) — активная ловушка (Tile.LethalTrap)
+            // уже видна собственным цветом/текстурой на полу (владелец,
+            // 2026-09-05 «оставить только пять новых ловушек»: понятие
+            // "скрытая ловушка" и Core.TrapSignature удалены — ни один
+            // LethalTrapType больше не бывает скрытым).
+            //
+            // Подсказка "С этой плитой что-то не так…" убрана владельцем
+            // (2026-09-08) — рамка сама по себе достаточный сигнал, отдельный
+            // текстовый тултип был избыточен.
+            var showDangerSignature = aiming && IsTrapTriggerTile(target.Value);
             _aimHighlight.SetActive(showDangerSignature);
-            _aimTooltipRoot.SetActive(showDangerSignature);
 
             if (showDangerSignature) PositionAimVisuals(target.Value);
         }
 
-        private bool IsHiddenTrapTile(GridCoordinate coordinate) =>
-            _input.Grid != null && _input.Grid.TryGetTile(coordinate, out var tile) && TrapSignature.IsHiddenLethalTrap(tile);
+        // Тот же набор триггеров, что Movement.TrapRevealSystem.HasHiddenDanger.
+        private bool IsTrapTriggerTile(GridCoordinate coordinate) =>
+            _input.Grid != null && _input.Grid.TryGetTile(coordinate, out var tile) &&
+            (tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger || tile.BladeTactTargetRow.HasValue ||
+             tile.IsFallingRockTrigger || tile.IsLavaTrigger);
 
         private void PositionAimVisuals(GridCoordinate coordinate)
         {
             // WorldGridProjection — readonly struct, никогда не null (в отличие от Grid/Trail) — сравнивать не с чем.
             var worldPosition = _input.Projection.ToWorldPosition(coordinate) + Vector3.up * 0.2f;
             _aimHighlight.transform.position = worldPosition;
-
-            if (_mainCamera == null) return;
-            var screenPoint = _mainCamera.WorldToScreenPoint(worldPosition + Vector3.up * 0.6f);
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRect, screenPoint, null, out var localPoint))
-                _aimTooltipRect.anchoredPosition = localPoint;
         }
 
         // ==================== Построение UI ====================
@@ -227,10 +222,9 @@ namespace Burmalda.DebugVisuals.HudDesign
             scaler.referenceResolution = new Vector2(ReferenceWidth, ReferenceHeight);
             scaler.matchWidthOrHeight = 0.5f;
             canvasHost.AddComponent<GraphicRaycaster>();
-            _canvasRect = (RectTransform)canvasHost.transform;
 
             BuildNormalHud(canvasHost.transform);
-            BuildAimVisuals(canvasHost.transform);
+            BuildAimVisuals();
             BuildBossRoomShell(canvasHost.transform);
         }
 
@@ -303,24 +297,10 @@ namespace Burmalda.DebugVisuals.HudDesign
             AnchorTopLeft((RectTransform)text.transform, topLeftOffset, new Vector2(300f, 32f));
         }
 
-        // Состояние 3 — притушение уже в BuildNormalHud (CanvasGroup), здесь только рамка на плитке + фиксированная подсказка.
-        private void BuildAimVisuals(Transform parent)
+        // Состояние 3 — притушение уже в BuildNormalHud (CanvasGroup), здесь только рамка на плитке.
+        // Текстовая подсказка "С этой плитой что-то не так…" убрана владельцем (2026-09-08).
+        private void BuildAimVisuals()
         {
-            _aimTooltipRoot = HudUiPrimitives.CreateRoundedPanel(parent, "AimTooltip", BurmaldaHudPalette.SurfaceCard, BurmaldaHudPalette.Danger, 2, 12).gameObject;
-            var tooltipRect = (RectTransform)_aimTooltipRoot.transform;
-            tooltipRect.sizeDelta = new Vector2(280f, 56f);
-            tooltipRect.pivot = new Vector2(0.5f, 0f); // подсказка растёт ВВЕРХ от точки над плиткой
-            _aimTooltipRect = tooltipRect;
-
-            // issue: текст СТРОГО фиксированный, никогда не тип ловушки/% — см. doc-комментарий класса.
-            var label = HudUiPrimitives.CreateLabel(tooltipRect, "Label", "С этой плитой что-то не так…", 18, BurmaldaHudPalette.TextPrimary, bold: false, TextAnchor.MiddleCenter);
-            var labelRect = (RectTransform)label.transform;
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
-            label.horizontalOverflow = HorizontalWrapMode.Wrap;
-
             _aimHighlight = new GameObject("AimHighlight");
             _aimHighlight.transform.SetParent(transform, worldPositionStays: false);
             var line = _aimHighlight.AddComponent<LineRenderer>();
@@ -340,7 +320,6 @@ namespace Burmalda.DebugVisuals.HudDesign
             line.endColor = BurmaldaHudPalette.Danger;
             _aimHighlight.AddComponent<HudWorldPulseAnimation>(); // world-space вариант — HudPulseAnimation кастует к RectTransform, здесь обычный Transform
 
-            _aimTooltipRoot.SetActive(false);
             _aimHighlight.SetActive(false);
         }
 

@@ -49,6 +49,14 @@ namespace Burmalda.DebugVisuals
     /// (<see cref="DecayCollapseFeedback"/>) — длительность анимации обвала
     /// (прямое требование задачи) и сила вибро-пульсации последней трети
     /// распада, тот же принцип.
+    ///
+    /// <b>Задача «измерить, а не оценить» (владелец, 2026-09-08):</b> одна
+    /// строка-readout (не слайдер — нечего крутить, только читать) —
+    /// <see cref="TrapEncounterStats.TrapsTriggered"/>/<see cref="TrapEncounterStats.RowsTraversed"/>
+    /// текущего забега, обновляется каждый кадр в <see cref="Update"/>
+    /// (единственная причина, по которой у этого класса вообще появился
+    /// Update() — остальные одиннадцать строк управляются слайдерами
+    /// событийно, перерисовывать их каждый кадр не нужно).
     /// </summary>
     public sealed class TrapDensityDebugPanel : MonoBehaviour
     {
@@ -63,7 +71,8 @@ namespace Burmalda.DebugVisuals
         private const float MaxTierWindow = 4f; // шире некуда — весь диапазон тиров 1..5
         private const float MaxVibrationDurationSeconds = 1f; // задача «раскрытие опасности при примеривании» — щедрый запас над стартовым значением
         private const float MaxCollapseDurationSeconds = 1f; // задача «разрушение плиты» — щедрый запас над стартовыми 0.25–0.4с
-        private const int RowCount = 12; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 2 параметра обвала (см. BuildPanel)
+        private const float MaxExtraTrapChance = 0.5f; // задача «параметр плотности» — до половины Open-плит, щедрый запас для стресс-теста на устройстве
+        private const int RowCount = 14; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 2 параметра обвала + 1 readout счётчика встреч + 1 множитель доп. плотности (см. BuildPanel)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -75,11 +84,31 @@ namespace Burmalda.DebugVisuals
 
         private GameObject _panelRoot;
         private bool _expanded;
+        private Text _trapCounterValueText;
 
         private void Start()
         {
             EnsureEventSystemExists();
             BuildUi();
+        }
+
+        private void Update()
+        {
+            // Единственная причина Update() в этом классе — см. её
+            // doc-комментарий. Обновляется даже пока панель свёрнута
+            // (дёшево — одно присваивание строки), проще, чем гонять
+            // отдельную проверку _expanded ради одной строки.
+            if (_trapCounterValueText != null)
+                _trapCounterValueText.text = FormatTrapCounter(TrapEncounterStats.TrapsTriggered, TrapEncounterStats.RowsTraversed);
+        }
+
+        private static string FormatTrapCounter(int trapsTriggered, int rowsTraversed)
+        {
+            if (rowsTraversed <= 0) return $"{trapsTriggered} / {rowsTraversed} рядов";
+            var perRow = (double)rowsTraversed / System.Math.Max(1, trapsTriggered);
+            return trapsTriggered == 0
+                ? $"{trapsTriggered} / {rowsTraversed} рядов"
+                : $"{trapsTriggered} / {rowsTraversed} рядов (1 на {perRow:0.#})";
         }
 
         private static void EnsureEventSystemExists()
@@ -155,16 +184,16 @@ namespace Burmalda.DebugVisuals
 
             BuildRow(_panelRoot.transform, 0, "Заблокировано", 0f, MaxShare, TunnelObstacleGenerator.BlockedShare,
                 v => TunnelObstacleGenerator.BlockedShare = v, FormatPercent);
-            BuildRow(_panelRoot.transform, 1, "Яма", 0f, MaxShare, TunnelObstacleGenerator.PitShare,
-                v => TunnelObstacleGenerator.PitShare = v, FormatPercent);
+            BuildRow(_panelRoot.transform, 1, "Падающий камень", 0f, MaxShare, TunnelObstacleGenerator.FallingRockShare,
+                v => TunnelObstacleGenerator.FallingRockShare = v, FormatPercent);
             BuildRow(_panelRoot.transform, 2, "Лава", 0f, MaxShare, TunnelObstacleGenerator.LavaShare,
                 v => TunnelObstacleGenerator.LavaShare = v, FormatPercent);
-            BuildRow(_panelRoot.transform, 3, "Триггер взрыва", 0f, MaxShare, TunnelObstacleGenerator.ExplosiveTriggerShare,
-                v => TunnelObstacleGenerator.ExplosiveTriggerShare = v, FormatPercent);
-            BuildRow(_panelRoot.transform, 4, "Триггер стрелы", 0f, MaxShare, TunnelObstacleGenerator.TimedTrapArrowShare,
-                v => TunnelObstacleGenerator.TimedTrapArrowShare = v, FormatPercent);
-            BuildRow(_panelRoot.transform, 5, "Триггер лезвия", 0f, MaxShare, TunnelObstacleGenerator.TimedTrapBladeShare,
-                v => TunnelObstacleGenerator.TimedTrapBladeShare = v, FormatPercent);
+            BuildRow(_panelRoot.transform, 3, "Триггер бомбы", 0f, MaxShare, TunnelObstacleGenerator.BombShare,
+                v => TunnelObstacleGenerator.BombShare = v, FormatPercent);
+            BuildRow(_panelRoot.transform, 4, "Триггер волны стрел", 0f, MaxShare, TunnelObstacleGenerator.ArrowWaveShare,
+                v => TunnelObstacleGenerator.ArrowWaveShare = v, FormatPercent);
+            BuildRow(_panelRoot.transform, 5, "Триггер такта лезвий", 0f, MaxShare, TunnelObstacleGenerator.BladeTactShare,
+                v => TunnelObstacleGenerator.BladeTactShare = v, FormatPercent);
 
             // Задача «партии 1 и 2 + правила отбора», часть 3: окно тиров
             // сегментов — "рядом с плотностью генерации".
@@ -188,6 +217,43 @@ namespace Burmalda.DebugVisuals
                 v => DecayCollapseFeedback.CollapseDurationSeconds = v, FormatSeconds);
             BuildRow(_panelRoot.transform, 11, "Распад: вибро сила", 0f, 1f, DecayCollapseFeedback.PulseVibrationStrength,
                 v => DecayCollapseFeedback.PulseVibrationStrength = v, FormatPercent);
+
+            // Задача «измерить, а не оценить»: readout, не слайдер — только
+            // читается, нечего крутить (см. TrapEncounterTracker/Stats).
+            BuildReadoutRow(_panelRoot.transform, 12, "Ловушек сработало / рядов");
+
+            // Задача «параметр плотности» (владелец, 2026-09-08): "чтобы
+            // владелец мог подкрутить на устройстве, не пересобирая" —
+            // множитель поверх авторски расставленных в шаблонах ловушек
+            // (см. ExtraTrapDensity). Стартовое значение — 0, нейтральное.
+            BuildRow(_panelRoot.transform, 13, "Доп. плотность ловушек", 0f, MaxExtraTrapChance, ExtraTrapDensity.Chance,
+                v => ExtraTrapDensity.Chance = v, FormatPercent);
+        }
+
+        private void BuildReadoutRow(Transform parent, int rowIndex, string label)
+        {
+            var rowHost = new GameObject($"Row_{rowIndex}");
+            rowHost.transform.SetParent(parent, worldPositionStays: false);
+            var rowRect = rowHost.AddComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0f, 1f);
+            rowRect.anchorMax = new Vector2(1f, 1f);
+            rowRect.pivot = new Vector2(0f, 1f);
+            rowRect.sizeDelta = new Vector2(-Margin * 2f, RowHeight);
+            rowRect.anchoredPosition = new Vector2(Margin, -Margin - rowIndex * RowHeight);
+
+            var labelText = AddLabel(rowHost.transform, label, 20, TextAnchor.UpperLeft);
+            var labelRect = labelText.GetComponent<RectTransform>();
+            labelRect.anchorMin = new Vector2(0f, 0.5f);
+            labelRect.anchorMax = new Vector2(0.5f, 1f);
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+
+            _trapCounterValueText = AddLabel(rowHost.transform, FormatTrapCounter(TrapEncounterStats.TrapsTriggered, TrapEncounterStats.RowsTraversed), 20, TextAnchor.UpperRight);
+            var valueRect = _trapCounterValueText.GetComponent<RectTransform>();
+            valueRect.anchorMin = new Vector2(0.5f, 0.5f);
+            valueRect.anchorMax = new Vector2(1f, 1f);
+            valueRect.offsetMin = Vector2.zero;
+            valueRect.offsetMax = Vector2.zero;
         }
 
         private static string FormatPercent(float v) => (v * 100f).ToString("0.0") + "%";
