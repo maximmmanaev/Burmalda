@@ -42,6 +42,24 @@ namespace Burmalda.DebugVisuals
     /// запрещена (docs/rules/forbidden-actions.md) — рыскание обнуляется в
     /// рантайме (тангаж/крен не трогаются) тем же самобутстрапом, что и
     /// остальной класс.
+    ///
+    /// <b>Баг с устройства, продолжение (владелец, 2026-09-05): «эту
+    /// виньетку я вижу до сих пор».</b> Причина — не эта виньетка (её
+    /// действительно нет, <see cref="CreateGlobalVolume"/> её не создаёт), а
+    /// ВТОРОЙ, независимый <see cref="Volume"/> прямо в
+    /// <c>SampleScene.unity</c> (GameObject "Global Volume") со стоковым
+    /// профилем Unity-шаблона (<c>Assets/Settings/SampleSceneProfile.asset</c>):
+    /// активная Vignette (intensity 0.2), второй Bloom, Tonemapping — никто
+    /// их не создавал намеренно, это заводской мусор из создания проекта,
+    /// но он `isGlobal: 1`, значит действует наравне с этим классом. Правка
+    /// .unity/.asset запрещена — вместо этого класс забирает пост-обработку
+    /// под свой контроль целиком: <see cref="DisableForeignVolumes"/>
+    /// находит и выключает ЛЮБОЙ уже существующий в сцене <see cref="Volume"/>
+    /// (свой ещё не создан на момент вызова в <see cref="Bootstrap"/>, значит
+    /// "любой найденный" не может оказаться своим же) перед тем, как
+    /// появится собственный — код становится единственным источником
+    /// пост-обработки, и такой же мусор, случайно оставленный в будущем,
+    /// перестаёт на что-либо влиять без необходимости искать его вручную.
     /// </summary>
     public sealed class ScenePostProcessing : MonoBehaviour
     {
@@ -116,6 +134,28 @@ namespace Burmalda.DebugVisuals
             SetupProceduralSky();
             SetupFog();
             FixDirectionalLightYaw();
+            DisableForeignVolumes();
+        }
+
+        /// <summary>
+        /// Баг с устройства, продолжение (владелец, 2026-09-05, «эту
+        /// виньетку я вижу до сих пор») — см. doc-комментарий класса.
+        /// Выключает ЛЮБОЙ <see cref="Volume"/>, уже существующий в сцене
+        /// на момент вызова — свой собственный (<see cref="CreateGlobalVolume"/>)
+        /// на этот момент ещё не создан (вызывается раньше в <see cref="Bootstrap"/>,
+        /// а <see cref="CreateGlobalVolume"/> — лениво, из <see cref="Update"/>,
+        /// когда найдётся камера), поэтому "любой найденный" не может
+        /// оказаться своим же — не полагается на имя/тег/профиль, просто
+        /// гасит всё стороннее, что могло прийти из .unity/.prefab. Вызван
+        /// и здесь (сразу на старте), и повторно прямо перед
+        /// <see cref="CreateGlobalVolume"/> — второй вызов страхует, если
+        /// что-то попало в сцену уже после старта (или тест вызывает
+        /// <see cref="Update"/> напрямую, минуя <see cref="Bootstrap"/>).
+        /// </summary>
+        private static void DisableForeignVolumes()
+        {
+            foreach (var volume in FindObjectsByType<Volume>(FindObjectsSortMode.None))
+                volume.enabled = false;
         }
 
         /// <summary>
@@ -194,8 +234,14 @@ namespace Burmalda.DebugVisuals
 
         private static void CreateGlobalVolume()
         {
+            DisableForeignVolumes();
+
             var host = new GameObject(nameof(ScenePostProcessing) + "_Volume");
-            DontDestroyOnLoad(host);
+            // DontDestroyOnLoad бросает InvalidOperationException вне Play
+            // Mode (issue "прогнать вызов Update() напрямую из EditMode-теста" —
+            // ScenePostProcessingTests) — реальная игра всегда Application.
+            // isPlaying, гейт не меняет поведение в билде/Play Mode.
+            if (Application.isPlaying) DontDestroyOnLoad(host);
 
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
 
