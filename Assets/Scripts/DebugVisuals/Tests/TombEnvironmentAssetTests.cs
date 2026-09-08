@@ -66,7 +66,7 @@ namespace Burmalda.DebugVisuals.Tests
 
             var left = meshes["Floor_Intact"].bounds;
             var right = meshes["Floor_Worn"].bounds;
-            Assert.AreEqual(left.max.x + 1f, right.min.x + 1f, 0.002f, "Соседние плиты на сетке не должны оставлять геометрическую щель.");
+            Assert.AreEqual(left.max.x, right.min.x + 1f, 0.002f, "Соседние плиты на сетке не должны оставлять геометрическую щель.");
         }
 
         [Test]
