@@ -37,10 +37,39 @@ namespace Burmalda.Movement
     /// ТОЛЬКО между шагами (issue #157, часть механики, не оптимизация) —
     /// пока <see cref="IsPressed"/> истинно, <see cref="TunnelCameraController.Update"/>
     /// не трогает ни FOV, ни позицию/поворот вообще.
+    ///
+    /// <b>Самобутстрап (владелец, 2026-09-08, «на сценах не остаётся
+    /// ничего, кроме камеры и света»):</b> раньше жил компонентом на
+    /// GameObject "GameController" в <c>SampleScene.unity</c> — все его
+    /// сериализованные поля были дефолтными/null (проверено чтением YAML
+    /// сцены до правки), переносить было нечего. Теперь создаёт себя сам
+    /// через <see cref="RuntimeInitializeOnLoadMethodAttribute"/>, тот же
+    /// паттерн, что <see cref="Burmalda.DebugVisuals.RestartButton"/>/
+    /// <see cref="Burmalda.DebugVisuals.ScenePostProcessing"/> — единственный
+    /// компонент на своём собственном GameObject. Остальные три (раньше
+    /// тоже сидевшие рядом на "GameController" и находившие этот класс через
+    /// <c>GetComponent</c>, требующий совместного размещения — <c>Decay.TrailDecayController</c>/
+    /// <c>DebugVisuals.TunnelDebugVisualController</c>/<c>RunLifecycle.RunController</c>)
+    /// добавляются на ТОТ ЖЕ GameObject не отсюда, а из
+    /// <c>Bootstrap.RunBootstrap.EnsureControllersWired</c> — тем же
+    /// проверенным, устойчивым к порядку <c>AfterSceneLoad</c> путём, что уже
+    /// добавляет туда Segments/Currency/Altar и остальных (см. её
+    /// doc-комментарий); заводить для них отдельный самобутстрап означало бы
+    /// гонку между независимыми <c>RuntimeInitializeOnLoadMethod</c>
+    /// callback'ами разных классов — Unity не гарантирует между ними
+    /// порядок.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class GridTraceInputController : MonoBehaviour
     {
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void Bootstrap()
+        {
+            var host = new GameObject(nameof(GridTraceInputController));
+            host.AddComponent<GridTraceInputController>();
+            DontDestroyOnLoad(host);
+        }
+
         [SerializeField] private Camera _camera;
         [SerializeField] private float _tileSize = 1f;
         [SerializeField] private int _width = 5;

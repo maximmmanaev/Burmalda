@@ -8,23 +8,41 @@ namespace Burmalda.DebugVisuals
     /// примитивы плит по мере продвижения трейла и хода распада того же
     /// забега, что и <see cref="GridTraceInputController"/>. Debug-инфраструктура
     /// для ручного тестирования, не финальный арт и не система из PRD.
+    ///
+    /// <b>Самобутстрап (владелец, 2026-09-08, «на сценах не остаётся
+    /// ничего, кроме камеры и света»):</b> раньше жил компонентом рядом с
+    /// <see cref="GridTraceInputController"/> на сцене (все поля были
+    /// дефолтными/null — переносить было нечего) и находил её через
+    /// <c>GetComponent</c>, требующий совместного размещения. Теперь создаёт
+    /// себя сам на СВОЁМ отдельном GameObject, тот же паттерн, что
+    /// <see cref="RestartButton"/>/<see cref="TilePreviewController"/> — не
+    /// через <c>Bootstrap.RunBootstrap</c> (который добавляет
+    /// <c>Decay.TrailDecayController</c>/<c>RunLifecycle.RunController</c>
+    /// именно на GameObject <see cref="GridTraceInputController"/>): та
+    /// сборка уже ссылается на <c>Burmalda.DebugVisuals</c>, обратная
+    /// ссылка отсюда была бы циклической зависимостью сборок. Ищет
+    /// <see cref="GridTraceInputController"/> глобально (см. её
+    /// самобутстрап) — совместное размещение с ней этому классу не нужно,
+    /// в отличие от <c>GetComponent</c>-цепочки Decay→Run: ничто не ищет
+    /// <see cref="TunnelDebugVisualController"/> через <c>GetComponent</c>.
+    /// Тайлы визуала переиспользуют <c>transform</c> этого объекта как
+    /// родителя — их собственная мировая позиция выставляется явно (см.
+    /// <c>TunnelDebugVisual.OnTileMaterialized</c>), позиция родителя на
+    /// это не влияет.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TunnelDebugVisualController : MonoBehaviour
     {
-        [SerializeField] private GridTraceInputController _input;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void Bootstrap()
+        {
+            var host = new GameObject(nameof(TunnelDebugVisualController));
+            host.AddComponent<TunnelDebugVisualController>();
+            DontDestroyOnLoad(host);
+        }
 
+        private GridTraceInputController _input;
         private TunnelDebugVisual _visual;
-
-        private void Awake()
-        {
-            if (_input == null) _input = GetComponent<GridTraceInputController>();
-        }
-
-        private void OnEnable()
-        {
-            if (_input != null) _input.RunStarted += HandleRunStarted;
-        }
 
         private void OnDisable()
         {
@@ -34,19 +52,31 @@ namespace Burmalda.DebugVisuals
 
         private void Update()
         {
-            // Ленивая инициализация — как в TrailDecayController/TunnelCameraController:
-            // порядок Awake/OnEnable между разными компонентами не гарантирован,
-            // а Grid/Trail/Projection появляются только в Awake() GridTraceInputController —
-            // покрывает первый запуск; рестарты (мир пересоздаётся заново,
-            // старые примитивы больше не актуальны) приходят через HandleRunStarted.
+            // Ленивый поиск — тот же паттерн, что у остальных
+            // самобутстрапящихся driver'ов проекта (RestartButton и т.п.):
+            // порядок AfterSceneLoad между разными классами не гарантирован,
+            // GridTraceInputController может ещё не существовать в момент,
+            // когда этот компонент запускается.
+            if (_input == null)
+            {
+                _input = FindFirstObjectByType<GridTraceInputController>();
+                if (_input != null) _input.RunStarted += HandleRunStarted;
+            }
+
+            // Ленивая инициализация визуала — как раньше в Awake/Update:
+            // Grid/Trail/Projection появляются только в Awake()
+            // GridTraceInputController, порядок между разными
+            // самобутстрапящимися компонентами не гарантирован — покрывает
+            // первый запуск; рестарты (мир пересоздаётся заново, старые
+            // примитивы больше не актуальны) приходят через HandleRunStarted.
             if (_visual == null)
             {
                 if (_input == null || _input.Grid == null || _input.Trail == null) return;
                 RebuildVisual();
             }
 
-            // Задача «разрушение плиты»: Tick() теперь берёт deltaSeconds —
-            // нужен для анимации обвала и фазы визуальной пульсации (см.
+            // Задача «разрушение плиты»: Tick() берёт deltaSeconds — нужен
+            // для анимации обвала и фазы визуальной пульсации (см.
             // TunnelDebugVisual.Tick).
             _visual.Tick(Time.deltaTime);
         }

@@ -35,7 +35,6 @@ namespace Burmalda.Movement.Tests
 
             InvokePrivate(_input, "Awake");
             InvokePrivate(_cameraController, "Awake");
-            InvokePrivate(_cameraController, "OnEnable");
 
             SetIsPressed(true);
             var positionBeforeAnyUpdate = _host.transform.position;

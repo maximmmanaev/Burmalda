@@ -58,11 +58,27 @@ namespace Burmalda.Movement
     /// <see cref="SoftBoundaryStartFraction"/> остаются настраиваемыми из
     /// debug-панели (<c>DebugVisuals.CameraAnchorDebugPanel</c>) — меняются
     /// только их дефолты (32%/12%/60%), не сам факт применения.
+    ///
+    /// <b>Миграция GridTraceInputController на самобутстрап (владелец,
+    /// 2026-09-08):</b> раньше <c>_input</c> был сериализованной ссылкой
+    /// на сцене (<c>SampleScene.unity</c>: `_input: {fileID: ...}`,
+    /// реальный экземпляр, не null — единственное поле среди всех
+    /// мигрировавших контроллеров, которое БЫЛО вручную привязано, а не
+    /// осталось дефолтным) — этот компонент остаётся на камере (вне
+    /// скоупа миграции, камера/свет исключены явно), а
+    /// <see cref="GridTraceInputController"/> теперь создаёт себя сама на
+    /// СВОЁМ отдельном GameObject: старая ссылка стала бы указывать в
+    /// никуда. Ищет её глобально и лениво в <see cref="Update"/> (не в
+    /// <see cref="Awake"/>/<see cref="OnEnable"/> — эта камера размещена на
+    /// сцене и получает свой Awake/OnEnable ДО того, как самобутстрап
+    /// <see cref="GridTraceInputController"/> успевает отработать через
+    /// AfterSceneLoad, тот же порядок проблем, что уже решён для
+    /// <c>TrailDecayController</c>/<c>TunnelDebugVisualController</c>).
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TunnelCameraController : MonoBehaviour
     {
-        [SerializeField] private GridTraceInputController _input;
+        private GridTraceInputController _input;
         [SerializeField] private Camera _camera;
         // Новое смещение для 3D-камеры от третьего лица — в 2D-прототипе аналога
         // нет (см. issue #8: скоуп увеличен с 2D top-down до 3D третьего лица).
@@ -152,7 +168,10 @@ namespace Burmalda.Movement
 
         private void Awake()
         {
-            if (_input == null) _input = GetComponent<GridTraceInputController>();
+            // _input больше не резолвится здесь — GridTraceInputController
+            // теперь самобутстрапится отдельно от этой (сценовой) камеры и
+            // ещё не существует к моменту Awake()/OnEnable() объектов сцены
+            // (см. doc-комментарий класса) — резолвится лениво в Update().
             if (_camera == null) _camera = GetComponent<Camera>();
 
             // 2026-08-18 (диагностика, не гипотеза): SampleScene.unity уже
@@ -168,16 +187,6 @@ namespace Burmalda.Movement
             _introHeightOffsetZ = TunnelCameraFollow.DefaultIntroHeightOffsetZ;
         }
 
-        private void OnEnable()
-        {
-            if (_input != null)
-            {
-                _input.RunStarted += HandleRunStarted;
-                _input.PressStarted += HandlePressStarted;
-                _input.RunConfirmed += HandleRunConfirmed;
-            }
-        }
-
         private void OnDisable()
         {
             if (_input != null)
@@ -191,6 +200,23 @@ namespace Burmalda.Movement
 
         private void Update()
         {
+            // Ленивый поиск + подписка — тот же приём, что у остальных
+            // самобутстрапящихся driver'ов (RestartButton и т.п.), а не
+            // разовый OnEnable(): эта камера размещена на сцене и получает
+            // Awake()/OnEnable() ДО того, как самобутстрап
+            // GridTraceInputController отрабатывает через AfterSceneLoad —
+            // см. doc-комментарий класса.
+            if (_input == null)
+            {
+                _input = FindFirstObjectByType<GridTraceInputController>();
+                if (_input != null)
+                {
+                    _input.RunStarted += HandleRunStarted;
+                    _input.PressStarted += HandlePressStarted;
+                    _input.RunConfirmed += HandleRunConfirmed;
+                }
+            }
+
             // Ленивая инициализация вместо OnEnable: порядок Awake/OnEnable
             // между разными компонентами не гарантирован (см. TrailDecayController),
             // а Trail появляется только в Awake() GridTraceInputController —

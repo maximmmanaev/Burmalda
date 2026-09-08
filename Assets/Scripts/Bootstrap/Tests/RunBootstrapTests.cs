@@ -58,22 +58,28 @@ namespace Burmalda.Bootstrap.Tests
         }
 
         /// <summary>
-        /// + TrailDecayController/RunController на том же объекте, что и в
-        /// реальной сцене (см. doc-комментарий RunBootstrap — они уже там) —
+        /// + прогоняет Awake()/Update() у TrailDecayController/RunController —
         /// нужны тестам, проверяющим Ярус Глубины: BossController.IsReady()
         /// требует RunController, RunController требует TrailDecayController.
+        /// Владелец, 2026-09-08 («миграция контроллеров на самобутстрап»):
+        /// раньше сами добавляли их отдельными <c>AddComponent</c> — теперь
+        /// <see cref="RunBootstrap.EnsureControllersWired"/> уже добавил их
+        /// на тот же GameObject САМ, внутри <c>Awake()</c> вызванного
+        /// <see cref="SetUpMinimal"/> (тот же самый вызов, который раньше
+        /// молча собирал Segments/Currency/Altar/Boss/Camp/Lever — Decay/Run
+        /// просто присоединились к тому же списку) — повторный
+        /// <c>AddComponent&lt;TrailDecayController&gt;()</c> здесь упал бы
+        /// (DisallowMultipleComponent, компонент уже есть на объекте).
         /// </summary>
         private void SetUpWithRunController()
         {
             SetUpMinimal();
 
-            var decay = _inputObject.AddComponent<TrailDecayController>();
-            InvokePrivate(decay, "Awake");
-            InvokePrivate(decay, "Update"); // материализует Decay
+            InvokePrivate(_bootstrap.Decay, "Awake");
+            InvokePrivate(_bootstrap.Decay, "Update"); // материализует Decay
 
-            var runController = _inputObject.AddComponent<RunController>();
-            InvokePrivate(runController, "Awake");
-            InvokePrivate(runController, "Update"); // материализует RunState
+            InvokePrivate(_bootstrap.Run, "Awake");
+            InvokePrivate(_bootstrap.Run, "Update"); // материализует RunState
         }
 
         /// <summary>
