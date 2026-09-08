@@ -225,6 +225,10 @@ namespace Burmalda.DebugVisuals
         private const float BlockedObstructionRotationDegrees = 32f; // не выровнен по сетке — читается как булыжник, не как ещё одна плита
         private readonly Dictionary<GridCoordinate, GameObject> _blockedObstructions = new Dictionary<GridCoordinate, GameObject>();
 
+        // Импортированные плиты имеют pivot на верхней поверхности (Y=0),
+        // а резервный процедурный Cube — в геометрическом центре.
+        private float FloorSurfaceHeight => _environmentCatalog != null ? 0f : TileHeight * 0.5f;
+
         public TunnelDebugVisual(TunnelGrid grid, GridTraceTrail trail, WorldGridProjection projection, Transform parent)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
@@ -386,7 +390,7 @@ namespace Burmalda.DebugVisuals
                 _gateDirectionHints.Clear();
 
                 foreach (var obstructionObject in _blockedObstructions.Values)
-                    UnityEngine.Object.Destroy(obstructionObject);
+                    DestroySafely(obstructionObject);
                 _blockedObstructions.Clear();
 
                 foreach (var wallObject in _wallObjects)
@@ -513,8 +517,7 @@ namespace Burmalda.DebugVisuals
             overlay.AddComponent<MeshRenderer>();
 
             overlay.transform.SetParent(_parent, worldPositionStays: false);
-            var floorTop = _environmentCatalog != null ? 0f : TileHeight * 0.5f;
-            overlay.transform.position = tileWorldPosition + new Vector3(0f, floorTop + CrackOverlayHeightOffset, 0f);
+            overlay.transform.position = tileWorldPosition + new Vector3(0f, FloorSurfaceHeight + CrackOverlayHeightOffset, 0f);
             // Фиксированный поворот, без учёта случайного 0/90/180/270°
             // Fresh-варианта (PickFreshVariant) — маска трещин не несёт
             // читаемого "верха" как иконки (ключ/Мана/т.п.), согласовывать
@@ -897,7 +900,7 @@ namespace Burmalda.DebugVisuals
             // вырожденного вектора на случай будущих изменений генерации.
             if (direction.sqrMagnitude < 0.0001f) direction = Vector3.forward;
 
-            hint.transform.position = gateWorldPosition + Vector3.up * (TileHeight * 0.5f + GateHintHeightOffset);
+            hint.transform.position = gateWorldPosition + Vector3.up * (FloorSurfaceHeight + GateHintHeightOffset);
             hint.transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
             hint.transform.localScale = new Vector3(
                 _projection.TileSize * GateHintThickness,
@@ -954,7 +957,7 @@ namespace Burmalda.DebugVisuals
         {
             var obstruction = new GameObject($"DebugBlockedObstruction {coordinate}");
             obstruction.transform.SetParent(_parent, worldPositionStays: false);
-            obstruction.transform.position = tileWorldPosition + Vector3.up * (TileHeight * 0.5f + BlockedObstructionHeight * 0.5f);
+            obstruction.transform.position = tileWorldPosition + Vector3.up * (FloorSurfaceHeight + BlockedObstructionHeight * 0.5f);
             // Не выровнен по осям сетки — читается как обломок камня, а не
             // ещё одна аккуратная плита пола (та же логика, что у соседних
             // процедурных объектов этого класса — без арт-ассета, но не
@@ -1011,17 +1014,16 @@ namespace Burmalda.DebugVisuals
 
             if (_environmentCatalog?.WallStraight != null)
             {
-                var wallOffset = halfWidth + 0.09f * tileSize;
                 _wallObjects.Add(CreateStructureMesh(
                     $"DebugWallLeft row{row}",
                     _environmentCatalog.WallStraight,
-                    new Vector3(-wallOffset, 0f, centerZ),
+                    new Vector3(-halfWidth, 0f, centerZ),
                     Quaternion.Euler(0f, 90f, 0f),
                     new Vector3(tileSize, 1f, tileSize)));
                 _wallObjects.Add(CreateStructureMesh(
                     $"DebugWallRight row{row}",
                     _environmentCatalog.WallStraight,
-                    new Vector3(wallOffset, 0f, centerZ),
+                    new Vector3(halfWidth, 0f, centerZ),
                     Quaternion.Euler(0f, 90f, 0f),
                     new Vector3(tileSize, 1f, tileSize)));
                 return;

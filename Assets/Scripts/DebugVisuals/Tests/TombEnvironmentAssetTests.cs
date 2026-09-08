@@ -150,7 +150,42 @@ namespace Burmalda.DebugVisuals.Tests
                 {
                     Assert.AreEqual("Wall_Straight", wall.GetComponent<MeshFilter>().sharedMesh.name);
                     Assert.IsNull(wall.GetComponent<Collider>(), "Декоративные стены не должны участвовать в тапах/физике.");
+                    Assert.AreEqual(
+                        1.15f,
+                        Mathf.Abs(wall.position.x),
+                        0.002f,
+                        "После merge #247 центр модульной стены должен соблюдать общий внешний отступ 0.15 клетки.");
                 }
+            }
+            finally
+            {
+                visual?.Dispose();
+                Object.DestroyImmediate(parent);
+            }
+        }
+
+        [Test]
+        public void BlockedObstruction_RestsOnImportedFloor_AndDisposesInEditMode()
+        {
+            var parent = new GameObject("TombBlockedObstructionTests");
+            TunnelDebugVisual visual = null;
+            try
+            {
+                var grid = new TunnelGrid(2);
+                var coordinate = new GridCoordinate(0, 0);
+                var trail = new GridTraceTrail(grid, coordinate);
+                visual = new TunnelDebugVisual(grid, trail, new WorldGridProjection(1f, 2), parent.transform);
+
+                grid.GetOrCreateTile(coordinate).TransitionToBlocked();
+                visual.Tick(0f);
+
+                var obstruction = Descendants(parent.transform).Single(t => t.name.StartsWith("DebugBlockedObstruction "));
+                Assert.IsNull(obstruction.GetComponent<Collider>(), "Препятствие не должно перехватывать тап по плите.");
+                Assert.AreEqual(
+                    0f,
+                    obstruction.GetComponent<Renderer>().bounds.min.y,
+                    0.002f,
+                    "Препятствие должно стоять на верхней поверхности импортированной плиты без зазора.");
             }
             finally
             {
