@@ -127,6 +127,13 @@ namespace Burmalda.DebugVisuals
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
+            // См. doc-комментарий Movement.GridTraceInputController.Bootstrap() —
+            // та же защита от повторного срабатывания AfterSceneLoad,
+            // подтверждённого на реальном устройстве: без неё второй вызов
+            // создал бы второй Volume и повторно дёргал FixDirectionalLightYaw
+            // на уже поправленном свете.
+            if (FindFirstObjectByType<ScenePostProcessing>() != null) return;
+
             var host = new GameObject(nameof(ScenePostProcessing));
             host.AddComponent<ScenePostProcessing>();
             DontDestroyOnLoad(host);

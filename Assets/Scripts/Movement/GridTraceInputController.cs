@@ -65,6 +65,22 @@ namespace Burmalda.Movement
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
+            // Баг с устройства (владелец, 2026-09-08): на части ROM/сценариев
+            // AfterSceneLoad-колбэк этого класса срабатывал ДВАЖДЫ за один
+            // запуск (подтверждено логом на реальном устройстве, не
+            // гипотеза) — второй вызов создавал ВТОРОЙ, независимый
+            // GridTraceInputController со своими пустыми Grid/Trail, и
+            // FindFirstObjectByType в других самобутстрапящихся классах
+            // (напр. TunnelDebugVisualController) мог вернуть именно его —
+            // тоннель сгенерирован для ПЕРВОГО экземпляра, а отрисован для
+            // ВТОРОГО, почти пустого ("видна только стартовая плитка").
+            // Этот класс — корневой якорь всей игры (все остальные системы
+            // находят его через FindFirstObjectByType), поэтому именно
+            // здесь защита обязательна, в отличие от декоративных
+            // самобутстрапов уровня RestartButton, где дубликат был бы
+            // просто лишним, а не катастрофой.
+            if (FindFirstObjectByType<GridTraceInputController>() != null) return;
+
             var host = new GameObject(nameof(GridTraceInputController));
             host.AddComponent<GridTraceInputController>();
             DontDestroyOnLoad(host);

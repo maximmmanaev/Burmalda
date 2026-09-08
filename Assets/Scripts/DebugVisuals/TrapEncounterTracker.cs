@@ -26,6 +26,11 @@ namespace Burmalda.DebugVisuals
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
+            // См. doc-комментарий GridTraceInputController.Bootstrap() —
+            // та же защита от повторного срабатывания AfterSceneLoad,
+            // подтверждённого на реальном устройстве.
+            if (FindFirstObjectByType<TrapEncounterTracker>() != null) return;
+
             var host = new GameObject(nameof(TrapEncounterTracker));
             host.AddComponent<TrapEncounterTracker>();
             DontDestroyOnLoad(host);

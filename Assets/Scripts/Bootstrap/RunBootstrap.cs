@@ -211,6 +211,14 @@ namespace Burmalda.Bootstrap
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
+            // Баг с устройства (владелец, 2026-09-08): на части ROM/сценариев
+            // AfterSceneLoad-колбэк класса может сработать больше одного
+            // раза за запуск (подтверждено на реальном устройстве для
+            // GridTraceInputController — см. её doc-комментарий Bootstrap()) —
+            // без этой защиты второй вызов создал бы второй RunBootstrap,
+            // молча переписав Instance и оставив первый как утечку.
+            if (FindFirstObjectByType<RunBootstrap>() != null) return;
+
             var host = new GameObject(nameof(RunBootstrap));
             host.AddComponent<RunBootstrap>();
             DontDestroyOnLoad(host);

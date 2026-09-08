@@ -36,6 +36,13 @@ namespace Burmalda.DebugVisuals
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
+            // См. doc-комментарий GridTraceInputController.Bootstrap() —
+            // тот же баг с устройства, тот же принцип защиты: дубликат
+            // этого класса создал бы ВТОРОЙ набор тайлов поверх первого
+            // (не так фатально, как дубликат GridTraceInputController, но
+            // всё равно мусор, раз уж защита нужна ГЛАВНОМУ якорю рядом).
+            if (FindFirstObjectByType<TunnelDebugVisualController>() != null) return;
+
             var host = new GameObject(nameof(TunnelDebugVisualController));
             host.AddComponent<TunnelDebugVisualController>();
             DontDestroyOnLoad(host);
