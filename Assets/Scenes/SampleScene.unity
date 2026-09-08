@@ -275,6 +275,10 @@ MonoBehaviour:
   _pitchDegrees: 50
   _introPitchDegrees: 85
   _introHeightOffsetZ: 0
+  _anchorViewportY: 0.46
+  _toleranceViewportFraction: 0.12
+  _backToleranceViewportFraction: 0.1
+  _softBoundaryStartFraction: 0.6
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -451,7 +455,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51b14d47db3345008241f53127a15ee6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Burmalda.Movement::Burmalda.Movement.TimedTrapController
-  _input: {fileID: 0}
 --- !u!114 &457708934
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -464,7 +467,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 259abd3f839249eebb8432ca7753b7e6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Burmalda.Movement::Burmalda.Movement.ExplosiveTrapController
-  _input: {fileID: 0}
 --- !u!114 &457708935
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -519,6 +521,7 @@ MonoBehaviour:
   _camera: {fileID: 0}
   _tileSize: 1
   _width: 5
+  _stepDurationSeconds: 0.3
 --- !u!4 &457708939
 Transform:
   m_ObjectHideFlags: 0
@@ -558,7 +561,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 832575517}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
   m_Name: 
