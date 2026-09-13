@@ -68,6 +68,7 @@ namespace Burmalda.DebugVisuals
         private readonly Transform _parent;
         private readonly Dictionary<GridCoordinate, GameObject> _tileObjects = new Dictionary<GridCoordinate, GameObject>();
         private readonly Material _templateMaterial;
+        private readonly TombEnvironmentCatalog _environmentCatalog;
         // Issue "Завести арт в игру": может быть null (ассет ещё не создан
         // Editor-скриптом/удалён) — в этом случае ApplyVisual падает
         // обратно на TileDebugColor для ВСЕХ плит, не только для None.
@@ -224,17 +225,22 @@ namespace Burmalda.DebugVisuals
         private const float BlockedObstructionRotationDegrees = 32f; // не выровнен по сетке — читается как булыжник, не как ещё одна плита
         private readonly Dictionary<GridCoordinate, GameObject> _blockedObstructions = new Dictionary<GridCoordinate, GameObject>();
 
+        // Импортированные плиты имеют pivot на верхней поверхности (Y=0),
+        // а резервный процедурный Cube — в геометрическом центре.
+        private float FloorSurfaceHeight => _environmentCatalog != null ? 0f : TileHeight * 0.5f;
+
         public TunnelDebugVisual(TunnelGrid grid, GridTraceTrail trail, WorldGridProjection projection, Transform parent)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
             _projection = projection;
             _parent = parent;
-            _templateMaterial = CreateTemplateMaterial();
+            _environmentCatalog = TombEnvironmentCatalog.Load();
+            _templateMaterial = CreateTemplateMaterial(_environmentCatalog?.SharedMaterial);
             _artCatalog = TileArtCatalog.Load();
             _crackOverlayMaterial = CreateCrackOverlayMaterial(_artCatalog?.CrackMaskTexture);
             _gateHintMaterial = CreateGateHintMaterial();
-            _wallMaterial = CreateWallMaterial();
+            _wallMaterial = CreateWallMaterial(_environmentCatalog?.SharedMaterial);
 
             if (_templateMaterial != null)
             {
@@ -345,6 +351,7 @@ namespace Burmalda.DebugVisuals
                     isDangerSignatureRevealed: tile.IsDangerSignatureRevealed,
                     bossRoomTile: tile.BossRoomTile);
 
+                UpdateFloorMesh(tileObject, coordinate, state.IsDestroyed);
                 var kind = ApplyVisual(tileObject, coordinate, state);
                 UpdateCrackOverlay(coordinate, kind, state);
                 UpdateGateDirectionHint(coordinate, tileObject, tile);
@@ -371,23 +378,23 @@ namespace Burmalda.DebugVisuals
                 _grid.TileMaterialized -= OnTileMaterialized;
 
                 foreach (var tileObject in _tileObjects.Values)
-                    UnityEngine.Object.Destroy(tileObject);
+                    DestroySafely(tileObject);
                 _tileObjects.Clear();
 
                 foreach (var overlayObject in _overlayObjects.Values)
-                    UnityEngine.Object.Destroy(overlayObject);
+                    DestroySafely(overlayObject);
                 _overlayObjects.Clear();
 
                 foreach (var hintObject in _gateDirectionHints.Values)
-                    UnityEngine.Object.Destroy(hintObject);
+                    DestroySafely(hintObject);
                 _gateDirectionHints.Clear();
 
                 foreach (var obstructionObject in _blockedObstructions.Values)
-                    UnityEngine.Object.Destroy(obstructionObject);
+                    DestroySafely(obstructionObject);
                 _blockedObstructions.Clear();
 
                 foreach (var wallObject in _wallObjects)
-                    UnityEngine.Object.Destroy(wallObject);
+                    DestroySafely(wallObject);
                 _wallObjects.Clear();
                 _wallRows.Clear();
 
@@ -395,30 +402,59 @@ namespace Burmalda.DebugVisuals
                 _collapseElapsedSeconds.Clear();
                 _previouslyDestroyed.Clear();
 
-                UnityEngine.Object.Destroy(_templateMaterial);
-                if (_crackOverlayMaterial != null) UnityEngine.Object.Destroy(_crackOverlayMaterial);
-                if (_gateHintMaterial != null) UnityEngine.Object.Destroy(_gateHintMaterial);
-                if (_wallMaterial != null) UnityEngine.Object.Destroy(_wallMaterial);
+                DestroySafely(_templateMaterial);
+                if (_crackOverlayMaterial != null) DestroySafely(_crackOverlayMaterial);
+                if (_gateHintMaterial != null) DestroySafely(_gateHintMaterial);
+                if (_wallMaterial != null) DestroySafely(_wallMaterial);
             }
 
             _disposed = true;
+        }
+
+        private static void DestroySafely(UnityEngine.Object target)
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                UnityEngine.Object.DestroyImmediate(target);
+                return;
+            }
+#endif
+            UnityEngine.Object.Destroy(target);
         }
 
         private void OnTileMaterialized(Tile tile)
         {
             if (_tileObjects.ContainsKey(tile.Coordinate)) return;
 
-            var primitive = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            primitive.name = $"DebugTile {tile.Coordinate}";
+            var floorMesh = _environmentCatalog?.ResolveFloor(tile.Coordinate, tile.IsDestroyed);
+            GameObject primitive;
+            BoxCollider boxCollider;
+            if (floorMesh != null)
+            {
+                primitive = new GameObject($"DebugTile {tile.Coordinate}");
+                primitive.AddComponent<MeshFilter>().sharedMesh = floorMesh;
+                primitive.AddComponent<MeshRenderer>();
+                boxCollider = primitive.AddComponent<BoxCollider>();
+                boxCollider.center = new Vector3(0f, -0.06f, 0f);
+                boxCollider.size = new Vector3(1f, 0.12f, 1f);
+            }
+            else
+            {
+                primitive = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                primitive.name = $"DebugTile {tile.Coordinate}";
+                boxCollider = primitive.GetComponent<BoxCollider>();
+            }
+
             primitive.transform.SetParent(_parent, worldPositionStays: false);
             primitive.transform.position = _projection.ToWorldPosition(tile.Coordinate);
-            primitive.transform.localScale = new Vector3(
-                _projection.TileSize * TileScale,
-                TileHeight,
-                _projection.TileSize * TileScale);
+            primitive.transform.localScale = floorMesh != null
+                ? new Vector3(_projection.TileSize, 1f, _projection.TileSize)
+                : new Vector3(_projection.TileSize * TileScale, TileHeight, _projection.TileSize * TileScale);
 
-            // Тап должен физически попадать в эту плитку (см. TileVisualMarker) —
-            // CreatePrimitive(Cube) уже даёт BoxCollider, отдельно добавлять не нужно.
+            // Тап должен физически попадать в эту плитку (см. TileVisualMarker).
+            // У FBX коллайдер добавляется явно; fallback Cube уже содержит свой.
+            if (boxCollider == null) throw new InvalidOperationException("Tile BoxCollider was not created.");
             primitive.AddComponent<TileVisualMarker>().Initialize(tile.Coordinate);
 
             var renderer = primitive.GetComponent<Renderer>();
@@ -435,6 +471,15 @@ namespace Burmalda.DebugVisuals
 
             CreateCrackOverlayObject(tile.Coordinate, primitive.transform.position);
             CreateWallSegmentsForRow(tile.Coordinate.Row);
+        }
+
+        private void UpdateFloorMesh(GameObject tileObject, GridCoordinate coordinate, bool isDestroyed)
+        {
+            if (_environmentCatalog == null) return;
+            var meshFilter = tileObject.GetComponent<MeshFilter>();
+            var expectedMesh = _environmentCatalog.ResolveFloor(coordinate, isDestroyed);
+            if (meshFilter != null && expectedMesh != null && meshFilter.sharedMesh != expectedMesh)
+                meshFilter.sharedMesh = expectedMesh;
         }
 
         // Задача «разрушение плиты»: небольшой зазор над верхней гранью
@@ -472,13 +517,14 @@ namespace Burmalda.DebugVisuals
             overlay.AddComponent<MeshRenderer>();
 
             overlay.transform.SetParent(_parent, worldPositionStays: false);
-            overlay.transform.position = tileWorldPosition + new Vector3(0f, TileHeight * 0.5f + CrackOverlayHeightOffset, 0f);
+            overlay.transform.position = tileWorldPosition + new Vector3(0f, FloorSurfaceHeight + CrackOverlayHeightOffset, 0f);
             // Фиксированный поворот, без учёта случайного 0/90/180/270°
             // Fresh-варианта (PickFreshVariant) — маска трещин не несёт
             // читаемого "верха" как иконки (ключ/Мана/т.п.), согласовывать
             // её поворот с полом не требуется для читаемости.
             overlay.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            overlay.transform.localScale = new Vector3(_projection.TileSize * TileScale, _projection.TileSize * TileScale, 1f);
+            var overlayScale = _environmentCatalog != null ? 1f : TileScale;
+            overlay.transform.localScale = new Vector3(_projection.TileSize * overlayScale, _projection.TileSize * overlayScale, 1f);
 
             var overlayRenderer = overlay.GetComponent<Renderer>();
             if (overlayRenderer != null) overlayRenderer.sharedMaterial = _crackOverlayMaterial;
@@ -854,7 +900,7 @@ namespace Burmalda.DebugVisuals
             // вырожденного вектора на случай будущих изменений генерации.
             if (direction.sqrMagnitude < 0.0001f) direction = Vector3.forward;
 
-            hint.transform.position = gateWorldPosition + Vector3.up * (TileHeight * 0.5f + GateHintHeightOffset);
+            hint.transform.position = gateWorldPosition + Vector3.up * (FloorSurfaceHeight + GateHintHeightOffset);
             hint.transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
             hint.transform.localScale = new Vector3(
                 _projection.TileSize * GateHintThickness,
@@ -911,7 +957,7 @@ namespace Burmalda.DebugVisuals
         {
             var obstruction = new GameObject($"DebugBlockedObstruction {coordinate}");
             obstruction.transform.SetParent(_parent, worldPositionStays: false);
-            obstruction.transform.position = tileWorldPosition + Vector3.up * (TileHeight * 0.5f + BlockedObstructionHeight * 0.5f);
+            obstruction.transform.position = tileWorldPosition + Vector3.up * (FloorSurfaceHeight + BlockedObstructionHeight * 0.5f);
             // Не выровнен по осям сетки — читается как обломок камня, а не
             // ещё одна аккуратная плита пола (та же логика, что у соседних
             // процедурных объектов этого класса — без арт-ассета, но не
@@ -966,6 +1012,23 @@ namespace Burmalda.DebugVisuals
             var centerZ = (row + 0.5f) * tileSize;
             var thickness = WallThicknessShare * tileSize;
 
+            if (_environmentCatalog?.WallStraight != null)
+            {
+                _wallObjects.Add(CreateStructureMesh(
+                    $"DebugWallLeft row{row}",
+                    _environmentCatalog.WallStraight,
+                    new Vector3(-halfWidth, 0f, centerZ),
+                    Quaternion.Euler(0f, 90f, 0f),
+                    new Vector3(tileSize, 1f, tileSize)));
+                _wallObjects.Add(CreateStructureMesh(
+                    $"DebugWallRight row{row}",
+                    _environmentCatalog.WallStraight,
+                    new Vector3(halfWidth, 0f, centerZ),
+                    Quaternion.Euler(0f, 90f, 0f),
+                    new Vector3(tileSize, 1f, tileSize)));
+                return;
+            }
+
             _wallObjects.Add(CreateStructureCube(
                 $"DebugWallLeft row{row}",
                 new Vector3(-halfWidth, WallHeight * 0.5f, centerZ),
@@ -974,6 +1037,18 @@ namespace Burmalda.DebugVisuals
                 $"DebugWallRight row{row}",
                 new Vector3(halfWidth, WallHeight * 0.5f, centerZ),
                 new Vector3(thickness, WallHeight, tileSize)));
+        }
+
+        private GameObject CreateStructureMesh(string name, Mesh mesh, Vector3 position, Quaternion rotation, Vector3 scale)
+        {
+            var structure = new GameObject(name);
+            structure.transform.SetParent(_parent, worldPositionStays: false);
+            structure.transform.position = position;
+            structure.transform.rotation = rotation;
+            structure.transform.localScale = scale;
+            structure.AddComponent<MeshFilter>().sharedMesh = mesh;
+            structure.AddComponent<MeshRenderer>().sharedMaterial = _wallMaterial;
+            return structure;
         }
 
         // Тот же приём, что подсказка направления на Ворота — переиспользует
@@ -990,17 +1065,18 @@ namespace Burmalda.DebugVisuals
             return structure;
         }
 
-        private static Material CreateWallMaterial()
+        private static Material CreateWallMaterial(Material source)
         {
-            var material = CreateTemplateMaterial();
+            var material = CreateTemplateMaterial(source);
             if (material == null) return null;
 
-            material.color = WallColor;
+            if (source == null) material.color = WallColor;
             return material;
         }
 
-        private static Material CreateTemplateMaterial()
+        private static Material CreateTemplateMaterial(Material source = null)
         {
+            if (source != null) return new Material(source);
             var shader = Shader.Find("Universal Render Pipeline/Lit")
                 ?? Shader.Find("Standard")
                 ?? Shader.Find("Unlit/Color");
