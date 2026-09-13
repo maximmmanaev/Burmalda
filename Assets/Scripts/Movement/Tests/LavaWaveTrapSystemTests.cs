@@ -224,5 +224,76 @@ namespace Burmalda.Movement.Tests
 
             Assert.IsTrue(IsRowUntouched(grid, 5));
         }
+
+        // issue #249 (владелец, плейтест после Комнаты Босса): "лава заливает
+        // ряд игрока". При разборе выяснилось, что сама волна свой инвариант
+        // не нарушает (см. Tick_PlayerStillOnTriggerRow_... выше) — реальный
+        // путь другой: Алтарь — постоянный чекпоинт для d20-Knockback
+        // (RunState.ResolveHazard/GridTraceTrail.TeleportTo), но волна ничего
+        // не знает про Tile.IsAltar и просто перезаписывает его в LavaWave,
+        // как и любую другую плиту в своём диапазоне — Tile.TransitionToLethalTrap
+        // намеренно пишет поверх ЛЮБОЙ прежней роли (см. её doc-комментарий).
+        [Test]
+        public void Tick_RowContainsAltar_NeverConvertsAltarTile_OnlyOtherColumns()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(6, 2);
+            grid.GetOrCreateTile(trigger).MarkLavaTrigger();
+
+            // Ряд 3 — один из шести залитых волной (6,5,4,3,2,1) — Алтарь на нём.
+            var altarCoordinate = new GridCoordinate(3, 0);
+            grid.GetOrCreateTile(altarCoordinate).MarkAltar();
+
+            using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
+            WalkForwardTo(trail, 0, 7, 2); // за пределы триггера — волна вправе конвертировать весь свой диапазон
+
+            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick();
+
+            Assert.IsFalse(grid.GetOrCreateTile(altarCoordinate).LethalTrap.HasValue,
+                "Алтарь — постоянный чекпоинт для Knockback (PRD 9), волна не имеет права превращать его в лаву");
+            Assert.IsTrue(grid.GetOrCreateTile(altarCoordinate).IsAltar, "роль Алтаря должна сохраниться");
+
+            // Защищается ТОЛЬКО сама плита Алтаря — остальные столбцы того же ряда всё равно становятся лавой как обычно.
+            for (var column = 1; column < Width; column++)
+                Assert.AreEqual(LethalTrapType.LavaWave, grid.GetOrCreateTile(new GridCoordinate(3, column)).LethalTrap,
+                    $"столбец {column} ряда 3 не связан с Алтарём и должен был стать лавой как обычно");
+        }
+
+        // Сценарий из issue #249 — Алтарь, который PRD-капстон
+        // (Generation.SegmentRowProvider.EnsureCoveredThrough) всегда ставит
+        // непосредственно перед входом в Комнату Босса. Если рядом (в
+        // пределах MaxRows) сработает триггер Лавы — например, содержимое,
+        // "просочившееся" в первые ряды Комнаты до того, как
+        // BossRoomGenerator успел заявить их себе (см. её doc-комментарий про
+        // HasForeignRole) — волна не должна суметь дотянуться до этого
+        // Алтаря, иначе следующий же Knockback телепортирует игрока прямо в
+        // лаву (GridTraceTrail.TeleportTo цель не проверяет).
+        [Test]
+        public void Tick_AltarPrecedingBossRoomEntry_SurvivesNearbyLavaWave_RemainsSafeTeleportDestination()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+
+            var altarCoordinate = new GridCoordinate(2, 2); // Алтарь капстона перед Комнатой
+            grid.GetOrCreateTile(altarCoordinate).MarkAltar();
+
+            grid.GetOrCreateTile(new GridCoordinate(8, 2)).MarkBoss(); // вход в Комнату Босса
+
+            // Триггер Лавы в первых рядах Комнаты, в пределах MaxRows от Алтаря.
+            var trigger = new GridCoordinate(6, 2);
+            grid.GetOrCreateTile(trigger).MarkLavaTrigger();
+
+            using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
+            WalkForwardTo(trail, 0, 9, 2);
+
+            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick();
+
+            Assert.IsFalse(grid.GetOrCreateTile(altarCoordinate).LethalTrap.HasValue,
+                "Алтарь перед Комнатой Босса не должен сгорать от постороннего триггера Лавы внутри/рядом с Комнатой");
+
+            // Симулируем сам Knockback (RunState.ResolveHazard) — телепорт на Алтарь обязан оставаться безопасным.
+            trail.TeleportTo(altarCoordinate);
+            Assert.IsFalse(grid.GetOrCreateTile(trail.CurrentPosition).LethalTrap.HasValue,
+                "Knockback не должен ставить игрока на горящую плиту");
+        }
     }
 }
