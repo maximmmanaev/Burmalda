@@ -102,10 +102,33 @@ namespace Burmalda.Movement.Tests
             var bomb = (BombTrapSystem)GetPrivateField(_controller, "_bomb");
             Assert.IsFalse(_input.Grid.GetOrCreateTile(trigger).LethalTrap.HasValue, "взрыв ещё не должен был произойти — задержка не истекла");
 
-            bomb.Tick(BombTrapSystem.DelaySeconds);
+            bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0)); // Controller не задаёт CurrentTierProvider в этом тесте — Ярус 0
 
             Assert.AreEqual(Core.LethalTrapType.BombBlast, _input.Grid.GetOrCreateTile(trigger).LethalTrap,
                 "система, построенная самолечением Update(), обязана реально сработать на настоящей сетке забега");
+        }
+
+        // Issue #260: композиционный корень (RunBootstrap) присваивает
+        // CurrentTierProvider ДО того, как Rebuild() успевает построить
+        // BombTrapSystem (см. RunBootstrap.EnsureControllersWired) — этот
+        // тест подтверждает, что значение реально доходит до
+        // BombTrapSystem.ComputeDelaySeconds, а не молча игнорируется.
+        [Test]
+        public void CurrentTierProvider_SetBeforeRebuild_ShortensBombDelay()
+        {
+            SetUpReproducingRealBootstrapRace();
+            _controller.CurrentTierProvider = () => 10;
+            InvokePrivate(_controller, "Update"); // самолечение — строит системы с уже установленным провайдером
+
+            var trigger = new Core.GridCoordinate(1, _input.Grid.Width / 2);
+            _input.Grid.GetOrCreateTile(trigger).MarkBombTrigger();
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger));
+
+            var bomb = (BombTrapSystem)GetPrivateField(_controller, "_bomb");
+            bomb.Tick(BombTrapSystem.ComputeDelaySeconds(10));
+
+            Assert.IsTrue(_input.Grid.GetOrCreateTile(trigger).IsBombCollapsed,
+                "на Ярусе 10 задержка обязана была истечь за ComputeDelaySeconds(10) секунд — если бы CurrentTierProvider не дошёл до BombTrapSystem, реальная задержка осталась бы ComputeDelaySeconds(0) (дольше), и взрыв бы ещё не произошёл");
         }
 
         [Test]
