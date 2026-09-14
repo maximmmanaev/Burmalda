@@ -62,6 +62,23 @@ namespace Burmalda.DebugVisuals
         /// </summary>
         public static readonly Color BossArtTint = new Color(1f, 150f / 255f, 90f / 255f);
 
+        /// <summary>
+        /// Issue #260 («плитки квадрата 3×3 Бомбы должны мигать, пока идёт
+        /// отсчёт»): пиковый цвет пульсации поверх <see cref="TileArtKind.BombWarning"/>
+        /// (та же тёплая тревожная гамма, что <see cref="TileDebugColor.LavaColor"/>) —
+        /// тон колеблется между <c>Color.white</c> (текстура как есть) и этим
+        /// цветом по синусу от <see cref="_elapsedSeconds"/>, тот же приём
+        /// пульсации по фазе, что уже применяется для оверлея трещин
+        /// (см. <see cref="UpdateCrackOverlay"/>) — не отдельный новый паттерн.
+        /// </summary>
+        public static readonly Color BombWarningPulseTint = new Color(1f, 80f / 255f, 20f / 255f);
+
+        // Частота мигания — чисто анимационная "ощущалка", не баланс (в
+        // отличие от BombTrapSystem.BaseDelaySeconds и т.п.) — не вынесена в
+        // дебаг-панель, тот же статус, что у CollapseTiltMinDegrees и
+        // подобных чисто визуальных констант этого класса.
+        private const float BombWarningPulseHz = 4f;
+
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private readonly WorldGridProjection _projection;
@@ -123,6 +140,10 @@ namespace Burmalda.DebugVisuals
 
         private readonly Dictionary<GridCoordinate, CollapseState> _collapseStates = new Dictionary<GridCoordinate, CollapseState>();
         private readonly Dictionary<GridCoordinate, float> _collapseElapsedSeconds = new Dictionary<GridCoordinate, float>();
+        // Название не переименовано вслед за issue #260 (тот же "уже
+        // провалился" трекинг теперь покрывает и IsBombCollapsed, не только
+        // IsDestroyed, см. её использование в Tick()) — переименование ради
+        // одной задачи расширило бы diff без функциональной пользы.
         private readonly HashSet<GridCoordinate> _previouslyDestroyed = new HashSet<GridCoordinate>();
 
         // Накопленное время — только для непрерывной визуальной пульсации
@@ -349,15 +370,22 @@ namespace Burmalda.DebugVisuals
                     isLeverGateOpen: tile.IsLeverGateOpen,
                     isAltar: tile.IsAltar,
                     isDangerSignatureRevealed: tile.IsDangerSignatureRevealed,
-                    bossRoomTile: tile.BossRoomTile);
+                    bossRoomTile: tile.BossRoomTile,
+                    isBombWarningActive: tile.IsBombWarningActive,
+                    isBombCollapsed: tile.IsBombCollapsed);
 
-                UpdateFloorMesh(tileObject, coordinate, state.IsDestroyed);
+                // Issue #260: дыра от Бомбы — тот же провальный пол/анимация
+                // обвала, что и распад (см. doc-комментарий TileArtKind.BombHole) —
+                // те же вызовы, объединённое условие, а не отдельная копия
+                // веток ниже под IsBombCollapsed.
+                var isDestroyedOrCollapsed = state.IsDestroyed || state.IsBombCollapsed;
+                UpdateFloorMesh(tileObject, coordinate, isDestroyedOrCollapsed);
                 var kind = ApplyVisual(tileObject, coordinate, state);
                 UpdateCrackOverlay(coordinate, kind, state);
                 UpdateGateDirectionHint(coordinate, tileObject, tile);
                 UpdateBlockedObstruction(coordinate, tileObject, state);
 
-                if (state.IsDestroyed && !_previouslyDestroyed.Contains(coordinate))
+                if (isDestroyedOrCollapsed && !_previouslyDestroyed.Contains(coordinate))
                 {
                     _previouslyDestroyed.Add(coordinate);
                     TriggerCollapse(coordinate, tileObject);
@@ -775,7 +803,9 @@ namespace Burmalda.DebugVisuals
                 // Босс переиспользует текстуру Алтаря, но не её белый тон —
                 // см. doc-комментарий BossArtTint. Единственное исключение
                 // из "текстура показывается как есть" в этом методе.
-                var textureTint = kind == TileArtKind.Boss ? BossArtTint : Color.white;
+                var textureTint = kind == TileArtKind.Boss ? BossArtTint
+                    : kind == TileArtKind.BombWarning ? ComputeBombWarningPulseTint()
+                    : Color.white;
                 _propertyBlock.SetTexture(BaseMapId, texture);
                 _propertyBlock.SetTexture(MainTexId, texture);
                 _propertyBlock.SetColor(BaseColorId, textureTint);
@@ -794,6 +824,13 @@ namespace Burmalda.DebugVisuals
 
             renderer.SetPropertyBlock(_propertyBlock);
             return kind;
+        }
+
+        /// <summary>Issue #260 — см. <see cref="BombWarningPulseTint"/>. Синус 0..1 по <see cref="_elapsedSeconds"/>, лерп белый→тревожный тон.</summary>
+        private Color ComputeBombWarningPulseTint()
+        {
+            var phase01 = Mathf.Sin(_elapsedSeconds * BombWarningPulseHz * Mathf.PI * 2f) * 0.5f + 0.5f;
+            return Color.Lerp(Color.white, BombWarningPulseTint, phase01);
         }
 
         /// <summary>
@@ -933,7 +970,12 @@ namespace Burmalda.DebugVisuals
         {
             if (_wallMaterial == null) return;
 
-            if (!state.IsBlocked)
+            // Issue #260: дыра от Бомбы физически Blocked (непроходима), но
+            // визуально это провал В полу, не обломок камня НАД полом — не
+            // должна получать тот же "булыжник", что обычные стены/Падающий
+            // камень (issue #217). Текстура/анимация обвала уже несут всю
+            // визуальную нагрузку "здесь нельзя пройти" для этой плиты.
+            if (!state.IsBlocked || state.IsBombCollapsed)
             {
                 // Плита перестала бы быть Blocked только при полном
                 // пересборе сетки нового забега (Dispose очищает всё) — ни
