@@ -1720,3 +1720,31 @@ Test-first: `TrapRevealFeedbackTests` (сравнение с прежними з
 (обычная/опасная/скрытая/источник валюты плитки, включая сквозной тест
 через реальное событие `PositionChanged` и повторный шаг на уже
 посещённую плитку). Полный EditMode: **1228/1228**.
+## 2026-09-14 — [ВРЕМЕННО] уведомление о смерти для ручного теста (issue #266)
+
+**⚠️ Временное решение — удаляется целиком при появлении полноценного экрана
+Game Over с кнопкой Restart** (какой бы issue его ни описывал — задача
+ссылалась на #11, но это другая, закрытая задача — система множителя
+добычи, не связана со смертью; проверено явно, полноценного экрана Game
+Over в проекте нет нигде).
+
+Причина: `RunLifecycle.RunController.OnDied` только запоминал причину и
+блокировал ввод (`GridTraceInputController.MarkDead`) — полностью
+невидимо для игрока/тестировщика, экран просто переставал реагировать,
+неотличимо от зависания.
+
+Новый `DebugVisuals.DeathNotificationOverlay` — полноэкранный оверлей
+("ВЫ ПОГИБЛИ" + причина смерти) на `RunState.Died`, БЕЗ кнопки Restart
+(уже есть отдельная всегда видимая `RestartButton`) и без интеграции с
+экономикой/статистикой — то и другое в скоупе будущего полноценного
+экрана. Тот же паттерн самобутстрапа/переподписки при рестарте, что
+`PickupFeedback`/`StepClickController`.
+
+Test-first: новый `DeathNotificationOverlayTests` — уведомление появляется
+на `Died` (roll=5, Death), НЕ появляется на исход Fortune (roll=20),
+сообщение содержит причину смерти; собирает ту же топологию, что
+`CoreLoopIntegrationTests.SetUp` (`GridTraceInputController`+
+`TrailDecayController`+`RunController` на одном GameObject).
+`Burmalda.DebugVisuals.Tests.asmdef` получил новую ссылку на
+`Burmalda.Decay` (нужна для `TrailDecayController` в тесте). Полный
+EditMode: **1218/1218**.
