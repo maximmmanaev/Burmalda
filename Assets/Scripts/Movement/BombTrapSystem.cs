@@ -14,29 +14,41 @@ namespace Burmalda.Movement
     /// 2026-09-05 («оставить только пять новых ловушек»). C#-идентификатор
     /// этой ловушки — <see cref="LethalTrapType.BombBlast"/>.
     ///
-    /// Построена на <see cref="TurnBasedThreatScheduler"/> (issue #212, свой
-    /// экземпляр на систему): проход трейла через плиту-триггер
-    /// (<see cref="Tile.IsBombTrigger"/>) запускает отсчёт. Через
-    /// <see cref="DelayTicks"/> ходов площадь <see cref="RadiusTiles"/>
-    /// вокруг триггера (по умолчанию радиус 1 — квадрат 3×3, восемь соседей
-    /// плюс сама плита-триггер, обрезанный по границе сетки) становится
-    /// смертельной ОДНОМОМЕНТНО — одним циклом <see cref="Tile.TransitionToLethalTrap"/>
-    /// внутри одного вызова <see cref="Tick"/>, не по очереди, как у Стрелы
-    /// (<see cref="ArrowWaveTrapSystem"/>). Через <see cref="ExplosionDurationTicks"/>
-    /// ходов ПОСЛЕ взрыва площадь возвращается в обычное состояние
-    /// (<see cref="Tile.ClearLethalTrap"/>) — владелец прямым текстом:
-    /// «плиты не разрушаются... дыры — отдельное решение, не реализовывать
-    /// без явного запроса».
+    /// <b>Реальное время, не ходы (владелец, 2026-09-14, issue #254 —
+    /// исправлено после первого раунда: «ловушки в такт шагам это ошибка,
+    /// никаких ловушек в такт быть не должно, только тайминги»).</b> Раньше
+    /// (и в первом варианте issue #254) эта система оставалась на тактах
+    /// ходов, потому что задержка до одномоментного взрыва казалась
+    /// принципиально другой сущностью, чем движение волны — но живой
+    /// плейтест показал тот же класс проблемы, что и у волн: если игрок
+    /// наводится на раскрытый триггер, отпускает — и просто стоит,
+    /// разглядывая — отсчёт до взрыва не идёт вообще, потому что тикался
+    /// только на ЕГО ходы. Теперь построена на <see cref="RealTimeThreatScheduler"/> —
+    /// отсчёт идёт реальными секундами независимо от того, движется игрок
+    /// или нет.
     ///
-    /// <b>Владелец НЕ указал явно, сколько ходов площадь остаётся смертельной
-    /// после взрыва до возврата в обычное состояние</b> (docs/wiki/traps.md
-    /// говорит только "через 2 хода после активации... становятся
-    /// смертельными одномоментно" и отдельно "после взрыва плиты
+    /// Проход трейла через плиту-триггер (<see cref="Tile.IsBombTrigger"/>)
+    /// запускает отсчёт. Через <see cref="DelaySeconds"/> секунд площадь
+    /// <see cref="RadiusTiles"/> вокруг триггера (по умолчанию радиус 1 —
+    /// квадрат 3×3, восемь соседей плюс сама плита-триггер, обрезанный по
+    /// границе сетки) становится смертельной ОДНОМОМЕНТНО — одним циклом
+    /// <see cref="Tile.TransitionToLethalTrap"/> внутри одного вызова
+    /// <see cref="Tick"/>, не по очереди, как у Стрелы
+    /// (<see cref="ArrowWaveTrapSystem"/>). Через
+    /// <see cref="ExplosionDurationSeconds"/> секунд ПОСЛЕ взрыва площадь
+    /// возвращается в обычное состояние (<see cref="Tile.ClearLethalTrap"/>) —
+    /// владелец прямым текстом: «плиты не разрушаются... дыры — отдельное
+    /// решение, не реализовывать без явного запроса».
+    ///
+    /// <b>Владелец НЕ указал явно, сколько времени площадь остаётся
+    /// смертельной после взрыва до возврата в обычное состояние</b>
+    /// (docs/wiki/traps.md говорит только "через 2 хода после активации...
+    /// становятся смертельными одномоментно" и отдельно "после взрыва плиты
     /// возвращаются в обычное состояние", без числа между этими двумя
-    /// моментами). <see cref="ExplosionDurationTicks"/> = 1 — минимальный
-    /// осмысленный дефолт (меньше 1 хода означает "никогда фактически не
-    /// опасна"), задокументирован здесь как предположение агента, а не
-    /// решение владельца, mutable static — владелец меняет без правки кода.
+    /// моментами). <see cref="ExplosionDurationSeconds"/> — минимальный
+    /// осмысленный дефолт (см. её значение ниже), задокументирован здесь
+    /// как предположение агента, а не решение владельца, mutable static —
+    /// владелец меняет без правки кода.
     ///
     /// <b>Не решает</b>: что происходит, если игрок стоит НА триггере (или
     /// соседней плите) в момент, когда таймер истекает и площадь становится
@@ -56,15 +68,18 @@ namespace Burmalda.Movement
     /// </summary>
     public sealed class BombTrapSystem : IDisposable
     {
-        // "Через 2 хода" — прямое требование владельца. Балансное число,
-        // mutable static, не const — дебаг-панель (issue #214, критерий приёмки).
-        public static int DelayTicks = 2;
+        // "Через 2 хода" в исходной спецификации ходов — переведено в
+        // секунды тем же ориентиром, что и остальные (0.3с ≈ 1 ход,
+        // docs/wiki/traps.md), issue #254. Балансное число, mutable static,
+        // не const — дебаг-панель (критерий приёмки).
+        public static float DelaySeconds = 0.6f;
 
-        // "Радиус 1 (квадрат 3×3)" — прямое требование владельца.
+        // "Радиус 1 (квадрат 3×3)" — прямое требование владельца. Не
+        // единица времени — не меняется задачей #254.
         public static int RadiusTiles = 1;
 
         // Не задано владельцем явно — см. doc-комментарий класса.
-        public static int ExplosionDurationTicks = 1;
+        public static float ExplosionDurationSeconds = 0.3f;
 
         private sealed class PendingExplosion
         {
@@ -74,7 +89,7 @@ namespace Burmalda.Movement
 
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
-        private readonly TurnBasedThreatScheduler _scheduler;
+        private readonly RealTimeThreatScheduler _scheduler;
         private readonly HashSet<GridCoordinate> _firedTriggers = new HashSet<GridCoordinate>();
 
         // Ключ — координата триггера: вся площадь взрыва арится/снимается
@@ -86,7 +101,7 @@ namespace Burmalda.Movement
 
         private bool _disposed;
 
-        public BombTrapSystem(TunnelGrid grid, GridTraceTrail trail, TurnBasedThreatScheduler scheduler)
+        public BombTrapSystem(TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
@@ -95,8 +110,8 @@ namespace Burmalda.Movement
             _scheduler.TileDue += OnTileDue;
         }
 
-        /// <summary>Продвигает планировщик на 1 ход — вызывать явно на каждый ход игрока (см. doc-комментарий класса).</summary>
-        public void Tick() => _scheduler.Tick();
+        /// <summary>Продвигает планировщик на <paramref name="deltaSeconds"/> реального времени — вызывать явно из Update() (см. doc-комментарий класса).</summary>
+        public void Tick(float deltaSeconds) => _scheduler.Tick(deltaSeconds);
 
         /// <summary>Отписывается от трейла и планировщика. Вызывать при завершении забега/уничтожении системы.</summary>
         public void Dispose()
@@ -115,7 +130,7 @@ namespace Burmalda.Movement
 
             var explosion = new PendingExplosion { Trigger = coordinate, IsArmed = false };
             _waitingExplosions[coordinate] = explosion;
-            _scheduler.ScheduleActivation(coordinate, DelayTicks);
+            _scheduler.ScheduleActivation(coordinate, DelaySeconds);
         }
 
         private void OnTileDue(GridCoordinate coordinate)
@@ -133,7 +148,7 @@ namespace Burmalda.Movement
 
                 explosion.IsArmed = true;
                 _waitingExplosions[coordinate] = explosion; // тот же ключ — повторная независимая регистрация, запись выше уже удалена
-                _scheduler.ScheduleActivation(coordinate, ExplosionDurationTicks);
+                _scheduler.ScheduleActivation(coordinate, ExplosionDurationSeconds);
             }
             else
             {

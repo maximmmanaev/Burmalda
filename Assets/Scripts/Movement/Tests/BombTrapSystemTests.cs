@@ -7,11 +7,11 @@ namespace Burmalda.Movement.Tests
     {
         private const int Width = 5;
 
-        private static (TunnelGrid grid, GridTraceTrail trail, TurnBasedThreatScheduler scheduler) CreateTrail(GridCoordinate start)
+        private static (TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler) CreateTrail(GridCoordinate start)
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, start);
-            var scheduler = new TurnBasedThreatScheduler();
+            var scheduler = new RealTimeThreatScheduler();
             return (grid, trail, scheduler);
         }
 
@@ -39,7 +39,7 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(trigger);
 
-            bomb.Tick(); // 1 ход из 2 — рано
+            bomb.Tick(BombTrapSystem.DelaySeconds / 2); // половина задержки — рано
 
             Assert.IsFalse(grid.GetOrCreateTile(trigger).LethalTrap.HasValue);
         }
@@ -54,8 +54,7 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(trigger);
 
-            bomb.Tick();
-            bomb.Tick(); // ровно 2 хода — активация
+            bomb.Tick(BombTrapSystem.DelaySeconds); // ровно вся задержка — активация
 
             var armedCount = 0;
             for (var row = 1; row <= 3; row++)
@@ -79,8 +78,7 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(trigger);
 
-            bomb.Tick();
-            bomb.Tick();
+            bomb.Tick(BombTrapSystem.DelaySeconds);
 
             Assert.IsFalse(farTile.LethalTrap.HasValue);
         }
@@ -97,8 +95,7 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(new GridCoordinate(1, 0));
             trail.TryAdvanceTo(trigger);
 
-            bomb.Tick();
-            bomb.Tick();
+            bomb.Tick(BombTrapSystem.DelaySeconds);
 
             var armedCount = 0;
             for (var row = 1; row <= 3; row++)
@@ -119,10 +116,9 @@ namespace Burmalda.Movement.Tests
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(trigger);
-            bomb.Tick();
-            bomb.Tick(); // взрыв
+            bomb.Tick(BombTrapSystem.DelaySeconds); // взрыв
 
-            bomb.Tick(); // ExplosionDurationTicks = 1 — снятие
+            bomb.Tick(BombTrapSystem.ExplosionDurationSeconds); // снятие
 
             for (var row = 1; row <= 3; row++)
             for (var column = 1; column <= 3; column++)
@@ -142,14 +138,12 @@ namespace Burmalda.Movement.Tests
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(trigger);
-            bomb.Tick();
-            bomb.Tick();
-            bomb.Tick(); // первая бомба полностью отработала
+            bomb.Tick(BombTrapSystem.DelaySeconds);
+            bomb.Tick(BombTrapSystem.ExplosionDurationSeconds); // первая бомба полностью отработала
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2)); // назад
             trail.TryAdvanceTo(trigger); // повторно на триггер
-            bomb.Tick();
-            bomb.Tick();
+            bomb.Tick(BombTrapSystem.DelaySeconds);
 
             Assert.IsFalse(grid.GetOrCreateTile(trigger).LethalTrap.HasValue, "триггер одноразовый — повторный проход не должен запустить вторую бомбу");
         }
@@ -165,10 +159,30 @@ namespace Burmalda.Movement.Tests
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(trigger);
-            bomb.Tick();
-            bomb.Tick();
+            bomb.Tick(BombTrapSystem.DelaySeconds);
 
             Assert.IsFalse(grid.GetOrCreateTile(trigger).LethalTrap.HasValue);
+        }
+
+        // issue #254, второй раунд (владелец: «ловушки в такт шагам это
+        // ошибка, никаких ловушек в такт быть не должно, только тайминги»):
+        // игрок наводится на триггер, встаёт на него и дальше СТОИТ на
+        // месте — взрыв обязан всё равно произойти по одному только
+        // реальному времени, без единого дополнительного хода.
+        [Test]
+        public void Tick_PlayerStandsStillOnTrigger_ExplosionStillHappensOnRealTimeAlone()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkBombTrigger();
+            using var bomb = new BombTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            trail.TryAdvanceTo(trigger); // последний ход за весь тест
+
+            bomb.Tick(BombTrapSystem.DelaySeconds);
+
+            Assert.AreEqual(LethalTrapType.BombBlast, grid.GetOrCreateTile(trigger).LethalTrap,
+                "взрыв обязан был произойти по накопленному реальному времени без единого дополнительного хода игрока");
         }
     }
 }
