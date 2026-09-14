@@ -4,8 +4,11 @@ using NUnit.Framework;
 
 namespace Burmalda.Movement.Tests
 {
-    // Зеркало TurnBasedThreatSchedulerTests — та же спецификация, но
-    // единица времени секунды, а не ходы (issue #254).
+    // Единственный планировщик отложенных угроз в проекте — тактовый
+    // TurnBasedThreatScheduler (issue #212) удалён целиком вторым раундом
+    // issue #254 (владелец: «никаких ловушек в такт быть не должно, только
+    // тайминги»), эти тесты — его спецификация, что и была у удалённого
+    // класса, но единица времени секунды, а не ходы.
     public class RealTimeThreatSchedulerTests
     {
         [Test]
