@@ -538,5 +538,59 @@ namespace Burmalda.Movement.Tests
 
             Assert.Throws<System.ArgumentOutOfRangeException>(() => trail.TeleportTo(new GridCoordinate(0, 99)));
         }
+
+        // Issue #260 («Бомба взрывается мгновенно...» — заодно закрывает
+        // «что если игрок стоит на плите, когда она становится смертельной
+        // не по новому ходу», см. doc-комментарий метода).
+        [Test]
+        public void CheckCurrentPositionForLethalTrap_CurrentTileHasNoLethalTrap_DoesNotFire()
+        {
+            var trail = CreateTrail(new GridCoordinate(0, 2));
+            var fired = false;
+            trail.LethalTrapTriggered += (_, _) => fired = true;
+
+            trail.CheckCurrentPositionForLethalTrap();
+
+            Assert.IsFalse(fired);
+        }
+
+        [Test]
+        public void CheckCurrentPositionForLethalTrap_CurrentTileBecameLethalWithoutAMove_FiresLethalTrapTriggeredWithCoordinateAndType()
+        {
+            var grid = new TunnelGrid(5);
+            var start = new GridCoordinate(0, 2);
+            var trail = new GridTraceTrail(grid, start);
+            // Симулирует внешнюю систему (BombTrapSystem), которая делает
+            // плиту под уже стоящим на ней игроком смертельной ПОСТФАКТУМ,
+            // не через TryAdvanceTo.
+            grid.GetOrCreateTile(start).TransitionToLethalTrap(LethalTrapType.BombBlast);
+            GridCoordinate? firedCoordinate = null;
+            LethalTrapType? firedType = null;
+            trail.LethalTrapTriggered += (coordinate, type) =>
+            {
+                firedCoordinate = coordinate;
+                firedType = type;
+            };
+
+            trail.CheckCurrentPositionForLethalTrap();
+
+            Assert.AreEqual(start, firedCoordinate);
+            Assert.AreEqual(LethalTrapType.BombBlast, firedType);
+        }
+
+        [Test]
+        public void CheckCurrentPositionForLethalTrap_OnlyOtherTileBecameLethal_DoesNotFire()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var otherTile = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(otherTile).TransitionToLethalTrap(LethalTrapType.BombBlast);
+            var fired = false;
+            trail.LethalTrapTriggered += (_, _) => fired = true;
+
+            trail.CheckCurrentPositionForLethalTrap();
+
+            Assert.IsFalse(fired, "проверяется только CurrentPosition, не произвольная плита");
+        }
     }
 }
