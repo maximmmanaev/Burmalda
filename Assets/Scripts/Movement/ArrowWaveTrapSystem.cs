@@ -40,6 +40,15 @@ namespace Burmalda.Movement
     /// <see cref="GridTraceTrail.PositionChanged"/> — только ПРОДВИЖЕНИЕ уже
     /// активной волны переехало на реальное время, не момент её запуска.
     ///
+    /// <b>Issue #268 (2026-09-14, живой тест устройства, владелец: «смерть
+    /// не появляется после того, как в меня выстреливает стрела»).</b> Игрок
+    /// мог уже стоять на столбце, когда тот становится смертельным (не новый
+    /// ход) — <see cref="GridTraceTrail.TryAdvanceTo"/> тут ни при чём.
+    /// <see cref="OnTileDue"/> теперь вызывает
+    /// <see cref="GridTraceTrail.CheckCurrentPositionForLethalTrap"/> сразу
+    /// после армирования — тот же примитив, что уже использует
+    /// <see cref="BombTrapSystem"/> (issue #260), не дублирует логику.
+    ///
     /// Одноразовая ловушка на триггер — повторный проход не запускает вторую
     /// параллельную волну. Несколько одновременно активных волн (разные
     /// триггеры) поддерживаются независимо друг от друга.
@@ -132,6 +141,11 @@ namespace Burmalda.Movement
 
             var current = new GridCoordinate(wave.Row, wave.NextColumnIndex);
             _grid.GetOrCreateTile(current).TransitionToLethalTrap(LethalTrapType.ArrowWave);
+            // Issue #268: игрок мог уже стоять на этой плите, не совершая
+            // новый ход — TryAdvanceTo тут ни при чём, см. doc-комментарий
+            // GridTraceTrail.CheckCurrentPositionForLethalTrap (тот же
+            // примитив, что уже использует BombTrapSystem, issue #260).
+            _trail.CheckCurrentPositionForLethalTrap();
             wave.PreviouslyArmedColumn = current;
             wave.NextColumnIndex = StepColumnIndex(wave.NextColumnIndex, wave.Direction);
 

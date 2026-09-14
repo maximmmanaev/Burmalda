@@ -57,6 +57,14 @@ namespace Burmalda.Movement
     /// по-прежнему висит на <see cref="GridTraceTrail.PositionChanged"/> —
     /// только продвижение уже активного такта переехало на реальное время.
     ///
+    /// <b>Issue #268 (2026-09-14, живой тест устройства) — тот же класс
+    /// бага, что у Стрелы.</b> Игрок мог уже стоять на одном из столбцов
+    /// такта, когда тот становится смертельным (не новый ход) —
+    /// <see cref="OnTileDue"/> теперь вызывает
+    /// <see cref="GridTraceTrail.CheckCurrentPositionForLethalTrap"/> сразу
+    /// после армирования, тот же примитив, что <see cref="BombTrapSystem"/>
+    /// (issue #260)/<see cref="ArrowWaveTrapSystem"/>.
+    ///
     /// Одноразовая ловушка на триггер — повторный проход не запускает
     /// вторую параллельную последовательность (тот же приём, что у прочих
     /// систем этого семейства). Несколько одновременно активных
@@ -157,6 +165,10 @@ namespace Burmalda.Movement
             var columns = wave.Sequence[wave.NextTactIndex];
             foreach (var column in columns)
                 _grid.GetOrCreateTile(new GridCoordinate(wave.Row, column)).TransitionToLethalTrap(LethalTrapType.BladeTact);
+            // Issue #268: игрок мог уже стоять на одном из этих столбцов, не
+            // совершая новый ход — тот же примитив, что уже использует
+            // BombTrapSystem (issue #260), см. её doc-комментарий.
+            _trail.CheckCurrentPositionForLethalTrap();
             wave.PreviouslyArmedColumns = columns;
             wave.NextTactIndex++;
 
