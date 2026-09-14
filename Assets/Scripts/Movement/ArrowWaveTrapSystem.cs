@@ -12,23 +12,35 @@ namespace Burmalda.Movement
     /// удалена целиком владельцем 2026-09-05 («оставить только пять новых
     /// ловушек»). C#-идентификатор этой волны — <see cref="LethalTrapType.ArrowWave"/>.
     ///
-    /// Построена на <see cref="TurnBasedThreatScheduler"/> (issue #212, свой
-    /// экземпляр на систему — см. его doc-комментарий): проход трейла через
-    /// плиту-триггер (<see cref="Tile.ArrowWaveTargetRow"/>/
+    /// <b>Реальное время, не ходы (владелец, 2026-09-14, issue #254 —
+    /// «Волновые ловушки переходят на реальное время»).</b> Раньше система
+    /// была построена на <see cref="TurnBasedThreatScheduler"/> (issue #212),
+    /// тикаемом ровно на каждый шаг игрока (<c>TurnBasedTrapSystemsController.TickAllSystems</c>
+    /// на <see cref="GridTraceTrail.PositionChanged"/>) — из-за этого волна
+    /// физически не могла догнать игрока: она продвигалась ровно тогда же,
+    /// когда шагал игрок, то есть была безопасна по построению, а не по
+    /// игровому замыслу. Теперь построена на <see cref="RealTimeThreatScheduler"/>
+    /// (см. её doc-комментарий про разделение задержки-активации и
+    /// движения-волны) — вся последовательность после срабатывания триггера
+    /// (первый столбец и каждый следующий) тикается реальными секундами,
+    /// один параметр <see cref="StepSeconds"/> на весь путь волны.
+    ///
+    /// Проход трейла через плиту-триггер (<see cref="Tile.ArrowWaveTargetRow"/>/
     /// <see cref="Tile.ArrowWaveDirection"/>, заданы на генерации, ЕЩЁ НЕ
     /// подключено ни к одному генератору сегментов — отдельная задача
     /// авторинга шаблонов, здесь только механика) запускает волну: через
-    /// <see cref="DelayTicks"/> ходов первый по направлению столбец
+    /// <see cref="StepSeconds"/> секунд первый по направлению столбец
     /// заявленного ряда становится смертельным (<see cref="Tile.TransitionToLethalTrap"/>)
-    /// ровно на 1 ход, затем безопасен снова (<see cref="Tile.ClearLethalTrap"/>)
-    /// и опасным становится следующий столбец — пока волна не дойдёт до
-    /// противоположного края ряда.
+    /// ровно на <see cref="StepSeconds"/> секунд, затем безопасен снова
+    /// (<see cref="Tile.ClearLethalTrap"/>) и опасным становится следующий
+    /// столбец — пока волна не дойдёт до противоположного края ряда.
     ///
-    /// Внешний <see cref="Tick"/> нужно вызывать явно, один раз на ход
-    /// игрока (тот же принцип, что и у самого планировщика — эта система не
-    /// подписывается на <see cref="TurnBasedThreatScheduler.TileDue"/>-
-    /// эквивалент трейла сама, чтобы не завязываться на то, чем именно "ход"
-    /// является для вызывающей стороны).
+    /// Внешний <see cref="Tick"/> нужно вызывать явно, из <c>Update()</c>
+    /// владеющего MonoBehaviour с <c>Time.deltaTime</c> — НЕ на каждый шаг
+    /// игрока (это и был бы старый баг снова). Обнаружение триггера
+    /// (<see cref="OnPositionChanged"/>) по-прежнему висит на
+    /// <see cref="GridTraceTrail.PositionChanged"/> — только ПРОДВИЖЕНИЕ уже
+    /// активной волны переехало на реальное время, не момент её запуска.
     ///
     /// Одноразовая ловушка на триггер — повторный проход не запускает вторую
     /// параллельную волну. Несколько одновременно активных волн (разные
@@ -36,10 +48,14 @@ namespace Burmalda.Movement
     /// </summary>
     public sealed class ArrowWaveTrapSystem : IDisposable
     {
-        // "Через 1 ход" — прямое требование владельца (docs/wiki/traps.md).
-        // Балансное число, mutable static, не const — дебаг-панель (issue
-        // #213, критерий приёмки), как TunnelObstacleGenerator.*Share.
-        public static int DelayTicks = 1;
+        // Единственный параметр скорости волны — и задержка до первого
+        // столбца, и время между последующими столбцами (владелец: "Скорость
+        // волны — параметр, настраиваемый в дебаг-панели"). Дефолт 0.3с —
+        // тот же ориентир, что уже используется в docs/wiki/traps.md для
+        // перевода ходов в секунды ("При шаге ~0.3 с... это примерно один
+        // ход") — стартовое приближение агента, не решение владельца,
+        // mutable static — дебаг-панель (issue #254, критерий приёмки).
+        public static float StepSeconds = 0.3f;
 
         private sealed class ActiveWave
         {
@@ -51,7 +67,7 @@ namespace Burmalda.Movement
 
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
-        private readonly TurnBasedThreatScheduler _scheduler;
+        private readonly RealTimeThreatScheduler _scheduler;
         private readonly HashSet<GridCoordinate> _firedTriggers = new HashSet<GridCoordinate>();
 
         // Координата, на "будильник" которой сейчас ждёт волна — на каждом
@@ -63,7 +79,7 @@ namespace Burmalda.Movement
 
         private bool _disposed;
 
-        public ArrowWaveTrapSystem(TunnelGrid grid, GridTraceTrail trail, TurnBasedThreatScheduler scheduler)
+        public ArrowWaveTrapSystem(TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
@@ -72,8 +88,8 @@ namespace Burmalda.Movement
             _scheduler.TileDue += OnTileDue;
         }
 
-        /// <summary>Продвигает планировщик на 1 ход — вызывать явно на каждый ход игрока (см. doc-комментарий класса).</summary>
-        public void Tick() => _scheduler.Tick();
+        /// <summary>Продвигает планировщик на <paramref name="deltaSeconds"/> реального времени — вызывать явно из Update() (см. doc-комментарий класса).</summary>
+        public void Tick(float deltaSeconds) => _scheduler.Tick(deltaSeconds);
 
         /// <summary>Отписывается от трейла и планировщика. Вызывать при завершении забега/уничтожении системы.</summary>
         public void Dispose()
@@ -97,7 +113,7 @@ namespace Burmalda.Movement
                 Direction = direction,
                 NextColumnIndex = FirstColumnIndex(direction, _grid.Width)
             };
-            ScheduleNextStep(wave, DelayTicks);
+            ScheduleNextStep(wave, StepSeconds);
         }
 
         private void OnTileDue(GridCoordinate coordinate)
@@ -121,15 +137,15 @@ namespace Burmalda.Movement
             wave.PreviouslyArmedColumn = current;
             wave.NextColumnIndex = StepColumnIndex(wave.NextColumnIndex, wave.Direction);
 
-            ScheduleNextStep(wave, 1); // столбец опасен ровно 1 ход, затем — снятие (см. начало метода при следующем срабатывании)
+            ScheduleNextStep(wave, StepSeconds); // столбец опасен ровно StepSeconds, затем — снятие (см. начало метода при следующем срабатывании)
         }
 
-        private void ScheduleNextStep(ActiveWave wave, int ticksFromNow)
+        private void ScheduleNextStep(ActiveWave wave, float secondsFromNow)
         {
             // Координата "будильника" для этого шага: следующий столбец,
             // если волна ещё не дошла до края, иначе — тот же столбец, что
             // уже отработал последним (нужен ровно один финальный тик,
-            // чтобы снять с него опасность). TurnBasedThreatScheduler
+            // чтобы снять с него опасность). RealTimeThreatScheduler
             // поддерживает повторную независимую регистрацию одной и той же
             // координаты (см. его тесты) — коллизии с уже обработанным
             // срабатыванием нет, запись в _waitingWaves на эту секунду уже
@@ -139,7 +155,7 @@ namespace Burmalda.Movement
                 : wave.PreviouslyArmedColumn.Value.Column;
             var alarmCoordinate = new GridCoordinate(wave.Row, alarmColumn);
             _waitingWaves[alarmCoordinate] = wave;
-            _scheduler.ScheduleActivation(alarmCoordinate, ticksFromNow);
+            _scheduler.ScheduleActivation(alarmCoordinate, secondsFromNow);
         }
 
         private bool IsColumnInRange(int column) => column >= 0 && column < _grid.Width;
