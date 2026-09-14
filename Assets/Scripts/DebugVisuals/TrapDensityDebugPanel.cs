@@ -46,10 +46,14 @@ namespace Burmalda.DebugVisuals
     /// "Параметры (длительность раскрытия, сила вибрации) — в дебаг-панель",
     /// как прямо просит задача.
     ///
-    /// <b>Задача «разрушение плиты»:</b> ещё два ползунка
+    /// <b>Задача «разрушение плиты»:</b> ещё один ползунок
     /// (<see cref="DecayCollapseFeedback"/>) — длительность анимации обвала
-    /// (прямое требование задачи) и сила вибро-пульсации последней трети
-    /// распада, тот же принцип.
+    /// (прямое требование задачи).
+    ///
+    /// <b>Issue #264 (2026-09-14, «убрать вибрацию разрушения/распада»):</b>
+    /// ползунок "Распад: вибро сила" (<c>DecayCollapseFeedback.PulseVibrationStrength</c>)
+    /// удалён вместе с самим полем — владелец попросил убрать вибрацию
+    /// целиком, крутить в дебаг-панели больше нечего.
     ///
     /// <b>Задача «измерить, а не оценить» (владелец, 2026-09-08):</b> одна
     /// строка-readout (не слайдер — нечего крутить, только читать) —
@@ -98,7 +102,7 @@ namespace Burmalda.DebugVisuals
         private const float MaxWaveSpeedSeconds = 2f; // issue #254 — щедрый запас над стартовыми 0.3с, от почти-мгновенной до медленной волны
         private const float MaxBombDelaySeconds = 8f; // issue #260 — щедрый запас над стартовыми 3с базовой задержки Бомбы, «несколько секунд» с большим потолком для ручного подбора
         private const float MaxBombDelayReductionPerTier = 2f; // issue #260 — щедрый запас над стартовыми 0.3с/Ярус
-        private const int RowCount = 21; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 2 параметра обвала + 1 readout счётчика встреч + 1 множитель доп. плотности + 4 тайминга волновых/падающего камня + 3 параметра кривой задержки Бомбы (см. BuildPanel)
+        private const int RowCount = 20; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 4 тайминга волновых/падающего камня + 3 параметра кривой задержки Бомбы (см. BuildPanel)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -237,49 +241,51 @@ namespace Burmalda.DebugVisuals
                 v => TrapRevealFeedback.VibrationDurationSeconds = v, FormatSeconds);
 
             // Задача «разрушение плиты»: "длительность анимации обрушения —
-            // в дебаг-панель" — прямое требование, тот же принцип, что и
-            // остальные восемь ползунков выше.
+            // в дебаг-панель" — прямое требование. Issue #264: соседняя
+            // строка "Распад: вибро сила" удалена вместе с полем, которое
+            // она крутила (DecayCollapseFeedback.PulseVibrationStrength) —
+            // владелец попросил убрать вибрацию распада целиком.
             BuildRow(_panelRoot.transform, 10, "Обвал: длительность", 0f, MaxCollapseDurationSeconds, DecayCollapseFeedback.CollapseDurationSeconds,
                 v => DecayCollapseFeedback.CollapseDurationSeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 11, "Распад: вибро сила", 0f, 1f, DecayCollapseFeedback.PulseVibrationStrength,
-                v => DecayCollapseFeedback.PulseVibrationStrength = v, FormatPercent);
 
             // Задача «измерить, а не оценить»: readout, не слайдер — только
             // читается, нечего крутить (см. TrapEncounterTracker/Stats).
-            BuildReadoutRow(_panelRoot.transform, 12, "Ловушек сработало / рядов");
+            BuildReadoutRow(_panelRoot.transform, 11, "Ловушек сработало / рядов");
 
             // Задача «параметр плотности» (владелец, 2026-09-08): "чтобы
             // владелец мог подкрутить на устройстве, не пересобирая" —
             // множитель поверх авторски расставленных в шаблонах ловушек
             // (см. ExtraTrapDensity). Стартовое значение — 0, нейтральное.
-            BuildRow(_panelRoot.transform, 13, "Доп. плотность ловушек", 0f, MaxExtraTrapChance, ExtraTrapDensity.Chance,
+            BuildRow(_panelRoot.transform, 12, "Доп. плотность ловушек", 0f, MaxExtraTrapChance, ExtraTrapDensity.Chance,
                 v => ExtraTrapDensity.Chance = v, FormatPercent);
 
             // Задача «Волновые ловушки переходят на реальное время» (issue
             // #254): "скорость волны — параметр, настраиваемый в
             // дебаг-панели, без пересборки" — прямое требование, одна
             // строка на систему.
-            BuildRow(_panelRoot.transform, 14, "Скорость: волна Стрелы", 0.01f, MaxWaveSpeedSeconds, ArrowWaveTrapSystem.StepSeconds,
+            BuildRow(_panelRoot.transform, 13, "Скорость: волна Стрелы", 0.01f, MaxWaveSpeedSeconds, ArrowWaveTrapSystem.StepSeconds,
                 v => ArrowWaveTrapSystem.StepSeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 15, "Скорость: такт Лезвий", 0.01f, MaxWaveSpeedSeconds, BladeTactTrapSystem.TactSeconds,
+            BuildRow(_panelRoot.transform, 14, "Скорость: такт Лезвий", 0.01f, MaxWaveSpeedSeconds, BladeTactTrapSystem.TactSeconds,
                 v => BladeTactTrapSystem.TactSeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 16, "Скорость: волна Лавы", 0.01f, MaxWaveSpeedSeconds, LavaWaveTrapSystem.RowStepSeconds,
+            BuildRow(_panelRoot.transform, 15, "Скорость: волна Лавы", 0.01f, MaxWaveSpeedSeconds, LavaWaveTrapSystem.RowStepSeconds,
                 v => LavaWaveTrapSystem.RowStepSeconds = v, FormatSeconds);
 
             // Второй раунд той же задачи (владелец: "никаких ловушек в
             // такт быть не должно, только тайминги") — Падающий камень тоже
             // перешёл на реальное время, тот же приём.
-            BuildRow(_panelRoot.transform, 17, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
+            BuildRow(_panelRoot.transform, 16, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
                 v => FallingRockTrapSystem.DelaySeconds = v, FormatSeconds);
 
             // Issue #260 («Бомба взрывается мгновенно... задержка должна
             // уменьшаться с Ярусом») — три параметра кривой вместо одного
-            // фиксированного числа, см. BombTrapSystem.ComputeDelaySeconds.
-            BuildRow(_panelRoot.transform, 18, "Задержка Бомбы: база (Ярус 0)", 0.1f, MaxBombDelaySeconds, BombTrapSystem.BaseDelaySeconds,
+            // фиксированного числа (прежняя строка "Задержка: взрыв Бомбы"
+            // убрана вместе с BombTrapSystem.DelaySeconds), см.
+            // BombTrapSystem.ComputeDelaySeconds.
+            BuildRow(_panelRoot.transform, 17, "Задержка Бомбы: база (Ярус 0)", 0.1f, MaxBombDelaySeconds, BombTrapSystem.BaseDelaySeconds,
                 v => BombTrapSystem.BaseDelaySeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 19, "Задержка Бомбы: снижение/Ярус", 0f, MaxBombDelayReductionPerTier, BombTrapSystem.DelayReductionPerTier,
+            BuildRow(_panelRoot.transform, 18, "Задержка Бомбы: снижение/Ярус", 0f, MaxBombDelayReductionPerTier, BombTrapSystem.DelayReductionPerTier,
                 v => BombTrapSystem.DelayReductionPerTier = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 20, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
+            BuildRow(_panelRoot.transform, 19, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
                 v => BombTrapSystem.MinDelaySeconds = v, FormatSeconds);
         }
 

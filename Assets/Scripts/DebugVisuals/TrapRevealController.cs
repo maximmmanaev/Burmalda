@@ -17,9 +17,21 @@ namespace Burmalda.DebugVisuals
     /// что <see cref="PickupFeedback"/> для партиклов (её doc-комментарий:
     /// "прямой запрос владельца продукта... без единого арт-ассета") — в
     /// проекте нет ни одного AudioClip-ассета и звукового пайплайна, а
-    /// сочинять конкретный дизайн звука не в скоупе агента. Короткий
-    /// синус-бип через <see cref="AudioClip.Create"/> — функциональная
-    /// заглушка ("звук проигрался"), не финальный саунд-дизайн.
+    /// сочинять конкретный дизайн звука не в скоупе агента.
+    ///
+    /// <b>Issue #264 (2026-09-14, «сменить звук раскрытия ловушки на
+    /// скрежет/трение тяжёлого предмета о каменный пол»):</b> раньше здесь
+    /// был короткий восходящий синус-бип ("TrapRevealBeep") — заменён
+    /// процедурным "скрежетом" (<see cref="BuildRevealClip"/>, клип
+    /// "TrapRevealStoneScrape") — тот же принцип, что и раньше (функциональная
+    /// заглушка под описание, не финальный саунд-дизайн, готового/близкого
+    /// звукового ассета в проекте по-прежнему нет — заводить его не в
+    /// скоупе агента). Синтез — фильтрованный шум (мягче чистого шипения)
+    /// с "зернистой" амплитудной модуляцией понижающейся частоты (имитирует
+    /// неровное трение тяжёлого предмета, замедляющееся к концу), не чистый
+    /// тон — узнаваемо ДРУГОЙ звук на слух, чем у
+    /// <see cref="DecayPulseController"/> (низкий "стук") и новый щелчок шага
+    /// (<see cref="StepClickController"/>).
     ///
     /// <b>Вибрация — <see cref="Handheld.Vibrate"/></b>, единственный
     /// портативный способ без нативного платформенного кода: у него нет
@@ -86,26 +98,48 @@ namespace Burmalda.DebugVisuals
             _audioSource.PlayOneShot(_revealClip);
         }
 
-        // Короткий восходящий синус-бип (см. класс-докстринг — процедурная заглушка).
-        private const float ClipDurationSeconds = 0.12f;
+        // Скрежет/трение тяжёлого предмета о камень (issue #264, см.
+        // класс-докстринг — процедурная заглушка под описание, не финальный
+        // саунд-дизайн). Короче секунды — "короткий скрежет", не долгий гул.
+        private const float ClipDurationSeconds = 0.25f;
         private const int SampleRate = 44100;
-        private const float StartFrequencyHz = 660f;
-        private const float EndFrequencyHz = 990f;
+
+        // Однополюсный low-pass коэффициент — сглаживает белый шум до
+        // более глухого "каменного" тембра, не резкого шипения.
+        private const float NoiseSmoothing = 0.5f;
+
+        // "Зерно" скрежета — амплитудная модуляция, имитирующая неровное
+        // трение (не гладкий непрерывный шум). Частота падает к концу клипа
+        // — как будто тяжёлый предмет замедляется, а не едет равномерно.
+        private const float GrainStartHz = 90f;
+        private const float GrainEndHz = 45f;
 
         private static AudioClip BuildRevealClip()
         {
             var sampleCount = Mathf.RoundToInt(ClipDurationSeconds * SampleRate);
-            var clip = AudioClip.Create("TrapRevealBeep", sampleCount, 1, SampleRate, false);
+            var clip = AudioClip.Create("TrapRevealStoneScrape", sampleCount, 1, SampleRate, false);
 
+            // Фиксированный сид — один и тот же клип при каждой пересборке
+            // (детерминированность, не критично для звука, но избегает
+            // сюрпризов при повторных вызовах в рамках одного запуска).
+            var random = new System.Random(2026_09_14);
             var samples = new float[sampleCount];
-            var phase = 0f;
+            var filteredNoise = 0f;
+            var grainPhase = 0f;
+
             for (var i = 0; i < sampleCount; i++)
             {
                 var t = i / (float)sampleCount;
-                var frequency = Mathf.Lerp(StartFrequencyHz, EndFrequencyHz, t);
-                phase += 2f * Mathf.PI * frequency / SampleRate;
-                var envelope = 1f - t; // линейный спад громкости — избегает щелчка на конце клипа
-                samples[i] = Mathf.Sin(phase) * envelope * 0.5f;
+
+                var whiteNoise = (float)(random.NextDouble() * 2.0 - 1.0);
+                filteredNoise += (whiteNoise - filteredNoise) * NoiseSmoothing;
+
+                var grainHz = Mathf.Lerp(GrainStartHz, GrainEndHz, t);
+                grainPhase += 2f * Mathf.PI * grainHz / SampleRate;
+                var grain = 0.5f + 0.5f * Mathf.Abs(Mathf.Sin(grainPhase));
+
+                var envelope = Mathf.Sin(Mathf.PI * t); // плавный подъём-спад — без щелчка на границах клипа
+                samples[i] = filteredNoise * grain * envelope * 0.55f;
             }
 
             clip.SetData(samples, 0);
