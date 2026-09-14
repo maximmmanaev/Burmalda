@@ -85,12 +85,13 @@ namespace Burmalda.DebugVisuals.Tests
         // Владелец, 2026-09-05 («оставить только пять новых ловушек») —
         // Pit/Explosion убраны из игры целиком, вместе со своими ветками
         // HiddenTrapSignature/скрытой сигнатурой (у оставшихся типов —
-        // Лава статична и всегда видна, у Стрелы/Бомбы/Лезвий/Лавы-волны
-        // сама угроза видна ВСЕГДА, скрыт только триггер, не угроза).
+        // Лава статична и всегда видна, у Стрелы/Бомбы/Лезвий сама угроза
+        // видна ВСЕГДА, скрыт только триггер, не угроза). Волна Лавы больше
+        // не отдельный тип (issue #262, слита с LethalTrapType.Lava выше —
+        // резолвится веткой Resolve_Lava_ReturnsLava над этим блоком).
         [TestCase(LethalTrapType.ArrowWave)]
         [TestCase(LethalTrapType.BombBlast)]
         [TestCase(LethalTrapType.BladeTact)]
-        [TestCase(LethalTrapType.LavaWave)]
         public void Resolve_NewTurnBasedTrapTypes_ReturnTimedTrapActive(LethalTrapType trapType)
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: trapType, decayProgress01: 0f, isTrapTrigger: false);

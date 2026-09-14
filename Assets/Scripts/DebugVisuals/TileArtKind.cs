@@ -43,15 +43,14 @@ namespace Burmalda.DebugVisuals
         Lava,
 
         /// <summary>
-        /// Общая текстура для трёх ходовых ловушек (ArrowWave/BladeTact/
-        /// LavaWave) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.
-        /// Раньше делилась вчетвером и с BombBlast — issue #260 («Бомба
-        /// показывает текстуру Стрелы», разбор в doc-комментарии
-        /// <c>Movement.BombTrapSystem</c>) завела Бомбе собственные
-        /// <see cref="BombWarning"/>/<see cref="BombHole"/>, эта категория
-        /// больше не покрывает её. Волновой Лаве (<c>LethalTrapType.LavaWave</c>)
-        /// собственная текстура НЕ заводилась этой задачей — вне скоупа
-        /// issue #260, тот же общий корень, тот же файл, если понадобится.
+        /// Общая текстура для ДВУХ ходовых ловушек (ArrowWave/BladeTact) —
+        /// как и <see cref="TileDebugColor.TimedTrapActiveColor"/>. Раньше
+        /// делилась вчетвером — issue #260 («Бомба показывает текстуру
+        /// Стрелы», разбор в doc-комментарии <c>Movement.BombTrapSystem</c>)
+        /// завела Бомбе собственные <see cref="BombWarning"/>/
+        /// <see cref="BombHole"/>; issue #262 слила волну Лавы с
+        /// <c>LethalTrapType.Lava</c> статичной Лавы — резолвится веткой
+        /// <see cref="Lava"/> выше, тоже больше не сюда.
         /// </summary>
         TimedTrapActive,
 

@@ -20,7 +20,7 @@ namespace Burmalda.Movement.Tests
             for (var column = 0; column < Width; column++)
             {
                 if (!grid.TryGetTile(new GridCoordinate(row, column), out var tile)) return false;
-                if (tile.LethalTrap != LethalTrapType.LavaWave) return false;
+                if (tile.LethalTrap != LethalTrapType.Lava) return false;
             }
             return true;
         }
@@ -95,7 +95,33 @@ namespace Burmalda.Movement.Tests
             lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
 
             for (var column = 0; column < Width; column++)
-                Assert.AreEqual(LethalTrapType.LavaWave, grid.GetOrCreateTile(new GridCoordinate(5, column)).LethalTrap, $"столбец {column} ряда 5 должен быть лавой");
+                Assert.AreEqual(LethalTrapType.Lava, grid.GetOrCreateTile(new GridCoordinate(5, column)).LethalTrap, $"столбец {column} ряда 5 должен быть лавой");
+        }
+
+        // Issue #262 («LavaWaveTrapSystem не меняет тип плитки на Lava, только
+        // неверную текстуру»): до фикса система ставила отдельный
+        // C#-идентификатор LethalTrapType.LavaWave — реальный ТИП плитки
+        // менялся (это подтверждено, см. статус задачи), но не на Lava, из-за
+        // чего DebugVisuals.TileArtKindResolver попадал в общую ветку
+        // TimedTrapActive (текстура-сигнатура Стрелы) вместо собственной
+        // ветки Lava. Явная регрессия на конкретное значение enum — не
+        // полагается на то, что тест выше ("должна быть лавой" в комментарии)
+        // README-подобно подразумевает нужное значение.
+        [Test]
+        public void Tick_ConvertsRow_TileTypeIsExactlyLava_NotASeparateLavaWaveIdentifier()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(5, 2);
+            grid.GetOrCreateTile(trigger).MarkLavaTrigger();
+            using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
+            WalkForwardTo(trail, 0, 6, 2);
+
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
+
+            var converted = grid.GetOrCreateTile(new GridCoordinate(5, 2));
+            Assert.IsTrue(converted.LethalTrap.HasValue, "тип плитки обязан фактически измениться, не только текстура");
+            Assert.AreEqual(LethalTrapType.Lava, converted.LethalTrap,
+                "плитка обязана получить ТОТ ЖЕ тип, что статичная Лава из генерации — так рендер-слой (DebugVisuals.TileArtKindResolver.Resolve, ветка LethalTrap==Lava) покажет текстуру лавы, а не общую TimedTrapActive (текстура Стрелы), и так плитка ведёт себя идентично статичной Лаве (issue #258 — проходима, но летальна через d20).");
         }
 
         [Test]
@@ -255,7 +281,7 @@ namespace Burmalda.Movement.Tests
 
             // Защищается ТОЛЬКО сама плита Алтаря — остальные столбцы того же ряда всё равно становятся лавой как обычно.
             for (var column = 1; column < Width; column++)
-                Assert.AreEqual(LethalTrapType.LavaWave, grid.GetOrCreateTile(new GridCoordinate(3, column)).LethalTrap,
+                Assert.AreEqual(LethalTrapType.Lava, grid.GetOrCreateTile(new GridCoordinate(3, column)).LethalTrap,
                     $"столбец {column} ряда 3 не связан с Алтарём и должен был стать лавой как обычно");
         }
 
