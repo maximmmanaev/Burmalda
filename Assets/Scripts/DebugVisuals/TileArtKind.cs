@@ -42,7 +42,13 @@ namespace Burmalda.DebugVisuals
         Blocked,
         Lava,
 
-        /// <summary>Общая текстура для всех четырёх ходовых ловушек (ArrowWave/BombBlast/BladeTact/LavaWave) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.</summary>
+        /// <summary>
+        /// Общая текстура для трёх ходовых ловушек (ArrowWave/BombBlast/
+        /// BladeTact) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.
+        /// Волна Лавы сюда больше не входит (issue #262) — ставит тот же
+        /// <c>LethalTrapType.Lava</c>, что статичная Лава, резолвится веткой
+        /// <see cref="Lava"/> выше.
+        /// </summary>
         TimedTrapActive,
 
         /// <summary>

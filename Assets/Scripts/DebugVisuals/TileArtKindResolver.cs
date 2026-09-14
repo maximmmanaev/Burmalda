@@ -33,16 +33,19 @@ namespace Burmalda.DebugVisuals
             if (state.IsCurrentPosition) return TileArtKind.CurrentPosition;
             if (state.IsStart) return TileArtKind.Start;
             if (state.IsBlocked) return TileArtKind.Blocked;
+            // Issue #262: волна Лавы (Movement.LavaWaveTrapSystem) ставит тот
+            // же LethalTrapType.Lava, что статичная Лава с генерации — эта
+            // ветка ловит и её, отдельной ветки под волну больше нет.
             if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
             // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
             // смертельной навсегда») — см. подробный doc-комментарий той же
-            // ветки в TileDebugColor.Resolve: настоящая причина — у четырёх
-            // LethalTrapType Спринта 13a (ArrowWave/BombBlast/BladeTact/
-            // LavaWave) не было ветки здесь вовсе, армированная плита
-            // выглядела обычным полом. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА,
-            // без гейта примеривания.
+            // ветки в TileDebugColor.Resolve: настоящая причина — у
+            // LethalTrapType Спринта 13a (ArrowWave/BombBlast/BladeTact) не
+            // было ветки здесь вовсе, армированная плита выглядела обычным
+            // полом. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА, без гейта
+            // примеривания.
             if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
-                state.LethalTrap == LethalTrapType.BladeTact || state.LethalTrap == LethalTrapType.LavaWave)
+                state.LethalTrap == LethalTrapType.BladeTact)
                 return TileArtKind.TimedTrapActive;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2):
             // триггер одной из пяти ловушек не отличим от обычного пола,
