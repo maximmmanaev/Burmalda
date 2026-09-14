@@ -32,6 +32,25 @@ namespace Burmalda.Movement
     /// зарегистрированная активация потеряла бы один тик сразу же, тот же
     /// класс гонки порядка подписки, что уже ловили на двух генераторах
     /// тоннеля, задача «двойные флаги на плитах»).
+    ///
+    /// <b>Ленивая самопроверка в <see cref="Update"/> (владелец, 2026-09-14,
+    /// плейтест «ловушки вообще пропали») — баг с устройства, не гипотеза.</b>
+    /// <c>Bootstrap.RunBootstrap.EnsureControllersWired</c> добавляет этот
+    /// Controller на сцену ПОЗЖЕ, чем <see cref="GridTraceInputController.Awake"/>
+    /// синхронно поднимает самый первый <see cref="GridTraceInputController.RunStarted"/> —
+    /// тот же класс гонки, что уже был найден и решён для лоадаута артефактов
+    /// (см. <c>RunBootstrap.EnsureLoadoutReady</c>), но здесь решён не был.
+    /// Без самопроверки Controller безвозвратно пропускал единственное
+    /// событие, которое должно было его построить, — все пять систем ловушек
+    /// молча оставались null на весь забег, до первого УСПЕШНОГО ручного
+    /// рестарта (а тап по кнопке RESTART на реальном устройстве не всегда
+    /// регистрируется с первого раза — известная особенность синтетического/
+    /// живого ввода на части устройств, см. docs/rules). Подтверждено
+    /// логом на реальном устройстве: <c>Rebuild()</c> ни разу не вызывался
+    /// за весь забег, хотя <c>Update()</c> честно тикал каждый кадр. Тот же
+    /// приём "ленивая инициализация", что уже у <c>Boss.BossController.Update</c>/
+    /// <c>Generation.SegmentGenerationController.EnsureBuilt</c> — этот класс
+    /// был единственным исключением из уже устоявшегося паттерна.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TurnBasedTrapSystemsController : MonoBehaviour
@@ -60,6 +79,18 @@ namespace Burmalda.Movement
             if (_input != null) _input.RunStarted -= HandleRunStarted;
             DisposeAll();
         }
+
+        // См. doc-комментарий класса про пропущенный первый RunStarted —
+        // тот же принцип, что у BossController.Update()/
+        // SegmentGenerationController.EnsureBuilt: дёшево не-op, пока уже
+        // построено или ещё не готово, подхватывает пропущенное событие на
+        // следующем же кадре реальной игры.
+        private void Update()
+        {
+            if (_arrowWave == null && IsReady()) Rebuild();
+        }
+
+        private bool IsReady() => _input != null && _input.Grid != null && _input.Trail != null;
 
         private void HandleRunStarted() => Rebuild();
 
