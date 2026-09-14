@@ -664,6 +664,90 @@ namespace Burmalda.Core.Tests
             Assert.IsTrue(tile.IsBombTrigger);
         }
 
+        // issue #260 — мигание-предупреждение площади Бомбы во время ожидания.
+        [Test]
+        public void NewTile_IsNotBombWarningActive()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsBombWarningActive);
+        }
+
+        [Test]
+        public void BeginBombWarning_SetsIsBombWarningActive()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.BeginBombWarning();
+
+            Assert.IsTrue(tile.IsBombWarningActive);
+        }
+
+        [Test]
+        public void EndBombWarning_AfterBegin_ClearsIsBombWarningActive()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.BeginBombWarning();
+
+            tile.EndBombWarning();
+
+            Assert.IsFalse(tile.IsBombWarningActive);
+        }
+
+        [Test]
+        public void EndBombWarning_WithoutBegin_StaysFalse()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.EndBombWarning();
+
+            Assert.IsFalse(tile.IsBombWarningActive);
+        }
+
+        // issue #260 — визуальная дыра от взрыва Бомбы.
+        [Test]
+        public void NewTile_IsNotBombCollapsed()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsBombCollapsed);
+        }
+
+        [Test]
+        public void MarkBombCollapsed_SetsIsBombCollapsed()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBombCollapsed();
+
+            Assert.IsTrue(tile.IsBombCollapsed);
+        }
+
+        [Test]
+        public void MarkBombCollapsed_CalledTwice_StaysTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBombCollapsed();
+            tile.MarkBombCollapsed();
+
+            Assert.IsTrue(tile.IsBombCollapsed);
+        }
+
+        [Test]
+        public void MarkBombCollapsed_DoesNotAffectIsBlockedOrLethalTrap()
+        {
+            // Чисто визуальный флаг (см. doc-комментарий IsBombCollapsed) —
+            // не подменяет собой ни IsBlocked, ни LethalTrap, оба ставятся
+            // отдельно вызывающей стороной (Movement.BombTrapSystem).
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkBombCollapsed();
+
+            Assert.IsFalse(tile.IsBlocked);
+            Assert.IsFalse(tile.LethalTrap.HasValue);
+        }
+
         // issue #215 — ловушка «Лезвия» (docs/wiki/traps.md).
         [Test]
         public void NewTile_HasNoBladeTactTrigger()
