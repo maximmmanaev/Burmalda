@@ -64,18 +64,53 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void IsTraversable_LavaAndTriggers_DoNotBlockPath()
+        public void IsTraversable_TriggerTiles_DoNotBlockPath()
         {
-            // Опасные-но-не-заблокированные плиты (лава/триггеры) —
-            // проходимы для целей гарантии проходимости: игрок физически
-            // МОЖЕТ пройти (рискуя), просто не должен. Заблокирован путь
-            // считается только по Blocked/LeverGate.
+            // Триггеры (issues #213-#217) на этапе генерации — обычный
+            // безопасный пол (GridTraceTrail.TryAdvanceTo их не отличает от
+            // Open): опасность наступает ПОЗЖЕ, через систему-обработчик, не
+            // в момент шага на саму плиту-триггер. Проходимы для этой
+            // проверки заслуженно, в отличие от статичной Лавы (см. ниже).
             var tiles = OpenRows(5);
-            tiles[1, 1] = SegmentTileType.Lava;
-            tiles[2, 1] = SegmentTileType.ArrowWaveTrigger;
-            tiles[3, 1] = SegmentTileType.BladeTactTrigger;
+            tiles[1, 1] = SegmentTileType.ArrowWaveTrigger;
+            tiles[2, 1] = SegmentTileType.BladeTactTrigger;
+            tiles[3, 1] = SegmentTileType.LavaWaveTrigger;
 
-            var template = new SegmentTemplate("hazards", 1, SegmentRewardTag.Coins, tiles);
+            var template = new SegmentTemplate("triggers", 1, SegmentRewardTag.Coins, tiles);
+            Assert.IsTrue(SegmentReachabilityValidator.IsTraversable(template));
+        }
+
+        // issue #251 (владелец, плейтест Ярус 3): "лава заливает всю ширину
+        // тоннеля, пути вперёд нет". Разбор показал, что предыдущая версия
+        // этого файла (см. git-историю) ошибочно считала статичную
+        // SegmentTileType.Lava "проходимой, риск не стена" — но
+        // GridTraceTrail.TryAdvanceTo категорически отклоняет ЛЮБОЙ шаг на
+        // LethalTrap.HasValue (в т.ч. статичную Лаву) независимо от исхода
+        // d20 — игрок физически НЕ МОЖЕТ пройти, не "не должен". В отличие
+        // от триггеров выше, Lava — это уже LethalTrap с самого момента
+        // генерации (SegmentRowProvider.ApplyTileType → MarkLethalTrap), не
+        // отложенная угроза. Из-за этого пробела шаблон каталога
+        // «лавовый-коридор» (сплошной ряд "lllll") годами проходил проверку,
+        // будучи на самом деле гарантированным тупиком.
+        [Test]
+        public void IsTraversable_StaticLavaWithNoGap_ReturnsFalse()
+        {
+            var tiles = OpenRows(5);
+            for (var c = 0; c < Width; c++) tiles[2, c] = SegmentTileType.Lava; // сплошная лава поперёк, без единого прохода
+
+            var template = new SegmentTemplate("lava-wall", 1, SegmentRewardTag.Coins, tiles);
+            Assert.IsFalse(SegmentReachabilityValidator.IsTraversable(template),
+                "статичная Лава непроходима так же, как Blocked — игрок физически не может на неё шагнуть");
+        }
+
+        [Test]
+        public void IsTraversable_StaticLavaWithGap_ReturnsTrue()
+        {
+            var tiles = OpenRows(5);
+            for (var c = 0; c < Width; c++) tiles[2, c] = SegmentTileType.Lava;
+            tiles[2, 1] = SegmentTileType.Open; // единственный проход
+
+            var template = new SegmentTemplate("lava-wall-with-gap", 1, SegmentRewardTag.Coins, tiles);
             Assert.IsTrue(SegmentReachabilityValidator.IsTraversable(template));
         }
 

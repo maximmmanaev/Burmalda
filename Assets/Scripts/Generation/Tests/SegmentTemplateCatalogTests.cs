@@ -63,6 +63,33 @@ namespace Burmalda.Generation.Tests
             "двойная-жила", "шахта-жадности", // тир 5
         };
 
+        // issue #251 (владелец, плейтест Ярус 3, «лава заливает всю ширину
+        // тоннеля»): разбор показал, что SegmentReachabilityValidator годами
+        // ошибочно считал статичную SegmentTileType.Lava "проходимой, риск
+        // не стена" — на деле GridTraceTrail.TryAdvanceTo отклоняет ЛЮБОЙ
+        // шаг на неё безусловно, как Blocked. После исправления
+        // IsTraversable/IsToothless у ДВУХ шаблонов, чья ЕДИНСТВЕННАЯ
+        // ловушка — статичная Лава ("лавовый-коридор", "ключ-за-лавой"),
+        // открылось логическое противоречие: IsTraversable требует хотя бы
+        // ОДИН путь вход→выход, свободный от Лавы (иначе шаблон физически
+        // непроходим — сама суть фикса #251), а IsToothless требует, чтобы
+        // ТАКОГО пути не было (иначе шаблон обходится начисто). Если
+        // единственный тип ловушки в шаблоне — Лава, оба требования
+        // одновременно выполнить нельзя НИКАКИМ расположением плит: путь,
+        // не проходящий через Лаву, по построению одновременно является и
+        // требуемым "безопасным" путём для IsTraversable, и запрещённым
+        // "обходом" для IsToothless. Единственный выход — второй, ДРУГОЙ
+        // тип ловушки в шаблоне (взгляд не сходится на одной Лаве) — но это
+        // решение, КАКОЙ из четырёх оставшихся типов вводить, то есть
+        // авторство контента (тот же принцип, что allowlist выше), не
+        // механическая правка. Пропущены и вынесены отдельным списком —
+        // семантически другая причина, не "нет ни одной ловушки вообще".
+        private static readonly string[] TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable =
+        {
+            "лавовый-коридор", // тир 4
+            "ключ-за-лавой", // тир 3
+        };
+
         [TestCaseSource(nameof(Tier2AndAboveTemplateNamesWithATrapType))]
         public void Template_Tier2AndAbove_IsNotToothless(string name)
         {
@@ -72,11 +99,13 @@ namespace Burmalda.Generation.Tests
         }
 
         private static string[] Tier2AndAboveTemplateNamesWithATrapType() => SegmentTemplateCatalog.All
-            .Where(t => t.DifficultyTier >= 2 && !TemplatesWithoutAnyTrapType.Contains(t.Name))
+            .Where(t => t.DifficultyTier >= 2
+                        && !TemplatesWithoutAnyTrapType.Contains(t.Name)
+                        && !TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable.Contains(t.Name))
             .Select(t => t.Name)
             .ToArray();
 
-        // Обратная сторона allowlist выше — сам список не должен тихо
+        // Обратная сторона allowlist'ов выше — сами списки не должны тихо
         // устареть (шаблон переименовали/удалили, а имя осталось висеть
         // в allowlist, маскируя то, что реальный шаблон снова не
         // проверяется вовсе).
@@ -85,6 +114,31 @@ namespace Burmalda.Generation.Tests
         {
             foreach (var name in TemplatesWithoutAnyTrapType)
                 Assert.IsTrue(SegmentTemplateCatalog.All.Any(t => t.Name == name), $"'{name}' из allowlist больше не существует в каталоге.");
+        }
+
+        [Test]
+        public void TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable_AllNamesExistInCatalog()
+        {
+            foreach (var name in TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable)
+                Assert.IsTrue(SegmentTemplateCatalog.All.Any(t => t.Name == name), $"'{name}' из allowlist больше не существует в каталоге.");
+        }
+
+        // Обратная гарантия для нового allowlist'а: он не должен незаметно
+        // "проглотить" шаблон, у которого на самом деле УЖЕ есть путь,
+        // избегающий Лавы, свободный от логического противоречия выше
+        // (например, если владелец позже добавит туда второй тип ловушки) —
+        // такой шаблон обязан вернуться под обычную проверку
+        // Template_Tier2AndAbove_IsNotToothless, а не остаться в allowlist
+        // по инерции.
+        [Test]
+        public void TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable_AreActuallyToothless()
+        {
+            foreach (var name in TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable)
+            {
+                var template = SegmentTemplateCatalog.All.Single(t => t.Name == name);
+                Assert.IsTrue(SegmentReachabilityValidator.IsToothless(template),
+                    $"'{name}' в allowlist как «Лава — обязана оставаться обходимой», но на деле уже не беззубый — вычеркни из этого списка, теперь он покрывается обычной проверкой.");
+            }
         }
 
         private static string[] TemplateNames() => SegmentTemplateCatalog.All.Select(t => t.Name).ToArray();
