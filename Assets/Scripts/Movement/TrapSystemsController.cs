@@ -16,61 +16,53 @@ namespace Burmalda.Movement
     /// вручную в Editor — MonoBehaviour-driver, который не зависит от того,
     /// вспомнил ли кто-то добавить компонент на сцену.
     ///
-    /// <b>Имя устарело, оставлено намеренно (владелец, 2026-09-14, issue
-    /// #254 — «Волновые ловушки переходят на реальное время»).</b> Раньше
-    /// ВСЕ пять систем тикались ровно на каждый шаг игрока
-    /// (<see cref="GridTraceTrail.PositionChanged"/>) — из-за этого волна
-    /// (Стрела/Лезвия/Лава) физически не могла догнать игрока: она
-    /// продвигалась ровно тогда же, когда шагал игрок, то есть была
-    /// безопасна по построению, а не по игровому замыслу. Теперь этот
-    /// Controller тикает ДВУМЯ разными способами:
-    /// <list type="bullet">
-    /// <item><b>На ходах</b> (без изменений) — <see cref="BombTrapSystem"/>/
-    /// <see cref="FallingRockTrapSystem"/>, задержка до активации ("через 2
-    /// хода взорвётся"/"через 1 ход упадёт камень") остаётся тактами ходов,
-    /// свой <see cref="TurnBasedThreatScheduler"/> на систему, тикается из
-    /// <see cref="TickTurnBasedSystems"/> на <see cref="GridTraceTrail.PositionChanged"/>.</item>
-    /// <item><b>В реальном времени</b> (issue #254) — <see cref="ArrowWaveTrapSystem"/>/
-    /// <see cref="BladeTactTrapSystem"/>/<see cref="LavaWaveTrapSystem"/>,
-    /// движение уже активной волны не завязано на шаги игрока, свой
-    /// <see cref="RealTimeThreatScheduler"/> на систему, тикается из
-    /// <see cref="Update"/> с <c>Time.deltaTime</c>.</item>
-    /// </list>
-    /// Переименование класса оставлено на будущее (класс тикает и то, и
-    /// другое — ни "TurnBased", ни "RealTime" по отдельности точным именем
-    /// уже не будут) — минимальная правка сейчас, а не churn по всем
-    /// ссылкам (<c>Bootstrap.RunBootstrap.TurnBasedTraps</c>) ради
-    /// переименования без функциональной необходимости.
+    /// <b>Переименован из TurnBasedTrapSystemsController (владелец,
+    /// 2026-09-14, issue #254, второй раунд): «ловушки в такт шагам это
+    /// ошибка в ТЗ, никаких ловушек в такт быть не должно, только
+    /// тайминги».</b> Первый раунд этой задачи (issue #254) переводил на
+    /// реальное время только три волновые системы (Стрела/Лезвия/Лава),
+    /// оставляя Бомбу/Падающий камень тикать на шагах игрока — рассуждение
+    /// было "у них нет волны, которую нужно догонять, задержка до
+    /// одномоментного события — другая сущность". Живой плейтест показал ту
+    /// же проблему в другой форме: если игрок наводится на раскрытый
+    /// триггер (сигнатура/вибрация срабатывают), отпускает, встаёт на плиту
+    /// триггера и дальше просто СТОИТ, разглядывая — отсчёт до взрыва/камня
+    /// не шёл вообще, потому что планировщик тикался только на его
+    /// собственные ходы. Теперь ВСЕ ПЯТЬ систем тикаются из <see cref="Update"/>
+    /// с <c>Time.deltaTime</c>, ни одна не завязана на
+    /// <see cref="GridTraceTrail.PositionChanged"/> для продвижения времени
+    /// (обнаружение самого триггера по-прежнему висит на нём — см.
+    /// <c>OnPositionChanged</c> каждой системы, это МОМЕНТ активации, не
+    /// единица времени после неё).
     ///
-    /// <b>Порядок подписки на <see cref="GridTraceTrail.PositionChanged"/>
-    /// важен для ходовых систем</b>: каждая из пяти систем сама
-    /// подписывается на это событие в своём конструкторе (регистрирует
-    /// отложенную активацию, если игрок только что встал на триггер). Этот
-    /// Controller подписывает <see cref="TickTurnBasedSystems"/> ПОСЛЕ того,
-    /// как все пять уже сконструированы — тикает ходовые планировщики
-    /// строго ПОСЛЕ регистрации новой активации на этом же ходу, а не до
-    /// неё (иначе только что зарегистрированная активация потеряла бы один
-    /// тик сразу же, тот же класс гонки порядка подписки, что уже ловили на
-    /// двух генераторах тоннеля, задача «двойные флаги на плитах»). Для
-    /// трёх реал-таймовых систем этой гонки нет по конструкции —
-    /// <see cref="Update"/> тикает независимо от <see cref="GridTraceTrail.PositionChanged"/>
-    /// на своей собственной кадровой частоте.
+    /// <b>Ленивая самопроверка в <see cref="Update"/> (владелец, 2026-09-14,
+    /// плейтест «ловушки вообще пропали», issue #256) — баг с устройства, не
+    /// гипотеза.</b> <c>Bootstrap.RunBootstrap.EnsureControllersWired</c>
+    /// добавляет этот Controller на сцену ПОЗЖЕ, чем
+    /// <see cref="GridTraceInputController.Awake"/> синхронно поднимает
+    /// самый первый <see cref="GridTraceInputController.RunStarted"/> — тот
+    /// же класс гонки, что уже был найден и решён для лоадаута артефактов
+    /// (см. <c>RunBootstrap.EnsureLoadoutReady</c>), но здесь решён не был.
+    /// Без самопроверки Controller безвозвратно пропускал единственное
+    /// событие, которое должно было его построить — все пять систем ловушек
+    /// молча оставались null на весь забег. Подтверждено логом на реальном
+    /// устройстве: конструирование систем ни разу не происходило за весь
+    /// забег, хотя <see cref="Update"/> честно тикал каждый кадр. Тот же
+    /// приём "ленивая инициализация", что уже у <c>Boss.BossController.Update</c>/
+    /// <c>Generation.SegmentGenerationController.EnsureBuilt</c> — этот
+    /// класс был единственным исключением из уже устоявшегося паттерна.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class TurnBasedTrapSystemsController : MonoBehaviour
+    public sealed class TrapSystemsController : MonoBehaviour
     {
         [SerializeField] private GridTraceInputController _input;
 
         private GridTraceTrail _trail;
-
-        // Реальное время (issue #254) — тикаются из Update().
         private ArrowWaveTrapSystem _arrowWave;
-        private BladeTactTrapSystem _bladeTact;
-        private LavaWaveTrapSystem _lavaWave;
-
-        // Ходы, без изменений — тикаются из TickTurnBasedSystems на PositionChanged.
         private BombTrapSystem _bomb;
+        private BladeTactTrapSystem _bladeTact;
         private FallingRockTrapSystem _fallingRock;
+        private LavaWaveTrapSystem _lavaWave;
 
         private void Awake()
         {
@@ -88,17 +80,27 @@ namespace Burmalda.Movement
             DisposeAll();
         }
 
+        // Тикает все пять систем реальным временем (issue #254) и заодно
+        // служит ленивой самопроверкой (issue #256, см. doc-комментарий
+        // класса) — дёшево не-op на кадрах, где уже построено или ещё не
+        // готово.
         private void Update()
         {
-            // До первого Rebuild() (или после DisposeAll) реал-таймовые
-            // системы ещё/уже не существуют — не тикаем несуществующее.
-            if (_arrowWave == null) return;
+            if (_arrowWave == null)
+            {
+                if (IsReady()) Rebuild();
+                return;
+            }
 
             var deltaSeconds = Time.deltaTime;
             _arrowWave.Tick(deltaSeconds);
+            _bomb.Tick(deltaSeconds);
             _bladeTact.Tick(deltaSeconds);
+            _fallingRock.Tick(deltaSeconds);
             _lavaWave.Tick(deltaSeconds);
         }
+
+        private bool IsReady() => _input != null && _input.Grid != null && _input.Trail != null;
 
         private void HandleRunStarted() => Rebuild();
 
@@ -110,30 +112,26 @@ namespace Burmalda.Movement
             _trail = _input.Trail;
             var grid = _input.Grid;
 
-            // Каждая система — свой независимый планировщик (тот же принцип,
-            // что был у отдельных экземпляров старых, удалённых 2026-09-05
-            // контроллеров ловушек реального времени) — конструкторы
-            // подписываются на _trail.PositionChanged здесь, ДО
-            // TickTurnBasedSystems ниже (см. doc-комментарий класса про
-            // порядок подписки — актуально только для ходовых систем).
+            // Каждая система — свой независимый RealTimeThreatScheduler
+            // (тот же принцип, что был у отдельных экземпляров старых,
+            // удалённых 2026-09-05 контроллеров ловушек реального времени —
+            // см. doc-комментарий RealTimeThreatScheduler). Порядок
+            // подписки на PositionChanged (внутри конструктора каждой
+            // системы) больше ни на что не влияет — раньше это было важно
+            // для TickAllSystems, тикавшего на том же событии; теперь
+            // продвижение времени полностью отвязано от PositionChanged
+            // (см. Update() выше), гонки, которая была описана в старом
+            // doc-комментарии этого класса, больше не существует по
+            // конструкции.
             _arrowWave = new ArrowWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
-            _bomb = new BombTrapSystem(grid, _trail, new TurnBasedThreatScheduler());
+            _bomb = new BombTrapSystem(grid, _trail, new RealTimeThreatScheduler());
             _bladeTact = new BladeTactTrapSystem(grid, _trail, new RealTimeThreatScheduler());
-            _fallingRock = new FallingRockTrapSystem(grid, _trail, new TurnBasedThreatScheduler());
+            _fallingRock = new FallingRockTrapSystem(grid, _trail, new RealTimeThreatScheduler());
             _lavaWave = new LavaWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
-
-            _trail.PositionChanged += TickTurnBasedSystems;
-        }
-
-        private void TickTurnBasedSystems(Core.GridCoordinate coordinate)
-        {
-            _bomb.Tick();
-            _fallingRock.Tick();
         }
 
         private void DisposeAll()
         {
-            if (_trail != null) _trail.PositionChanged -= TickTurnBasedSystems;
             _trail = null;
 
             _arrowWave?.Dispose();
