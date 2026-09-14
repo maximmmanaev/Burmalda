@@ -7,11 +7,11 @@ namespace Burmalda.Movement.Tests
     {
         private const int Width = 5;
 
-        private static (TunnelGrid grid, GridTraceTrail trail, TurnBasedThreatScheduler scheduler) CreateTrail(GridCoordinate start)
+        private static (TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler) CreateTrail(GridCoordinate start)
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, start);
-            var scheduler = new TurnBasedThreatScheduler();
+            var scheduler = new RealTimeThreatScheduler();
             return (grid, trail, scheduler);
         }
 
@@ -41,7 +41,7 @@ namespace Burmalda.Movement.Tests
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(trigger);
 
-            blades.Tick();
+            blades.Tick(BladeTactTrapSystem.TactSeconds);
 
             Assert.IsTrue(IsLethal(grid, 1, 0));
             Assert.IsTrue(IsLethal(grid, 1, 4));
@@ -74,13 +74,13 @@ namespace Burmalda.Movement.Tests
             {
                 foreach (var expectedColumns in expectedCycle)
                 {
-                    blades.Tick();
+                    blades.Tick(BladeTactTrapSystem.TactSeconds);
                     foreach (var column in expectedColumns)
                         Assert.IsTrue(IsLethal(grid, 1, column), $"цикл {cycle}: столбец {column} должен быть опасен на этом такте");
                 }
             }
 
-            blades.Tick(); // финальный тик — снимает последний такт, новый не активирует
+            blades.Tick(BladeTactTrapSystem.TactSeconds); // финальный тик — снимает последний такт, новый не активирует
 
             for (var column = 0; column < Width; column++)
                 Assert.IsFalse(IsLethal(grid, 1, column), $"после 2 циклов столбец {column} должен быть безопасен — ловушка затихла");
@@ -94,9 +94,9 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(trigger);
-            blades.Tick(); // такт 1: [0,4]
+            blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 1: [0,4]
 
-            blades.Tick(); // такт 2: [1,3]
+            blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 2: [1,3]
 
             Assert.IsFalse(IsLethal(grid, 1, 0), "предыдущий такт должен был уже стать безопасным");
             Assert.IsFalse(IsLethal(grid, 1, 4));
@@ -112,10 +112,10 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(trigger); // игрок на ряду 1 — та же "зона"
-            blades.Tick(); // такт 1: [0,4] активен
+            blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 1: [0,4] активен
 
             trail.TryAdvanceTo(new GridCoordinate(0, 2)); // покидает ряд 1
-            blades.Tick();
+            blades.Tick(BladeTactTrapSystem.TactSeconds);
 
             Assert.IsFalse(IsLethal(grid, 1, 0), "такт должен был снять опасность даже при досрочной остановке");
             Assert.IsFalse(IsLethal(grid, 1, 4));
@@ -123,8 +123,8 @@ namespace Burmalda.Movement.Tests
             Assert.IsFalse(IsLethal(grid, 1, 3));
 
             // Дальнейшие тики ничего не меняют — последовательность уже остановлена.
-            blades.Tick();
-            blades.Tick();
+            blades.Tick(BladeTactTrapSystem.TactSeconds);
+            blades.Tick(BladeTactTrapSystem.TactSeconds);
             for (var column = 0; column < Width; column++)
                 Assert.IsFalse(IsLethal(grid, 1, column));
         }
@@ -139,7 +139,7 @@ namespace Burmalda.Movement.Tests
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(trigger);
 
-            for (var i = 0; i < 11; i++) blades.Tick();
+            for (var i = 0; i < 11; i++) blades.Tick(BladeTactTrapSystem.TactSeconds);
 
             Assert.IsFalse(otherRowTile.LethalTrap.HasValue);
         }
@@ -152,11 +152,11 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(trigger);
-            for (var i = 0; i < 11; i++) blades.Tick(); // первая последовательность полностью отработала
+            for (var i = 0; i < 11; i++) blades.Tick(BladeTactTrapSystem.TactSeconds); // первая последовательность полностью отработала
 
             trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад
             trail.TryAdvanceTo(trigger); // повторно на триггер
-            blades.Tick();
+            blades.Tick(BladeTactTrapSystem.TactSeconds);
 
             Assert.IsFalse(IsLethal(grid, 1, 0), "триггер одноразовый — повторный проход не должен запустить вторую последовательность");
         }
@@ -171,9 +171,29 @@ namespace Burmalda.Movement.Tests
             blades.Dispose();
 
             trail.TryAdvanceTo(trigger);
-            blades.Tick();
+            blades.Tick(BladeTactTrapSystem.TactSeconds);
 
             Assert.IsFalse(IsLethal(grid, 1, 0));
+        }
+
+        // issue #254 — то же ядро критерия приёмки, что у Стрелы (см.
+        // ArrowWaveTrapSystemTests): игрок делает ровно один ход (на
+        // триггер), дальше стоит на месте — такт обязан продолжать
+        // продвигаться по одному только реальному времени.
+        [Test]
+        public void Tick_PlayerStandsStillForSeveralSeconds_TactStillAdvancesOnRealTimeAlone()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
+            using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger); // единственный ход за весь тест
+
+            blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 1: [0,4]
+            blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 2: [1,3]
+
+            Assert.IsTrue(IsLethal(grid, 1, 1), "такт обязан был продвинуться по реальному времени без единого дополнительного хода игрока");
+            Assert.IsTrue(IsLethal(grid, 1, 3));
         }
     }
 }

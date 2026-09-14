@@ -12,18 +12,27 @@ namespace Burmalda.Movement
     /// целиком владельцем 2026-09-05 («оставить только пять новых
     /// ловушек»). C#-идентификатор этого такта — <see cref="LethalTrapType.BladeTact"/>.
     ///
-    /// Построена на <see cref="TurnBasedThreatScheduler"/> (issue #212, свой
-    /// экземпляр на систему): проход трейла через плиту-триггер
-    /// (<see cref="Tile.BladeTactTargetRow"/>, ещё не подключено ни к
-    /// одному генератору сегментов — отдельная задача авторинга, здесь
-    /// только механика) запускает такт: через <see cref="DelayTicks"/>
-    /// ходов начинается пятитактовый паттерн по заявленному ряду —
-    /// симметричные пары столбцов от края к центру и обратно (владелец:
-    /// «1 и 5 → 2 и 4 → 3 → 2 и 4 → 1 и 5», здесь — обобщение на
-    /// произвольную ширину сетки: крайняя пара → следующая пара внутрь →
-    /// ... → центр(ы) → обратно наружу до крайней пары), каждый такт
-    /// заявленные столбцы смертельны ровно <see cref="TactTicks"/> ходов,
-    /// затем снова безопасны и наступает следующий такт.
+    /// <b>Реальное время, не ходы (владелец, 2026-09-14, issue #254 —
+    /// «Волновые ловушки переходят на реальное время»).</b> Раньше система
+    /// была построена на <see cref="TurnBasedThreatScheduler"/> (issue #212),
+    /// тикаемом ровно на каждый шаг игрока — такт физически не мог "догнать"
+    /// стоящего на месте игрока (тот же класс бага, что у Стрелы, см.
+    /// doc-комментарий <see cref="ArrowWaveTrapSystem"/>). Теперь построена
+    /// на <see cref="RealTimeThreatScheduler"/> — вся последовательность
+    /// после срабатывания триггера тикается реальными секундами, один
+    /// параметр <see cref="TactSeconds"/> на весь путь такта.
+    ///
+    /// Проход трейла через плиту-триггер (<see cref="Tile.BladeTactTargetRow"/>,
+    /// ещё не подключено ни к одному генератору сегментов — отдельная
+    /// задача авторинга, здесь только механика) запускает такт: через
+    /// <see cref="TactSeconds"/> секунд начинается пятитактовый паттерн по
+    /// заявленному ряду — симметричные пары столбцов от края к центру и
+    /// обратно (владелец: «1 и 5 → 2 и 4 → 3 → 2 и 4 → 1 и 5», здесь —
+    /// обобщение на произвольную ширину сетки: крайняя пара → следующая
+    /// пара внутрь → ... → центр(ы) → обратно наружу до крайней пары),
+    /// каждый такт заявленные столбцы смертельны ровно
+    /// <see cref="TactSeconds"/> секунд, затем снова безопасны и наступает
+    /// следующий такт.
     ///
     /// Цикл повторяется до <see cref="CycleCount"/> раз (владелец: «по
     /// умолчанию два полных цикла, затем ловушка затихает») ЛИБО
@@ -35,15 +44,18 @@ namespace Burmalda.Movement
     ///
     /// <b>Владелец НЕ указал явно задержку до первого такта</b> (в отличие
     /// от Стрелы «через 1 ход» и Бомбы «через 2 хода», у Лезвий раздел
-    /// спецификации сразу описывает сам паттерн). <see cref="DelayTicks"/> =
-    /// 1 — тот же минимальный дефолт, что и у остальных ловушек (общий
-    /// принцип раздела traps.md: «угроза разворачивается через несколько
-    /// ходов», не мгновенно), задокументирован здесь как предположение
-    /// агента, mutable static.
+    /// спецификации сразу описывает сам паттерн) — <see cref="TactSeconds"/>
+    /// используется и как задержка до первого такта, и как длительность
+    /// каждого последующего (тот же приём, что <see cref="ArrowWaveTrapSystem.StepSeconds"/>).
+    /// Дефолт 0.3с — тот же ориентир, что уже используется в
+    /// docs/wiki/traps.md для перевода ходов в секунды, предположение
+    /// агента, не решение владельца.
     ///
-    /// Внешний <see cref="Tick"/> нужно вызывать явно, один раз на ход
-    /// игрока (тот же принцип, что и у <see cref="ArrowWaveTrapSystem"/>/
-    /// <see cref="BombTrapSystem"/>).
+    /// Внешний <see cref="Tick"/> нужно вызывать явно, из <c>Update()</c>
+    /// владеющего MonoBehaviour с <c>Time.deltaTime</c> — НЕ на каждый шаг
+    /// игрока. Обнаружение триггера (<see cref="OnPositionChanged"/>)
+    /// по-прежнему висит на <see cref="GridTraceTrail.PositionChanged"/> —
+    /// только продвижение уже активного такта переехало на реальное время.
     ///
     /// Одноразовая ловушка на триггер — повторный проход не запускает
     /// вторую параллельную последовательность (тот же приём, что у прочих
@@ -52,13 +64,15 @@ namespace Burmalda.Movement
     /// </summary>
     public sealed class BladeTactTrapSystem : IDisposable
     {
-        // Не задано владельцем явно — см. doc-комментарий класса.
-        public static int DelayTicks = 1;
+        // Единственный параметр скорости такта — и задержка до первого
+        // такта, и длительность каждого последующего (владелец: "Скорость
+        // волны — параметр, настраиваемый в дебаг-панели"). Дефолт 0.3с —
+        // см. doc-комментарий класса. Mutable static — дебаг-панель (issue
+        // #254, критерий приёмки).
+        public static float TactSeconds = 0.3f;
 
-        // "Один такт = 1 ход" — прямое требование владельца.
-        public static int TactTicks = 1;
-
-        // "По умолчанию два полных цикла" — прямое требование владельца.
+        // "По умолчанию два полных цикла" — прямое требование владельца. Не
+        // единица времени — количество циклов не меняется этой задачей.
         public static int CycleCount = 2;
 
         private sealed class ActiveBladeTact
@@ -72,7 +86,7 @@ namespace Burmalda.Movement
 
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
-        private readonly TurnBasedThreatScheduler _scheduler;
+        private readonly RealTimeThreatScheduler _scheduler;
         private readonly HashSet<GridCoordinate> _firedTriggers = new HashSet<GridCoordinate>();
 
         // Ключ — координата триггера, тот же приём, что у BombTrapSystem:
@@ -82,7 +96,7 @@ namespace Burmalda.Movement
 
         private bool _disposed;
 
-        public BladeTactTrapSystem(TunnelGrid grid, GridTraceTrail trail, TurnBasedThreatScheduler scheduler)
+        public BladeTactTrapSystem(TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
@@ -91,8 +105,8 @@ namespace Burmalda.Movement
             _scheduler.TileDue += OnTileDue;
         }
 
-        /// <summary>Продвигает планировщик на 1 ход — вызывать явно на каждый ход игрока (см. doc-комментарий класса).</summary>
-        public void Tick() => _scheduler.Tick();
+        /// <summary>Продвигает планировщик на <paramref name="deltaSeconds"/> реального времени — вызывать явно из Update() (см. doc-комментарий класса).</summary>
+        public void Tick(float deltaSeconds) => _scheduler.Tick(deltaSeconds);
 
         /// <summary>Отписывается от трейла и планировщика. Вызывать при завершении забега/уничтожении системы.</summary>
         public void Dispose()
@@ -116,7 +130,7 @@ namespace Burmalda.Movement
                 Sequence = BuildFullSequence(_grid.Width),
                 NextTactIndex = 0
             };
-            ScheduleNextStep(wave, DelayTicks);
+            ScheduleNextStep(wave, TactSeconds);
         }
 
         private void OnTileDue(GridCoordinate coordinate)
@@ -146,13 +160,13 @@ namespace Burmalda.Movement
             wave.PreviouslyArmedColumns = columns;
             wave.NextTactIndex++;
 
-            ScheduleNextStep(wave, TactTicks);
+            ScheduleNextStep(wave, TactSeconds);
         }
 
-        private void ScheduleNextStep(ActiveBladeTact wave, int ticksFromNow)
+        private void ScheduleNextStep(ActiveBladeTact wave, float secondsFromNow)
         {
             _waitingTacts[wave.Trigger] = wave;
-            _scheduler.ScheduleActivation(wave.Trigger, ticksFromNow);
+            _scheduler.ScheduleActivation(wave.Trigger, secondsFromNow);
         }
 
         /// <summary>
