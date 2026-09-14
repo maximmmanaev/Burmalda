@@ -112,6 +112,11 @@ namespace Burmalda.DebugVisuals
                 // в TileArtCatalog.asset) теперь обслуживает только
                 // TriggerSignature.
                 case TileArtKind.TriggerSignature: return _hiddenTrapSignature;
+                // Issue #260: переиспользует те же текстуры, что TriggerSignature/
+                // Destroyed — заводить новые не в скоупе агента, см.
+                // doc-комментарии TileArtKind.BombWarning/BombHole.
+                case TileArtKind.BombWarning: return _hiddenTrapSignature;
+                case TileArtKind.BombHole: return _destroyed;
                 case TileArtKind.CurrentPosition: return _currentPosition;
                 case TileArtKind.ManaSource: return _manaSource;
                 case TileArtKind.KeySource: return _keySource;
