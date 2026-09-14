@@ -14,10 +14,26 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public static class TrapRevealFeedback
     {
-        /// <summary>Сила вибрации, 0..1. 0 — вибрация выключена совсем (единственный прямой рычаг, доступный без платформенного кода).</summary>
-        public static float VibrationStrength = 0.6f;
+        /// <summary>
+        /// Сила вибрации, 0..1. 0 — вибрация выключена совсем (единственный
+        /// прямой рычаг, доступный без платформенного кода).
+        ///
+        /// <b>Issue #264 (2026-09-14, «снизить силу и длительность
+        /// оставшейся вибрации»):</b> было 0.6 — владелец прямо попросил
+        /// сделать короче и слабее, НЕ убирать совсем (в отличие от
+        /// вибрации распада, см. <see cref="DecayPulseController"/>, убрана
+        /// этой же задачей целиком). Новое значение — предположение агента
+        /// (не решение владельца про точный баланс), примерно вдвое от
+        /// прежнего — тот же mutable static, дебаг-панель, владелец
+        /// подбирает точнее на устройстве.
+        /// </summary>
+        public static float VibrationStrength = 0.3f;
 
-        /// <summary>Сколько секунд длится вибро-обратная связь на раскрытии (серия импульсов, см. TrapRevealController).</summary>
-        public static float VibrationDurationSeconds = 0.15f;
+        /// <summary>
+        /// Сколько секунд длится вибро-обратная связь на раскрытии (серия
+        /// импульсов, см. TrapRevealController). Issue #264: было 0.15с,
+        /// снижено — та же логика, что у <see cref="VibrationStrength"/>.
+        /// </summary>
+        public static float VibrationDurationSeconds = 0.08f;
     }
 }
