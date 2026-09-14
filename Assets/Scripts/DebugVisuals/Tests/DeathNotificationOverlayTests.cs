@@ -46,6 +46,7 @@ namespace Burmalda.DebugVisuals.Tests
             _runController = _inputObject.AddComponent<RunController>();
             _runController.RollD20Override = () => d20Roll; // issue #225 — не блиндовый глобальный RNG в тесте
             InvokePrivate(_runController, "Awake");
+            InvokePrivate(_runController, "OnEnable"); // подписка на RunStarted — вне Play Mode AddComponent её не вызывает сама, нужна для рестарта (см. Update_AfterRestart_HidesNotification)
             InvokePrivate(_runController, "Update"); // строит RunState
 
             _overlayObject = new GameObject("DeathNotif_Overlay");
@@ -112,6 +113,35 @@ namespace Burmalda.DebugVisuals.Tests
             var message = (string)GetPrivateField(_overlay, "_lastMessage");
             StringAssert.Contains(_runController.LastDeathReason, message,
                 "уведомление обязано включать причину смерти, не только голый факт");
+        }
+
+        // Issue #266, ревизия (владелец, живой тест на устройстве): "уведомление
+        // о смерти не даёт нажать рестарт" — полноэкранный фон оверлея
+        // перехватывал raycast поверх отдельной RestartButton. Кнопка
+        // "ИГРАТЬ СНОВА" теперь на самом оверлее.
+        [Test]
+        public void HandlePlayAgainClicked_AfterDeath_RestartsRun()
+        {
+            SetUp();
+            KillPlayer();
+            Assert.IsFalse(_input.IsAlive, "тест некорректен, если игрок не умер");
+
+            InvokePrivate(_overlay, "HandlePlayAgainClicked");
+
+            Assert.IsTrue(_input.IsAlive, "кнопка «Играть снова» обязана перезапускать забег (GridTraceInputController.Restart)");
+        }
+
+        [Test]
+        public void Update_AfterRestart_HidesNotification()
+        {
+            SetUp();
+            KillPlayer();
+            Assert.IsTrue(_overlay.IsShowingDeathNotification);
+
+            InvokePrivate(_overlay, "HandlePlayAgainClicked");
+            InvokePrivate(_overlay, "Update"); // подхватывает новый RunState после рестарта, скрывает старое уведомление
+
+            Assert.IsFalse(_overlay.IsShowingDeathNotification, "уведомление прошлой смерти не должно висеть после рестарта");
         }
 
         private static void InvokePrivate(object target, string methodName, params object[] args)

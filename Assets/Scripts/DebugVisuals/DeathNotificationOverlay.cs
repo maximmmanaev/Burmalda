@@ -1,3 +1,4 @@
+using Burmalda.Movement;
 using Burmalda.RunLifecycle;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -20,13 +21,20 @@ namespace Burmalda.DebugVisuals
     /// рестарта в проекте ещё нет").
     ///
     /// <b>ВРЕМЕННОЕ РЕШЕНИЕ.</b> Минимум, ничего лишнего: полноэкранный
-    /// оверлей с текстом причины смерти на <see cref="RunState.Died"/>, БЕЗ
-    /// кнопки Restart (уже есть отдельная всегда видимая
-    /// <see cref="RestartButton"/>, не завязанная на смерть явно, но
-    /// доступная в любой момент ручного теста) и без интеграции с
-    /// экономикой/статистикой забега — всё это в скоуп полноценного экрана
-    /// Game Over, не этой заглушки. Удаляется целиком, когда тот экран
-    /// будет готов — каким бы issue он ни описывался.
+    /// оверлей с текстом причины смерти на <see cref="RunState.Died"/> — без
+    /// интеграции с экономикой/статистикой забега, это в скоупе полноценного
+    /// экрана Game Over, не этой заглушки. Удаляется целиком, когда тот
+    /// экран будет готов — каким бы issue он ни описывался.
+    ///
+    /// <b>Кнопка "ИГРАТЬ СНОВА" (владелец, живой тест на устройстве,
+    /// 2026-09-14) — ревизия исходного решения задачи.</b> Первая версия
+    /// сознательно была БЕЗ кнопки рестарта — предполагалось, что отдельная
+    /// всегда видимая <see cref="RestartButton"/> её заменяет. На практике
+    /// полноэкранный <see cref="Image"/>-фон оверлея (нужен для
+    /// "невозможное не заметить") перехватывает raycast поверх ВСЕГО, что
+    /// под ним, включая <see cref="RestartButton"/> на отдельном Canvas ниже
+    /// по sortingOrder — владелец подтвердил на устройстве: "уведомление не
+    /// даёт нажать рестарт". Кнопка теперь на самом оверлее.
     ///
     /// Тот же паттерн самобутстрапа/переподписки на смену <see cref="RunState"/>
     /// при рестарте, что <see cref="PickupFeedback"/>/<see cref="StepClickController"/>
@@ -43,6 +51,7 @@ namespace Burmalda.DebugVisuals
             DontDestroyOnLoad(host);
         }
 
+        private GridTraceInputController _input;
         private RunController _runController;
         private RunState _wiredRunState;
         private GameObject _overlayRoot;
@@ -65,6 +74,7 @@ namespace Burmalda.DebugVisuals
             // пересобирается на каждый забег (см. её doc-комментарий) —
             // сверяем по ссылке, не только на null, чтобы переподписаться
             // на новый экземпляр после рестарта, а не слушать старый.
+            if (_input == null) _input = FindFirstObjectByType<GridTraceInputController>();
             if (_runController == null) _runController = FindFirstObjectByType<RunController>();
             if (_runController == null || _runController.RunState == null) return;
 
@@ -152,8 +162,52 @@ namespace Burmalda.DebugVisuals
             _reasonText.color = Color.white;
             _reasonText.text = "ВЫ ПОГИБЛИ";
 
+            BuildPlayAgainButton(_overlayRoot.transform);
+
             // Скрыт по умолчанию — до первой смерти показывать нечего.
             _overlayRoot.SetActive(false);
         }
+
+        private void BuildPlayAgainButton(Transform parent)
+        {
+            var buttonHost = new GameObject("PlayAgainButton");
+            buttonHost.transform.SetParent(parent, worldPositionStays: false);
+
+            var image = buttonHost.AddComponent<Image>();
+            image.color = new Color(0.85f, 0.15f, 0.1f, 0.95f); // тревожный красный — отличим от нейтральной RestartButton
+
+            var rect = buttonHost.GetComponent<RectTransform>();
+            // Фиксированная точка ниже центра экрана (не привязана к
+            // высоте _reasonText — та растёт с длиной причины смерти) —
+            // 25% высоты экрана от низа, с запасом от текста при любой
+            // разумной длине причины.
+            rect.anchorMin = new Vector2(0.5f, 0.25f);
+            rect.anchorMax = new Vector2(0.5f, 0.25f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(420f, 130f);
+            rect.anchoredPosition = Vector2.zero;
+
+            var button = buttonHost.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.onClick.AddListener(HandlePlayAgainClicked);
+
+            var textHost = new GameObject("Label");
+            textHost.transform.SetParent(buttonHost.transform, worldPositionStays: false);
+            var textRect = textHost.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            var text = textHost.AddComponent<Text>();
+            text.text = "ИГРАТЬ СНОВА";
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 38;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.white;
+        }
+
+        private void HandlePlayAgainClicked() => _input?.Restart();
     }
 }
