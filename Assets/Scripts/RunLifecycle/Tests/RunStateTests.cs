@@ -97,12 +97,20 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
-        public void LethalTrapTriggered_LavaWave_SetsIsAliveFalseAndFiresDiedWithOwnReason()
+        public void LethalTrapTriggered_RuntimeTransitionToLava_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
-            // issue #216: тот же регресс-тест, что и для BladeTact/ArrowWave выше.
+            // issue #216, переименован issue #262: раньше проверял отдельный
+            // C#-идентификатор LethalTrapType.LavaWave (волна Лавы,
+            // Movement.LavaWaveTrapSystem) — владелец слил его с
+            // LethalTrapType.Lava (см. её doc-комментарий), отдельного
+            // значения для волны больше нет. Тест сохранён не как дубль
+            // LethalTrapTriggered_Lava_... выше (тот идёт через MarkLethalTrap,
+            // генерация) — этот целенаправленно проверяет РАНТАЙМ-переход
+            // (TransitionToLethalTrap, тот же путь, что использует
+            // LavaWaveTrapSystem) приводит к тому же исходу.
             var (grid, trail, _, runState) = CreateRun();
             var lavaTile = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(lavaTile).TransitionToLethalTrap(LethalTrapType.LavaWave);
+            grid.GetOrCreateTile(lavaTile).TransitionToLethalTrap(LethalTrapType.Lava);
             string firedReason = null;
             runState.Died += reason => firedReason = reason;
 

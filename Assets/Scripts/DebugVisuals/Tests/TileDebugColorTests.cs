@@ -107,11 +107,12 @@ namespace Burmalda.DebugVisuals.Tests
         // до градиента распада) — игрок видел необъяснимую преграду, а не
         // "перестал гаситься тайл". Реюзит TimedTrapActiveColor — активная
         // угроза прямо сейчас, видна ВСЕГДА, без гейта примериванием (тот же
-        // принцип, что у Лавы выше).
+        // принцип, что у Лавы выше). Волна Лавы больше не отдельный тип
+        // (issue #262, слита с LethalTrapType.Lava — см. Resolve_Lava_...
+        // выше).
         [TestCase(LethalTrapType.ArrowWave)]
         [TestCase(LethalTrapType.BombBlast)]
         [TestCase(LethalTrapType.BladeTact)]
-        [TestCase(LethalTrapType.LavaWave)]
         public void Resolve_NewTurnBasedTrapTypes_ReturnTimedTrapActiveColor(LethalTrapType trapType)
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: trapType, decayProgress01: 0f, isTrapTrigger: false);
