@@ -44,6 +44,35 @@ namespace Burmalda.Movement.Tests
             Assert.AreEqual(LethalTrapType.ArrowWave, firstColumn.LethalTrap);
         }
 
+        // Issue #268 (владелец, живой тест устройства): «смерть не появляется
+        // после того, как в меня выстреливает стрела» — игрок УЖЕ стоит на
+        // столбце, когда тот становится смертельным (не новый ход), TryAdvanceTo
+        // тут ни при чём. Тот же класс бага, что закрыт для Бомбы (issue #260).
+        [Test]
+        public void Tick_PlayerAlreadyStandingOnColumnWhenArmed_FiresLethalTrapTriggered()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
+            using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(new GridCoordinate(2, 1)); // на пути к первому столбцу волны (0)
+            trail.TryAdvanceTo(new GridCoordinate(2, 0)); // игрок стоит здесь — последний ход за весь тест
+            GridCoordinate? firedCoordinate = null;
+            LethalTrapType? firedType = null;
+            trail.LethalTrapTriggered += (coordinate, type) =>
+            {
+                firedCoordinate = coordinate;
+                firedType = type;
+            };
+
+            arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds); // армирует (2,0) — игрок уже там, новый ход не совершается
+
+            Assert.AreEqual(new GridCoordinate(2, 0), firedCoordinate,
+                "игрок стоит на плите, ставшей смертельной постфактум — обязан сработать тот же путь, что и обычный шаг на ловушку");
+            Assert.AreEqual(LethalTrapType.ArrowWave, firedType);
+        }
+
         [Test]
         public void Tick_DelayElapses_ArmsFirstColumn_RightToLeft()
         {
