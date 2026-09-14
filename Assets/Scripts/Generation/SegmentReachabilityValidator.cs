@@ -11,12 +11,21 @@ namespace Burmalda.Generation
     /// проходимой плиты ряда входа (row 0) — игрок может войти в сегмент в
     /// любом столбце, не только в одном заранее известном.
     ///
-    /// Непроходимыми для этой проверки считаются <see cref="SegmentTileType.Blocked"/>
-    /// и <see cref="SegmentTileType.LeverGate"/> (закрыта по умолчанию, issue
+    /// Непроходимыми для этой проверки считаются <see cref="SegmentTileType.Blocked"/>,
+    /// <see cref="SegmentTileType.LeverGate"/> (закрыта по умолчанию, issue
     /// #51 — "недоступный по основному маршруту": если единственный путь к
     /// выходу идёт через неё, основной маршрут на деле непроходим без
-    /// рычага). Опасные, но не заблокированные, плиты (яма/лава/триггеры
-    /// ловушек) проходимы для этой проверки — риск, а не физическая стена.
+    /// рычага) и <see cref="SegmentTileType.Lava"/> (issue #251 — статичная
+    /// Лава становится <c>LethalTrap</c> уже В МОМЕНТ генерации
+    /// (<c>SegmentRowProvider.ApplyTileType</c> → <c>Tile.MarkLethalTrap</c>),
+    /// а <see cref="Movement.GridTraceTrail.TryAdvanceTo"/> категорически
+    /// отклоняет ЛЮБОЙ шаг на <c>LethalTrap.HasValue</c> независимо от исхода
+    /// d20 — физическая стена, не риск, которым можно рискнуть, несмотря на
+    /// более раннюю формулировку этого комментария). Пять триггеров ловушек
+    /// (issues #213-#217) — ДРУГОЙ случай: на этапе генерации это обычный
+    /// безопасный пол, опасность наступает ПОЗЖЕ через отдельную систему, не
+    /// в момент шага на саму плиту-триггер — они по-прежнему проходимы для
+    /// этой проверки заслуженно.
     ///
     /// <b>Отдельная проверка тайника (issue #208, плейтест владельца
     /// 2026-08-31): "рычаги появились но стены по прежнему не пускают к
@@ -202,11 +211,14 @@ namespace Burmalda.Generation
         private static bool IsPassableGateClosed(SegmentTemplate template, int row, int column)
         {
             var type = template.TileAt(row, column);
-            return type != SegmentTileType.Blocked && type != SegmentTileType.LeverGate;
+            return type != SegmentTileType.Blocked && type != SegmentTileType.LeverGate && type != SegmentTileType.Lava;
         }
 
         private static bool IsPassableGateOpen(SegmentTemplate template, int row, int column)
-            => template.TileAt(row, column) != SegmentTileType.Blocked;
+        {
+            var type = template.TileAt(row, column);
+            return type != SegmentTileType.Blocked && type != SegmentTileType.Lava;
+        }
 
         // BFS, 8-направленное соседство — тот же принцип, что GridCoordinate.IsAdjacentTo/TunnelGrid.GetNeighbors.
         private static int[,] ComputeComponents(SegmentTemplate template, Func<SegmentTemplate, int, int, bool> isPassable)
