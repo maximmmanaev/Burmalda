@@ -7,11 +7,11 @@ namespace Burmalda.Movement.Tests
     {
         private const int Width = 5;
 
-        private static (TunnelGrid grid, GridTraceTrail trail, TurnBasedThreatScheduler scheduler) CreateTrail(GridCoordinate start)
+        private static (TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler) CreateTrail(GridCoordinate start)
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, start);
-            var scheduler = new TurnBasedThreatScheduler();
+            var scheduler = new RealTimeThreatScheduler();
             return (grid, trail, scheduler);
         }
 
@@ -70,15 +70,15 @@ namespace Burmalda.Movement.Tests
             using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
             WalkForwardTo(trail, 0, 5, 2); // игрок стоит прямо на триггере
 
-            lava.Tick();
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
             Assert.IsFalse(IsRowFullyLava(grid, 5), "ряд игрока не должен стать лавой немедленно");
 
-            lava.Tick();
-            lava.Tick();
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
             Assert.IsFalse(IsRowFullyLava(grid, 5), "волна обязана ждать, а не пропускать ряд навсегда");
 
             trail.TryAdvanceTo(new GridCoordinate(6, 2)); // игрок продвинулся вперёд — ряд 5 теперь позади него
-            lava.Tick();
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
 
             Assert.IsTrue(IsRowFullyLava(grid, 5), "как только ряд оказался строго позади игрока, волна должна была его конвертировать");
         }
@@ -92,7 +92,7 @@ namespace Burmalda.Movement.Tests
             using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
             WalkForwardTo(trail, 0, 6, 2); // игрок уже прошёл дальше триггера
 
-            lava.Tick();
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
 
             for (var column = 0; column < Width; column++)
                 Assert.AreEqual(LethalTrapType.LavaWave, grid.GetOrCreateTile(new GridCoordinate(5, column)).LethalTrap, $"столбец {column} ряда 5 должен быть лавой");
@@ -106,9 +106,9 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkLavaTrigger();
             using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
             WalkForwardTo(trail, 0, 6, 2);
-            lava.Tick(); // ряд 5
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds); // ряд 5
 
-            lava.Tick(); // должен быть ряд 4
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds); // должен быть ряд 4
 
             Assert.IsTrue(IsRowFullyLava(grid, 4));
         }
@@ -121,9 +121,9 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkLavaTrigger();
             using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
             WalkForwardTo(trail, 0, 6, 2);
-            lava.Tick(); // ряд 5 — лава
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds); // ряд 5 — лава
 
-            for (var i = 0; i < 10; i++) lava.Tick(); // дальнейшие тики волны и её завершение
+            for (var i = 0; i < 10; i++) lava.Tick(LavaWaveTrapSystem.RowStepSeconds); // дальнейшие тики волны и её завершение
 
             Assert.IsTrue(IsRowFullyLava(grid, 5), "владелец: «отрезая путь назад» — необратимость и есть смысл ловушки");
         }
@@ -137,7 +137,7 @@ namespace Burmalda.Movement.Tests
             using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
             WalkForwardTo(trail, 0, 20, 2); // далеко впереди — инвариант никогда не блокирует
 
-            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick();
+            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
 
             for (var row = 10; row > 10 - LavaWaveTrapSystem.MaxRows; row--)
                 Assert.IsTrue(IsRowFullyLava(grid, row), $"ряд {row} должен быть частью волны (всего {LavaWaveTrapSystem.MaxRows} рядов)");
@@ -145,7 +145,7 @@ namespace Burmalda.Movement.Tests
             var beyondCapRow = 10 - LavaWaveTrapSystem.MaxRows;
             Assert.IsTrue(IsRowUntouched(grid, beyondCapRow), "ряд за пределами лимита не должен быть тронут");
 
-            lava.Tick(); // седьмой тик — не должен ничего менять
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds); // седьмой тик — не должен ничего менять
             Assert.IsTrue(IsRowUntouched(grid, beyondCapRow));
         }
 
@@ -158,15 +158,15 @@ namespace Burmalda.Movement.Tests
             using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
             WalkForwardTo(trail, 0, 10, 2); // далеко впереди
 
-            lava.Tick(); // ряд 2
-            lava.Tick(); // ряд 1
-            lava.Tick(); // ряд 0
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds); // ряд 2
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds); // ряд 1
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds); // ряд 0
 
             Assert.IsTrue(IsRowFullyLava(grid, 2));
             Assert.IsTrue(IsRowFullyLava(grid, 1));
             Assert.IsTrue(IsRowFullyLava(grid, 0));
 
-            Assert.DoesNotThrow(() => lava.Tick(), "волна должна тихо остановиться на границе тоннеля, не упасть на отрицательном ряду");
+            Assert.DoesNotThrow(() => lava.Tick(LavaWaveTrapSystem.RowStepSeconds), "волна должна тихо остановиться на границе тоннеля, не упасть на отрицательном ряду");
         }
 
         [Test]
@@ -178,7 +178,7 @@ namespace Burmalda.Movement.Tests
             using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
             WalkForwardTo(trail, 0, 6, 2);
 
-            lava.Tick(); // ряд 5
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds); // ряд 5
 
             Assert.IsTrue(IsRowUntouched(grid, 6), "ряд игрока не должен быть тронут");
             Assert.IsTrue(IsRowUntouched(grid, 3), "ряд, до которого волна ещё не дошла, не должен быть тронут");
@@ -197,7 +197,7 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(trigger); // повторный визит на триггер — не должен запустить вторую волну
             WalkForwardTo(trail, 5, 6, 2); // вперёд, за пределы ряда триггера
 
-            lava.Tick();
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
 
             // Одна волна — ряд 5 стал лавой ровно один раз (это уже
             // покрыто Tick_ConvertsWholeRow), здесь важно, что ДАЛЬШЕ по
@@ -205,7 +205,7 @@ namespace Burmalda.Movement.Tests
             // одновременно — косвенно проверяется тем, что после ровно
             // MaxRows тиков волна корректно останавливается (см. следующую
             // проверку: ряд глубоко за пределами лимита остаётся нетронутым).
-            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick();
+            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
 
             Assert.IsTrue(IsRowUntouched(grid, 5 - LavaWaveTrapSystem.MaxRows), "если бы вторая волна зарегистрировалась, лимит рядов был бы превышен");
         }
@@ -220,7 +220,7 @@ namespace Burmalda.Movement.Tests
             lava.Dispose();
 
             WalkForwardTo(trail, 0, 6, 2);
-            lava.Tick();
+            lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
 
             Assert.IsTrue(IsRowUntouched(grid, 5));
         }
@@ -247,7 +247,7 @@ namespace Burmalda.Movement.Tests
             using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
             WalkForwardTo(trail, 0, 7, 2); // за пределы триггера — волна вправе конвертировать весь свой диапазон
 
-            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick();
+            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
 
             Assert.IsFalse(grid.GetOrCreateTile(altarCoordinate).LethalTrap.HasValue,
                 "Алтарь — постоянный чекпоинт для Knockback (PRD 9), волна не имеет права превращать его в лаву");
@@ -285,7 +285,7 @@ namespace Burmalda.Movement.Tests
             using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
             WalkForwardTo(trail, 0, 9, 2);
 
-            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick();
+            for (var i = 0; i < LavaWaveTrapSystem.MaxRows; i++) lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
 
             Assert.IsFalse(grid.GetOrCreateTile(altarCoordinate).LethalTrap.HasValue,
                 "Алтарь перед Комнатой Босса не должен сгорать от постороннего триггера Лавы внутри/рядом с Комнатой");
@@ -294,6 +294,30 @@ namespace Burmalda.Movement.Tests
             trail.TeleportTo(altarCoordinate);
             Assert.IsFalse(grid.GetOrCreateTile(trail.CurrentPosition).LethalTrap.HasValue,
                 "Knockback не должен ставить игрока на горящую плиту");
+        }
+
+        // issue #254 — то же ядро критерия приёмки, что у Стрелы/Лезвий (см.
+        // ArrowWaveTrapSystemTests/BladeTactTrapSystemTests): игрок делает
+        // ход ЗА триггер и дальше стоит на месте — волна обязана продолжать
+        // жечь ряды позади него по одному только реальному времени. Это же
+        // прямое исправление старого бага: раньше стоящий на месте игрок
+        // был "в безопасности" от Лавы не по замыслу, а потому что волна
+        // тикалась только на его собственные шаги.
+        [Test]
+        public void Tick_PlayerStandsStillForSeveralSeconds_WaveStillAdvancesOnRealTimeAlone()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(5, 2);
+            grid.GetOrCreateTile(trigger).MarkLavaTrigger();
+            using var lava = new LavaWaveTrapSystem(grid, trail, scheduler);
+            WalkForwardTo(trail, 0, 6, 2); // последний ход за весь тест — дальше игрок стоит на месте, за пределами триггера
+
+            for (var i = 0; i < 3; i++) lava.Tick(LavaWaveTrapSystem.RowStepSeconds);
+
+            Assert.IsTrue(IsRowFullyLava(grid, 5), "ряд 5 (триггер) должен был стать лавой на первом тике");
+            Assert.IsTrue(IsRowFullyLava(grid, 4), "ряд 4 должен был стать лавой на втором тике");
+            Assert.IsTrue(IsRowFullyLava(grid, 3),
+                "волна обязана была продвинуться на 3 ряда назад по одному только реальному времени, без единого дополнительного хода игрока");
         }
     }
 }

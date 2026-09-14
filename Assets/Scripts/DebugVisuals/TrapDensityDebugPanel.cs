@@ -1,5 +1,6 @@
 using Burmalda.Core;
 using Burmalda.Generation;
+using Burmalda.Movement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -57,6 +58,20 @@ namespace Burmalda.DebugVisuals
     /// (единственная причина, по которой у этого класса вообще появился
     /// Update() — остальные одиннадцать строк управляются слайдерами
     /// событийно, перерисовывать их каждый кадр не нужно).
+    ///
+    /// <b>Задача «Волновые ловушки переходят на реальное время» (владелец,
+    /// 2026-09-14, issue #254):</b> ещё пять ползунков — тайминги всех пяти
+    /// систем ловушек, перешедших с тактов ходов на реальное время
+    /// (<see cref="Movement.ArrowWaveTrapSystem.StepSeconds"/>/
+    /// <see cref="Movement.BladeTactTrapSystem.TactSeconds"/>/
+    /// <see cref="Movement.LavaWaveTrapSystem.RowStepSeconds"/>/
+    /// <see cref="Movement.BombTrapSystem.DelaySeconds"/>/
+    /// <see cref="Movement.FallingRockTrapSystem.DelaySeconds"/>) — прямое
+    /// требование задачи: "скорость волны — параметр, настраиваемый в
+    /// дебаг-панели, без пересборки". Второй раунд задачи (владелец: «никаких
+    /// ловушек в такт быть не должно, только тайминги») распространил это на
+    /// все пять типов, не только на три волновых — Бомба/Падающий камень
+    /// добавлены сюда же тем же приёмом.
     /// </summary>
     public sealed class TrapDensityDebugPanel : MonoBehaviour
     {
@@ -72,7 +87,8 @@ namespace Burmalda.DebugVisuals
         private const float MaxVibrationDurationSeconds = 1f; // задача «раскрытие опасности при примеривании» — щедрый запас над стартовым значением
         private const float MaxCollapseDurationSeconds = 1f; // задача «разрушение плиты» — щедрый запас над стартовыми 0.25–0.4с
         private const float MaxExtraTrapChance = 0.5f; // задача «параметр плотности» — до половины Open-плит, щедрый запас для стресс-теста на устройстве
-        private const int RowCount = 14; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 2 параметра обвала + 1 readout счётчика встреч + 1 множитель доп. плотности (см. BuildPanel)
+        private const float MaxWaveSpeedSeconds = 2f; // issue #254 — щедрый запас над стартовыми 0.3с, от почти-мгновенной до медленной волны
+        private const int RowCount = 19; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 2 параметра обвала + 1 readout счётчика встреч + 1 множитель доп. плотности + 5 таймингов ловушек (см. BuildPanel)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -228,6 +244,25 @@ namespace Burmalda.DebugVisuals
             // (см. ExtraTrapDensity). Стартовое значение — 0, нейтральное.
             BuildRow(_panelRoot.transform, 13, "Доп. плотность ловушек", 0f, MaxExtraTrapChance, ExtraTrapDensity.Chance,
                 v => ExtraTrapDensity.Chance = v, FormatPercent);
+
+            // Задача «Волновые ловушки переходят на реальное время» (issue
+            // #254): "скорость волны — параметр, настраиваемый в
+            // дебаг-панели, без пересборки" — прямое требование, одна
+            // строка на систему.
+            BuildRow(_panelRoot.transform, 14, "Скорость: волна Стрелы", 0.01f, MaxWaveSpeedSeconds, ArrowWaveTrapSystem.StepSeconds,
+                v => ArrowWaveTrapSystem.StepSeconds = v, FormatSeconds);
+            BuildRow(_panelRoot.transform, 15, "Скорость: такт Лезвий", 0.01f, MaxWaveSpeedSeconds, BladeTactTrapSystem.TactSeconds,
+                v => BladeTactTrapSystem.TactSeconds = v, FormatSeconds);
+            BuildRow(_panelRoot.transform, 16, "Скорость: волна Лавы", 0.01f, MaxWaveSpeedSeconds, LavaWaveTrapSystem.RowStepSeconds,
+                v => LavaWaveTrapSystem.RowStepSeconds = v, FormatSeconds);
+
+            // Второй раунд той же задачи (владелец: "никаких ловушек в
+            // такт быть не должно, только тайминги") — Бомба/Падающий
+            // камень тоже перешли на реальное время, тот же приём.
+            BuildRow(_panelRoot.transform, 17, "Задержка: взрыв Бомбы", 0.01f, MaxWaveSpeedSeconds, BombTrapSystem.DelaySeconds,
+                v => BombTrapSystem.DelaySeconds = v, FormatSeconds);
+            BuildRow(_panelRoot.transform, 18, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
+                v => FallingRockTrapSystem.DelaySeconds = v, FormatSeconds);
         }
 
         private void BuildReadoutRow(Transform parent, int rowIndex, string label)

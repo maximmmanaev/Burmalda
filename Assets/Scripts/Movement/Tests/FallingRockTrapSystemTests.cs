@@ -7,11 +7,11 @@ namespace Burmalda.Movement.Tests
     {
         private const int Width = 5;
 
-        private static (TunnelGrid grid, GridTraceTrail trail, TurnBasedThreatScheduler scheduler) CreateTrail(GridCoordinate start)
+        private static (TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler) CreateTrail(GridCoordinate start)
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, start);
-            var scheduler = new TurnBasedThreatScheduler();
+            var scheduler = new RealTimeThreatScheduler();
             return (grid, trail, scheduler);
         }
 
@@ -37,9 +37,8 @@ namespace Burmalda.Movement.Tests
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(trigger);
 
-            // DelayTicks=1 — минимальная задержка, поэтому "до истечения"
-            // здесь значит "вообще не тикать", в отличие от систем с
-            // задержкой в несколько ходов (Бомба, DelayTicks=2).
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds / 2); // половина задержки — рано
+
             Assert.IsFalse(grid.GetOrCreateTile(trigger).IsBlocked);
         }
 
@@ -54,7 +53,7 @@ namespace Burmalda.Movement.Tests
             fallingRock.PlayerCrushed += c => crushedAt = c;
             trail.TryAdvanceTo(trigger); // игрок остаётся на триггере
 
-            fallingRock.Tick();
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
             Assert.AreEqual(trigger, crushedAt);
             Assert.IsFalse(grid.GetOrCreateTile(trigger).IsBlocked, "смертельный исход не должен дополнительно блокировать плиту");
@@ -72,7 +71,7 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(trigger);
             trail.TryAdvanceTo(new GridCoordinate(0, 2)); // игрок ушёл с триггера
 
-            fallingRock.Tick();
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
             Assert.IsFalse(crushed);
             Assert.IsTrue(grid.GetOrCreateTile(trigger).IsBlocked);
@@ -87,7 +86,7 @@ namespace Burmalda.Movement.Tests
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(trigger);
             trail.TryAdvanceTo(new GridCoordinate(0, 2));
-            fallingRock.Tick();
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
             var advanced = trail.TryAdvanceTo(trigger);
 
@@ -105,7 +104,7 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(trigger);
             trail.TryAdvanceTo(new GridCoordinate(0, 2));
 
-            fallingRock.Tick();
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
             Assert.IsFalse(neighborTile.IsBlocked);
         }
@@ -119,7 +118,7 @@ namespace Burmalda.Movement.Tests
             // "игрок ушёл", так что после полного цикла повторный визит
             // физически невозможен (стена). Если бы OnPositionChanged
             // ошибочно поставил вторую независимую активацию (планировщик
-            // такое умеет, см. TurnBasedThreatSchedulerTests), один Tick()
+            // такое умеет, см. RealTimeThreatSchedulerTests), один Tick()
             // вызвал бы PlayerCrushed дважды — TileDue сработал бы для
             // обеих регистраций в одном и том же тике.
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
@@ -133,7 +132,7 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад
             trail.TryAdvanceTo(trigger); // повторный визит — не должен зарегистрировать вторую
 
-            fallingRock.Tick();
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
             Assert.AreEqual(1, crushCount, "повторный визит на уже сработавший триггер не должен ставить вторую активацию");
         }
@@ -148,9 +147,29 @@ namespace Burmalda.Movement.Tests
             fallingRock.Dispose();
 
             trail.TryAdvanceTo(trigger);
-            fallingRock.Tick();
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
             Assert.IsFalse(grid.GetOrCreateTile(trigger).IsBlocked);
+        }
+
+        // issue #254, второй раунд (владелец: «ловушки в такт шагам это
+        // ошибка, никаких ловушек в такт быть не должно, только тайминги»):
+        // игрок остаётся на плите-триггере и дальше СТОИТ на месте — камень
+        // обязан всё равно упасть по одному только реальному времени.
+        [Test]
+        public void Tick_PlayerStandsStillOnTrigger_StillCrushedOnRealTimeAlone()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
+            using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
+            GridCoordinate? crushedAt = null;
+            fallingRock.PlayerCrushed += c => crushedAt = c;
+            trail.TryAdvanceTo(trigger); // единственный ход за весь тест
+
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
+
+            Assert.AreEqual(trigger, crushedAt, "камень обязан был упасть по накопленному реальному времени без единого дополнительного хода игрока");
         }
     }
 }

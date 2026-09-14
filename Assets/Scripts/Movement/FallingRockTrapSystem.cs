@@ -8,12 +8,18 @@ namespace Burmalda.Movement
     /// Ловушка «Падающий камень» (docs/wiki/traps.md, issue #217) — аналога
     /// в проекте нет вообще (ни одна существующая система не превращает
     /// плиту в <see cref="Tile.IsBlocked"/> ВО ВРЕМЯ забега, см.
-    /// docs/wiki/traps.md «Сверка с уже существующим кодом»). Построена на
-    /// <see cref="TurnBasedThreatScheduler"/> (issue #212, свой экземпляр на
-    /// систему): проход трейла через плиту-триггер (<see cref="Tile.IsFallingRockTrigger"/>,
+    /// docs/wiki/traps.md «Сверка с уже существующим кодом»).
+    ///
+    /// <b>Реальное время, не ходы (владелец, 2026-09-14, issue #254 —
+    /// исправлено после первого раунда: «ловушки в такт шагам это ошибка,
+    /// никаких ловушек в такт быть не должно, только тайминги»).</b> См.
+    /// тот же аргумент в doc-комментарии <see cref="BombTrapSystem"/> —
+    /// отсчёт до падения камня не должен зависеть от того, продолжает ли
+    /// игрок идти. Построена на <see cref="RealTimeThreatScheduler"/>:
+    /// проход трейла через плиту-триггер (<see cref="Tile.IsFallingRockTrigger"/>,
     /// ещё не подключено ни к одному генератору сегментов — отдельная
     /// задача авторинга, здесь только механика) запускает отсчёт. Через
-    /// <see cref="DelayTicks"/> ходов камень падает НА САМУ плиту-триггер
+    /// <see cref="DelaySeconds"/> секунд камень падает НА САМУ плиту-триггер
     /// (владелец: «на плиту-триггер падает камень», в отличие от прочих
     /// ловушек здесь нет отдельной координаты цели):
     /// <list type="bullet">
@@ -53,17 +59,19 @@ namespace Burmalda.Movement
     /// </summary>
     public sealed class FallingRockTrapSystem : IDisposable
     {
-        // "Через 1 ход" — прямое требование владельца. Балансное число,
-        // mutable static, не const — дебаг-панель (issue #217, критерий приёмки).
-        public static int DelayTicks = 1;
+        // "Через 1 ход" в исходной спецификации ходов — переведено в
+        // секунды тем же ориентиром, что и остальные (0.3с ≈ 1 ход,
+        // docs/wiki/traps.md), issue #254. Балансное число, mutable static,
+        // не const — дебаг-панель (критерий приёмки).
+        public static float DelaySeconds = 0.3f;
 
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
-        private readonly TurnBasedThreatScheduler _scheduler;
+        private readonly RealTimeThreatScheduler _scheduler;
         private readonly HashSet<GridCoordinate> _firedTriggers = new HashSet<GridCoordinate>();
         private bool _disposed;
 
-        public FallingRockTrapSystem(TunnelGrid grid, GridTraceTrail trail, TurnBasedThreatScheduler scheduler)
+        public FallingRockTrapSystem(TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
@@ -81,8 +89,8 @@ namespace Burmalda.Movement
         /// </summary>
         public event Action<GridCoordinate> PlayerCrushed;
 
-        /// <summary>Продвигает планировщик на 1 ход — вызывать явно на каждый ход игрока (см. doc-комментарий класса).</summary>
-        public void Tick() => _scheduler.Tick();
+        /// <summary>Продвигает планировщик на <paramref name="deltaSeconds"/> реального времени — вызывать явно из Update() (см. doc-комментарий класса).</summary>
+        public void Tick(float deltaSeconds) => _scheduler.Tick(deltaSeconds);
 
         /// <summary>Отписывается от трейла и планировщика. Вызывать при завершении забега/уничтожении системы.</summary>
         public void Dispose()
@@ -99,14 +107,14 @@ namespace Burmalda.Movement
             if (!tile.IsFallingRockTrigger) return;
             if (!_firedTriggers.Add(coordinate)) return; // одноразовый триггер
 
-            _scheduler.ScheduleActivation(coordinate, DelayTicks);
+            _scheduler.ScheduleActivation(coordinate, DelaySeconds);
         }
 
         private void OnTileDue(GridCoordinate coordinate)
         {
-            // Свой экземпляр TurnBasedThreatScheduler на систему (issue
-            // #212) — эта система регистрирует только координаты своих же
-            // триггеров, поэтому TileDue здесь всегда "свой".
+            // Свой экземпляр RealTimeThreatScheduler на систему (issue
+            // #212/#254) — эта система регистрирует только координаты своих
+            // же триггеров, поэтому TileDue здесь всегда "свой".
             if (_trail.CurrentPosition == coordinate)
             {
                 PlayerCrushed?.Invoke(coordinate);

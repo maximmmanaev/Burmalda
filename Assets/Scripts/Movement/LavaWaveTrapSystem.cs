@@ -7,16 +7,29 @@ namespace Burmalda.Movement
     /// <summary>
     /// Ловушка «Лава» (docs/wiki/traps.md, issue #216) — НЕ статичный
     /// <see cref="LethalTrapType.Lava"/> (плита с генерации, не трогается).
-    /// Построена на <see cref="TurnBasedThreatScheduler"/> (issue #212, свой
-    /// экземпляр на систему): проход трейла через плиту-триггер
-    /// (<see cref="Tile.IsLavaTrigger"/>, ещё не подключено ни к одному
-    /// генератору сегментов — отдельная задача авторинга, здесь только
-    /// механика) запускает волну «сразу» (владелец) — на следующем же ходу
-    /// ряд самого триггера становится лавой, затем каждый следующий ход ещё
-    /// один ряд НАЗАД (в сторону убывания <see cref="GridCoordinate.Row"/>,
-    /// откуда пришёл игрок — владелец: «волна идёт от ряда триггера назад»),
-    /// пока не наберётся <see cref="MaxRows"/> рядов (владелец: «6 рядами,
-    /// затем волна останавливается») или волна не дойдёт до начала тоннеля
+    ///
+    /// <b>Реальное время, не ходы (владелец, 2026-09-14, issue #254 —
+    /// «Волновые ловушки переходят на реальное время», подтверждено явно:
+    /// Лава переходит наравне со Стрелой/Лезвиями, несмотря на то что по
+    /// замыслу агрессивнее отрезает путь назад — это ожидаемо).</b> Раньше
+    /// система была построена на тактовом планировщике ходов (issue #212),
+    /// тикаемом ровно на каждый шаг игрока — волна физически
+    /// не могла догнать стоящего на месте игрока (тот же класс бага, что у
+    /// Стрелы/Лезвий, см. doc-комментарий <see cref="ArrowWaveTrapSystem"/>).
+    /// Теперь построена на <see cref="RealTimeThreatScheduler"/> — каждый шаг
+    /// волны (и первый, и все последующие) тикается реальными секундами,
+    /// один параметр <see cref="RowStepSeconds"/> на весь путь волны.
+    ///
+    /// Проход трейла через плиту-триггер (<see cref="Tile.IsLavaTrigger"/>,
+    /// ещё не подключено ни к одному генератору сегментов — отдельная
+    /// задача авторинга, здесь только механика) запускает волну «сразу»
+    /// (владелец) — через <see cref="RowStepSeconds"/> секунд ряд самого
+    /// триггера становится лавой, затем каждые следующие
+    /// <see cref="RowStepSeconds"/> секунд ещё один ряд НАЗАД (в сторону
+    /// убывания <see cref="GridCoordinate.Row"/>, откуда пришёл игрок —
+    /// владелец: «волна идёт от ряда триггера назад»), пока не наберётся
+    /// <see cref="MaxRows"/> рядов (владелец: «6 рядами, затем волна
+    /// останавливается») или волна не дойдёт до начала тоннеля
     /// (<c>Row &lt; 0</c>). Весь ряд целиком (все столбцы) становится лавой
     /// одномоментно на своём шаге — не по одному тайлу, как Стрела.
     ///
@@ -61,15 +74,27 @@ namespace Burmalda.Movement
     /// ТОЛЬКО плита Алтаря — остальные столбцы того же ряда всё ещё честно
     /// становятся лавой, см. <see cref="OnTileDue"/>.
     ///
-    /// Внешний <see cref="Tick"/> нужно вызывать явно, один раз на ход
-    /// игрока (тот же принцип, что и у прочих систем этого семейства).
+    /// Внешний <see cref="Tick"/> нужно вызывать явно, из <c>Update()</c>
+    /// владеющего MonoBehaviour с <c>Time.deltaTime</c> — НЕ на каждый шаг
+    /// игрока (issue #254). Обнаружение триггера (<see cref="OnPositionChanged"/>)
+    /// по-прежнему висит на <see cref="GridTraceTrail.PositionChanged"/> —
+    /// только продвижение уже активной волны переехало на реальное время.
     /// Одноразовая ловушка на триггер.
     /// </summary>
     public sealed class LavaWaveTrapSystem : IDisposable
     {
         // "6 рядами" — прямое требование владельца. Балансное число,
         // mutable static, не const — дебаг-панель (issue #216, критерий приёмки).
+        // Количество рядов, не единица времени — не меняется задачей #254.
         public static int MaxRows = 6;
+
+        // Единственный параметр скорости волны — и задержка до первого
+        // ряда, и время между последующими рядами (issue #254, владелец:
+        // "Скорость волны — параметр, настраиваемый в дебаг-панели").
+        // Дефолт 0.3с — тот же ориентир, что уже используется в
+        // docs/wiki/traps.md для перевода ходов в секунды, предположение
+        // агента, не решение владельца. Mutable static — дебаг-панель.
+        public static float RowStepSeconds = 0.3f;
 
         private sealed class ActiveWave
         {
@@ -81,7 +106,7 @@ namespace Burmalda.Movement
 
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
-        private readonly TurnBasedThreatScheduler _scheduler;
+        private readonly RealTimeThreatScheduler _scheduler;
         private readonly HashSet<GridCoordinate> _firedTriggers = new HashSet<GridCoordinate>();
 
         // Ключ — координата триггера (тот же приём, что у BombTrapSystem/
@@ -92,7 +117,7 @@ namespace Burmalda.Movement
 
         private bool _disposed;
 
-        public LavaWaveTrapSystem(TunnelGrid grid, GridTraceTrail trail, TurnBasedThreatScheduler scheduler)
+        public LavaWaveTrapSystem(TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
@@ -101,8 +126,8 @@ namespace Burmalda.Movement
             _scheduler.TileDue += OnTileDue;
         }
 
-        /// <summary>Продвигает планировщик на 1 ход — вызывать явно на каждый ход игрока (см. doc-комментарий класса).</summary>
-        public void Tick() => _scheduler.Tick();
+        /// <summary>Продвигает планировщик на <paramref name="deltaSeconds"/> реального времени — вызывать явно из Update() (см. doc-комментарий класса).</summary>
+        public void Tick(float deltaSeconds) => _scheduler.Tick(deltaSeconds);
 
         /// <summary>Отписывается от трейла и планировщика. Вызывать при завершении забега/уничтожении системы.</summary>
         public void Dispose()
@@ -127,7 +152,7 @@ namespace Burmalda.Movement
                 RowsConverted = 0
             };
             _activeWaves[coordinate] = wave;
-            _scheduler.ScheduleActivation(coordinate, ticksFromNow: 1);
+            _scheduler.ScheduleActivation(coordinate, RowStepSeconds);
         }
 
         private void OnTileDue(GridCoordinate coordinate)
@@ -144,11 +169,15 @@ namespace Burmalda.Movement
 
             // Инвариант волны (см. doc-комментарий класса): целевой ряд
             // обязан быть строго позади игрока. Пока это не так — не
-            // пропускаем шаг навсегда, а откладываем на 1 ход и проверяем
-            // снова, тот же NextRowOffset/RowsConverted.
+            // пропускаем шаг навсегда, а откладываем на RowStepSeconds и
+            // проверяем снова, тот же NextRowOffset/RowsConverted. На
+            // реальном времени (issue #254) это же и чинит старый баг: пока
+            // игрок стоит на месте, волна продолжает ПЫТАТЬСЯ шагнуть каждые
+            // RowStepSeconds (а не только когда игрок сам решит сделать ход),
+            // и как только целевой ряд окажется позади него — конвертирует.
             if (candidateRow >= _trail.CurrentPosition.Row)
             {
-                _scheduler.ScheduleActivation(coordinate, ticksFromNow: 1);
+                _scheduler.ScheduleActivation(coordinate, RowStepSeconds);
                 return;
             }
 
@@ -182,7 +211,7 @@ namespace Burmalda.Movement
                 return;
             }
 
-            _scheduler.ScheduleActivation(coordinate, ticksFromNow: 1);
+            _scheduler.ScheduleActivation(coordinate, RowStepSeconds);
         }
     }
 }
