@@ -549,6 +549,27 @@ Test-first: `TileTests` (новые `IsBombWarningActive`/`IsBombCollapsed`),
 `TrapSystemsControllerTests` (кривая доходит до BombTrapSystem через
 `CurrentTierProvider`). Полный EditMode: 1248/1248.
 
+## Стрела и Лезвия тоже убивают игрока, стоящего на месте (issue #268, 2026-09-14)
+
+Живой тест устройства (владелец): «смерть не появляется после того, как в
+меня выстреливает стрела» — тот же класс бага, что был закрыт для Бомбы
+(issue #260, раздел выше), но не был распространён на Стрелу/Лезвия тогда
+(явно отмечено как «известная остаточная проблема» в doc-комментарии
+`GridTraceTrail.CheckCurrentPositionForLethalTrap` на момент #260).
+
+`ArrowWaveTrapSystem.OnTileDue`/`BladeTactTrapSystem.OnTileDue` теперь
+вызывают тот же `GridTraceTrail.CheckCurrentPositionForLethalTrap()` сразу
+после армирования новых столбцов — если игрок уже стоит на одном из них,
+не совершая нового хода, срабатывает тот же путь, что и обычный шаг на
+ловушку (d20, `RunState.ResolveHazard`). `LavaWaveTrapSystem` не нуждается
+— у неё отдельный, более ранний инвариант (волна никогда не заливает ряд,
+на котором стоит игрок, issue #254/#249), плита под игроком физически не
+может стать смертельной этим путём.
+
+Test-first: новые тесты в `ArrowWaveTrapSystemTests`/`BladeTactTrapSystemTests`
+— игрок доходит до столбца ДО того, как такт/волна его армируют, дальше не
+делает ни одного хода. Полный EditMode: 1244/1244.
+
 ## Issues
 
 - [#212](https://github.com/maximmmanaev/Burmalda/issues/212) — инфраструктура: планировщик отложенных угроз, тикаемый ходами
@@ -558,6 +579,7 @@ Test-first: `TileTests` (новые `IsBombWarningActive`/`IsBombCollapsed`),
 - [#216](https://github.com/maximmmanaev/Burmalda/issues/216) — Лава (конфликт с Воротами решён владельцем 2026-09-04 — не конфликт, инвариант волны, см. раздел «4. Лава» выше)
 - [#217](https://github.com/maximmmanaev/Burmalda/issues/217) — Падающий камень
 - [#260](https://github.com/maximmmanaev/Burmalda/issues/260) — Бомба взрывается мгновенно и показывает текстуру Стрелы вместо собственной анимации (см. раздел выше)
+- [#268](https://github.com/maximmmanaev/Burmalda/issues/268) — Стрела/Лезвия не убивают игрока, стоящего на месте (см. раздел выше)
 
 Инфраструктурный #212 остался на milestone [«Спринт 12: Скрытые ловушки»](https://github.com/maximmmanaev/Burmalda/milestone/26)
 (там был заведён и там же сделан). Пять типов (#213–#217) перевешены на
