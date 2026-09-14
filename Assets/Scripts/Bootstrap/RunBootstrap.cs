@@ -177,8 +177,12 @@ namespace Burmalda.Bootstrap
         /// системы были написаны и протестированы, но без этого Controller'а
         /// (и без символов шаблона, отдельный фикс) никогда не тикали в
         /// реальном забеге. Независим от остальных — как и <see cref="Lever"/>.
+        /// Класс переименован из TurnBasedTrapSystemsController (issue #254,
+        /// второй раунд — все пять систем перешли на реальное время, ни
+        /// одна больше не тикается на тактах ходов, старое имя стало
+        /// неточным).
         /// </summary>
-        public TurnBasedTrapSystemsController TurnBasedTraps { get; private set; }
+        public TrapSystemsController Traps { get; private set; }
 
         /// <summary>
         /// Интеграция Комнаты Босса (вертикальный срез, задача «Комната
@@ -297,7 +301,7 @@ namespace Burmalda.Bootstrap
             if (Boss == null) Boss = GetOrAddComponent<BossController>(host);
             if (Camp == null) Camp = GetOrAddComponent<CampController>(host);
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
-            if (TurnBasedTraps == null) TurnBasedTraps = GetOrAddComponent<TurnBasedTrapSystemsController>(host);
+            if (Traps == null) Traps = GetOrAddComponent<TrapSystemsController>(host);
             // Зависит только от Currency (уже создана строкой выше) и
             // RunLifecycle.RunController (уже добавлен на этот host первым
             // делом выше) — см. doc-комментарий BossRoom.
