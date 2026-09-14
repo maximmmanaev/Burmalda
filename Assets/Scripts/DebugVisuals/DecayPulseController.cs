@@ -11,9 +11,16 @@ namespace Burmalda.DebugVisuals
     /// НЕПРЕРЫВНЫМ сигналом... не позволяют игроку попасть в окно Отклика
     /// «На волоске» после 85% порога распада". Визуальная часть сигнала —
     /// <see cref="TunnelDebugVisual.ApplyVisual"/> (пульс альфы оверлея
-    /// трещин на текущей плите), этот класс — только звук/вибрация, тот же
+    /// трещин на текущей плите), этот класс — звук, тот же
     /// паттерн разделения, что <see cref="TrapRevealController"/> относительно
     /// <see cref="TilePreviewController"/>.
+    ///
+    /// <b>Issue #264 (2026-09-14, «убрать вибрацию разрушения/распада —
+    /// оставить только звук/визуал»):</b> вибро-часть сигнала (была здесь,
+    /// звонила <see cref="Handheld.Vibrate"/> на каждый пульс) убрана
+    /// целиком — прямое указание владельца. Звук и визуальная пульсация
+    /// оверлея трещин не тронуты, критерий приёмки issue #194 ("непрерывный
+    /// сигнал") по-прежнему выполнен ими двумя.
     ///
     /// В отличие от <see cref="TrapRevealController"/> (одноразовое событие
     /// при раскрытии), здесь сигнал ПОВТОРЯЕТСЯ, пока игрок стоит на плите
@@ -87,12 +94,17 @@ namespace Burmalda.DebugVisuals
             var interval = Mathf.Lerp(MaxPulseIntervalSeconds, MinPulseIntervalSeconds, withinLastThird01);
             _nextPulseTime = Time.time + interval;
 
+            // Issue #264 (2026-09-14, «убрать вибрацию разрушения/распада —
+            // оставить только звук/визуал»): PlayPulseVibration() удалён
+            // целиком (был здесь, звонил Handheld.Vibrate() на каждый
+            // пульс) — звук (см. PlayPulseSound) и визуальная пульсация
+            // оверлея трещин (TunnelDebugVisual.UpdateCrackOverlay,
+            // читает тот же LastThirdThreshold01) не тронуты.
             PlayPulseSound();
-            PlayPulseVibration();
         }
 
-        // Короткий низкий "стук" — намеренно отличается от восходящего
-        // синус-бипа TrapRevealController.BuildRevealClip (та же процедурная
+        // Короткий низкий "стук" — намеренно отличается от скрежета
+        // TrapRevealController.BuildRevealClip (та же процедурная
         // заглушка без арт-ассета, см. её doc-комментарий), чтобы игрок на
         // слух отличал "здесь скрытая опасность" от "плита под тобой вот-вот
         // рухнет" — разные контексты, разный звук.
@@ -127,13 +139,5 @@ namespace Burmalda.DebugVisuals
             return clip;
         }
 
-        private void PlayPulseVibration()
-        {
-            // Handheld.Vibrate() без параметров — как и TrapRevealController,
-            // но здесь один импульс на пульс (не серия): повторяемость самого
-            // сигнала уже обеспечивает Update(), а не длина одной вибрации.
-            if (DecayCollapseFeedback.PulseVibrationStrength <= 0f) return;
-            Handheld.Vibrate();
-        }
     }
 }
