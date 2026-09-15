@@ -100,7 +100,18 @@ namespace Burmalda.DebugVisuals
         private const float MaxCollapseDurationSeconds = 1f; // задача «разрушение плиты» — щедрый запас над стартовыми 0.25–0.4с
         private const float MaxExtraTrapChance = 0.5f; // задача «параметр плотности» — до половины Open-плит, щедрый запас для стресс-теста на устройстве
         private const float MaxWaveSpeedSeconds = 2f; // issue #254 — щедрый запас над стартовыми 0.3с, от почти-мгновенной до медленной волны
-        private const int RowCount = 18; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 5 таймингов ловушек (см. BuildPanel)
+        // Найдено при сборке билда (Спринт «Стены вместо ловушек», задача
+        // 5, не тема самой задачи — блокирующий компиляцию хвост issue
+        // #260/PR #261): ряд "Задержка Бомбы: база/снижение/минимум" был
+        // добавлен той задачей с этими двумя константами, но они не были
+        // объявлены — компиляция Android-билда падала. Значения — щедрый
+        // запас над дефолтами BombTrapSystem (BaseDelaySeconds=3с,
+        // DelayReductionPerTier=0.3с), тот же принцип, что у остальных
+        // Max*-констант этого файла — не баланс, диапазон для ручного
+        // подбора на дебаг-панели.
+        private const float MaxBombDelaySeconds = 10f;
+        private const float MaxBombDelayReductionPerTier = 2f;
+        private const int RowCount = 20; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 7 таймингов ловушек (3 скорости волн + задержка камня + 3 параметра кривой Бомбы, см. BuildPanel)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -269,21 +280,24 @@ namespace Burmalda.DebugVisuals
                 v => LavaWaveTrapSystem.RowStepSeconds = v, FormatSeconds);
 
             // Второй раунд той же задачи (владелец: "никаких ловушек в
-            // такт быть не должно, только тайминги") — Бомба/Падающий
-            // камень тоже перешли на реальное время, тот же приём.
-            BuildRow(_panelRoot.transform, 16, "Задержка: взрыв Бомбы", 0.01f, MaxWaveSpeedSeconds, BombTrapSystem.DelaySeconds,
-                v => BombTrapSystem.DelaySeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 17, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
+            // такт быть не должно, только тайминги") — Падающий камень тоже
+            // перешёл на реальное время, тот же приём. Бомба получила
+            // отдельный ряд ниже (issue #260, три параметра кривой вместо
+            // одного фиксированного числа) — своего единственного
+            // "Задержка: взрыв Бомбы" (BombTrapSystem.DelaySeconds) больше
+            // нет, поле удалено при переходе на кривую, этот ряд был
+            // оставлен по инерции и не компилировался — убран.
+            BuildRow(_panelRoot.transform, 16, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
                 v => FallingRockTrapSystem.DelaySeconds = v, FormatSeconds);
 
             // Issue #260 («Бомба взрывается мгновенно... задержка должна
             // уменьшаться с Ярусом») — три параметра кривой вместо одного
             // фиксированного числа, см. BombTrapSystem.ComputeDelaySeconds.
-            BuildRow(_panelRoot.transform, 18, "Задержка Бомбы: база (Ярус 0)", 0.1f, MaxBombDelaySeconds, BombTrapSystem.BaseDelaySeconds,
+            BuildRow(_panelRoot.transform, 17, "Задержка Бомбы: база (Ярус 0)", 0.1f, MaxBombDelaySeconds, BombTrapSystem.BaseDelaySeconds,
                 v => BombTrapSystem.BaseDelaySeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 19, "Задержка Бомбы: снижение/Ярус", 0f, MaxBombDelayReductionPerTier, BombTrapSystem.DelayReductionPerTier,
+            BuildRow(_panelRoot.transform, 18, "Задержка Бомбы: снижение/Ярус", 0f, MaxBombDelayReductionPerTier, BombTrapSystem.DelayReductionPerTier,
                 v => BombTrapSystem.DelayReductionPerTier = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 20, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
+            BuildRow(_panelRoot.transform, 19, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
                 v => BombTrapSystem.MinDelaySeconds = v, FormatSeconds);
         }
 
