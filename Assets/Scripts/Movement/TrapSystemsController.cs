@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Burmalda.Movement
@@ -56,6 +57,19 @@ namespace Burmalda.Movement
     public sealed class TrapSystemsController : MonoBehaviour
     {
         [SerializeField] private GridTraceInputController _input;
+
+        /// <summary>
+        /// Issue #260: источник номера Яруса Глубины для
+        /// <see cref="BombTrapSystem.ComputeDelaySeconds"/> — «чем дальше
+        /// прошёл игрок, тем короче задержка». <c>Movement</c> не ссылается
+        /// на сборку <c>Progression</c>/<c>Bootstrap</c> (см. asmdef) —
+        /// композиционный корень (<c>Bootstrap.RunBootstrap.EnsureControllersWired</c>)
+        /// присваивает сюда делегат к <c>RunBootstrap.DepthTier.CurrentTier</c>
+        /// СНАРУЖИ, этот класс только хранит и передаёт дальше. Null (по
+        /// умолчанию, до присвоения) трактуется как Ярус 0 — см.
+        /// <see cref="BombTrapSystem"/>.
+        /// </summary>
+        public Func<int> CurrentTierProvider { get; set; }
 
         private GridTraceTrail _trail;
         private ArrowWaveTrapSystem _arrowWave;
@@ -124,7 +138,7 @@ namespace Burmalda.Movement
             // doc-комментарии этого класса, больше не существует по
             // конструкции.
             _arrowWave = new ArrowWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
-            _bomb = new BombTrapSystem(grid, _trail, new RealTimeThreatScheduler());
+            _bomb = new BombTrapSystem(grid, _trail, new RealTimeThreatScheduler(), CurrentTierProvider);
             _bladeTact = new BladeTactTrapSystem(grid, _trail, new RealTimeThreatScheduler());
             _fallingRock = new FallingRockTrapSystem(grid, _trail, new RealTimeThreatScheduler());
             _lavaWave = new LavaWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());

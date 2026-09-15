@@ -52,6 +52,8 @@ namespace Burmalda.DebugVisuals.Tests
             TileArtKind.Blocked,
             TileArtKind.Lava,
             TileArtKind.TimedTrapActive,
+            TileArtKind.BombWarning,
+            TileArtKind.BombHole,
             TileArtKind.TriggerSignature,
             TileArtKind.CurrentPosition,
             TileArtKind.ManaSource,
@@ -112,6 +114,15 @@ namespace Burmalda.DebugVisuals.Tests
             // ArtIntegrationSetup.BuildTileArtCatalog) до отдельной
             // генерации. Намеренный дубль, не ошибка копипаста.
             (TileArtKind.Fresh, TileArtKind.Start),
+
+            // Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+            // Стрелы»): Бомба получила собственные категории (BombWarning/
+            // BombHole), но не собственные ФАЙЛЫ — заводить новую текстуру
+            // не в скоупе агента (docs/rules/forbidden-actions.md), тот же
+            // приём, что уже применён для TileArtKind.Boss/Altar. Намеренный
+            // дубль, не ошибка копипаста.
+            (TileArtKind.TriggerSignature, TileArtKind.BombWarning),
+            (TileArtKind.Destroyed, TileArtKind.BombHole),
         };
 
         [Test]

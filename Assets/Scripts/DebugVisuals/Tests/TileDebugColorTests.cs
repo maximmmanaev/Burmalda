@@ -107,16 +107,43 @@ namespace Burmalda.DebugVisuals.Tests
         // до градиента распада) — игрок видел необъяснимую преграду, а не
         // "перестал гаситься тайл". Реюзит TimedTrapActiveColor — активная
         // угроза прямо сейчас, видна ВСЕГДА, без гейта примериванием (тот же
-        // принцип, что у Лавы выше).
+        // принцип, что у Лавы выше). Волна Лавы больше не отдельный тип
+        // (issue #262, слита с LethalTrapType.Lava — см. Resolve_Lava_...
+        // выше).
         [TestCase(LethalTrapType.ArrowWave)]
         [TestCase(LethalTrapType.BombBlast)]
         [TestCase(LethalTrapType.BladeTact)]
-        [TestCase(LethalTrapType.LavaWave)]
         public void Resolve_NewTurnBasedTrapTypes_ReturnTimedTrapActiveColor(LethalTrapType trapType)
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: trapType, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(state));
+        }
+
+        // Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+        // Стрелы») — тот же порядок приоритета, что в TileArtKindResolver.
+        [Test]
+        public void Resolve_BombWarningActive_ReturnsBombWarningColor_NotTimedTrapActiveColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBombWarningActive: true);
+
+            Assert.AreEqual(TileDebugColor.BombWarningColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_BombCollapsed_ReturnsBombHoleColor_NotTimedTrapActiveColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.BombBlast, decayProgress01: 0f, isTrapTrigger: false, isBombCollapsed: true);
+
+            Assert.AreEqual(TileDebugColor.BombHoleColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_BombCollapsedAndBlocked_ReturnsBombHoleColor_NotBlockedColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBombCollapsed: true);
+
+            Assert.AreEqual(TileDebugColor.BombHoleColor, TileDebugColor.Resolve(state));
         }
 
         [Test]

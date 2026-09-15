@@ -40,6 +40,9 @@ namespace Burmalda.DebugVisuals
         // legacy/burmolda_demo.html, draw(): t.state==='destroyed' — #0a0a0e
         public static readonly Color DestroyedColor = new Color(10f / 255f, 10f / 255f, 14f / 255f);
 
+        /// <summary>Issue #260: плита площади Бомбы, схлопнувшаяся в дыру — тот же цвет, что <see cref="DestroyedColor"/> (то же "провалившийся пол", см. doc-комментарий <c>TileArtKind.BombHole</c>).</summary>
+        public static readonly Color BombHoleColor = DestroyedColor;
+
         // legacy/burmolda_demo.html, draw(): t.type==='block' — #140a06
         public static readonly Color BlockedColor = new Color(20f / 255f, 10f / 255f, 6f / 255f);
 
@@ -66,7 +69,19 @@ namespace Burmalda.DebugVisuals
         // лезвие физически проходит через неё. Единый
         // цвет для обоих видов (стрела/лезвие) — яркая "тревожная" магента, не
         // пересекается ни с одним из уже занятых цветов.
+        // Issue #260: Бомба больше не сюда — см. TimedTrapActive-ветку Resolve().
         public static readonly Color TimedTrapActiveColor = new Color(1f, 0f, 200f / 255f);
+
+        /// <summary>
+        /// Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+        /// Стрелы»): площадь 3×3 Бомбы мигает предупреждением, пока идёт
+        /// отсчёт. Тот же цвет, что <see cref="TriggerSignatureColor"/> —
+        /// фолбэк держится в паре с текстурным слоем (<c>TileArtKind.BombWarning</c>
+        /// переиспользует ту же текстуру, что <c>TriggerSignature</c>, см. её
+        /// doc-комментарий), пульсацию добавляет только текстурный рендер
+        /// (<c>TunnelDebugVisual.ApplyVisual</c>) — цветной фолбэк статичен.
+        /// </summary>
+        public static readonly Color BombWarningColor = TriggerSignatureColor;
 
         /// <summary>
         /// Задача «сделать тоннель играбельным», часть 1: источник Кристаллов
@@ -177,25 +192,33 @@ namespace Burmalda.DebugVisuals
             if (state.IsDestroyed) return DestroyedColor;
             if (state.IsCurrentPosition) return CurrentPositionColor;
             if (state.IsStart) return StartColor;
+            // Issue #260 — ДО Blocked/LethalTrap, тот же порядок и то же
+            // обоснование, что в TileArtKindResolver.Resolve.
+            if (state.IsBombCollapsed) return BombHoleColor;
             if (state.IsBlocked) return BlockedColor;
             // Issue #163: лава остаётся видимой как раньше (PRD v8 §4.2)
             // — единственный статичный LethalTrapType, для которого Resolve()
-            // возвращает его собственный цвет напрямую.
+            // возвращает его собственный цвет напрямую. Issue #262: волна
+            // Лавы (Movement.LavaWaveTrapSystem) ставит тот же идентификатор
+            // — эта ветка ловит и её, отдельной ветки под волну больше нет.
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
+            // Issue #260: мигание Бомбы — до общей ветки TimedTrapActive
+            // ниже, тот же порядок, что в TileArtKindResolver.Resolve.
+            if (state.IsBombWarningActive) return BombWarningColor;
             // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
             // смертельной навсегда... выглядит как непроходимая стена»):
             // проверка показала, что ArrowWaveTrapSystem/BladeTactTrapSystem
             // корректно снимают опасность по завершении (см. их тесты,
             // Tick_FullSequence_..._ThenAllSafe) — настоящая причина другая:
-            // у ЧЕТЫРЁХ LethalTrapType Спринта 13a (ArrowWave/BombBlast/
-            // BladeTact/LavaWave) не было НИ ОДНОЙ ветки здесь вовсе —
-            // Resolve() проваливался до градиента распада, армированная
-            // плита выглядела обычным полом. Игрок видел "необъяснимую
-            // преграду": ход отклоняется (CanAdvanceTo видит LethalTrap),
-            // а глазами — ничего не видно, что бы это объясняло. Угроза
-            // ПРЯМО СЕЙЧАС — видна ВСЕГДА, без гейта примеривания.
+            // у LethalTrapType Спринта 13a (ArrowWave/BombBlast/BladeTact) не
+            // было НИ ОДНОЙ ветки здесь вовсе — Resolve() проваливался до
+            // градиента распада, армированная плита выглядела обычным полом.
+            // Игрок видел "необъяснимую преграду": ход отклоняется
+            // (CanAdvanceTo видит LethalTrap), а глазами — ничего не видно,
+            // что бы это объясняло. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА, без
+            // гейта примеривания.
             if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
-                state.LethalTrap == LethalTrapType.BladeTact || state.LethalTrap == LethalTrapType.LavaWave)
+                state.LethalTrap == LethalTrapType.BladeTact)
                 return TimedTrapActiveColor;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2):
             // триггер одной из пяти ловушек не отличим от обычного пола,

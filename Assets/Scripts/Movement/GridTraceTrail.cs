@@ -78,20 +78,42 @@ namespace Burmalda.Movement
         public event Action<GridCoordinate> PositionChanged;
 
         /// <summary>
-        /// Срабатывает, когда игрок пытается шагнуть на смертельную ловушку
-        /// (<see cref="Tile.LethalTrap"/>, PRD 4.2) — сам ход при этом НЕ
-        /// засчитывается (см. <see cref="TryAdvanceTo"/>), плита-ловушка не
-        /// становится текущей позицией. Потребитель этого события — система,
-        /// отвечающая за смерть/рестарт (Burmalda.RunLifecycle); сама
-        /// GridTraceTrail ничего не знает о смерти.
+        /// Срабатывает, когда игрок наступает на смертельную ловушку
+        /// (<see cref="Tile.LethalTrap"/>, PRD 4.2). Потребитель этого
+        /// события — система, отвечающая за смерть/рестарт
+        /// (Burmalda.RunLifecycle); сама GridTraceTrail ничего не знает о
+        /// смерти/d20, только поднимает событие.
+        ///
+        /// <b>Две разные семантики по типу ловушки (issue #258 — «Лава
+        /// должна быть проходимой, но летальной, а не физической стеной»):</b>
+        /// для статичной <see cref="LethalTrapType.Lava"/> ход физически
+        /// ЗАСЧИТЫВАЕТСЯ (см. <see cref="TryAdvanceTo"/>) — плита становится
+        /// текущей позицией, событие поднимается ПОСЛЕ продвижения. Для
+        /// остальных четырёх рантайм-типов (ArrowWave/BombBlast/BladeTact/
+        /// LavaWave) сохранено прежнее поведение — ход НЕ засчитывается,
+        /// плита-ловушка не становится текущей позицией, событие поднимается
+        /// ВМЕСТО продвижения. Разница обоснована в doc-комментарии
+        /// <see cref="CanAdvanceTo"/>.
         /// </summary>
         public event Action<GridCoordinate, LethalTrapType> LethalTrapTriggered;
 
         /// <summary>
         /// Ход на <paramref name="target"/> валиден, если плита в пределах
-        /// сетки, соседняя текущей позиции, не является препятствием (#9), не
-        /// смертельной ловушкой (PRD 4.2), и при этом либо ещё не пройдена
-        /// трейлом, либо пройдена, но не разрушена распадом (#61).
+        /// сетки, соседняя текущей позиции, не является препятствием (#9), и
+        /// при этом либо ещё не пройдена трейлом, либо пройдена, но не
+        /// разрушена распадом (#61).
+        ///
+        /// <b>Смертельная ловушка (PRD 4.2) валидной целью НЕ считается — за
+        /// одним исключением.</b> Статичная <see cref="LethalTrapType.Lava"/>
+        /// (issue #258) физически проходима: она — риск, которым можно
+        /// рискнуть (см. <see cref="RunLifecycle.RunState.ResolveHazard"/>,
+        /// d20-испытание «Испытание Шахты», PRD v9 §9), не стена. Остальные
+        /// четыре рантайм-типа ловушек (ArrowWave/BombBlast/BladeTact/
+        /// LavaWave, Спринт 13a) остаются жёсткой стеной для этой проверки —
+        /// владелец описывал их как «наступил на триггер — задача с
+        /// таймером», не как «наступил на уже активную угрозу», для которой
+        /// решение не задано; открытый вопрос, если владелец захочет
+        /// перевести и их на ту же модель, что Лава, — отдельная задача.
         /// </summary>
         public bool CanAdvanceTo(GridCoordinate target)
         {
@@ -107,7 +129,7 @@ namespace Burmalda.Movement
             {
                 if (tile.IsBlocked && !_breachAvailable) return false;
                 if (tile.IsGated && !tile.IsLeverGateOpen) return false;
-                if (tile.LethalTrap.HasValue) return false;
+                if (tile.LethalTrap.HasValue && tile.LethalTrap.Value != LethalTrapType.Lava) return false;
                 if (_visited.Contains(target)) return !tile.IsDestroyed;
             }
 
@@ -115,19 +137,28 @@ namespace Burmalda.Movement
         }
 
         /// <summary>
-        /// Продвигает трейл на <paramref name="target"/>, если ход валиден.
-        /// Если цель — смертельная ловушка, ход не засчитывается (как и для
-        /// любой другой невалидной цели), но дополнительно поднимается
+        /// Продвигает трейл на <paramref name="target"/>, если ход валиден
+        /// (см. <see cref="CanAdvanceTo"/>). Если цель — один из четырёх
+        /// рантайм-типов смертельной ловушки, ход не засчитывается (как и
+        /// для любой другой невалидной цели), но дополнительно поднимается
         /// <see cref="LethalTrapTriggered"/> — попытка шагнуть на ловушку
         /// сама по себе является игровым событием, даже если позиция не
         /// меняется (см. legacy/burmolda_demo.html, tryAct: attemptDeath
         /// вызывается и делается return без продвижения).
+        ///
+        /// Если цель — статичная <see cref="LethalTrapType.Lava"/> (issue
+        /// #258), ход засчитывается как обычный (позиция/Path/<see cref="Advanced"/>/
+        /// <see cref="PositionChanged"/> — всё как у безопасной плиты), а
+        /// <see cref="LethalTrapTriggered"/> поднимается ПОСЛЕ продвижения,
+        /// уже с координатой, ставшей текущей позицией — потребитель
+        /// (<see cref="RunLifecycle.RunState"/>) не различает эти два случая
+        /// сам, для него это всё то же событие.
         /// </summary>
         public bool TryAdvanceTo(GridCoordinate target)
         {
             if (_grid.Contains(target) && CurrentPosition.IsAdjacentTo(target) && _grid.TryGetTile(target, out var targetTile))
             {
-                if (targetTile.LethalTrap.HasValue)
+                if (targetTile.LethalTrap.HasValue && targetTile.LethalTrap.Value != LethalTrapType.Lava)
                 {
                     LethalTrapTriggered?.Invoke(target, targetTile.LethalTrap.Value);
                     return false;
@@ -153,7 +184,45 @@ namespace Burmalda.Movement
             _currentPosition = target;
             if (isNewTile) Advanced?.Invoke(target);
             PositionChanged?.Invoke(target);
+
+            // issue #258: Лава засчитывается как ход, но остаётся летальной
+            // — событие поднимается ПОСЛЕ продвижения, не вместо него (в
+            // отличие от четырёх рантайм-типов выше).
+            if (_grid.TryGetTile(target, out var arrivedTile) && arrivedTile.LethalTrap == LethalTrapType.Lava)
+                LethalTrapTriggered?.Invoke(target, LethalTrapType.Lava);
+
             return true;
+        }
+
+        /// <summary>
+        /// Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+        /// Стрелы» — заодно закрывает открытый вопрос из doc-комментария
+        /// <c>Movement.BombTrapSystem</c>, «что если игрок стоит на плите
+        /// в момент, когда она становится смертельной»): проверяет, не
+        /// стала ли <see cref="CurrentPosition"/> смертельной ловушкой ПРЯМО
+        /// СЕЙЧАС, пока игрок уже на ней стоит, не совершая новый ход — если
+        /// стала, поднимает <see cref="LethalTrapTriggered"/> точно так же,
+        /// как если бы он попытался на неё шагнуть.
+        ///
+        /// Симметрично уже действующему <c>Decay.TrailDecaySystem.TileDestroyed</c>
+        /// → <c>RunLifecycle.RunState.OnTileDestroyed</c> («обрушение плиты
+        /// под ногами — тоже не новый ход, тоже отдельная явная проверка
+        /// текущей позиции») — та же идея, применённая к <see cref="Tile.LethalTrap"/>
+        /// вместо распада. Не-op, если текущая плита не несёт
+        /// <see cref="Tile.LethalTrap"/> — безопасно вызывать "на всякий случай"
+        /// после любого рантайм-перехода, который мог (но не обязан был)
+        /// затронуть плиту под игроком.
+        ///
+        /// Общий примитив, не специфичный для Бомбы — годится для той же
+        /// "известной остаточной проблемы", отмеченной в doc-комментариях
+        /// <c>ArrowWaveTrapSystem</c>/<c>BladeTactTrapSystem</c>/
+        /// <c>LavaWaveTrapSystem</c>, если владелец решит закрыть её и там
+        /// тоже отдельной задачей — эта задача применяет его только к Бомбе.
+        /// </summary>
+        public void CheckCurrentPositionForLethalTrap()
+        {
+            if (!_grid.TryGetTile(CurrentPosition, out var tile) || !tile.LethalTrap.HasValue) return;
+            LethalTrapTriggered?.Invoke(CurrentPosition, tile.LethalTrap.Value);
         }
 
         /// <summary>

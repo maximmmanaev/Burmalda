@@ -178,9 +178,9 @@ namespace Burmalda.Core
         /// issue #213, <c>Movement.ArrowWaveTrapSystem</c>): «каждая плита
         /// опасна короткий момент, пока волна проходит, затем снова
         /// безопасна» — в отличие от <see cref="LethalTrapType.Lava"/>
-        /// (постоянна с генерации) и <see cref="LethalTrapType.LavaWave"/>
-        /// (постоянна с момента активации), опасность волны Стрелы
-        /// временная НА КАЖДОЙ отдельной плите ряда.
+        /// (постоянна и с генерации, и с момента активации волны — issue
+        /// #262, оба источника делят один идентификатор), опасность волны
+        /// Стрелы временная НА КАЖДОЙ отдельной плите ряда.
         ///
         /// Вызывать ТОЛЬКО на плите, которую сама вызывающая система же и
         /// сделала смертельной через <see cref="TransitionToLethalTrap"/> в
@@ -219,6 +219,40 @@ namespace Burmalda.Core
             ArrowWaveTargetRow = targetRow;
             ArrowWaveDirection = direction;
         }
+
+        /// <summary>
+        /// Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+        /// Стрелы»): плита входит в площадь 3×3 Бомбы, которая уже
+        /// отсчитывает время до взрыва (<c>Movement.BombTrapSystem</c>) —
+        /// визуальный сигнал "мигай, предупреждай" для рендер-слоя
+        /// (<see cref="DebugVisuals.TileArtKindResolver"/>), сама по себе НЕ
+        /// влияет на проходимость — плита физически безопасна, пока не
+        /// взорвалась. Снимается через <see cref="EndBombWarning"/> в момент
+        /// взрыва.
+        /// </summary>
+        public bool IsBombWarningActive { get; private set; }
+
+        /// <summary>Начинает фазу мигания-предупреждения — см. <see cref="IsBombWarningActive"/>. Повторные вызовы — не-op.</summary>
+        public void BeginBombWarning() => IsBombWarningActive = true;
+
+        /// <summary>Завершает фазу мигания-предупреждения (взрыв наступил) — см. <see cref="IsBombWarningActive"/>. Повторные вызовы — не-op.</summary>
+        public void EndBombWarning() => IsBombWarningActive = false;
+
+        /// <summary>
+        /// Issue #260: плита — часть площади взрыва Бомбы, которая ПРЯМО
+        /// СЕЙЧАС схлопнулась в дыру. Чисто визуальный флаг (текстура дыры +
+        /// анимация проваливания, см. <see cref="DebugVisuals.TileArtKindResolver"/>/
+        /// <see cref="DebugVisuals.TunnelDebugVisual"/>) — НЕ отвечает за
+        /// проходимость сам по себе (это <see cref="IsBlocked"/>/
+        /// <see cref="LethalTrap"/>, см. doc-комментарий <c>Movement.BombTrapSystem</c>
+        /// про то, какая из двух ролей ставится на какую плиту площади).
+        /// Односторонний, как <see cref="IsBlocked"/> — снимать некому и незачем,
+        /// дыра постоянна.
+        /// </summary>
+        public bool IsBombCollapsed { get; private set; }
+
+        /// <summary>Помечает плиту как схлопнувшуюся в дыру от взрыва Бомбы — см. <see cref="IsBombCollapsed"/>. Повторные вызовы — не-op.</summary>
+        public void MarkBombCollapsed() => IsBombCollapsed = true;
 
         /// <summary>
         /// Плита — триггер ловушки «Бомба» (docs/wiki/traps.md, issue #214):
