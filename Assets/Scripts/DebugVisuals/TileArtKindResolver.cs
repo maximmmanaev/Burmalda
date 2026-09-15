@@ -32,11 +32,21 @@ namespace Burmalda.DebugVisuals
             // владельца) — теперь tile-current-position.png.
             if (state.IsCurrentPosition) return TileArtKind.CurrentPosition;
             if (state.IsStart) return TileArtKind.Start;
+            // Issue #260: ДО Blocked/LethalTrap — дыра от Бомбы визуально
+            // одна и та же, какая бы из двух ролей ни стояла на плите (см.
+            // doc-комментарий TileVisualState.IsBombCollapsed).
+            if (state.IsBombCollapsed) return TileArtKind.BombHole;
             if (state.IsBlocked) return TileArtKind.Blocked;
             // Issue #262: волна Лавы (Movement.LavaWaveTrapSystem) ставит тот
             // же LethalTrapType.Lava, что статичная Лава с генерации — эта
             // ветка ловит и её, отдельной ветки под волну больше нет.
             if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
+            // Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+            // Стрелы»): Бомба больше не входит в эту ветку — своя пара
+            // BombWarning/BombHole выше/ниже. Проверяется ДО TimedTrapActive
+            // (мигание — более специфичное и более срочное состояние, чем
+            // "просто активна").
+            if (state.IsBombWarningActive) return TileArtKind.BombWarning;
             // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
             // смертельной навсегда») — см. подробный doc-комментарий той же
             // ветки в TileDebugColor.Resolve: настоящая причина — у

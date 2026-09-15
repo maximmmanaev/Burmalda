@@ -120,6 +120,32 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(state));
         }
 
+        // Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+        // Стрелы») — тот же порядок приоритета, что в TileArtKindResolver.
+        [Test]
+        public void Resolve_BombWarningActive_ReturnsBombWarningColor_NotTimedTrapActiveColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBombWarningActive: true);
+
+            Assert.AreEqual(TileDebugColor.BombWarningColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_BombCollapsed_ReturnsBombHoleColor_NotTimedTrapActiveColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.BombBlast, decayProgress01: 0f, isTrapTrigger: false, isBombCollapsed: true);
+
+            Assert.AreEqual(TileDebugColor.BombHoleColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_BombCollapsedAndBlocked_ReturnsBombHoleColor_NotBlockedColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBombCollapsed: true);
+
+            Assert.AreEqual(TileDebugColor.BombHoleColor, TileDebugColor.Resolve(state));
+        }
+
         [Test]
         public void Resolve_TrapTrigger_Revealed_ReturnsTriggerSignatureColor()
         {

@@ -65,13 +65,21 @@ namespace Burmalda.DebugVisuals
     /// (<see cref="Movement.ArrowWaveTrapSystem.StepSeconds"/>/
     /// <see cref="Movement.BladeTactTrapSystem.TactSeconds"/>/
     /// <see cref="Movement.LavaWaveTrapSystem.RowStepSeconds"/>/
-    /// <see cref="Movement.BombTrapSystem.DelaySeconds"/>/
-    /// <see cref="Movement.FallingRockTrapSystem.DelaySeconds"/>) — прямое
-    /// требование задачи: "скорость волны — параметр, настраиваемый в
+    /// Movement.BombTrapSystem.DelaySeconds (заменено кривой issue #260, см.
+    /// ниже)/<see cref="Movement.FallingRockTrapSystem.DelaySeconds"/>) —
+    /// прямое требование задачи: "скорость волны — параметр, настраиваемый в
     /// дебаг-панели, без пересборки". Второй раунд задачи (владелец: «никаких
     /// ловушек в такт быть не должно, только тайминги») распространил это на
     /// все пять типов, не только на три волновых — Бомба/Падающий камень
     /// добавлены сюда же тем же приёмом.
+    ///
+    /// <b>Issue #260 (2026-09-14, «Бомба взрывается мгновенно, кривая по
+    /// Ярусу»):</b> ползунок задержки Бомбы заменён тремя —
+    /// <see cref="Movement.BombTrapSystem.BaseDelaySeconds"/>/
+    /// <see cref="Movement.BombTrapSystem.DelayReductionPerTier"/>/
+    /// <see cref="Movement.BombTrapSystem.MinDelaySeconds"/> — задержка
+    /// теперь кривая от номера Яруса, не одно фиксированное число, владелец
+    /// прямо просил не решать баланс кривой самостоятельно.
     /// </summary>
     public sealed class TrapDensityDebugPanel : MonoBehaviour
     {
@@ -88,7 +96,9 @@ namespace Burmalda.DebugVisuals
         private const float MaxCollapseDurationSeconds = 1f; // задача «разрушение плиты» — щедрый запас над стартовыми 0.25–0.4с
         private const float MaxExtraTrapChance = 0.5f; // задача «параметр плотности» — до половины Open-плит, щедрый запас для стресс-теста на устройстве
         private const float MaxWaveSpeedSeconds = 2f; // issue #254 — щедрый запас над стартовыми 0.3с, от почти-мгновенной до медленной волны
-        private const int RowCount = 19; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 2 параметра обвала + 1 readout счётчика встреч + 1 множитель доп. плотности + 5 таймингов ловушек (см. BuildPanel)
+        private const float MaxBombDelaySeconds = 8f; // issue #260 — щедрый запас над стартовыми 3с базовой задержки Бомбы, «несколько секунд» с большим потолком для ручного подбора
+        private const float MaxBombDelayReductionPerTier = 2f; // issue #260 — щедрый запас над стартовыми 0.3с/Ярус
+        private const int RowCount = 21; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 2 параметра обвала + 1 readout счётчика встреч + 1 множитель доп. плотности + 4 тайминга волновых/падающего камня + 3 параметра кривой задержки Бомбы (см. BuildPanel)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -257,12 +267,20 @@ namespace Burmalda.DebugVisuals
                 v => LavaWaveTrapSystem.RowStepSeconds = v, FormatSeconds);
 
             // Второй раунд той же задачи (владелец: "никаких ловушек в
-            // такт быть не должно, только тайминги") — Бомба/Падающий
-            // камень тоже перешли на реальное время, тот же приём.
-            BuildRow(_panelRoot.transform, 17, "Задержка: взрыв Бомбы", 0.01f, MaxWaveSpeedSeconds, BombTrapSystem.DelaySeconds,
-                v => BombTrapSystem.DelaySeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 18, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
+            // такт быть не должно, только тайминги") — Падающий камень тоже
+            // перешёл на реальное время, тот же приём.
+            BuildRow(_panelRoot.transform, 17, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
                 v => FallingRockTrapSystem.DelaySeconds = v, FormatSeconds);
+
+            // Issue #260 («Бомба взрывается мгновенно... задержка должна
+            // уменьшаться с Ярусом») — три параметра кривой вместо одного
+            // фиксированного числа, см. BombTrapSystem.ComputeDelaySeconds.
+            BuildRow(_panelRoot.transform, 18, "Задержка Бомбы: база (Ярус 0)", 0.1f, MaxBombDelaySeconds, BombTrapSystem.BaseDelaySeconds,
+                v => BombTrapSystem.BaseDelaySeconds = v, FormatSeconds);
+            BuildRow(_panelRoot.transform, 19, "Задержка Бомбы: снижение/Ярус", 0f, MaxBombDelayReductionPerTier, BombTrapSystem.DelayReductionPerTier,
+                v => BombTrapSystem.DelayReductionPerTier = v, FormatSeconds);
+            BuildRow(_panelRoot.transform, 20, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
+                v => BombTrapSystem.MinDelaySeconds = v, FormatSeconds);
         }
 
         private void BuildReadoutRow(Transform parent, int rowIndex, string label)

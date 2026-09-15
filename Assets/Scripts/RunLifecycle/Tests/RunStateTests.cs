@@ -48,6 +48,25 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
+        public void TryAdvanceTo_Lava_StepSucceedsBeforeHazardIsResolved_NotABlockedWall()
+        {
+            // issue #258: «Лава должна быть проходимой, но летальной, а не
+            // физической стеной» — в отличие от четырёх рантайм-типов
+            // ловушек, шаг на Лаву больше не отклоняется TryAdvanceTo;
+            // проигрыш наступает через тот же ResolveHazard/d20, что и для
+            // прочих ловушек (здесь — roll=5, Death), не в обход него.
+            var (grid, trail, _, runState) = CreateRun(); // d20Roll=5 — Death
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+
+            var advanced = trail.TryAdvanceTo(lava);
+
+            Assert.IsTrue(advanced, "Шаг на Лаву должен физически засчитываться, а не отклоняться как раньше.");
+            Assert.AreEqual(lava, trail.CurrentPosition, "Игрок должен фактически оказаться на плите Лавы, а не остаться перед ней.");
+            Assert.IsFalse(runState.IsAlive, "Разрешение опасности (d20) всё равно должно сработать после шага.");
+        }
+
+        [Test]
         public void LethalTrapTriggered_ArrowWave_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
             // issue #213: новый LethalTrapType не должен провалиться в
