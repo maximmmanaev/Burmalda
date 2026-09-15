@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isTrapTrigger, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, BossRoomTileKind? bossRoomTile = null, bool isBombWarningActive = false, bool isBombCollapsed = false)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isTrapTrigger, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, BossRoomTileKind? bossRoomTile = null, bool isBombWarningActive = false, bool isBombCollapsed = false, bool isFallingRockWarningActive = false)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -30,6 +30,7 @@ namespace Burmalda.DebugVisuals
             BossRoomTile = bossRoomTile;
             IsBombWarningActive = isBombWarningActive;
             IsBombCollapsed = isBombCollapsed;
+            IsFallingRockWarningActive = isFallingRockWarningActive;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -158,5 +159,17 @@ namespace Burmalda.DebugVisuals
         /// но визуал один и тот же независимо от того, какая именно.
         /// </summary>
         public bool IsBombCollapsed { get; }
+
+        /// <summary>
+        /// Задача «падающий камень: новая спецификация» (владелец, Спринт
+        /// «Стены вместо ловушек»): целевая плита впереди триггера Падающего
+        /// камня отсчитывает время до падения — см.
+        /// <c>Core.Tile.IsFallingRockWarningActive</c>. Тот же приём, что уже
+        /// применяет <see cref="IsBombWarningActive"/> (переиспользует ту же
+        /// текстуру/пульсацию тона, см. <c>TileArtKindResolver</c> —
+        /// отдельной текстуры для этой ловушки не заводилось, новая текстура
+        /// не в скоупе агента).
+        /// </summary>
+        public bool IsFallingRockWarningActive { get; }
     }
 }

@@ -372,7 +372,8 @@ namespace Burmalda.DebugVisuals
                     isDangerSignatureRevealed: tile.IsDangerSignatureRevealed,
                     bossRoomTile: tile.BossRoomTile,
                     isBombWarningActive: tile.IsBombWarningActive,
-                    isBombCollapsed: tile.IsBombCollapsed);
+                    isBombCollapsed: tile.IsBombCollapsed,
+                    isFallingRockWarningActive: tile.IsFallingRockWarningActive);
 
                 // Issue #260: дыра от Бомбы — тот же провальный пол/анимация
                 // обвала, что и распад (см. doc-комментарий TileArtKind.BombHole) —

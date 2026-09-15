@@ -205,6 +205,10 @@ namespace Burmalda.DebugVisuals
             // Issue #260: мигание Бомбы — до общей ветки TimedTrapActive
             // ниже, тот же порядок, что в TileArtKindResolver.Resolve.
             if (state.IsBombWarningActive) return BombWarningColor;
+            // Задача «падающий камень: новая спецификация» — та же
+            // приоритетная логика и тот же переиспользованный цвет, что
+            // Бомба выше (см. её doc-комментарий и TileArtKindResolver.Resolve).
+            if (state.IsFallingRockWarningActive) return BombWarningColor;
             // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
             // смертельной навсегда... выглядит как непроходимая стена»):
             // проверка показала, что ArrowWaveTrapSystem/BladeTactTrapSystem

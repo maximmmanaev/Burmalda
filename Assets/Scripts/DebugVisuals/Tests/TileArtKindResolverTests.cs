@@ -112,6 +112,18 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileArtKind.BombWarning, TileArtKindResolver.Resolve(state));
         }
 
+        // Задача «падающий камень: новая спецификация» — целевая плита
+        // впереди триггера переиспользует BombWarning (нет отдельной
+        // текстуры, новая текстура не в скоупе агента), тот же приоритет,
+        // что и предупреждение Бомбы.
+        [Test]
+        public void Resolve_FallingRockWarningActive_ReturnsBombWarning()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isFallingRockWarningActive: true);
+
+            Assert.AreEqual(TileArtKind.BombWarning, TileArtKindResolver.Resolve(state));
+        }
+
         [Test]
         public void Resolve_BombCollapsed_ReturnsBombHole_NotTimedTrapActive()
         {
