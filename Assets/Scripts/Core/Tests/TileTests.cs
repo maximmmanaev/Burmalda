@@ -505,6 +505,14 @@ namespace Burmalda.Core.Tests
         // Разграничение по рядам (Bootstrap.RunBootstrap) закрывает причину;
         // эти тесты проверяют следствие — сам инвариант на Tile, вторая
         // линия обороны, если причина всё же повторится.
+        // Пять триггеров ловушек Спринта 13a (ArrowWave/Bomb/BladeTact/
+        // FallingRock/LavaWave) добавлены в эту матрицу задачей «награда
+        // никогда не лежит на ловушке» — раньше их Mark*-методы не вызывали
+        // GuardAgainstConflictingRole вовсе (см. их doc-комментарии в
+        // Tile.cs). Явная цель: плита-источник Маны/Ключей не может
+        // одновременно стать ни одним из них, и наоборот — матрица ниже
+        // строит это автоматически, полным перекрёстным произведением со
+        // всеми остальными ролями, не только с наградами.
         private static readonly (string Name, Action<Tile> Mark)[] ExclusiveRoleMarkers =
         {
             ("Blocked", t => t.MarkBlocked()),
@@ -515,6 +523,11 @@ namespace Burmalda.Core.Tests
             ("Boss", t => t.MarkBoss()),
             ("Lever", t => t.MarkLever(Array.Empty<GridCoordinate>())),
             ("Gated", t => t.MarkGated()),
+            ("ArrowWaveTrigger", t => t.MarkArrowWaveTrigger(0, RowWaveDirection.LeftToRight)),
+            ("BombTrigger", t => t.MarkBombTrigger()),
+            ("BladeTactTrigger", t => t.MarkBladeTactTrigger(0)),
+            ("FallingRockTrigger", t => t.MarkFallingRockTrigger()),
+            ("LavaTrigger", t => t.MarkLavaTrigger()),
         };
 
         private static IEnumerable<TestCaseData> ExclusiveRoleConflictPairs()
