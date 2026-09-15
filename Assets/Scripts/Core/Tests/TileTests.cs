@@ -526,7 +526,7 @@ namespace Burmalda.Core.Tests
             ("ArrowWaveTrigger", t => t.MarkArrowWaveTrigger(0, RowWaveDirection.LeftToRight)),
             ("BombTrigger", t => t.MarkBombTrigger()),
             ("BladeTactTrigger", t => t.MarkBladeTactTrigger(0)),
-            ("FallingRockTrigger", t => t.MarkFallingRockTrigger()),
+            ("FallingRockTrigger", t => t.MarkFallingRockTrigger(new GridCoordinate(0, 0))),
             ("LavaTrigger", t => t.MarkLavaTrigger()),
         };
 
@@ -805,9 +805,21 @@ namespace Burmalda.Core.Tests
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkFallingRockTrigger();
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
 
             Assert.IsTrue(tile.IsFallingRockTrigger);
+        }
+
+        // Задача «падающий камень: новая спецификация» — камень падает на
+        // плиту ВПЕРЕДИ, не на саму плиту-триггер.
+        [Test]
+        public void MarkFallingRockTrigger_SetsTargetCoordinate()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
+
+            Assert.AreEqual(new GridCoordinate(2, 1), tile.FallingRockTargetCoordinate);
         }
 
         [Test]
@@ -815,10 +827,53 @@ namespace Burmalda.Core.Tests
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkFallingRockTrigger();
-            tile.MarkFallingRockTrigger();
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
 
             Assert.IsTrue(tile.IsFallingRockTrigger);
+        }
+
+        [Test]
+        public void MarkFallingRockTrigger_CalledTwice_KeepsFirstTargetCoordinate()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
+            tile.MarkFallingRockTrigger(new GridCoordinate(9, 9));
+
+            Assert.AreEqual(new GridCoordinate(2, 1), tile.FallingRockTargetCoordinate);
+        }
+
+        // Задача «падающий камень: новая спецификация» — целевая плита
+        // подсвечивается заранее, "однозначно видно, куда упадёт" (тот же
+        // приём, что уже применяет Бомба — IsBombWarningActive).
+        [Test]
+        public void NewTile_FallingRockWarningIsNotActive()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsFallingRockWarningActive);
+        }
+
+        [Test]
+        public void BeginFallingRockWarning_SetsWarningActiveTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.BeginFallingRockWarning();
+
+            Assert.IsTrue(tile.IsFallingRockWarningActive);
+        }
+
+        [Test]
+        public void EndFallingRockWarning_SetsWarningActiveFalse()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.BeginFallingRockWarning();
+
+            tile.EndFallingRockWarning();
+
+            Assert.IsFalse(tile.IsFallingRockWarningActive);
         }
 
         [Test]
