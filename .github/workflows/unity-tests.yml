@@ -3,6 +3,17 @@ name: Unity Tests
 on:
   pull_request:
 
+# Issue #270: без явного блока permissions GITHUB_TOKEN для этого репо
+# по умолчанию Read-only (default token permissions), и шаг публикации
+# результатов game-ci/unity-test-runner@v4 (создаёт GitHub Check Run)
+# падает с "Resource not accessible by integration" уже ПОСЛЕ успешного
+# прогона тестов — сами тесты при этом честно проходят, ломается только
+# публикация отчёта. contents:read — обычный чек-аут, checks:write —
+# то, чего не хватало.
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   test:
     name: Unity Test Runner
