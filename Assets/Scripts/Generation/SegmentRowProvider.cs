@@ -167,11 +167,11 @@ namespace Burmalda.Generation
             {
                 var coordinate = new GridCoordinate(baseRow + localRow, column);
                 var tile = _grid.GetOrCreateTile(coordinate);
-                ApplyTileType(tile, coordinate, template.TileAt(localRow, column), gateTargets, leverCoordinate, template.GateVaultPurchases);
+                ApplyTileType(tile, coordinate, template.TileAt(localRow, column), gateTargets, leverCoordinate, template.GateVaultPurchases, template, localRow, column);
             }
         }
 
-        private static void ApplyTileType(Tile tile, GridCoordinate coordinate, SegmentTileType type, List<GridCoordinate> leverGateTargets, GridCoordinate? leverCoordinate, double? gateVaultPurchases)
+        private static void ApplyTileType(Tile tile, GridCoordinate coordinate, SegmentTileType type, List<GridCoordinate> leverGateTargets, GridCoordinate? leverCoordinate, double? gateVaultPurchases, SegmentTemplate template, int localRow, int column)
         {
             switch (type)
             {
@@ -228,7 +228,7 @@ namespace Burmalda.Generation
                     tile.MarkLavaTrigger();
                     break;
                 case SegmentTileType.Open:
-                    ApplyExtraTrapDensity(tile, coordinate);
+                    ApplyExtraTrapDensity(tile, coordinate, template, localRow, column);
                     break;
                 default:
                     break;
@@ -242,7 +242,22 @@ namespace Burmalda.Generation
         // EditMode-тесты каталога (SegmentRowProviderTests и другие,
         // ExtraTrapDensity.Chance никогда не трогают) остаются полностью
         // детерминированными.
-        private static void ApplyExtraTrapDensity(Tile tile, GridCoordinate coordinate)
+        //
+        // Задача «награда никогда не лежит на ловушке»: ExtraTrapDensity
+        // роняет триггер СЛУЧАЙНО на любую Open-плиту шаблона — без проверки
+        // он мог бы попасть в область поражения (весь ряд/квадрат Бомбы/
+        // ряды назад Лавы, см. RewardTrapConflictValidator) уже существующей
+        // в этом же шаблоне награды, даже если сам авторский шаблон целиком
+        // безопасен. Прогон по каталогу (2026-09-15, ПОСЛЕ починки всех 22
+        // статических конфликтов из 8 шаблонов) нашёл 967 таких потенциально
+        // опасных комбинаций (Open-плита × тип триггера) из 988 Open-плит
+        // каталога — на два порядка больше уже починенных статических
+        // конфликтов, то есть основной риск инварианта был именно
+        // рантайм-плотностью, не авторингом. Fallback при обнаруженной
+        // угрозе — тихо НЕ ставить триггер (плита остаётся обычной Open) —
+        // тот же приём, что уже применяет Core.TunnelObstacleGenerator.
+        // CanReserveTarget для похожего риска.
+        private static void ApplyExtraTrapDensity(Tile tile, GridCoordinate coordinate, SegmentTemplate template, int localRow, int column)
         {
             var chance = ExtraTrapDensity.Chance;
             if (chance <= 0f) return;
@@ -252,21 +267,33 @@ namespace Burmalda.Generation
             // плотности, не авторский подбор конкретного типа под конкретную
             // плиту (это и есть отличие от авторских шаблонов, которые этот
             // рычаг намеренно дополняет, а не заменяет).
-            switch (UnityEngine.Random.Range(0, 5))
+            var candidateType = UnityEngine.Random.Range(0, 5) switch
             {
-                case 0:
+                0 => SegmentTileType.ArrowWaveTrigger,
+                1 => SegmentTileType.BombTrigger,
+                2 => SegmentTileType.BladeTactTrigger,
+                3 => SegmentTileType.FallingRockTrigger,
+                _ => SegmentTileType.LavaWaveTrigger,
+            };
+
+            if (RewardTrapConflictValidator.WouldEndangerAnyReward(template, localRow, column, candidateType))
+                return; // угроза существующей награде шаблона — плита остаётся обычной, не молчаливая перезапись роли
+
+            switch (candidateType)
+            {
+                case SegmentTileType.ArrowWaveTrigger:
                     tile.MarkArrowWaveTrigger(coordinate.Row, RowWaveDirection.LeftToRight);
                     break;
-                case 1:
+                case SegmentTileType.BombTrigger:
                     tile.MarkBombTrigger();
                     break;
-                case 2:
+                case SegmentTileType.BladeTactTrigger:
                     tile.MarkBladeTactTrigger(coordinate.Row);
                     break;
-                case 3:
+                case SegmentTileType.FallingRockTrigger:
                     tile.MarkFallingRockTrigger();
                     break;
-                case 4:
+                case SegmentTileType.LavaWaveTrigger:
                     tile.MarkLavaTrigger();
                     break;
             }

@@ -307,6 +307,56 @@ namespace Burmalda.Generation.Tests
             Assert.IsTrue(isSomeTrap, "при шансе 1 Open-плита должна была стать каким-то триггером ловушки.");
         }
 
+        // Задача «награда никогда не лежит на ловушке» (владелец, Спринт
+        // «Стены вместо ловушек», требование 3): ExtraTrapDensity роняет
+        // триггер СЛУЧАЙНО на любую Open-плиту — без страховки он мог бы
+        // поставить под угрозу существующую награду шаблона, даже если сам
+        // авторский шаблон целиком безопасен (RewardTrapConflictValidator
+        // ловит только статичные конфликты каталога, не рантайм-рулетку).
+        // Шаблон ниже — Мана в центре, ВСЁ остальное Open — максимизирует
+        // площадь, где ExtraTrapDensity может выстрелить рядом с наградой;
+        // при шансе 1 почти наверняка выстрелит несколько раз за один
+        // прогон. Проверка — НЕЗАВИСИМАЯ от RewardTrapConflictValidator
+        // (не вызывает её), иначе тест доказывал бы только то, что
+        // производственный код согласен сам с собой, а не то, что
+        // инвариант реально соблюдается на живой сетке.
+        [Test]
+        public void ApplyTemplate_ExtraTrapChanceOne_NeverEndangersExistingReward()
+        {
+            ExtraTrapDensity.Chance = 1f;
+            var (grid, trail) = CreateTrail();
+            var tiles = OpenRows(5);
+            const int rewardRow = 2;
+            const int rewardColumn = 2;
+            tiles[rewardRow, rewardColumn] = SegmentTileType.ManaSource;
+            var template = new SegmentTemplate("open-with-mana-density-max", 1, SegmentRewardTag.Mana, tiles);
+            using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1, rowsPerTier: 1000000);
+
+            for (var r = 0; r < 5; r++)
+            for (var c = 0; c < Width; c++)
+            {
+                if (r == rewardRow && c == rewardColumn) continue; // сама награда
+                var candidate = grid.GetOrCreateTile(new GridCoordinate(1 + r, c));
+
+                if (candidate.ArrowWaveTargetRow.HasValue || candidate.BladeTactTargetRow.HasValue)
+                    Assert.AreNotEqual(rewardRow, r, $"({r},{c}): Стрела/Лезвия задевают весь СВОЙ ряд — награда в том же ряду оказалась бы под угрозой.");
+
+                if (candidate.IsBombTrigger)
+                {
+                    var withinBombRadius = Math.Abs(r - rewardRow) <= BombTrapSystem.RadiusTiles && Math.Abs(c - rewardColumn) <= BombTrapSystem.RadiusTiles;
+                    Assert.IsFalse(withinBombRadius, $"({r},{c}): Бомба в радиусе {BombTrapSystem.RadiusTiles} от награды.");
+                }
+
+                if (candidate.IsLavaTrigger)
+                {
+                    var rewardBehindTrigger = rewardRow <= r && rewardRow > r - LavaWaveTrapSystem.MaxRows;
+                    Assert.IsFalse(rewardBehindTrigger, $"({r},{c}): волна Лавы дошла бы до ряда награды {rewardRow}.");
+                }
+            }
+
+            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(1 + rewardRow, rewardColumn)).IsManaSource, "сама награда должна остаться на месте.");
+        }
+
         [Test]
         public void RowZero_NeverTouchedByTemplateApplication()
         {
