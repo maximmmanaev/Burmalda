@@ -594,6 +594,45 @@ namespace Burmalda.Core.Tests
             Assert.DoesNotThrow(() => marker.Mark(tile), $"повторная пометка той же роли ({marker.Name}) должна остаться тихим не-op");
         }
 
+        // Хотфикс «страж ролей плиты роняет забег вместо диагностики»
+        // (владелец, 2026-09-16, см. doc-комментарий
+        // GuardAgainstConflictingRole/ThrowOnRoleConflict): все тесты выше
+        // проверяют СТРОГИЙ режим (ThrowOnRoleConflict == true, включён этим
+        // тестовым assembly — см. TileGuardStrictModeSetUp). Этот тест —
+        // единственный на РАНТАЙМ-ветку (ThrowOnRoleConflict == false,
+        // поведение built-игры): конфликт не бросает, первая роль остаётся,
+        // вторая отклоняется, счётчик растёт, событие срабатывает.
+        [Test]
+        public void MarkingExclusiveRole_ThrowOnRoleConflictDisabled_RejectsSecondWriteAndKeepsFirst()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            var countBefore = Tile.RoleConflictRejectedCount;
+            string capturedMessage = null;
+            void OnRejected(string message) => capturedMessage = message;
+            Tile.RoleConflictRejected += OnRejected;
+            try
+            {
+                Tile.ThrowOnRoleConflict = false;
+                var tile = new Tile(new GridCoordinate(1, 1));
+                tile.MarkBlocked();
+
+                Assert.DoesNotThrow(() => tile.MarkAltar());
+
+                Assert.IsTrue(tile.IsBlocked, "первая роль (Blocked) должна остаться");
+                Assert.IsFalse(tile.IsAltar, "вторая, конфликтующая роль (Altar) должна быть отклонена, не наложена поверх");
+                Assert.AreEqual(countBefore + 1, Tile.RoleConflictRejectedCount,
+                    "счётчик отклонённых конфликтов должен вырасти ровно на 1");
+                Assert.IsNotNull(capturedMessage, "RoleConflictRejected должен сработать с сообщением о конфликте");
+                StringAssert.Contains("IsAltar", capturedMessage);
+                StringAssert.Contains("IsBlocked", capturedMessage);
+            }
+            finally
+            {
+                Tile.RoleConflictRejected -= OnRejected;
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
         // issue #213 — ловушка «Стрела» (docs/wiki/traps.md).
         [Test]
         public void NewTile_HasNoArrowWaveTrigger()

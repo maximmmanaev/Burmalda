@@ -41,14 +41,9 @@ namespace Burmalda.Core
         /// <c>Bootstrap.RunBootstrap</c>) закрывает ПРИЧИНУ — этот метод
         /// закрывает СЛЕДСТВИЕ на случай, если причина всё же случится
         /// снова (регрессия, новый генератор, ручной тест): плита не может
-        /// одновременно нести две из перечисленных ниже ролей — попытка
-        /// зовёт <see cref="InvalidOperationException"/>, а не молча
-        /// перезаписывает. Core не ссылается на UnityEngine
-        /// (<c>noEngineReferences</c> в Burmalda.Core.asmdef) — необработанное
-        /// исключение Unity сам громко логирует в консоль в Editor/dev-сборке,
-        /// отдельный Debug.LogError не нужен и был бы недоступен отсюда.
-        /// Повторная пометка ТОЙ ЖЕ роли (что и раньше) остаётся тихим
-        /// не-op — конфликт только между РАЗНЫМИ ролями.
+        /// одновременно нести две из перечисленных ниже ролей. Повторная
+        /// пометка ТОЙ ЖЕ роли (что и раньше) остаётся тихим не-op —
+        /// конфликт только между РАЗНЫМИ ролями.
         ///
         /// <b>Разделение фаз (владелец, 2026-09-01 — предыдущая формулировка
         /// без разделения фаз была дефектом постановки, не шаблонов
@@ -64,17 +59,83 @@ namespace Burmalda.Core
         /// метод. Список рантайм-переходов растёт вместе с игрой — не
         /// перечислением исключений здесь, а новым явным методом на каждый
         /// случай, как уже сделано для этих пяти.
+        ///
+        /// <b>Хотфикс «страж роняет забег вместо диагностики» (владелец,
+        /// 2026-09-16):</b> раньше страж бросал <see cref="InvalidOperationException"/>
+        /// БЕЗУСЛОВНО, в любой сборке. После расширения на пять триггеров
+        /// ловушек (задача «награда никогда не лежит на ловушке») известная,
+        /// задокументированная как переходное состояние гонка
+        /// <c>Movement.TunnelObstacleController</c> vs
+        /// <c>Generation.SegmentRowProvider</c> (см. <c>Generation.Tests.
+        /// SegmentGenerationCoexistenceTests</c>) перестала быть тихой
+        /// порчей одной плиты и стала падением забега прямо на
+        /// development-сборке владельца. Поведение теперь разведено по
+        /// <see cref="ThrowOnRoleConflict"/>: строго (бросает) — только в
+        /// Editor Play mode и в EditMode-тестах, где эта гонка сигнализирует
+        /// об ошибке генерации, ради чего страж и заводился. В собранной
+        /// игре (включая development-сборку) — не бросает: отклоняет вторую
+        /// запись, оставляет первую, наращивает <see cref="RoleConflictRejectedCount"/>
+        /// и логирует через <see cref="RoleConflictRejected"/> (Core не
+        /// ссылается на UnityEngine, <c>noEngineReferences</c> в
+        /// Burmalda.Core.asmdef — Debug.LogWarning отсюда недоступен, тот же
+        /// приём, что уже <see cref="TunnelGrid.TileMaterialized"/>). Сама
+        /// гонка генераторов этим не чинится — трекается отдельным issue.
         /// </summary>
-        private void GuardAgainstConflictingRole(bool alreadyThisRole, string incomingRole)
+        /// <returns>
+        /// true — можно записывать роль (конфликта нет, или это повтор той
+        /// же роли); false — конфликт отклонён (только когда
+        /// <see cref="ThrowOnRoleConflict"/> == false) — вызывающий Mark*-
+        /// метод обязан НЕ писать поле в этом случае, первая роль остаётся.
+        /// </returns>
+        private bool GuardAgainstConflictingRole(bool alreadyThisRole, string incomingRole)
         {
-            if (alreadyThisRole) return;
+            if (alreadyThisRole) return true;
 
             var existing = ActiveExclusiveRoleName();
-            if (existing == null) return;
+            if (existing == null) return true;
 
-            throw new InvalidOperationException(
-                $"Tile {Coordinate}: попытка пометить роль '{incomingRole}', но плита уже несёт взаимоисключающую роль '{existing}' — два генератора записали в одну плиту (см. docs/wiki/changelog.md, задача «двойные флаги на плитах»).");
+            var message =
+                $"Tile {Coordinate}: попытка пометить роль '{incomingRole}', но плита уже несёт взаимоисключающую роль '{existing}' — два генератора записали в одну плиту (см. docs/wiki/changelog.md, задача «двойные флаги на плитах»).";
+
+            if (ThrowOnRoleConflict)
+                throw new InvalidOperationException(message);
+
+            RoleConflictRejectedCount++;
+            RoleConflictRejected?.Invoke(message);
+            return false;
         }
+
+        /// <summary>
+        /// Строгий режим стража ролей — см. doc-комментарий
+        /// <see cref="GuardAgainstConflictingRole"/>. По умолчанию false
+        /// (поведение built-игры: отклонить и залогировать, забег
+        /// продолжается). Включается явно двумя местами:
+        /// <c>Bootstrap.RunBootstrap.Awake</c> — по <c>Application.isEditor</c>
+        /// (НЕ <c>Debug.isDebugBuild</c> — тот был бы true и на
+        /// development-сборке, где страж обязан не падать), и
+        /// <c>[SetUpFixture]</c> тестовых сборок (Core.Tests/Generation.Tests) —
+        /// EditMode-раннер не входит в Play mode, и
+        /// <c>RuntimeInitializeOnLoadMethod</c> там не срабатывает.
+        /// </summary>
+        public static bool ThrowOnRoleConflict;
+
+        /// <summary>
+        /// Число отклонённых конфликтов роли (растёт только когда
+        /// <see cref="ThrowOnRoleConflict"/> == false) — накопительное за
+        /// жизнь процесса, не сбрасывается между забегами: дебаг-панель
+        /// (<c>DebugVisuals.TrapDensityDebugPanel</c>) показывает его как
+        /// диагностику "гонка теоретически возможна → сколько раз реально
+        /// произошла", не как счётчик текущего забега.
+        /// </summary>
+        public static int RoleConflictRejectedCount { get; private set; }
+
+        /// <summary>
+        /// Сообщение об отклонённом конфликте роли, когда
+        /// <see cref="ThrowOnRoleConflict"/> == false — см. doc-комментарий
+        /// <see cref="GuardAgainstConflictingRole"/> про то, почему Core не
+        /// логирует это напрямую.
+        /// </summary>
+        public static event Action<string> RoleConflictRejected;
 
         private string ActiveExclusiveRoleName()
         {
@@ -118,7 +179,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как непроходимое статичное препятствие. Повторные вызовы — не-op.</summary>
         public void MarkBlocked()
         {
-            GuardAgainstConflictingRole(IsBlocked, nameof(IsBlocked));
+            if (!GuardAgainstConflictingRole(IsBlocked, nameof(IsBlocked))) return;
             IsBlocked = true;
         }
 
@@ -155,7 +216,7 @@ namespace Burmalda.Core
         public void MarkLethalTrap(LethalTrapType trapType)
         {
             if (LethalTrap.HasValue) return;
-            GuardAgainstConflictingRole(false, nameof(LethalTrap));
+            if (!GuardAgainstConflictingRole(false, nameof(LethalTrap))) return;
             LethalTrap = trapType;
         }
 
@@ -237,7 +298,7 @@ namespace Burmalda.Core
         public void MarkArrowWaveTrigger(int targetRow, RowWaveDirection direction)
         {
             if (ArrowWaveTargetRow.HasValue) return;
-            GuardAgainstConflictingRole(false, nameof(ArrowWaveTargetRow));
+            if (!GuardAgainstConflictingRole(false, nameof(ArrowWaveTargetRow))) return;
             ArrowWaveTargetRow = targetRow;
             ArrowWaveDirection = direction;
         }
@@ -295,7 +356,7 @@ namespace Burmalda.Core
         public void MarkBombTrigger()
         {
             if (IsBombTrigger) return;
-            GuardAgainstConflictingRole(false, nameof(IsBombTrigger));
+            if (!GuardAgainstConflictingRole(false, nameof(IsBombTrigger))) return;
             IsBombTrigger = true;
         }
 
@@ -320,7 +381,7 @@ namespace Burmalda.Core
         public void MarkBladeTactTrigger(int targetRow)
         {
             if (BladeTactTargetRow.HasValue) return;
-            GuardAgainstConflictingRole(false, nameof(BladeTactTargetRow));
+            if (!GuardAgainstConflictingRole(false, nameof(BladeTactTargetRow))) return;
             BladeTactTargetRow = targetRow;
         }
 
@@ -362,7 +423,7 @@ namespace Burmalda.Core
         public void MarkFallingRockTrigger(GridCoordinate targetCoordinate)
         {
             if (IsFallingRockTrigger) return;
-            GuardAgainstConflictingRole(false, nameof(IsFallingRockTrigger));
+            if (!GuardAgainstConflictingRole(false, nameof(IsFallingRockTrigger))) return;
             IsFallingRockTrigger = true;
             FallingRockTargetCoordinate = targetCoordinate;
         }
@@ -403,7 +464,7 @@ namespace Burmalda.Core
         public void MarkLavaTrigger()
         {
             if (IsLavaTrigger) return;
-            GuardAgainstConflictingRole(false, nameof(IsLavaTrigger));
+            if (!GuardAgainstConflictingRole(false, nameof(IsLavaTrigger))) return;
             IsLavaTrigger = true;
         }
 
@@ -445,7 +506,7 @@ namespace Burmalda.Core
         public void MarkLever(IReadOnlyList<GridCoordinate> gateTargets)
         {
             if (IsLever) return;
-            GuardAgainstConflictingRole(false, nameof(IsLever));
+            if (!GuardAgainstConflictingRole(false, nameof(IsLever))) return;
             IsLever = true;
             LeverGateTargets = gateTargets;
         }
@@ -481,7 +542,7 @@ namespace Burmalda.Core
         /// </summary>
         public void MarkGated(GridCoordinate? leverCoordinate = null)
         {
-            GuardAgainstConflictingRole(IsGated, nameof(IsGated));
+            if (!GuardAgainstConflictingRole(IsGated, nameof(IsGated))) return;
             IsGated = true;
             LeverCoordinate = leverCoordinate;
         }
@@ -502,7 +563,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как источник Кристаллов Маны. Повторные вызовы — не-op.</summary>
         public void MarkManaSource()
         {
-            GuardAgainstConflictingRole(IsManaSource, nameof(IsManaSource));
+            if (!GuardAgainstConflictingRole(IsManaSource, nameof(IsManaSource))) return;
             IsManaSource = true;
         }
 
@@ -534,7 +595,7 @@ namespace Burmalda.Core
         public void MarkKeySource(int? amount = null)
         {
             if (IsKeySource) return;
-            GuardAgainstConflictingRole(false, nameof(IsKeySource));
+            if (!GuardAgainstConflictingRole(false, nameof(IsKeySource))) return;
             IsKeySource = true;
             KeySourceAmount = amount;
         }
@@ -548,7 +609,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как Алтарь. Повторные вызовы — не-op.</summary>
         public void MarkAltar()
         {
-            GuardAgainstConflictingRole(IsAltar, nameof(IsAltar));
+            if (!GuardAgainstConflictingRole(IsAltar, nameof(IsAltar))) return;
             IsAltar = true;
         }
 
@@ -562,7 +623,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как точку Босса. Повторные вызовы — не-op.</summary>
         public void MarkBoss()
         {
-            GuardAgainstConflictingRole(IsBoss, nameof(IsBoss));
+            if (!GuardAgainstConflictingRole(IsBoss, nameof(IsBoss))) return;
             IsBoss = true;
         }
 
