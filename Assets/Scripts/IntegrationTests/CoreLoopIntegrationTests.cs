@@ -93,7 +93,8 @@ namespace Burmalda.IntegrationTests
 
             var runController = _inputObject.AddComponent<RunController>();
             // issue #225: без этого переопределения бросок d20 при попытке
-            // шагнуть на смертельную ловушку ниже (LethalTrapType.Lava) идёт
+            // шагнуть на смертельную ловушку ниже (LethalTrapType.ArrowWave,
+            // issue #258 — не Lava, та с этой задачи физически проходима) идёт
             // на процесс-wide UnityEngine.Random.Range — исход (Fortune/
             // Knockback/Death) зависит от того, сколько раз этот RNG успели
             // вызвать ДРУГИЕ тесты, отработавшие раньше в том же прогоне
@@ -146,13 +147,18 @@ namespace Burmalda.IntegrationTests
             // --- Разметка плит: источники валют, ловушка, Алтарь, Босс ---
             var manaSource = new GridCoordinate(1, 2);
             var keySource = new GridCoordinate(2, 2);
+            // issue #258: статичная Лава физически проходима теперь (шаг не
+            // отклоняется) — для сценария "ловушка блокирует прямой путь,
+            // трейл должен её обойти" нужен один из четырёх рантайм-типов,
+            // которые по-прежнему остаются жёсткой стеной; ArrowWave — тот
+            // же представитель, что уже используется в GridTraceTrailTests.
             var trap = new GridCoordinate(3, 2); // ловушка на прямом пути — трейл должен её обойти
             var safeDetour = new GridCoordinate(3, 1);
             var altar = new GridCoordinate(4, 2);
             var boss = new GridCoordinate(5, 2);
             _input.Grid.GetOrCreateTile(manaSource).MarkManaSource();
             _input.Grid.GetOrCreateTile(keySource).MarkKeySource();
-            _input.Grid.GetOrCreateTile(trap).MarkLethalTrap(LethalTrapType.Lava);
+            _input.Grid.GetOrCreateTile(trap).TransitionToLethalTrap(LethalTrapType.ArrowWave);
             _input.Grid.GetOrCreateTile(altar).MarkAltar();
             _input.Grid.GetOrCreateTile(boss).MarkBoss();
 
@@ -177,7 +183,7 @@ namespace Burmalda.IntegrationTests
             trail.LethalTrapTriggered += (coord, type) => triggeredTrap = type;
             var steppedOnTrap = trail.TryAdvanceTo(trap);
             Assert.IsFalse(steppedOnTrap, "Шаг на смертельную ловушку не должен засчитываться.");
-            Assert.AreEqual(LethalTrapType.Lava, triggeredTrap);
+            Assert.AreEqual(LethalTrapType.ArrowWave, triggeredTrap);
             Assert.AreEqual(keySource, trail.CurrentPosition, "Позиция не должна была измениться после отказа шагнуть на ловушку.");
 
             // Обходим ловушку по диагонали.
