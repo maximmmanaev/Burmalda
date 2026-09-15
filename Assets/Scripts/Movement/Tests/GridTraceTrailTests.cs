@@ -231,15 +231,23 @@ namespace Burmalda.Movement.Tests
             Assert.IsTrue(trail.CanAdvanceTo(gated));
         }
 
+        // Issue #258: статичная Лава (LethalTrapType.Lava) перестала быть
+        // единственным примером "смертельной ловушки" в этих тестах — теперь
+        // она единственная, которая физически проходима (см. блок тестов
+        // ниже, "Лава — проходимая, но летальная"). Оставшиеся четыре
+        // рантайм-типа (ArrowWave/BombBlast/BladeTact/LavaWave) по-прежнему
+        // ведут себя как раньше — жёсткая стена, ход не засчитывается — этот
+        // общий механизм тестируется ниже на ArrowWave как представителе.
+
         [Test]
         public void CanAdvanceTo_UnvisitedLethalTrapTile_ReturnsFalse()
         {
             var grid = new TunnelGrid(5);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
-            var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Lava);
+            var arrowWaveTile = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(arrowWaveTile).TransitionToLethalTrap(LethalTrapType.ArrowWave);
 
-            Assert.IsFalse(trail.CanAdvanceTo(pit));
+            Assert.IsFalse(trail.CanAdvanceTo(arrowWaveTile));
         }
 
         [Test]
@@ -247,10 +255,10 @@ namespace Burmalda.Movement.Tests
         {
             var grid = new TunnelGrid(5);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
-            var lava = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+            var arrowWaveTile = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(arrowWaveTile).TransitionToLethalTrap(LethalTrapType.ArrowWave);
 
-            var advanced = trail.TryAdvanceTo(lava);
+            var advanced = trail.TryAdvanceTo(arrowWaveTile);
 
             Assert.IsFalse(advanced);
             Assert.AreEqual(new GridCoordinate(0, 2), trail.CurrentPosition);
@@ -262,8 +270,8 @@ namespace Burmalda.Movement.Tests
         {
             var grid = new TunnelGrid(5);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
-            var pit = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(pit).MarkLethalTrap(LethalTrapType.Lava);
+            var arrowWaveTile = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(arrowWaveTile).TransitionToLethalTrap(LethalTrapType.ArrowWave);
             GridCoordinate? firedCoordinate = null;
             LethalTrapType? firedType = null;
             trail.LethalTrapTriggered += (coordinate, type) =>
@@ -272,10 +280,108 @@ namespace Burmalda.Movement.Tests
                 firedType = type;
             };
 
-            trail.TryAdvanceTo(pit);
+            trail.TryAdvanceTo(arrowWaveTile);
 
-            Assert.AreEqual(pit, firedCoordinate);
+            Assert.AreEqual(arrowWaveTile, firedCoordinate);
+            Assert.AreEqual(LethalTrapType.ArrowWave, firedType);
+        }
+
+        // Issue #258: «Лава должна быть проходимой, но летальной, а не
+        // физической стеной» — единственное исключение из блока выше. В
+        // отличие от четырёх РАНТАЙМ-типов, статичная Лава ставится через
+        // MarkLethalTrap на этапе генерации (issue #251) — шаг на неё
+        // физически разрешается (палец может перетащить трейл на такую
+        // плитку), результат — то же событие LethalTrapTriggered, что и у
+        // прочих ловушек, но ПОСЛЕ фактического продвижения, не вместо него.
+        // Разрешение опасности (d20, RunLifecycle.RunState.ResolveHazard) не
+        // меняется — этот класс ничего не знает про d20, только поднимает
+        // событие с координатой уже ставшей текущей позицией.
+
+        [Test]
+        public void CanAdvanceTo_UnvisitedLavaTile_ReturnsTrue()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+
+            Assert.IsTrue(trail.CanAdvanceTo(lava), "Лава должна быть физически проходима (issue #258) — не стена, а риск.");
+        }
+
+        [Test]
+        public void TryAdvanceTo_LavaTile_AdvancesAndUpdatesCurrentPositionAndPath()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+
+            var advanced = trail.TryAdvanceTo(lava);
+
+            Assert.IsTrue(advanced, "Шаг на Лаву не должен отклоняться (issue #258).");
+            Assert.AreEqual(lava, trail.CurrentPosition);
+            Assert.AreEqual(2, trail.Path.Count);
+        }
+
+        [Test]
+        public void TryAdvanceTo_LavaTile_FiresLethalTrapTriggeredWithCoordinateAndType()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+            GridCoordinate? firedCoordinate = null;
+            LethalTrapType? firedType = null;
+            trail.LethalTrapTriggered += (coordinate, type) =>
+            {
+                firedCoordinate = coordinate;
+                firedType = type;
+            };
+
+            trail.TryAdvanceTo(lava);
+
+            Assert.AreEqual(lava, firedCoordinate);
             Assert.AreEqual(LethalTrapType.Lava, firedType);
+        }
+
+        [Test]
+        public void TryAdvanceTo_LavaTile_FiresAdvancedAndPositionChangedLikeAnyOtherTile()
+        {
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+            var advancedFired = false;
+            var positionChangedFired = false;
+            trail.Advanced += _ => advancedFired = true;
+            trail.PositionChanged += _ => positionChangedFired = true;
+
+            trail.TryAdvanceTo(lava);
+
+            Assert.IsTrue(advancedFired, "Лава — обычная (хоть и опасная) плита с точки зрения продвижения трейла.");
+            Assert.IsTrue(positionChangedFired);
+        }
+
+        [Test]
+        public void TryAdvanceTo_RevisitAlreadyVisitedLavaTile_StillFiresLethalTrapTriggered()
+        {
+            // Символизирует исход Fortune (RunState.ResolveHazard) — игрок
+            // выжил на плите Лавы в первый раз и может снова попытаться
+            // пройти по тому же трейлу через неё же (#61, повтор пройденной
+            // плиты разрешён). Риск не должен исчезать при повторном шаге.
+            var grid = new TunnelGrid(5);
+            var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+            trail.TryAdvanceTo(lava);
+            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад на старт
+            var fired = false;
+            trail.LethalTrapTriggered += (_, _) => fired = true;
+
+            var advanced = trail.TryAdvanceTo(lava);
+
+            Assert.IsTrue(advanced);
+            Assert.IsTrue(fired, "Повторный шаг на уже пройденную Лаву должен снова поднимать LethalTrapTriggered.");
         }
 
         [Test]
