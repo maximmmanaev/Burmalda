@@ -50,6 +50,34 @@ namespace Burmalda.Movement.Tests
             Assert.IsFalse(IsLethal(grid, 1, 3));
         }
 
+        // Issue #268 (владелец, живой тест устройства): тот же класс бага,
+        // что у Стрелы — игрок УЖЕ стоит на столбце такта, когда тот
+        // становится смертельным (не новый ход), TryAdvanceTo тут ни при чём.
+        [Test]
+        public void Tick_PlayerAlreadyStandingOnColumnWhenArmed_FiresLethalTrapTriggered()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
+            using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(new GridCoordinate(1, 1));
+            trail.TryAdvanceTo(new GridCoordinate(1, 0)); // игрок стоит здесь — последний ход за весь тест
+            GridCoordinate? firedCoordinate = null;
+            LethalTrapType? firedType = null;
+            trail.LethalTrapTriggered += (coordinate, type) =>
+            {
+                firedCoordinate = coordinate;
+                firedType = type;
+            };
+
+            blades.Tick(BladeTactTrapSystem.TactSeconds); // армирует столбцы 0 и 4 ряда 1 — игрок уже на (1,0)
+
+            Assert.AreEqual(new GridCoordinate(1, 0), firedCoordinate,
+                "игрок стоит на плите, ставшей смертельной постфактум — обязан сработать тот же путь, что и обычный шаг на ловушку");
+            Assert.AreEqual(LethalTrapType.BladeTact, firedType);
+        }
+
         [Test]
         public void Tick_FullTwoCycles_MatchesOwnerPattern_ThenStops()
         {
