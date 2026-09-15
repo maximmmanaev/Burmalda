@@ -130,14 +130,16 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.AreEqual(TileDebugColor.BombWarningColor, TileDebugColor.Resolve(state));
         }
 
-        // Задача «падающий камень: новая спецификация» — переиспользует
-        // BombWarningColor, тот же порядок приоритета.
+        // Задача 5 (правка из отчёта Задачи 4, владелец): разведён отдельным
+        // цветом от BombWarningColor — Бомба и Падающий камень требуют
+        // разной реакции игрока, одинаковая подсветка учила бы неверной.
         [Test]
-        public void Resolve_FallingRockWarningActive_ReturnsBombWarningColor()
+        public void Resolve_FallingRockWarningActive_ReturnsFallingRockWarningColor_NotBombWarningColor()
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isFallingRockWarningActive: true);
 
-            Assert.AreEqual(TileDebugColor.BombWarningColor, TileDebugColor.Resolve(state));
+            Assert.AreEqual(TileDebugColor.FallingRockWarningColor, TileDebugColor.Resolve(state));
+            Assert.AreNotEqual(TileDebugColor.BombWarningColor, TileDebugColor.FallingRockWarningColor);
         }
 
         [Test]

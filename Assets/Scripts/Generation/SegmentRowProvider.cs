@@ -36,13 +36,36 @@ namespace Burmalda.Generation
         // Тот же смысл и тот же запас, что TunnelGridReveal.RowsAheadOfPlayer.
         public const int RowsAheadOfPlayer = 8;
 
+        // Задача «Алтари на 1/3 и 2/3 Яруса» (владелец, Спринт «Стены вместо
+        // ловушек», задача 5): гарантированный минимум реального наполнения
+        // между любыми двумя фиксированными landmark-сегментами (Алтарь→
+        // Алтарь, Алтарь→Комната) — наименьший возможный сегмент-заполнитель
+        // (SegmentTemplate.MinRowCount) ровно один раз. Не 0 (было бы снова
+        // тем самым багом — слипание) и не искусственно большое число (не
+        // авторский баланс, просто "не ноль"). Используется только как
+        // fallback для коротких Ярусов, где 1/3/2/3 сами по себе оказались
+        // бы слишком близко — см. doc-комментарий EnsureCoveredThrough.
+        private const int MinRowsBetweenLandmarks = SegmentTemplate.MinRowCount;
+
+        // Порядок фиксированных landmark-сегментов внутри одного Яруса —
+        // см. doc-комментарий EnsureCoveredThrough.
+        private enum Landmark { AltarOne, AltarTwo, Boss }
+
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private readonly SegmentSelector _selector;
         private readonly Func<int, int> _maxDifficultyForRow;
         private readonly int _rowsPerTier;
         private int _appliedThroughRow;
+        // Фиксированная периодическая сетка границ Яруса — начало ТЕКУЩЕГО
+        // Яруса (не "докуда реально докатилось содержимое", оно может
+        // немного перехлёстывать из-за квантования сегментов по 5-8 рядов;
+        // именно так уже вела себя старая _nextCapstoneRow — тот же принцип
+        // сохранён, не перепридуман).
+        private int _tierStartRow;
         private int _nextCapstoneRow;
+        private Landmark _nextLandmark;
+        private int _nextLandmarkRow;
         private bool _disposed;
 
         /// <param name="maxDifficultyForRow">
@@ -73,9 +96,35 @@ namespace Burmalda.Generation
             _rowsPerTier = rowsPerTier;
 
             _appliedThroughRow = trail.CurrentPosition.Row;
-            _nextCapstoneRow = _appliedThroughRow + _rowsPerTier;
+            BeginTier(_appliedThroughRow);
             EnsureCoveredThrough(_appliedThroughRow + RowsAheadOfPlayer);
             _trail.PositionChanged += OnPositionChanged;
+        }
+
+        // Задача «Алтари на 1/3 и 2/3 Яруса»: (пере)выставляет фиксированную
+        // сетку границ текущего Яруса и цель первого landmark'а (Алтарь #1
+        // на 1/3 Яруса) — дистанция от начала Яруса до первого Алтаря
+        // прямым текстом НЕ менялась этой задачей (владелец: "она корректна
+        // и не завязана на этот баг") — в обычном случае это по-прежнему
+        // просто rowsPerTier/3 заполнителей от того же tierStartRow, что и
+        // раньше определял капстоун целиком. Math.Max с "не раньше уже
+        // применённого содержимого + минимальный зазор" — тот же fallback
+        // для коротких/вырожденных Ярусов, что и у переходов Алтарь→Алтарь/
+        // Алтарь→Комната ниже (см. doc-комментарий EnsureCoveredThrough):
+        // без него короткий предыдущий Ярус мог бы дотянуть содержимое
+        // (после собственного fallback'а на границе Алтарь #2→Комната) до
+        // точки ПОЗЖЕ номинального начала следующего Яруса — тогда первый
+        // Алтарь следующего Яруса слип бы с Комнатой предыдущего вплотную.
+        // В обычном (не вырожденном) случае этот Math.Max — не-op: контент
+        // никогда не обгоняет фиксированную сетку границ настолько.
+        private void BeginTier(int tierStartRow)
+        {
+            _tierStartRow = tierStartRow;
+            _nextCapstoneRow = _tierStartRow + _rowsPerTier;
+            _nextLandmark = Landmark.AltarOne;
+            _nextLandmarkRow = Math.Max(
+                _tierStartRow + _rowsPerTier / 3,
+                _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
         }
 
         /// <summary>Отписывается от трейла. Вызывать при завершении забега/уничтожении системы.</summary>
@@ -93,14 +142,54 @@ namespace Burmalda.Generation
         /// покрыты применённым сегментом — расширяет вперёд целыми
         /// сегментами (см. класс-докстроку).
         ///
-        /// <b>Правка по итогам ручной проверки владельца (2026-09-04):</b> по
-        /// достижении границы Яруса (<see cref="_nextCapstoneRow"/>) вместо
-        /// случайного выбора применяется ФИКСИРОВАННАЯ связка
+        /// <b>Правка по итогам ручной проверки владельца (2026-09-04):</b>
+        /// внутри Яруса детерминированно (не лотереей <see cref="SegmentSelector"/>
+        /// — PRD v9 требует ровно два Алтаря перед каждой Комнатой Босса
+        /// структурой маршрута, не случайным отбором) ставятся три
+        /// фиксированных landmark-сегмента —
         /// <see cref="SegmentTemplateCatalog.AltarTemplate"/> ×2 →
-        /// <see cref="SegmentTemplateCatalog.BossTemplate"/> — PRD v9 требует
-        /// ровно два Алтаря перед каждой Комнатой Босса детерминированным
-        /// потоком, не лотереей <see cref="SegmentSelector"/> (тот же
-        /// селектор по-прежнему отвечает за наполнение МЕЖДУ границами).
+        /// <see cref="SegmentTemplateCatalog.BossTemplate"/>. Между ними
+        /// по-прежнему <see cref="SegmentSelector"/>.
+        ///
+        /// <b>Задача «Алтари на 1/3 и 2/3 Яруса» (владелец, Спринт «Стены
+        /// вместо ловушек», задача 5):</b> раньше все три landmark'а
+        /// ставились ПОДРЯД, вплотную друг к другу, ровно в конце Яруса
+        /// (владелец увидел на устройстве: 5–6 плит между вторым Алтарём и
+        /// Комнатой — ровно длина одного `AltarTemplate`, то есть НОЛЬ
+        /// заполнителя между ними). Теперь: Алтарь #1 на 1/3 Яруса
+        /// (<c>_tierStartRow + _rowsPerTier / 3</c>), Алтарь #2 на 2/3
+        /// (<c>_tierStartRow + _rowsPerTier * 2 / 3</c>), Комната — в конце
+        /// (<c>_nextCapstoneRow</c>, как и раньше). Дистанция от начала
+        /// Яруса до Алтаря #1 не менялась — это тот же
+        /// <c>_rowsPerTier</c>-заполнитель через <see cref="SegmentSelector"/>,
+        /// что раньше вёл к капстоуну целиком, просто короче в 3 раза, не
+        /// новая механика.
+        ///
+        /// <b>Короткие Ярусы — landmark'ы не должны слипаться.</b> Если
+        /// <c>_rowsPerTier</c> достаточно мал, что 1/3 и 2/3 попадают в один
+        /// и тот же уже применённый сегмент (Алтарь #1 своими 5 рядами сам
+        /// перекрывает номинальную отметку 2/3), НИ второй Алтарь, НИ
+        /// Комната не пропускаются (PRD v9 требует ровно два Алтаря и вход
+        /// в Комнату каждый Ярус безусловно) и не сдвигаются на границу
+        /// СЛЕДУЮЩЕГО Яруса (тогда Ярусы начали бы съезжать друг на друга).
+        /// Вместо этого следующий landmark сдвигается вперёд относительно
+        /// своей номинальной отметки — ровно настолько, чтобы между
+        /// предыдущим landmark'ом и им гарантированно поместился хотя бы
+        /// один сегмент-заполнитель через <see cref="SegmentSelector"/>
+        /// (<see cref="MinRowsBetweenLandmarks"/> — наименьший возможный
+        /// размер сегмента, не авторское число баланса). Тот же приём для
+        /// пары Алтарь #2 → Комната, и — симметрично, через
+        /// <see cref="BeginTier"/> — для перехода Комната этого Яруса →
+        /// Алтарь #1 следующего: без него короткий Ярус, чьё содержимое
+        /// fallback'ом растянулся ЗА номинальный капстоун, слепил бы свою
+        /// Комнату с Алтарём #1 следующего Яруса той же болезнью с другой
+        /// стороны границы. Побочный эффект — Ярус в этом вырожденном
+        /// случае становится немного ДЛИННЕЕ номинального
+        /// <c>_rowsPerTier</c> (сетка НОМИНАЛЬНЫХ границ следующего Яруса не
+        /// сжимается вслед за этим, см. <see cref="BeginTier"/> — растягивается
+        /// только фактическое содержимое), это уже приемлемо и раньше:
+        /// квантование сегментов по 5-8 рядов и без того не даёт капстоуну
+        /// приходиться РОВНО на <c>_rowsPerTier</c>.
         /// </summary>
         public void EnsureCoveredThrough(int row)
         {
@@ -108,20 +197,50 @@ namespace Burmalda.Generation
             {
                 var baseRow = _appliedThroughRow + 1;
 
-                if (baseRow >= _nextCapstoneRow)
+                if (baseRow >= _nextLandmarkRow)
                 {
-                    ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
-                    _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
-                    baseRow = _appliedThroughRow + 1;
+                    switch (_nextLandmark)
+                    {
+                        case Landmark.AltarOne:
+                            ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
+                            _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
+                            _nextLandmark = Landmark.AltarTwo;
+                            _nextLandmarkRow = Math.Max(
+                                _tierStartRow + _rowsPerTier * 2 / 3,
+                                _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
+                            break;
 
-                    ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
-                    _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
-                    baseRow = _appliedThroughRow + 1;
+                        case Landmark.AltarTwo:
+                            ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
+                            _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
+                            _nextLandmark = Landmark.Boss;
+                            _nextLandmarkRow = Math.Max(
+                                _nextCapstoneRow,
+                                _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
+                            break;
 
-                    ApplyTemplate(SegmentTemplateCatalog.BossTemplate, baseRow);
-                    _appliedThroughRow += SegmentTemplateCatalog.BossTemplate.RowCount;
+                        case Landmark.Boss:
+                        default:
+                            ApplyTemplate(SegmentTemplateCatalog.BossTemplate, baseRow);
+                            _appliedThroughRow += SegmentTemplateCatalog.BossTemplate.RowCount;
+                            // Следующий Ярус НОМИНАЛЬНО начинается на
+                            // фиксированной сетке границ (_nextCapstoneRow до
+                            // сброса), тот же принцип, что был у старой
+                            // _nextCapstoneRow += _rowsPerTier — сетка сама
+                            // не сжимается и не растягивается вслед за
+                            // фактическим переразбегом контента. Но
+                            // BeginTier всё равно клэмпит фактический старт
+                            // Алтаря #1 следующего Яруса тем же Math.Max, что
+                            // и остальные переходы ниже — без него короткий
+                            // вырожденный Ярус (собственный fallback уже
+                            // растянул его содержимое ЗА номинальный
+                            // капстоун) слепил бы Комнату этого Яруса с
+                            // Алтарём #1 следующего вплотную, той же болезнью
+                            // с другой стороны границы.
+                            BeginTier(_nextCapstoneRow);
+                            break;
+                    }
 
-                    _nextCapstoneRow += _rowsPerTier;
                     continue;
                 }
 
