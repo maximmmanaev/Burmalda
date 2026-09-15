@@ -222,7 +222,11 @@ namespace Burmalda.Generation
                     tile.MarkBladeTactTrigger(coordinate.Row);
                     break;
                 case SegmentTileType.FallingRockTrigger:
-                    tile.MarkFallingRockTrigger();
+                    // Задача «падающий камень: новая спецификация» —
+                    // камень падает на плиту ВПЕРЕДИ, дефолт "ряд+1, тот же
+                    // столбец" (тот же приём, что Core.TunnelObstacleGenerator.NextRowTarget
+                    // уже использовал для ArrowWave/BladeTact).
+                    tile.MarkFallingRockTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
                     break;
                 case SegmentTileType.LavaWaveTrigger:
                     tile.MarkLavaTrigger();
@@ -291,7 +295,7 @@ namespace Burmalda.Generation
                     tile.MarkBladeTactTrigger(coordinate.Row);
                     break;
                 case SegmentTileType.FallingRockTrigger:
-                    tile.MarkFallingRockTrigger();
+                    tile.MarkFallingRockTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
                     break;
                 case SegmentTileType.LavaWaveTrigger:
                     tile.MarkLavaTrigger();
