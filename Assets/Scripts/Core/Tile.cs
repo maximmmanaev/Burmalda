@@ -86,6 +86,21 @@ namespace Burmalda.Core
             if (IsBoss) return nameof(IsBoss);
             if (IsLever) return nameof(IsLever);
             if (IsGated) return nameof(IsGated);
+            // Задача «награда никогда не лежит на ловушке» (владелец): пять
+            // триггеров ловушек Спринта 13a раньше НЕ входили в этот список —
+            // их Mark*-методы не вызывали GuardAgainstConflictingRole вовсе
+            // (см. их doc-комментарии до этой задачи). Ни один существующий
+            // генератор фактически не мог создать такой конфликт (переключатель
+            // SegmentRowProvider.ApplyTileType/ExtraTrapDensity ставит ровно
+            // одну роль на плиту за проход), поэтому страж здесь раньше не
+            // требовался технически — но был дырой на случай будущего
+            // изменения генератора, симметричной уже закрытой (LethalTrap
+            // выше). Добавлено тем же порядком, что и остальные роли.
+            if (ArrowWaveTargetRow.HasValue) return nameof(ArrowWaveTargetRow);
+            if (IsBombTrigger) return nameof(IsBombTrigger);
+            if (BladeTactTargetRow.HasValue) return nameof(BladeTactTargetRow);
+            if (IsFallingRockTrigger) return nameof(IsFallingRockTrigger);
+            if (IsLavaTrigger) return nameof(IsLavaTrigger);
             return null;
         }
 
@@ -212,10 +227,17 @@ namespace Burmalda.Core
         /// <summary>Направление волны — актуально только вместе с <see cref="ArrowWaveTargetRow"/>. Задаётся на генерации, не выбирается заново при активации (см. <see cref="RowWaveDirection"/>).</summary>
         public RowWaveDirection? ArrowWaveDirection { get; private set; }
 
-        /// <summary>Помечает плиту как триггер волны Стрелы по заданному ряду и направлению. Повторные вызовы сохраняют первые значения.</summary>
+        /// <summary>
+        /// Помечает плиту как триггер волны Стрелы по заданному ряду и
+        /// направлению. Повторные вызовы сохраняют первые значения. Строгий
+        /// страж — см. <see cref="GuardAgainstConflictingRole"/> (задача
+        /// «награда никогда не лежит на ловушке»): плита-источник Маны/
+        /// Ключей не может одновременно стать триггером.
+        /// </summary>
         public void MarkArrowWaveTrigger(int targetRow, RowWaveDirection direction)
         {
             if (ArrowWaveTargetRow.HasValue) return;
+            GuardAgainstConflictingRole(false, nameof(ArrowWaveTargetRow));
             ArrowWaveTargetRow = targetRow;
             ArrowWaveDirection = direction;
         }
@@ -265,9 +287,15 @@ namespace Burmalda.Core
         /// </summary>
         public bool IsBombTrigger { get; private set; }
 
-        /// <summary>Помечает плиту как триггер Бомбы. Повторные вызовы — не-op.</summary>
+        /// <summary>
+        /// Помечает плиту как триггер Бомбы. Повторные вызовы — не-op.
+        /// Строгий страж — см. <see cref="GuardAgainstConflictingRole"/>
+        /// (задача «награда никогда не лежит на ловушке»).
+        /// </summary>
         public void MarkBombTrigger()
         {
+            if (IsBombTrigger) return;
+            GuardAgainstConflictingRole(false, nameof(IsBombTrigger));
             IsBombTrigger = true;
         }
 
@@ -283,10 +311,16 @@ namespace Burmalda.Core
         /// </summary>
         public int? BladeTactTargetRow { get; private set; }
 
-        /// <summary>Помечает плиту как триггер такта Лезвий по заданному ряду. Повторные вызовы сохраняют первое значение.</summary>
+        /// <summary>
+        /// Помечает плиту как триггер такта Лезвий по заданному ряду.
+        /// Повторные вызовы сохраняют первое значение. Строгий страж — см.
+        /// <see cref="GuardAgainstConflictingRole"/> (задача «награда
+        /// никогда не лежит на ловушке»).
+        /// </summary>
         public void MarkBladeTactTrigger(int targetRow)
         {
             if (BladeTactTargetRow.HasValue) return;
+            GuardAgainstConflictingRole(false, nameof(BladeTactTargetRow));
             BladeTactTargetRow = targetRow;
         }
 
@@ -298,9 +332,15 @@ namespace Burmalda.Core
         /// </summary>
         public bool IsFallingRockTrigger { get; private set; }
 
-        /// <summary>Помечает плиту как триггер Падающего камня. Повторные вызовы — не-op.</summary>
+        /// <summary>
+        /// Помечает плиту как триггер Падающего камня. Повторные вызовы —
+        /// не-op. Строгий страж — см. <see cref="GuardAgainstConflictingRole"/>
+        /// (задача «награда никогда не лежит на ловушке»).
+        /// </summary>
         public void MarkFallingRockTrigger()
         {
+            if (IsFallingRockTrigger) return;
+            GuardAgainstConflictingRole(false, nameof(IsFallingRockTrigger));
             IsFallingRockTrigger = true;
         }
 
@@ -314,9 +354,15 @@ namespace Burmalda.Core
         /// </summary>
         public bool IsLavaTrigger { get; private set; }
 
-        /// <summary>Помечает плиту как триггер волны Лавы. Повторные вызовы — не-op.</summary>
+        /// <summary>
+        /// Помечает плиту как триггер волны Лавы. Повторные вызовы — не-op.
+        /// Строгий страж — см. <see cref="GuardAgainstConflictingRole"/>
+        /// (задача «награда никогда не лежит на ловушке»).
+        /// </summary>
         public void MarkLavaTrigger()
         {
+            if (IsLavaTrigger) return;
+            GuardAgainstConflictingRole(false, nameof(IsLavaTrigger));
             IsLavaTrigger = true;
         }
 
