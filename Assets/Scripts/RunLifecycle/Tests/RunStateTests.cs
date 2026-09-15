@@ -311,5 +311,53 @@ namespace Burmalda.RunLifecycle.Tests
 
             Assert.AreEqual(0, firedCount);
         }
+
+        // Задача «падающий камень: новая спецификация» (issue #217, Спринт
+        // «Стены вместо ловушек») — RunState.ReportFallingRockCrush
+        // подключает Movement.FallingRockTrapSystem.PlayerCrushed, который
+        // раньше не имел ни одного подписчика.
+        [Test]
+        public void ReportFallingRockCrush_DeathRoll_SetsIsAliveFalseAndFiresDiedWithOwnReason()
+        {
+            // В отличие от ReportBossDefeat, эта опасность идёт через
+            // СТАНДАРТНОЕ разрешение (d20) — владелец не просил исключения
+            // для неё, как явно сделано для Боссов (#82).
+            var (_, _, _, runState) = CreateRun(d20Roll: 5); // Death
+            string firedReason = null;
+            runState.Died += reason => firedReason = reason;
+            var d20Fired = false;
+            runState.D20Resolved += _ => d20Fired = true;
+
+            runState.ReportFallingRockCrush();
+
+            Assert.IsFalse(runState.IsAlive);
+            Assert.AreEqual("Раздавлен камнем", firedReason);
+            Assert.IsTrue(d20Fired, "падающий камень — обычная опасность, разрешается через d20, как обвал плиты/ловушки");
+        }
+
+        [Test]
+        public void ReportFallingRockCrush_FortuneRoll_PlayerSurvives()
+        {
+            var (_, _, _, runState) = CreateRun(d20Roll: 20); // Fortune
+
+            runState.ReportFallingRockCrush();
+
+            Assert.IsTrue(runState.IsAlive);
+        }
+
+        [Test]
+        public void ReportFallingRockCrush_CalledAfterAlreadyDead_DoesNotFireDiedAgain()
+        {
+            var (grid, trail, _, runState) = CreateRun(d20Roll: 5); // Death
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+            trail.TryAdvanceTo(lava); // уже мёртв
+            var firedCount = 0;
+            runState.Died += _ => firedCount++;
+
+            runState.ReportFallingRockCrush();
+
+            Assert.AreEqual(0, firedCount);
+        }
     }
 }
