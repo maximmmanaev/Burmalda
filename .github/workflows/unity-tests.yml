@@ -69,6 +69,19 @@ jobs:
             exit 1
           fi
           echo "Декодировано байт: ${#DECODED}"
+          # Issue #270: до этой строки GitHub Actions не знал, что
+          # $DECODED — секрет (это производное значение, не прямая
+          # ссылка ${{ secrets.X }}, автомаскирование его не ловит) —
+          # шаг "Run Unity tests" ниже сам печатает свои env: в лог, и
+          # полный .ulf (машинные биндинги, serial hash, подпись)
+          # утекал plaintext'ом в логи прогонов на ПУБЛИЧНОМ репо.
+          # ::add-mask:: матчит только в пределах одной строки лога —
+          # многострочный секрет маскируется построчно, отсюда цикл.
+          while IFS= read -r line || [ -n "$line" ]; do
+            if [ -n "$line" ]; then
+              echo "::add-mask::$line"
+            fi
+          done <<< "$DECODED"
           DELIM="UNITY_LICENSE_EOF_${GITHUB_RUN_ID}"
           {
             echo "UNITY_LICENSE_CONTENT<<${DELIM}"
