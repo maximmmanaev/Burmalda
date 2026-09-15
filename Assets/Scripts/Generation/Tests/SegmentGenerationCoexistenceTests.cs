@@ -137,13 +137,26 @@ namespace Burmalda.Generation.Tests
         /// удалён — Lava теперь единственный тип, который генератор и
         /// шаблон вообще МОГУТ оба захотеть поставить через
         /// <c>MarkLethalTrap</c>, и тогда они совпадают по значению (нечего
-        /// демонстрировать). Тест ниже проверяет оставшийся, всё ещё
-        /// актуальный подслучай — накладывание поверх (Lava и триггер
-        /// Стрелы одновременно на одной плите). <b>Не чинится в этой
-        /// задаче</b> — только диагностика по прямому запросу постановки.
+        /// демонстрировать). Тест ниже проверял оставшийся подслучай —
+        /// накладывание поверх (Lava и триггер Стрелы одновременно на одной
+        /// плите). <b>Не чинился в этой задаче</b> — только диагностика по
+        /// прямому запросу постановки.
+        ///
+        /// Задача «награда никогда не лежит на ловушке» (владелец, Спринт
+        /// «Стены вместо ловушек», 2026-09-15): <c>Tile.ActiveExclusiveRoleName</c>
+        /// расширен на пять триггеров ловушек, чтобы <see cref="RewardTrapConflictValidator"/>
+        /// мог статически рассуждать об их площади поражения. Побочный эффект —
+        /// <c>GuardAgainstConflictingRole</c> внутри <c>Tile.MarkArrowWaveTrigger</c>
+        /// теперь ВИДИТ уже установленную Lava и бросает исключение вместо
+        /// молчаливого наложения. Ранее описанный здесь подслучай "накладывается
+        /// без исключения" для триггеров ловушек больше не воспроизводим — гонка
+        /// генераторов на плите с триггером теперь падает громко. Это не фикс
+        /// самой гонки (обстакловый генератор всё ещё может материализовать ряд
+        /// раньше, чем его заявит <see cref="SegmentRowProvider"/>) — просто её
+        /// прежде тихий побочный эффект для триггеров ловушек стал исключением.
         /// </summary>
         [Test]
-        public void RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerStacksOnTop()
+        public void RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerNowThrows()
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
@@ -160,6 +173,10 @@ namespace Burmalda.Generation.Tests
             using var obstacles = new TunnelObstacleGenerator(grid, AlwaysLava());
             using var reveal = new TunnelGridReveal(grid, trail);
 
+            var tile = grid.GetOrCreateTile(new GridCoordinate(3, 1));
+            Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap,
+                "Lava от обстаклового генератора должна была материализоваться первой.");
+
             // Шаблон говорит: локальная (2,1) → абсолютная (3,1) — триггер Стрелы.
             var tiles = new SegmentTileType[5, Width];
             for (var r = 0; r < 5; r++)
@@ -169,17 +186,16 @@ namespace Burmalda.Generation.Tests
 
             var template = new SegmentTemplate("adversarial", 1, SegmentRewardTag.Coins, tiles);
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
-            using var segments = new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000);
 
-            var tile = grid.GetOrCreateTile(new GridCoordinate(3, 1));
-
-            // Tile.MarkArrowWaveTrigger не вызывает GuardAgainstConflictingRole
-            // вовсе (см. её doc-комментарий) — обе роли накладываются на одну
-            // и ту же плиту, ни одна не побеждает и не бросает исключение.
-            Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap,
-                "Lava от обстаклового генератора должна была материализоваться первой.");
-            Assert.IsTrue(tile.ArrowWaveTargetRow.HasValue,
-                "Триггер Стрелы от шаблона наложился поверх Lava, не был отброшен и не бросил исключение — противоречивая плита.");
+            // Tile.MarkArrowWaveTrigger теперь гейтится через
+            // GuardAgainstConflictingRole (см. doc-комментарий выше) — попытка
+            // наложить триггер Стрелы поверх уже стоящей Lava бросает
+            // исключение прямо из конструктора SegmentRowProvider, вместо того
+            // чтобы молча дать плите две несовместимые роли.
+            var exception = Assert.Throws<System.InvalidOperationException>(() =>
+                new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000));
+            StringAssert.Contains("ArrowWaveTargetRow", exception.Message);
+            StringAssert.Contains("Lava", exception.Message);
         }
 
         // Roll, гарантированно попадающий в диапазон Lava (см.
