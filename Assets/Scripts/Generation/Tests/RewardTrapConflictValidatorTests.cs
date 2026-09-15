@@ -41,9 +41,14 @@ namespace Burmalda.Generation.Tests
             // до края заявленного ряда (по умолчанию — ряд самого триггера)
             // — весь ряд рано или поздно опасен, независимо от расстояния
             // по столбцу до самого триггера.
+            // Шаблон должен занимать [5, 8] рядов (PRD v7 §21) — три
+            // добавленных открытых ряда не участвуют в проверке, только
+            // добивают раскладку до минимума.
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 ".....",
                 "w...m",
+                ".....",
+                ".....",
                 "....."));
 
             var conflicts = RewardTrapConflictValidator.FindConflicts(template);
@@ -59,7 +64,9 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 ".....",
                 "w....",
-                "....m"));
+                "....m",
+                ".....",
+                "....."));
 
             Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
         }
@@ -73,6 +80,8 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Keys, Grid(
                 ".....",
                 "t...k",
+                ".....",
+                ".....",
                 "....."));
 
             var conflicts = RewardTrapConflictValidator.FindConflicts(template);
@@ -93,6 +102,8 @@ namespace Burmalda.Generation.Tests
                 var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                     ".....",
                     ".xm..",
+                    ".....",
+                    ".....",
                     "....."));
 
                 var conflicts = RewardTrapConflictValidator.FindConflicts(template);
@@ -116,6 +127,8 @@ namespace Burmalda.Generation.Tests
                 var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                     ".....",
                     "x...m",
+                    ".....",
+                    ".....",
                     "....."));
 
                 Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
@@ -138,7 +151,9 @@ namespace Burmalda.Generation.Tests
                 var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                     "..m..",
                     ".....",
-                    "..f.."));
+                    "..f..",
+                    ".....",
+                    "....."));
 
                 var conflicts = RewardTrapConflictValidator.FindConflicts(template);
 
@@ -159,7 +174,9 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 "..f..",
                 ".....",
-                "..m.."));
+                "..m..",
+                ".....",
+                "....."));
 
             Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
         }
@@ -175,7 +192,8 @@ namespace Burmalda.Generation.Tests
                     "..m..",
                     ".....",
                     ".....",
-                    "..f.."));
+                    "..f..",
+                    "....."));
 
                 Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
             }
@@ -195,6 +213,8 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 "rmrmr",
                 "mrmrm",
+                "rmrmr",
+                "mrmrm",
                 "rmrmr"));
 
             Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
@@ -210,6 +230,8 @@ namespace Burmalda.Generation.Tests
                 var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                     ".....",
                     "..m..",
+                    ".....",
+                    ".....",
                     "....."));
 
                 // Кандидатная плита (1,1) — сосед Маны на (1,2): Бомба задела бы её, Падающий камень — нет.
@@ -229,6 +251,8 @@ namespace Burmalda.Generation.Tests
         public void FindConflicts_TemplateWithNoRewardsOrTriggers_ReturnsEmpty()
         {
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Coins, Grid(
+                ".....",
+                ".....",
                 ".....",
                 ".....",
                 "....."));
