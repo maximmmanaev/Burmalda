@@ -124,7 +124,7 @@ namespace Burmalda.Movement.Tests
         {
             var grid = new TunnelGrid(Width);
             var coordinate = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(coordinate).MarkFallingRockTrigger();
+            grid.GetOrCreateTile(coordinate).MarkFallingRockTrigger(new GridCoordinate(2, 2));
             var system = new TrapRevealSystem(grid);
 
             system.Tick(coordinate);
