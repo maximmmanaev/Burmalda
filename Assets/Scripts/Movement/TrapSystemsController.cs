@@ -1,4 +1,5 @@
 using System;
+using Burmalda.Core;
 using UnityEngine;
 
 namespace Burmalda.Movement
@@ -71,6 +72,22 @@ namespace Burmalda.Movement
         /// </summary>
         public Func<int> CurrentTierProvider { get; set; }
 
+        /// <summary>
+        /// Задача «падающий камень: новая спецификация» — реле для
+        /// <see cref="FallingRockTrapSystem.PlayerCrushed"/>, подключается
+        /// к <c>RunLifecycle.RunState</c> СНАРУЖИ (<c>Movement</c> не
+        /// ссылается на <c>RunLifecycle</c>, см. asmdef — тот же принцип,
+        /// что уже у <see cref="CurrentTierProvider"/>). Стабильное событие
+        /// на самом Controller'е, не на <c>_fallingRock</c> напрямую: та
+        /// система пересобирается на каждый забег
+        /// (<see cref="Rebuild"/>) — подписка на сырое
+        /// <c>_fallingRock.PlayerCrushed</c> снаружи задачи сложила бы
+        /// подписку ОДИН раз на конкретный экземпляр, который переживёт
+        /// не дольше текущего забега. Это реле переживает рестарты — Bootstrap
+        /// подписывается один раз при инициализации сцены.
+        /// </summary>
+        public event Action<GridCoordinate> FallingRockPlayerCrushed;
+
         private GridTraceTrail _trail;
         private ArrowWaveTrapSystem _arrowWave;
         private BombTrapSystem _bomb;
@@ -141,8 +158,13 @@ namespace Burmalda.Movement
             _bomb = new BombTrapSystem(grid, _trail, new RealTimeThreatScheduler(), CurrentTierProvider);
             _bladeTact = new BladeTactTrapSystem(grid, _trail, new RealTimeThreatScheduler());
             _fallingRock = new FallingRockTrapSystem(grid, _trail, new RealTimeThreatScheduler());
+            // Задача «падающий камень: новая спецификация» — ретранслирует
+            // на стабильное событие этого Controller'а, см. её doc-комментарий.
+            _fallingRock.PlayerCrushed += OnFallingRockPlayerCrushed;
             _lavaWave = new LavaWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
         }
+
+        private void OnFallingRockPlayerCrushed(GridCoordinate coordinate) => FallingRockPlayerCrushed?.Invoke(coordinate);
 
         private void DisposeAll()
         {
@@ -154,6 +176,7 @@ namespace Burmalda.Movement
             _bomb = null;
             _bladeTact?.Dispose();
             _bladeTact = null;
+            if (_fallingRock != null) _fallingRock.PlayerCrushed -= OnFallingRockPlayerCrushed;
             _fallingRock?.Dispose();
             _fallingRock = null;
             _lavaWave?.Dispose();

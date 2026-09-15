@@ -138,7 +138,20 @@ namespace Burmalda.Core
 
             var roll = _random01();
             if (roll < BlockedThreshold) tile.MarkBlocked();
-            else if (roll < FallingRockThreshold) tile.MarkFallingRockTrigger(); // камень падает на саму эту плиту — цели/резервации не нужно
+            else if (roll < FallingRockThreshold)
+            {
+                // Задача «падающий камень: новая спецификация» — камень
+                // теперь падает на плиту ВПЕРЕДИ, не на саму плиту-триггер,
+                // поэтому нужна та же резервация цели, что уже применяется
+                // для ArrowWave/BladeTact ниже (см. doc-комментарий
+                // CanReserveTarget).
+                var target = NextRowTarget(tile.Coordinate);
+                if (CanReserveTarget(target))
+                {
+                    tile.MarkFallingRockTrigger(target);
+                    _reservedTrapTargets.Add(target);
+                }
+            }
             else if (roll < LavaThreshold) tile.MarkLethalTrap(LethalTrapType.Lava);
             else if (roll < BombThreshold) tile.MarkBombTrigger(); // площадь взрыва центрирована на самой этой плите — цели/резервации не нужно
             else if (roll < ArrowWaveThreshold)
@@ -185,8 +198,11 @@ namespace Burmalda.Core
         /// плитах») бросал исключение прямо во время хода игрока (новые пять
         /// ловушек Спринта 13a используют <c>Tile.TransitionToLethalTrap</c>,
         /// без стража — но резервация всё равно защищает от менее очевидной
-        /// проблемы, "триггер целится в чужую награду"). Безопасный фолбэк —
-        /// не ставить триггер вовсе
+        /// проблемы, "триггер целится в чужую награду"). Задача «падающий
+        /// камень: новая спецификация» присоединила <c>FallingRockTrigger</c>
+        /// к ArrowWave/BladeTact в использовании <see cref="NextRowTarget"/>/
+        /// этого метода — раньше камень падал на саму плиту-триггер и
+        /// резервации не требовал. Безопасный фолбэк — не ставить триггер вовсе
         /// (плита остаётся обычной), тот же принцип, что уже применяется к
         /// зарезервированным целям (см. класс-докстринг про "плита
         /// зарезервирована... остаётся обычной").

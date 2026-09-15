@@ -204,18 +204,57 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void FallingRockTrigger_NeverConflicts_SelfOnlyAreaCannotOverlapReward()
+        public void FallingRockTrigger_RewardOneRowAhead_IsConflict()
         {
-            // Камень падает только на саму плиту-триггер — плита не может
-            // одновременно быть триггером и наградой (SegmentTileType — одно
-            // значение на клетку), поэтому даже плотная раскладка с
-            // триггерами вплотную к наградам не должна давать конфликтов.
+            // Задача 4 спринта «Стены вместо ловушек» («падающий камень:
+            // новая спецификация»): камень падает на плиту ВПЕРЕДИ, не на
+            // саму плиту-триггер — раньше конфликт был физически
+            // невозможен (self-only), теперь возможен.
+            // Шаблон должен занимать [5, 8] рядов (PRD v7 §21) — добавленные
+            // открытые ряды не участвуют в проверке.
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
-                "rmrmr",
-                "mrmrm",
-                "rmrmr",
-                "mrmrm",
-                "rmrmr"));
+                "..r..",
+                "..m..",
+                ".....",
+                ".....",
+                "....."));
+
+            var conflicts = RewardTrapConflictValidator.FindConflicts(template);
+
+            Assert.AreEqual(1, conflicts.Count);
+            Assert.AreEqual(SegmentTileType.FallingRockTrigger, conflicts[0].TriggerType);
+        }
+
+        [Test]
+        public void FallingRockTrigger_RewardNotDirectlyAhead_IsNotConflict()
+        {
+            // Область поражения — ровно одна клетка (ряд+1, тот же
+            // столбец), не соседний столбец и не сама плита-триггер.
+            var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
+                "..r..",
+                ".m...",
+                ".....",
+                ".....",
+                "....."));
+
+            Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
+        }
+
+        [Test]
+        public void FallingRockTrigger_OnLastRow_TargetBeyondTemplate_IsNotConflict()
+        {
+            // Цель за пределами шаблона (следующий сегмент) — эта проверка
+            // консервативно её не видит, известное ограничение (тот же
+            // принцип, что уже принят для LavaWave через границы сегментов).
+            // Триггер намеренно на последнем ряду 5-рядного шаблона —
+            // добавленные открытые ряды идут ПЕРЕД ним, а не после, иначе
+            // "последний ряд" перестал бы им быть.
+            var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
+                ".....",
+                ".....",
+                ".....",
+                ".....",
+                "..r.."));
 
             Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
         }
@@ -234,9 +273,11 @@ namespace Burmalda.Generation.Tests
                     ".....",
                     "....."));
 
-                // Кандидатная плита (1,1) — сосед Маны на (1,2): Бомба задела бы её, Падающий камень — нет.
+                // Кандидатная плита (1,1) — сосед Маны на (1,2): Бомба задела бы её (радиус), Падающий камень — нет (цель — ряд ниже, (2,1), а не соседний столбец).
                 Assert.IsTrue(RewardTrapConflictValidator.WouldEndangerAnyReward(template, 1, 1, SegmentTileType.BombTrigger));
                 Assert.IsFalse(RewardTrapConflictValidator.WouldEndangerAnyReward(template, 1, 1, SegmentTileType.FallingRockTrigger));
+                // Кандидатная плита (0,2) — тот же столбец, на ряд выше Маны: Падающий камень целится ровно в неё.
+                Assert.IsTrue(RewardTrapConflictValidator.WouldEndangerAnyReward(template, 0, 2, SegmentTileType.FallingRockTrigger));
                 // Кандидатная плита (1,0) — тот же ряд, что Мана: Стрела/Лезвия задели бы её.
                 Assert.IsTrue(RewardTrapConflictValidator.WouldEndangerAnyReward(template, 1, 0, SegmentTileType.ArrowWaveTrigger));
                 Assert.IsTrue(RewardTrapConflictValidator.WouldEndangerAnyReward(template, 1, 0, SegmentTileType.BladeTactTrigger));

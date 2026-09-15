@@ -67,6 +67,27 @@ namespace Burmalda.RunLifecycle
         /// <summary>Поражение от Босса (PRD v7 §8.3, issue #82) — детерминировано, d20 не бросается.</summary>
         public void ReportBossDefeat(string reason) => Die(reason);
 
+        /// <summary>
+        /// Падающий камень (issue #217, задача «падающий камень: новая
+        /// спецификация» — Спринт «Стены вместо ловушек»): игрок стоял на
+        /// целевой плите в момент падения камня
+        /// (<c>Movement.FallingRockTrapSystem.PlayerCrushed</c>). Как и
+        /// прочие источники опасности (<see cref="OnLethalTrapTriggered"/>,
+        /// <see cref="OnTileDestroyed"/>) — идёт через
+        /// <see cref="ResolveHazard"/> (d20, PRD раздел 9), не мгновенная
+        /// безусловная смерть: владелец не просил для этой ловушки
+        /// исключения из стандартного разрешения опасности, как это явно
+        /// сделано для <see cref="ReportBossDefeat"/>.
+        ///
+        /// Подключается СНАРУЖИ (<c>Bootstrap.RunBootstrap</c>), не через
+        /// конструктор — <c>Movement</c> не ссылается на <c>RunLifecycle</c>
+        /// (см. asmdef), а <c>Movement.FallingRockTrapSystem</c>
+        /// пересобирается на каждый забег отдельно от <see cref="RunState"/>;
+        /// прямая подписка в конструкторе создала бы зависимость в обратную
+        /// сторону. См. <c>Movement.TrapSystemsController.FallingRockPlayerCrushed</c>.
+        /// </summary>
+        public void ReportFallingRockCrush() => ResolveHazard("Раздавлен камнем");
+
         private void OnPositionChanged(GridCoordinate coordinate)
         {
             if (_grid.TryGetTile(coordinate, out var tile) && tile.IsAltar)

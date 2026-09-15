@@ -326,23 +326,64 @@ namespace Burmalda.Core
 
         /// <summary>
         /// Плита — триггер ловушки «Падающий камень» (docs/wiki/traps.md,
-        /// issue #217): в отличие от прочих триггеров не хранит отдельную
-        /// координату/ряд цели — камень падает на САМУ эту плиту (владелец:
-        /// «на плиту-триггер падает камень»), см. <c>Movement.FallingRockTrapSystem</c>.
+        /// issue #217).
+        ///
+        /// <b>Задача «падающий камень: новая спецификация» (владелец,
+        /// Спринт «Стены вместо ловушек»): раньше камень падал на САМУ эту
+        /// плиту («на плиту-триггер падает камень») — отменено.</b> Две
+        /// подтверждённые причины: (1) <c>Movement.FallingRockTrapSystem.
+        /// PlayerCrushed</c> не имел ни одного подписчика — событие никогда
+        /// никого не убивало; (2) камень падал на плиту, которую игрок уже
+        /// покинул (шаг ~0.3с, задержка ~1с) — плита позади и так распадается,
+        /// ловушка дублировала распад, не создавала риска. Теперь плита-
+        /// триггер безопасна сама по себе — цель падения камня хранит
+        /// <see cref="FallingRockTargetCoordinate"/>.
         /// </summary>
         public bool IsFallingRockTrigger { get; private set; }
 
         /// <summary>
-        /// Помечает плиту как триггер Падающего камня. Повторные вызовы —
-        /// не-op. Строгий страж — см. <see cref="GuardAgainstConflictingRole"/>
+        /// Задача «падающий камень: новая спецификация»: плита ВПЕРЕДИ
+        /// триггера, на которую упадёт камень — не сама плита-триггер (см.
+        /// doc-комментарий <see cref="IsFallingRockTrigger"/>). Тот же
+        /// приём, что <see cref="ArrowWaveTargetRow"/>/<see cref="BladeTactTargetRow"/>:
+        /// конкретное смещение решает вызывающая сторона на генерации
+        /// (<c>Generation.SegmentRowProvider</c>/<c>Core.TunnelObstacleGenerator</c>),
+        /// этот класс только хранит явно переданную координату. Null, пока
+        /// плита не помечена триггером.
+        /// </summary>
+        public GridCoordinate? FallingRockTargetCoordinate { get; private set; }
+
+        /// <summary>
+        /// Помечает плиту как триггер Падающего камня с целью падения камня
+        /// <paramref name="targetCoordinate"/>. Повторные вызовы сохраняют
+        /// первую цель. Строгий страж — см. <see cref="GuardAgainstConflictingRole"/>
         /// (задача «награда никогда не лежит на ловушке»).
         /// </summary>
-        public void MarkFallingRockTrigger()
+        public void MarkFallingRockTrigger(GridCoordinate targetCoordinate)
         {
             if (IsFallingRockTrigger) return;
             GuardAgainstConflictingRole(false, nameof(IsFallingRockTrigger));
             IsFallingRockTrigger = true;
+            FallingRockTargetCoordinate = targetCoordinate;
         }
+
+        /// <summary>
+        /// Задача «падающий камень: новая спецификация» (владелец): плита,
+        /// на которую упадёт камень (<see cref="FallingRockTargetCoordinate"/>
+        /// того или иного триггера), подсвечивается заранее — «однозначно
+        /// видно, куда упадёт», в отличие от старого дизайна, где опасной
+        /// внезапно становилась плита под ногами. Тот же приём, что уже
+        /// применяет Бомба (см. <see cref="IsBombWarningActive"/>) — чисто
+        /// визуальный флаг, не влияет на проходимость сам по себе. Снимается
+        /// через <see cref="EndFallingRockWarning"/> в момент падения камня.
+        /// </summary>
+        public bool IsFallingRockWarningActive { get; private set; }
+
+        /// <summary>Начинает фазу предупреждения о падении камня — см. <see cref="IsFallingRockWarningActive"/>. Повторные вызовы — не-op.</summary>
+        public void BeginFallingRockWarning() => IsFallingRockWarningActive = true;
+
+        /// <summary>Завершает фазу предупреждения (камень упал) — см. <see cref="IsFallingRockWarningActive"/>. Повторные вызовы — не-op.</summary>
+        public void EndFallingRockWarning() => IsFallingRockWarningActive = false;
 
         /// <summary>
         /// Плита — триггер ловушки «Лава» (docs/wiki/traps.md, issue #216):

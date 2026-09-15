@@ -310,6 +310,18 @@ namespace Burmalda.Bootstrap
             // (см. её doc-комментарий — null, пока Boss не пересобрал
             // run-системы, и это ожидаемо трактуется как Ярус 0).
             Traps.CurrentTierProvider = () => DepthTier?.CurrentTier ?? 0;
+            // Задача «падающий камень: новая спецификация» — Movement не
+            // ссылается на RunLifecycle (см. asmdef), поэтому
+            // FallingRockTrapSystem.PlayerCrushed репортится через
+            // стабильное реле TrapSystemsController.FallingRockPlayerCrushed
+            // (см. её doc-комментарий), подключается здесь ОДИН раз (метод
+            // идемпотентен, _controllersWired выше). Run.RunState читается
+            // ЛЕНИВО внутри обработчика (не захватывается сейчас, Run уже
+            // добавлен на этот host первым делом выше, но RunState на нём
+            // ещё не обязательно собран) — к моменту, когда камень реально
+            // упадёт (через FallingRockTrapSystem.DelaySeconds после
+            // срабатывания триггера), текущий RunState уже точно собран.
+            Traps.FallingRockPlayerCrushed += _ => Run.RunState?.ReportFallingRockCrush();
             // Зависит только от Currency (уже создана строкой выше) и
             // RunLifecycle.RunController (уже добавлен на этот host первым
             // делом выше) — см. doc-комментарий BossRoom.

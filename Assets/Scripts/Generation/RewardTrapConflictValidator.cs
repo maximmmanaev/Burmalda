@@ -22,12 +22,15 @@ namespace Burmalda.Generation
     /// возникает только В РАНТАЙМЕ, когда область поражения триггера
     /// (<c>Movement.BombTrapSystem.ComputeBlastArea</c>, весь ряд
     /// <c>ArrowWaveTrapSystem</c>/<c>BladeTactTrapSystem</c>, ряды назад
-    /// <c>LavaWaveTrapSystem</c>) докатывается до соседней плиты и вызывает
-    /// <see cref="Tile.TransitionToLethalTrap"/> — метод, который НАМЕРЕННО
-    /// пишет поверх любой прежней роли, включая награду (см. его
-    /// doc-комментарий). Этот класс проверяет тот же исход СТАТИЧЕСКИ, на
-    /// этапе авторинга — повторяет области поражения каждого триггера один
-    /// в один с рантайм-системами, не дублируя их код (площадь Бомбы читает
+    /// <c>LavaWaveTrapSystem</c>, плита впереди
+    /// <c>Movement.FallingRockTrapSystem</c> — см. ниже) докатывается до
+    /// соседней плиты и вызывает <see cref="Tile.TransitionToLethalTrap"/>
+    /// (Бомба/Стрела/Лезвия/Лава) либо <see cref="Tile.TransitionToBlocked"/>
+    /// (Падающий камень) — оба метода НАМЕРЕННО пишут поверх любой прежней
+    /// роли, включая награду (см. их doc-комментарии). Этот класс проверяет
+    /// тот же исход СТАТИЧЕСКИ, на этапе авторинга — повторяет области
+    /// поражения каждого триггера один в один с рантайм-системами, не
+    /// дублируя их код (площадь Бомбы читает
     /// <see cref="Movement.BombTrapSystem.RadiusTiles"/> напрямую, глубина
     /// волны Лавы — <see cref="Movement.LavaWaveTrapSystem.MaxRows"/> —
     /// оба mutable static, если владелец раздвинет их на дебаг-панели,
@@ -35,11 +38,13 @@ namespace Burmalda.Generation
     /// навсегда — приемлемо, это debug-стресс-параметры, не отгружаемый
     /// баланс).
     ///
-    /// <see cref="FallingRockTrigger"/> НЕ может создать такой конфликт в
-    /// принципе — камень падает только на саму плиту-триггер
-    /// (<c>Movement.FallingRockTrapSystem</c>), а плита не может
-    /// одновременно быть триггером и наградой (<see cref="SegmentTileType"/>
-    /// — одно значение на клетку) — см. <see cref="AffectedCells"/>.
+    /// <b>FallingRockTrigger (задача 4, «падающий камень: новая
+    /// спецификация»): раньше здесь стояла обратная формулировка</b> —
+    /// «камень падает только на саму плиту-триггер, конфликт физически
+    /// невозможен». Отменено вместе с самой механикой: камень теперь падает
+    /// на плиту ВПЕРЕДИ триггера (<c>Core.Tile.FallingRockTargetCoordinate</c>,
+    /// дефолт на генерации — ряд+1, тот же столбец), а эта плита вполне
+    /// может быть наградой — см. <see cref="AffectedCells"/>.
     /// </summary>
     public static class RewardTrapConflictValidator
     {
@@ -169,12 +174,20 @@ namespace Burmalda.Generation
                     }
                     break;
 
-                // SegmentTileType.FallingRockTrigger и любой прочий тип:
-                // камень падает только на саму плиту-триггер
-                // (Movement.FallingRockTrapSystem) — плита не может
-                // одновременно быть триггером и наградой (SegmentTileType —
-                // одно значение на клетку), конфликт физически невозможен,
-                // проверять нечего.
+                case SegmentTileType.FallingRockTrigger:
+                    // Задача «падающий камень: новая спецификация»
+                    // (владелец): камень падает на плиту ВПЕРЕДИ триггера,
+                    // не на саму плиту-триггер (см. Core.Tile.
+                    // FallingRockTargetCoordinate) — дефолт цели на
+                    // генерации, тот же ряд+1/тот же столбец, что уже
+                    // применяют Generation.SegmentRowProvider/
+                    // Core.TunnelObstacleGenerator для этого триггера.
+                    if (row + 1 < template.RowCount)
+                        yield return (row + 1, column);
+                    break;
+
+                // Любой прочий тип — область поражения неизвестна/не
+                // применима, конфликт для него не проверяется здесь.
                 default:
                     yield break;
             }
