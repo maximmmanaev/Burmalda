@@ -39,105 +39,83 @@ namespace Burmalda.Generation.Tests
                 $"Шаблон '{name}': возврат от тайника за воротами к выходу сегмента невозможен даже при открытых воротах.");
         }
 
-        // Владелец, 2026-09-08 («ловушек по-прежнему мало в ощущении»):
-        // "плотность ловушечных плит подняли, плотность встреч — нет" —
-        // одиночный триггер в сегменте 5×6 обходится по краю. Главное
-        // правило — неизбежность, а не количество (см. doc-комментарий
-        // SegmentReachabilityValidator.IsToothless). Прогон по каталогу
-        // (2026-09-08) нашёл 42 из 42 тир 2+ шаблонов беззубыми — 31 уже
-        // содержали ловушку, но обходимую, механически закрыты добавлением
-        // ЕЩЁ плит того же уже существующего в шаблоне типа (позиции
-        // существующих плит не переставлялись, только добавлялись новые —
-        // где нужно было перекрыть весь ряд, ряд перекрыт целиком тем же
-        // типом, не смесью). Оставшиеся 11 совсем не содержали ни одной
-        // ловушки — вводить тип с нуля для них было бы авторством контента
-        // (решение, КАКОЙ из пяти типов вводить), не механической правкой,
-        // поэтому пропущены и вынесены в отдельный allowlist ниже: они
-        // ЗНАЮТ, что не проходят это правило, и ждут решения владельца, а
-        // не тихо выпадают из проверки.
-        private static readonly string[] TemplatesWithoutAnyTrapType =
+        // Владелец, задача «Стены вместо ловушек» (после разбора: забег
+        // дошёл до Яруса 22 простым нажатием вперёд) — правило развёрнуто на
+        // противоположное (см. doc-комментарий
+        // SegmentReachabilityValidator.HasAvoidableRoute): сложность создают
+        // стены и геометрия маршрута, а не количество ловушек. Через ЛЮБОЙ
+        // шаблон каталога теперь ОБЯЗАН существовать путь, не задевающий ни
+        // одной ловушки — старое требование (путь без ловушек не существует,
+        // тир 2+) было буквально противоположным и уже принудило часть
+        // старых шаблонов перекрыть весь ряд одним типом ловушки, чтобы
+        // закрыть единственный обходной путь — эти шаблоны НЕ починены в
+        // этой задаче (см. issue #275), только перечислены и покрыты
+        // регрессионным списком ниже: они ЗНАЮТ, что не проходят новое
+        // правило, и ждут отдельной задачи на починку раскладки, а не тихо
+        // выпадают из проверки.
+        //
+        // Найдено прогоном по каталогу 2026-09-15 (issue #275, Задача 1):
+        // 29 из 51 шаблона (включая AltarTemplate/BossTemplate) не
+        // удовлетворяют новому правилу — все 29 содержат хотя бы одну
+        // ловушку тира 2+, ряд/площадь которой перекрывает единственный
+        // обходной путь. Список ниже — снимок на момент задачи, будущая
+        // задача обязана либо чинить раскладку и убирать имя из списка,
+        // либо (если владелец решит иначе) документировать почему нет.
+        private static readonly string[] TemplatesWithoutAvoidableRoute =
         {
-            "зал-с-рычагом", "качели", "предбанник", // тир 2
-            "богатый-карман", "ворота-склада", "двор-с-рычагом", "пещера-за-рычагом", "узкий-проход", // тир 3
-            "рычаг-в-глубине", // тир 4
-            "двойная-жила", "шахта-жадности", // тир 5
+            // тир 2
+            "разлом", "коридор-со-стрелами", "пустой-обман", "развилка-цены",
+            "ложная-прямая", "жадный-угол", "двойная-цена", "рой-стрел",
+            "камни-в-нише", "клинки-по-контуру",
+            // тир 3
+            "коридор-с-лезвиями", "взрывной-проход", "коридор-лезвий",
+            "такт-лезвий-волной", "мины-в-проходе", "разлив-у-развилки",
+            // тир 4
+            "смешанная-опасность", "караул", "решето", "выкуп",
+            "стрелы-и-жила", "бомба-и-поток-лавы", "перекрёстный-огонь",
+            "камнепад-и-лезвия",
+            // тир 5
+            "испытание", "щедрый-риск", "мост", "последний-рывок",
+            "огненная-теснина",
         };
 
-        // issue #251 (владелец, плейтест Ярус 3, «лава заливает всю ширину
-        // тоннеля»): разбор показал, что SegmentReachabilityValidator годами
-        // ошибочно считал статичную SegmentTileType.Lava "проходимой, риск
-        // не стена" — на деле GridTraceTrail.TryAdvanceTo отклоняет ЛЮБОЙ
-        // шаг на неё безусловно, как Blocked. После исправления
-        // IsTraversable/IsToothless у ДВУХ шаблонов, чья ЕДИНСТВЕННАЯ
-        // ловушка — статичная Лава ("лавовый-коридор", "ключ-за-лавой"),
-        // открылось логическое противоречие: IsTraversable требует хотя бы
-        // ОДИН путь вход→выход, свободный от Лавы (иначе шаблон физически
-        // непроходим — сама суть фикса #251), а IsToothless требует, чтобы
-        // ТАКОГО пути не было (иначе шаблон обходится начисто). Если
-        // единственный тип ловушки в шаблоне — Лава, оба требования
-        // одновременно выполнить нельзя НИКАКИМ расположением плит: путь,
-        // не проходящий через Лаву, по построению одновременно является и
-        // требуемым "безопасным" путём для IsTraversable, и запрещённым
-        // "обходом" для IsToothless. Единственный выход — второй, ДРУГОЙ
-        // тип ловушки в шаблоне (взгляд не сходится на одной Лаве) — но это
-        // решение, КАКОЙ из четырёх оставшихся типов вводить, то есть
-        // авторство контента (тот же принцип, что allowlist выше), не
-        // механическая правка. Пропущены и вынесены отдельным списком —
-        // семантически другая причина, не "нет ни одной ловушки вообще".
-        private static readonly string[] TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable =
-        {
-            "лавовый-коридор", // тир 4
-            "ключ-за-лавой", // тир 3
-        };
-
-        [TestCaseSource(nameof(Tier2AndAboveTemplateNamesWithATrapType))]
-        public void Template_Tier2AndAbove_IsNotToothless(string name)
+        [TestCaseSource(nameof(TemplateNamesExpectedToHaveAvoidableRoute))]
+        public void Template_HasAvoidableRoute(string name)
         {
             var template = SegmentTemplateCatalog.All.Single(t => t.Name == name);
-            Assert.IsFalse(SegmentReachabilityValidator.IsToothless(template),
-                $"Шаблон '{name}' (тир {template.DifficultyTier}) беззубый — существует путь вход→выход, не задевающий ни одной ловушки.");
+            Assert.IsTrue(SegmentReachabilityValidator.HasAvoidableRoute(template),
+                $"Шаблон '{name}' (тир {template.DifficultyTier}) не имеет пути вход→выход, избегающего всех ловушек — новое правило избегаемости (задача «Стены вместо ловушек») требует, чтобы такой путь существовал всегда.");
         }
 
-        private static string[] Tier2AndAboveTemplateNamesWithATrapType() => SegmentTemplateCatalog.All
-            .Where(t => t.DifficultyTier >= 2
-                        && !TemplatesWithoutAnyTrapType.Contains(t.Name)
-                        && !TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable.Contains(t.Name))
+        private static string[] TemplateNamesExpectedToHaveAvoidableRoute() => SegmentTemplateCatalog.All
+            .Where(t => !TemplatesWithoutAvoidableRoute.Contains(t.Name))
             .Select(t => t.Name)
             .ToArray();
 
-        // Обратная сторона allowlist'ов выше — сами списки не должны тихо
+        // Обратная сторона allowlist'а выше — сам список не должен тихо
         // устареть (шаблон переименовали/удалили, а имя осталось висеть
         // в allowlist, маскируя то, что реальный шаблон снова не
         // проверяется вовсе).
         [Test]
-        public void TemplatesWithoutAnyTrapType_AllNamesExistInCatalog()
+        public void TemplatesWithoutAvoidableRoute_AllNamesExistInCatalog()
         {
-            foreach (var name in TemplatesWithoutAnyTrapType)
+            foreach (var name in TemplatesWithoutAvoidableRoute)
                 Assert.IsTrue(SegmentTemplateCatalog.All.Any(t => t.Name == name), $"'{name}' из allowlist больше не существует в каталоге.");
         }
 
+        // Обратная гарантия: если раскладку шаблона из allowlist почистят в
+        // будущей задаче так, что обходной путь появится, он обязан
+        // вернуться под обычную проверку Template_HasAvoidableRoute, а не
+        // остаться в allowlist по инерции, маскируя то, что чинить больше
+        // нечего.
         [Test]
-        public void TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable_AllNamesExistInCatalog()
+        public void TemplatesWithoutAvoidableRoute_AreActuallyWithoutAvoidableRoute()
         {
-            foreach (var name in TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable)
-                Assert.IsTrue(SegmentTemplateCatalog.All.Any(t => t.Name == name), $"'{name}' из allowlist больше не существует в каталоге.");
-        }
-
-        // Обратная гарантия для нового allowlist'а: он не должен незаметно
-        // "проглотить" шаблон, у которого на самом деле УЖЕ есть путь,
-        // избегающий Лавы, свободный от логического противоречия выше
-        // (например, если владелец позже добавит туда второй тип ловушки) —
-        // такой шаблон обязан вернуться под обычную проверку
-        // Template_Tier2AndAbove_IsNotToothless, а не остаться в allowlist
-        // по инерции.
-        [Test]
-        public void TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable_AreActuallyToothless()
-        {
-            foreach (var name in TemplatesWhereLavaIsTheOnlyTrapAndMustStayAvoidable)
+            foreach (var name in TemplatesWithoutAvoidableRoute)
             {
                 var template = SegmentTemplateCatalog.All.Single(t => t.Name == name);
-                Assert.IsTrue(SegmentReachabilityValidator.IsToothless(template),
-                    $"'{name}' в allowlist как «Лава — обязана оставаться обходимой», но на деле уже не беззубый — вычеркни из этого списка, теперь он покрывается обычной проверкой.");
+                Assert.IsFalse(SegmentReachabilityValidator.HasAvoidableRoute(template),
+                    $"'{name}' в allowlist как «нет обходного пути», но на деле уже имеет — вычеркни из этого списка, теперь он покрывается обычной проверкой Template_HasAvoidableRoute.");
             }
         }
 
