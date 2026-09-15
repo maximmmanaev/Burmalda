@@ -41,9 +41,14 @@ namespace Burmalda.Generation.Tests
             // до края заявленного ряда (по умолчанию — ряд самого триггера)
             // — весь ряд рано или поздно опасен, независимо от расстояния
             // по столбцу до самого триггера.
+            // Шаблон должен занимать [5, 8] рядов (PRD v7 §21) — три
+            // добавленных открытых ряда не участвуют в проверке, только
+            // добивают раскладку до минимума.
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 ".....",
                 "w...m",
+                ".....",
+                ".....",
                 "....."));
 
             var conflicts = RewardTrapConflictValidator.FindConflicts(template);
@@ -59,7 +64,9 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 ".....",
                 "w....",
-                "....m"));
+                "....m",
+                ".....",
+                "....."));
 
             Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
         }
@@ -73,6 +80,8 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Keys, Grid(
                 ".....",
                 "t...k",
+                ".....",
+                ".....",
                 "....."));
 
             var conflicts = RewardTrapConflictValidator.FindConflicts(template);
@@ -93,6 +102,8 @@ namespace Burmalda.Generation.Tests
                 var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                     ".....",
                     ".xm..",
+                    ".....",
+                    ".....",
                     "....."));
 
                 var conflicts = RewardTrapConflictValidator.FindConflicts(template);
@@ -116,6 +127,8 @@ namespace Burmalda.Generation.Tests
                 var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                     ".....",
                     "x...m",
+                    ".....",
+                    ".....",
                     "....."));
 
                 Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
@@ -138,7 +151,9 @@ namespace Burmalda.Generation.Tests
                 var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                     "..m..",
                     ".....",
-                    "..f.."));
+                    "..f..",
+                    ".....",
+                    "....."));
 
                 var conflicts = RewardTrapConflictValidator.FindConflicts(template);
 
@@ -159,7 +174,9 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 "..f..",
                 ".....",
-                "..m.."));
+                "..m..",
+                ".....",
+                "....."));
 
             Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
         }
@@ -175,7 +192,8 @@ namespace Burmalda.Generation.Tests
                     "..m..",
                     ".....",
                     ".....",
-                    "..f.."));
+                    "..f..",
+                    "....."));
 
                 Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
             }
@@ -192,9 +210,13 @@ namespace Burmalda.Generation.Tests
             // новая спецификация»): камень падает на плиту ВПЕРЕДИ, не на
             // саму плиту-триггер — раньше конфликт был физически
             // невозможен (self-only), теперь возможен.
+            // Шаблон должен занимать [5, 8] рядов (PRD v7 §21) — добавленные
+            // открытые ряды не участвуют в проверке.
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 "..r..",
                 "..m..",
+                ".....",
+                ".....",
                 "....."));
 
             var conflicts = RewardTrapConflictValidator.FindConflicts(template);
@@ -211,6 +233,8 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 "..r..",
                 ".m...",
+                ".....",
+                ".....",
                 "....."));
 
             Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
@@ -222,7 +246,12 @@ namespace Burmalda.Generation.Tests
             // Цель за пределами шаблона (следующий сегмент) — эта проверка
             // консервативно её не видит, известное ограничение (тот же
             // принцип, что уже принят для LavaWave через границы сегментов).
+            // Триггер намеренно на последнем ряду 5-рядного шаблона —
+            // добавленные открытые ряды идут ПЕРЕД ним, а не после, иначе
+            // "последний ряд" перестал бы им быть.
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
+                ".....",
+                ".....",
                 ".....",
                 ".....",
                 "..r.."));
@@ -240,6 +269,8 @@ namespace Burmalda.Generation.Tests
                 var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                     ".....",
                     "..m..",
+                    ".....",
+                    ".....",
                     "....."));
 
                 // Кандидатная плита (1,1) — сосед Маны на (1,2): Бомба задела бы её (радиус), Падающий камень — нет (цель — ряд ниже, (2,1), а не соседний столбец).
@@ -261,6 +292,8 @@ namespace Burmalda.Generation.Tests
         public void FindConflicts_TemplateWithNoRewardsOrTriggers_ReturnsEmpty()
         {
             var template = new SegmentTemplate("t", 1, SegmentRewardTag.Coins, Grid(
+                ".....",
+                ".....",
                 ".....",
                 ".....",
                 "....."));
