@@ -84,6 +84,18 @@ namespace Burmalda.DebugVisuals
         public static readonly Color BombWarningColor = TriggerSignatureColor;
 
         /// <summary>
+        /// Задача 5 (правка из отчёта Задачи 4, владелец): Бомба и Падающий
+        /// камень требуют разной реакции (уйти далеко / не стоять на этой
+        /// плите) — фолбэк-цвет (без текстуры, Editor/тесты без арт-пака)
+        /// разведён отдельно от <see cref="BombWarningColor"/>, тот же
+        /// янтарно-жёлтый тон, что пиковый цвет пульсации текстурного слоя
+        /// (<c>TunnelDebugVisual.FallingRockWarningPulseTint</c>) — здесь
+        /// статичен, пульсацию добавляет только текстурный рендер, как и у
+        /// <see cref="BombWarningColor"/>.
+        /// </summary>
+        public static readonly Color FallingRockWarningColor = new Color(1f, 210f / 255f, 40f / 255f);
+
+        /// <summary>
         /// Задача «сделать тоннель играбельным», часть 1: источник Кристаллов
         /// Маны (<c>Core.Tile.IsManaSource</c>) — видим ВСЕГДА, это награда, не
         /// опасность (см. doc-комментарий <see cref="TileVisualState.IsManaSource"/>).
@@ -206,9 +218,10 @@ namespace Burmalda.DebugVisuals
             // ниже, тот же порядок, что в TileArtKindResolver.Resolve.
             if (state.IsBombWarningActive) return BombWarningColor;
             // Задача «падающий камень: новая спецификация» — та же
-            // приоритетная логика и тот же переиспользованный цвет, что
-            // Бомба выше (см. её doc-комментарий и TileArtKindResolver.Resolve).
-            if (state.IsFallingRockWarningActive) return BombWarningColor;
+            // приоритетная логика, что Бомба выше, но задачей 5 разведён
+            // отдельным цветом (см. doc-комментарий FallingRockWarningColor)
+            // — Бомба и камень требуют разной реакции игрока.
+            if (state.IsFallingRockWarningActive) return FallingRockWarningColor;
             // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
             // смертельной навсегда... выглядит как непроходимая стена»):
             // проверка показала, что ArrowWaveTrapSystem/BladeTactTrapSystem
