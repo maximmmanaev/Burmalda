@@ -42,8 +42,41 @@ namespace Burmalda.DebugVisuals
         Blocked,
         Lava,
 
-        /// <summary>Общая текстура для всех четырёх ходовых ловушек (ArrowWave/BombBlast/BladeTact/LavaWave) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.</summary>
+        /// <summary>
+        /// Общая текстура для трёх ходовых ловушек (ArrowWave/BombBlast/
+        /// BladeTact) — как и <see cref="TileDebugColor.TimedTrapActiveColor"/>.
+        /// Волна Лавы сюда больше не входит (issue #262) — ставит тот же
+        /// <c>LethalTrapType.Lava</c>, что статичная Лава, резолвится веткой
+        /// <see cref="Lava"/> выше.
+        /// </summary>
         TimedTrapActive,
+
+        /// <summary>
+        /// Issue #260: площадь 3×3 Бомбы отсчитывает время до взрыва —
+        /// мигающее предупреждение (пульсация тона поверх этой текстуры, см.
+        /// <c>DebugVisuals.TunnelDebugVisual.ApplyVisual</c>). Переиспользует
+        /// <c>tile-hidden-trap-signature.png</c> (та же текстура, что
+        /// <see cref="TriggerSignature"/>) — заводить новую текстуру не в
+        /// скоупе агента (docs/rules/forbidden-actions.md), тот же приём,
+        /// что уже применён для <see cref="Boss"/> (переиспользует
+        /// <see cref="Altar"/> с собственным тоном).
+        /// </summary>
+        BombWarning,
+
+        /// <summary>
+        /// Issue #260: плита площади 3×3 Бомбы схлопнулась в дыру. Переиспользует
+        /// <c>tile-destroyed.png</c> (та же текстура, что <see cref="Destroyed"/>)
+        /// — семантически то же самое "проваленный пол", просто другой
+        /// источник провала (взрыв, не распад) и другой путь проходимости
+        /// (<c>Core.Tile.IsBlocked</c>/<c>LethalTrap</c>, не <c>IsDestroyed</c>
+        /// — см. doc-комментарий <c>Movement.BombTrapSystem</c> о том, почему
+        /// это не может быть буквально <see cref="Destroyed"/>: тот путь
+        /// проверяет проходимость только для УЖЕ ПОСЕЩЁННЫХ плит, площадь
+        /// взрыва может задеть и ещё не посещённые). Отдельное значение
+        /// enum, не переиспользование <see cref="Destroyed"/> напрямую — тот
+        /// же приём, что у <see cref="Boss"/>/<see cref="Altar"/>.
+        /// </summary>
+        BombHole,
 
         /// <summary>
         /// Задача «сделать тоннель играбельным», часть 3: единая сигнатура

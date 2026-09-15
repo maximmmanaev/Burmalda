@@ -78,11 +78,13 @@ namespace Burmalda.RunLifecycle
 
         private static string DescribeLethalTrap(LethalTrapType trapType) => trapType switch
         {
+            // issue #262: LethalTrapType.LavaWave (отдельный идентификатор
+            // волны Лавы) слит с этим значением — Movement.LavaWaveTrapSystem
+            // теперь тоже ставит Lava, отдельная ветка здесь больше не нужна.
             LethalTrapType.Lava => "Сгорел в лаве",
             LethalTrapType.ArrowWave => "Пронзён стрелой",
             LethalTrapType.BombBlast => "Подорвался на бомбе",
             LethalTrapType.BladeTact => "Разрублен лезвием",
-            LethalTrapType.LavaWave => "Сгорел в лаве",
             _ => "Сработала ловушка"
         };
 

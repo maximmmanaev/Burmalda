@@ -85,17 +85,50 @@ namespace Burmalda.DebugVisuals.Tests
         // Владелец, 2026-09-05 («оставить только пять новых ловушек») —
         // Pit/Explosion убраны из игры целиком, вместе со своими ветками
         // HiddenTrapSignature/скрытой сигнатурой (у оставшихся типов —
-        // Лава статична и всегда видна, у Стрелы/Бомбы/Лезвий/Лавы-волны
-        // сама угроза видна ВСЕГДА, скрыт только триггер, не угроза).
+        // Лава статична и всегда видна, у Стрелы/Бомбы/Лезвий сама угроза
+        // видна ВСЕГДА, скрыт только триггер, не угроза). Волна Лавы больше
+        // не отдельный тип (issue #262, слита с LethalTrapType.Lava выше —
+        // резолвится веткой Resolve_Lava_ReturnsLava над этим блоком).
         [TestCase(LethalTrapType.ArrowWave)]
         [TestCase(LethalTrapType.BombBlast)]
         [TestCase(LethalTrapType.BladeTact)]
-        [TestCase(LethalTrapType.LavaWave)]
         public void Resolve_NewTurnBasedTrapTypes_ReturnTimedTrapActive(LethalTrapType trapType)
         {
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: trapType, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(state));
+        }
+
+        // Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+        // Стрелы») — общий корень бага: BombBlast делил ветку выше со
+        // Стрелой/Лезвиями/волновой Лавой без собственной текстуры. Теперь
+        // площадь Бомбы проходит через отдельные BombWarning/BombHole
+        // раньше, чем доходит до общей ветки TimedTrapActive.
+        [Test]
+        public void Resolve_BombWarningActive_ReturnsBombWarning_NotTimedTrapActive()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBombWarningActive: true);
+
+            Assert.AreEqual(TileArtKind.BombWarning, TileArtKindResolver.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_BombCollapsed_ReturnsBombHole_NotTimedTrapActive()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.BombBlast, decayProgress01: 0f, isTrapTrigger: false, isBombCollapsed: true);
+
+            Assert.AreEqual(TileArtKind.BombHole, TileArtKindResolver.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_BombCollapsedAndBlocked_ReturnsBombHole_NotBlocked()
+        {
+            // Постоянная дыра площади Бомбы несёт IsBlocked==true (см.
+            // doc-комментарий Movement.BombTrapSystem) — визуал обязан
+            // остаться дырой, не обычной стеной.
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBombCollapsed: true);
+
+            Assert.AreEqual(TileArtKind.BombHole, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
