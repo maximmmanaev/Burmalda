@@ -347,7 +347,7 @@ namespace Burmalda.Bootstrap
         /// раньше, чем <c>Generation.SegmentRowProvider</c> успевал их
         /// заявить (<c>Core.TunnelGrid.ClaimRow</c>) — см.
         /// <c>Generation.Tests.SegmentGenerationCoexistenceTests.
-        /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerStacksOnTop</c>.
+        /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerNowThrows</c>.
         /// Теперь <c>TunnelObstacleController</c> сам на RunStarted не
         /// подписан — этот метод единственный, кто его (пере)собирает,
         /// СТРОГО после того, как <see cref="Segments"/> уже заявил свои
