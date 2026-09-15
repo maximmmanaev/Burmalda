@@ -84,6 +84,14 @@ namespace Burmalda.DebugVisuals
     /// <see cref="Movement.BombTrapSystem.MinDelaySeconds"/> — задержка
     /// теперь кривая от номера Яруса, не одно фиксированное число, владелец
     /// прямо просил не решать баланс кривой самостоятельно.
+    ///
+    /// <b>Хотфикс «страж ролей плиты роняет забег вместо диагностики»
+    /// (владелец, 2026-09-16):</b> ещё один readout, тот же приём, что ряд
+    /// 11 (счётчик встреч с ловушками) — <see cref="Core.Tile.RoleConflictRejectedCount"/>,
+    /// сколько раз за жизнь процесса страж ролей плиты (см.
+    /// <see cref="Core.Tile.GuardAgainstConflictingRole"/>) отклонил
+    /// конфликтующую запись вместо падения забега. Прямое требование
+    /// задачи: "превращает «гонка теоретически возможна» в число".
     /// </summary>
     public sealed class TrapDensityDebugPanel : MonoBehaviour
     {
@@ -111,7 +119,7 @@ namespace Burmalda.DebugVisuals
         // подбора на дебаг-панели.
         private const float MaxBombDelaySeconds = 10f;
         private const float MaxBombDelayReductionPerTier = 2f;
-        private const int RowCount = 20; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 7 таймингов ловушек (3 скорости волн + задержка камня + 3 параметра кривой Бомбы, см. BuildPanel)
+        private const int RowCount = 21; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 7 таймингов ловушек (3 скорости волн + задержка камня + 3 параметра кривой Бомбы) + 1 readout счётчика отклонённых конфликтов стража ролей (хотфикс «страж ролей плиты роняет забег вместо диагностики», см. BuildPanel)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -124,6 +132,7 @@ namespace Burmalda.DebugVisuals
         private GameObject _panelRoot;
         private bool _expanded;
         private Text _trapCounterValueText;
+        private Text _roleConflictCounterValueText;
 
         private void Start()
         {
@@ -139,6 +148,13 @@ namespace Burmalda.DebugVisuals
             // отдельную проверку _expanded ради одной строки.
             if (_trapCounterValueText != null)
                 _trapCounterValueText.text = FormatTrapCounter(TrapEncounterStats.TrapsTriggered, TrapEncounterStats.RowsTraversed);
+            // Хотфикс «страж ролей плиты роняет забег вместо диагностики»
+            // (владелец, 2026-09-16): "это превращает «гонка теоретически
+            // возможна» в число" — накопительный счётчик за жизнь процесса
+            // (Tile.RoleConflictRejectedCount), не сбрасывается между
+            // забегами, см. doc-комментарий Core.Tile.RoleConflictRejectedCount.
+            if (_roleConflictCounterValueText != null)
+                _roleConflictCounterValueText.text = Tile.RoleConflictRejectedCount.ToString();
         }
 
         private static string FormatTrapCounter(int trapsTriggered, int rowsTraversed)
@@ -259,7 +275,8 @@ namespace Burmalda.DebugVisuals
 
             // Задача «измерить, а не оценить»: readout, не слайдер — только
             // читается, нечего крутить (см. TrapEncounterTracker/Stats).
-            BuildReadoutRow(_panelRoot.transform, 11, "Ловушек сработало / рядов");
+            _trapCounterValueText = BuildReadoutRow(_panelRoot.transform, 11, "Ловушек сработало / рядов",
+                FormatTrapCounter(TrapEncounterStats.TrapsTriggered, TrapEncounterStats.RowsTraversed));
 
             // Задача «параметр плотности» (владелец, 2026-09-08): "чтобы
             // владелец мог подкрутить на устройстве, не пересобирая" —
@@ -299,9 +316,18 @@ namespace Burmalda.DebugVisuals
                 v => BombTrapSystem.DelayReductionPerTier = v, FormatSeconds);
             BuildRow(_panelRoot.transform, 19, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
                 v => BombTrapSystem.MinDelaySeconds = v, FormatSeconds);
+
+            // Хотфикс «страж ролей плиты роняет забег вместо диагностики»
+            // (владелец, 2026-09-16): "счётчик конфликтов ... превращает
+            // «гонка теоретически возможна» в число. Если после нескольких
+            // забегов там ноль — легаси-генератор можно выводить из игры
+            // раньше" — тот же readout-приём, что и ряд 11 выше.
+            _roleConflictCounterValueText = BuildReadoutRow(_panelRoot.transform, 20, "Страж ролей: конфликтов отклонено",
+                Tile.RoleConflictRejectedCount.ToString());
         }
 
-        private void BuildReadoutRow(Transform parent, int rowIndex, string label)
+        /// <summary>Строка "подпись + значение" без слайдера — только читается, нечего крутить. Возвращает Text значения, вызывающая сторона сама решает, куда его сохранить и как обновлять в Update().</summary>
+        private Text BuildReadoutRow(Transform parent, int rowIndex, string label, string initialValue)
         {
             var rowHost = new GameObject($"Row_{rowIndex}");
             rowHost.transform.SetParent(parent, worldPositionStays: false);
@@ -319,12 +345,13 @@ namespace Burmalda.DebugVisuals
             labelRect.offsetMin = Vector2.zero;
             labelRect.offsetMax = Vector2.zero;
 
-            _trapCounterValueText = AddLabel(rowHost.transform, FormatTrapCounter(TrapEncounterStats.TrapsTriggered, TrapEncounterStats.RowsTraversed), 20, TextAnchor.UpperRight);
-            var valueRect = _trapCounterValueText.GetComponent<RectTransform>();
+            var valueText = AddLabel(rowHost.transform, initialValue, 20, TextAnchor.UpperRight);
+            var valueRect = valueText.GetComponent<RectTransform>();
             valueRect.anchorMin = new Vector2(0.5f, 0.5f);
             valueRect.anchorMax = new Vector2(1f, 1f);
             valueRect.offsetMin = Vector2.zero;
             valueRect.offsetMax = Vector2.zero;
+            return valueText;
         }
 
         private static string FormatPercent(float v) => (v * 100f).ToString("0.0") + "%";
