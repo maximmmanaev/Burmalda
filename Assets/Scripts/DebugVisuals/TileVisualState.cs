@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isTrapTrigger, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, BossRoomTileKind? bossRoomTile = null)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isTrapTrigger, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, BossRoomTileKind? bossRoomTile = null, bool isBombWarningActive = false, bool isBombCollapsed = false)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -28,6 +28,8 @@ namespace Burmalda.DebugVisuals
             IsAltar = isAltar;
             IsDangerSignatureRevealed = isDangerSignatureRevealed;
             BossRoomTile = bossRoomTile;
+            IsBombWarningActive = isBombWarningActive;
+            IsBombCollapsed = isBombCollapsed;
         }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
@@ -136,5 +138,25 @@ namespace Burmalda.DebugVisuals
         /// скрытая опасность.
         /// </summary>
         public BossRoomTileKind? BossRoomTile { get; }
+
+        /// <summary>
+        /// Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+        /// Стрелы»): площадь 3×3 Бомбы отсчитывает время до взрыва — см.
+        /// <c>Core.Tile.IsBombWarningActive</c>. Рендер-слой обязан мигать
+        /// (пульсировать тоном), пока это истинно.
+        /// </summary>
+        public bool IsBombWarningActive { get; }
+
+        /// <summary>
+        /// Issue #260: плита — часть площади взрыва Бомбы, которая только
+        /// что схлопнулась в дыру — см. <c>Core.Tile.IsBombCollapsed</c>.
+        /// Проверяется РАНЬШЕ <see cref="IsBlocked"/>/<see cref="LethalTrap"/>
+        /// в <c>TileArtKindResolver</c>/<c>TileDebugColor</c> — плита
+        /// площади оказывается ЛИБО <see cref="IsBlocked"/> (постоянная
+        /// дыра), ЛИБО <see cref="LethalTrap"/>==BombBlast (игрок стоит на
+        /// ней прямо сейчас, см. doc-комментарий <c>Movement.BombTrapSystem</c>),
+        /// но визуал один и тот же независимо от того, какая именно.
+        /// </summary>
+        public bool IsBombCollapsed { get; }
     }
 }

@@ -302,6 +302,14 @@ namespace Burmalda.Bootstrap
             if (Camp == null) Camp = GetOrAddComponent<CampController>(host);
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
             if (Traps == null) Traps = GetOrAddComponent<TrapSystemsController>(host);
+            // Issue #260: «задержка Бомбы уменьшается с ростом Яруса» —
+            // делегат, не прямая ссылка (Movement не ссылается на Boss/
+            // Progression, см. TrapSystemsController.CurrentTierProvider) —
+            // вычисляется лениво на каждый вызов, поэтому безопасно
+            // присвоить здесь ДО того, как Boss.DepthTier реально готов
+            // (см. её doc-комментарий — null, пока Boss не пересобрал
+            // run-системы, и это ожидаемо трактуется как Ярус 0).
+            Traps.CurrentTierProvider = () => DepthTier?.CurrentTier ?? 0;
             // Зависит только от Currency (уже создана строкой выше) и
             // RunLifecycle.RunController (уже добавлен на этот host первым
             // делом выше) — см. doc-комментарий BossRoom.

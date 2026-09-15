@@ -221,6 +221,40 @@ namespace Burmalda.Core
         }
 
         /// <summary>
+        /// Issue #260 («Бомба взрывается мгновенно и показывает текстуру
+        /// Стрелы»): плита входит в площадь 3×3 Бомбы, которая уже
+        /// отсчитывает время до взрыва (<c>Movement.BombTrapSystem</c>) —
+        /// визуальный сигнал "мигай, предупреждай" для рендер-слоя
+        /// (<see cref="DebugVisuals.TileArtKindResolver"/>), сама по себе НЕ
+        /// влияет на проходимость — плита физически безопасна, пока не
+        /// взорвалась. Снимается через <see cref="EndBombWarning"/> в момент
+        /// взрыва.
+        /// </summary>
+        public bool IsBombWarningActive { get; private set; }
+
+        /// <summary>Начинает фазу мигания-предупреждения — см. <see cref="IsBombWarningActive"/>. Повторные вызовы — не-op.</summary>
+        public void BeginBombWarning() => IsBombWarningActive = true;
+
+        /// <summary>Завершает фазу мигания-предупреждения (взрыв наступил) — см. <see cref="IsBombWarningActive"/>. Повторные вызовы — не-op.</summary>
+        public void EndBombWarning() => IsBombWarningActive = false;
+
+        /// <summary>
+        /// Issue #260: плита — часть площади взрыва Бомбы, которая ПРЯМО
+        /// СЕЙЧАС схлопнулась в дыру. Чисто визуальный флаг (текстура дыры +
+        /// анимация проваливания, см. <see cref="DebugVisuals.TileArtKindResolver"/>/
+        /// <see cref="DebugVisuals.TunnelDebugVisual"/>) — НЕ отвечает за
+        /// проходимость сам по себе (это <see cref="IsBlocked"/>/
+        /// <see cref="LethalTrap"/>, см. doc-комментарий <c>Movement.BombTrapSystem</c>
+        /// про то, какая из двух ролей ставится на какую плиту площади).
+        /// Односторонний, как <see cref="IsBlocked"/> — снимать некому и незачем,
+        /// дыра постоянна.
+        /// </summary>
+        public bool IsBombCollapsed { get; private set; }
+
+        /// <summary>Помечает плиту как схлопнувшуюся в дыру от взрыва Бомбы — см. <see cref="IsBombCollapsed"/>. Повторные вызовы — не-op.</summary>
+        public void MarkBombCollapsed() => IsBombCollapsed = true;
+
+        /// <summary>
         /// Плита — триггер ловушки «Бомба» (docs/wiki/traps.md, issue #214):
         /// в отличие от <see cref="ArrowWaveTargetRow"/> не хранит отдельную
         /// координату цели — площадь взрыва (радиус <c>Movement.BombTrapSystem.RadiusTiles</c>)
