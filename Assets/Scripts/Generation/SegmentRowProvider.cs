@@ -272,11 +272,14 @@ namespace Burmalda.Generation
             // гарантия (TunnelGridReveal может материализовать ряды ДО
             // того, как этот SegmentRowProvider вообще создан, см.
             // Generation.Tests.SegmentGenerationCoexistenceTests.
-            // RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerNowThrows).
+            // RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerWins).
             // Явный источник — вторая, независимая от порядка линия обороны:
-            // весь этот метод пишет авторский контент, Tile.GuardAgainstConflictingRole
+            // этот метод пишет авторский контент шаблона, Tile.GuardAgainstConflictingRole
             // обязан отдать ему приоритет над Core.TunnelObstacleGenerator
             // независимо от того, кто из двух дописался до плиты первым.
+            // Исключение — ApplyExtraTrapDensity ниже: случайный ролл, не
+            // авторский контент, сам сужает область до Generated (доработка
+            // PR #290, п.3, см. её вызов).
             using var _ = new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored);
 
             // Первый проход — собрать координату рычага и все координаты его
@@ -363,7 +366,17 @@ namespace Burmalda.Generation
                     tile.MarkLavaTrigger();
                     break;
                 case SegmentTileType.Open:
-                    ApplyExtraTrapDensity(tile, coordinate, template, localRow, column);
+                    // Доработка PR #290, п.3 (владелец, 2026-09-16): случайный
+                    // ролл ExtraTrapDensity — не авторский контент шаблона,
+                    // хоть и живёт в этом же провайдере. Тот же источник, что
+                    // у Core.TunnelObstacleGenerator (Generated), а не
+                    // Authored ApplyTemplate вокруг — иначе метка вводила бы
+                    // в заблуждение (при будущем конфликте эта случайная
+                    // плита ошибочно "побеждала" бы настоящий авторский
+                    // контент). Сейчас вреда нет — ставится только на
+                    // клетки, которые шаблон сам оставил Open.
+                    using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Generated))
+                        ApplyExtraTrapDensity(tile, coordinate, template, localRow, column);
                     break;
                 default:
                     break;

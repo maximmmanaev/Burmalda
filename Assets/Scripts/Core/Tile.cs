@@ -99,15 +99,28 @@ namespace Burmalda.Core
         /// (обычный случай), она замещает уже стоящую генерируемую роль
         /// (см. <see cref="ClearActiveExclusiveRole"/>), а не отклоняется.
         /// Конфликт между двумя авторскими или двумя генерируемыми записями
-        /// (оба редки/не должны происходить по конструкции) по-прежнему
+        /// (оба редки/не должны происходить по конструкции — не пойман
+        /// приоритетом источника, так как источники СОВПАДАЮТ) по-прежнему
         /// разрешается в пользу первой — для одинаковых источников порядок
         /// снова единственный доступный критерий.
+        ///
+        /// <b>Доработка PR #290, п.1 (владелец, 2026-09-16):</b> Authored-vs-
+        /// Generated — теперь ШТАТНЫЙ, ожидаемый на каждом сегменте случай
+        /// (легаси роллит первым, шаблон пишет следом), а не признак
+        /// поломки генерации — разрешается молча и ОДИНАКОВО во всех
+        /// режимах, включая строгий: <see cref="ThrowOnRoleConflict"/>
+        /// бросает ТОЛЬКО когда источник конфликта совпадает (Generated-vs-
+        /// Generated или Authored-vs-Authored) — там приоритет источника не
+        /// различает победителя, и конфликт снова означает ошибку генерации
+        /// (регрессия, новый генератор, ручной тест), ради которой страж и
+        /// заводился. Иначе в Editor Play mode падало бы исключение на
+        /// первом же сегменте — режим стал бы непригоден для проверки.
         /// </summary>
         /// <returns>
         /// true — можно записывать роль (конфликта нет, это повтор той же
         /// роли, или авторская запись только что вытеснила генерируемую);
         /// false — конфликт отклонён В ПОЛЬЗУ УЖЕ СТОЯЩЕЙ роли (только
-        /// когда <see cref="ThrowOnRoleConflict"/> == false) — вызывающий
+        /// когда конфликт не бросил — см. doc-комментарий выше) — вызывающий
         /// Mark*-метод обязан НЕ писать поле в этом случае.
         /// </returns>
         private bool GuardAgainstConflictingRole(bool alreadyThisRole, string incomingRole)
@@ -123,15 +136,19 @@ namespace Burmalda.Core
 
             var incomingSource = CurrentWriteSource;
             var existingSource = _activeRoleSource;
-            var authoredOverridesGenerated =
-                incomingSource == RoleWriteSource.Authored && existingSource == RoleWriteSource.Generated;
-            var winnerRole = authoredOverridesGenerated ? incomingRole : existing;
-            var loserRole = authoredOverridesGenerated ? existing : incomingRole;
+            // Разные источники — приоритет разрешает конфликт однозначно,
+            // независимо от порядка. Одинаковые источники — приоритет
+            // ничего не различает, порядок остаётся единственным критерием
+            // (и единственный случай, где строгий режим ещё бросает).
+            var resolvedByPriority = incomingSource != existingSource;
+            var incomingWins = resolvedByPriority && incomingSource == RoleWriteSource.Authored;
+            var winnerRole = incomingWins ? incomingRole : existing;
+            var loserRole = incomingWins ? existing : incomingRole;
 
             var message =
                 $"Tile {Coordinate}: конфликт ролей — попытка пометить '{incomingRole}' ({incomingSource}), но плита уже несёт взаимоисключающую роль '{existing}' ({existingSource}). Победила '{winnerRole}', отклонена '{loserRole}' (два генератора записали в одну плиту, см. docs/wiki/changelog.md, задача «двойные флаги на плитах»).";
 
-            if (ThrowOnRoleConflict)
+            if (ThrowOnRoleConflict && !resolvedByPriority)
                 throw new InvalidOperationException(message);
 
             RoleConflictRejectedCount++;
@@ -139,7 +156,7 @@ namespace Burmalda.Core
             LastRoleConflictKeptRole = winnerRole;
             RoleConflictRejected?.Invoke(message);
 
-            if (!authoredOverridesGenerated) return false;
+            if (!incomingWins) return false;
 
             ClearActiveExclusiveRole();
             _activeRoleSource = incomingSource;
@@ -178,9 +195,11 @@ namespace Burmalda.Core
 
         /// <summary>
         /// Строгий режим стража ролей — см. doc-комментарий
-        /// <see cref="GuardAgainstConflictingRole"/>. По умолчанию false
-        /// (поведение built-игры: разрешить конфликт по источнику, забег
-        /// продолжается). Включается явно двумя местами:
+        /// <see cref="GuardAgainstConflictingRole"/>. По умолчанию false.
+        /// Даже когда true, бросает НЕ на любом конфликте — только когда
+        /// источники совпадают (см. п.1 доработки PR #290 там же);
+        /// Authored-vs-Generated разрешается молча приоритетом источника в
+        /// любом режиме. Включается явно двумя местами:
         /// <c>Bootstrap.RunBootstrap.Awake</c> — по <c>Application.isEditor</c>
         /// (НЕ <c>Debug.isDebugBuild</c> — тот был бы true и на
         /// development-сборке, где страж обязан не падать), и

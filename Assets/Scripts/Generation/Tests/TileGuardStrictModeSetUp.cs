@@ -9,10 +9,17 @@ namespace Burmalda.Generation.Tests
     /// Core.Tile.GuardAgainstConflictingRole/Core.Tile.ThrowOnRoleConflict):
     /// та же причина, что и <c>Core.Tests.TileGuardStrictModeSetUp</c> —
     /// EditMode-раннер не входит в Play mode, поэтому
-    /// <c>Bootstrap.RunBootstrap.Awake</c> здесь не выполняется, а
+    /// <c>Bootstrap.RunBootstrap.Awake</c> здесь не выполняется. Доработка
+    /// PR #290, п.1: Authored-vs-Generated (единственный конфликт, который
+    /// реально возникает в этой сборке — см.
     /// <c>Generation.Tests.SegmentGenerationCoexistenceTests.
-    /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerNowThrows</c>
-    /// ожидает СТРОГИЙ режим (бросает исключение). <c>[SetUpFixture]</c> без
+    /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerWins</c>)
+    /// разрешается приоритетом источника ОДИНАКОВО что в строгом, что в
+    /// нестрогом режиме — строгий режим здесь сейчас ничего не ловит
+    /// сверх нестрогого, но остаётся включённым на случай будущего
+    /// теста на конфликт одного источника (единственный случай, где
+    /// строгий режим ещё бросает, см. doc-комментарий
+    /// Core.Tile.GuardAgainstConflictingRole). <c>[SetUpFixture]</c> без
     /// явного namespace-класса внутри применяется ко всей сборке (это
     /// единственный такой класс в Burmalda.Generation.Tests).
     /// </summary>
