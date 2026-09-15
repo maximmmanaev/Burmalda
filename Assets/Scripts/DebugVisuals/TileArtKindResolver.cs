@@ -37,6 +37,9 @@ namespace Burmalda.DebugVisuals
             // doc-комментарий TileVisualState.IsBombCollapsed).
             if (state.IsBombCollapsed) return TileArtKind.BombHole;
             if (state.IsBlocked) return TileArtKind.Blocked;
+            // Issue #262: волна Лавы (Movement.LavaWaveTrapSystem) ставит тот
+            // же LethalTrapType.Lava, что статичная Лава с генерации — эта
+            // ветка ловит и её, отдельной ветки под волну больше нет.
             if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
             // Issue #260 («Бомба взрывается мгновенно и показывает текстуру
             // Стрелы»): Бомба больше не входит в эту ветку — своя пара
@@ -46,19 +49,13 @@ namespace Burmalda.DebugVisuals
             if (state.IsBombWarningActive) return TileArtKind.BombWarning;
             // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
             // смертельной навсегда») — см. подробный doc-комментарий той же
-            // ветки в TileDebugColor.Resolve: настоящая причина — у четырёх
-            // LethalTrapType Спринта 13a (ArrowWave/BombBlast/BladeTact/
-            // LavaWave) не было ветки здесь вовсе, армированная плита
-            // выглядела обычным полом. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА,
-            // без гейта примеривания. BombBlast остаётся здесь тоже (issue
-            // #260 не убирает её отсюда — единственная плита площади,
-            // оставшаяся LethalType после взрыва, это плита ПОД ИГРОКОМ, и
-            // IsCurrentPosition выше уже перехватил её раньше, чем ход
-            // доходит до этой ветки; сохранена ради тестов/будущих
-            // вызывающих, которые строят TileVisualState напрямую с этой
-            // комбинацией полей).
+            // ветки в TileDebugColor.Resolve: настоящая причина — у
+            // LethalTrapType Спринта 13a (ArrowWave/BombBlast/BladeTact) не
+            // было ветки здесь вовсе, армированная плита выглядела обычным
+            // полом. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА, без гейта
+            // примеривания.
             if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
-                state.LethalTrap == LethalTrapType.BladeTact || state.LethalTrap == LethalTrapType.LavaWave)
+                state.LethalTrap == LethalTrapType.BladeTact)
                 return TileArtKind.TimedTrapActive;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2):
             // триггер одной из пяти ловушек не отличим от обычного пола,

@@ -198,7 +198,9 @@ namespace Burmalda.DebugVisuals
             if (state.IsBlocked) return BlockedColor;
             // Issue #163: лава остаётся видимой как раньше (PRD v8 §4.2)
             // — единственный статичный LethalTrapType, для которого Resolve()
-            // возвращает его собственный цвет напрямую.
+            // возвращает его собственный цвет напрямую. Issue #262: волна
+            // Лавы (Movement.LavaWaveTrapSystem) ставит тот же идентификатор
+            // — эта ветка ловит и её, отдельной ветки под волну больше нет.
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
             // Issue #260: мигание Бомбы — до общей ветки TimedTrapActive
             // ниже, тот же порядок, что в TileArtKindResolver.Resolve.
@@ -208,18 +210,15 @@ namespace Burmalda.DebugVisuals
             // проверка показала, что ArrowWaveTrapSystem/BladeTactTrapSystem
             // корректно снимают опасность по завершении (см. их тесты,
             // Tick_FullSequence_..._ThenAllSafe) — настоящая причина другая:
-            // у ЧЕТЫРЁХ LethalTrapType Спринта 13a (ArrowWave/BombBlast/
-            // BladeTact/LavaWave) не было НИ ОДНОЙ ветки здесь вовсе —
-            // Resolve() проваливался до градиента распада, армированная
-            // плита выглядела обычным полом. Игрок видел "необъяснимую
-            // преграду": ход отклоняется (CanAdvanceTo видит LethalTrap),
-            // а глазами — ничего не видно, что бы это объясняло. Угроза
-            // ПРЯМО СЕЙЧАС — видна ВСЕГДА, без гейта примеривания. BombBlast
-            // здесь практически недостижима после issue #260 (см. её
-            // обоснование в TileArtKindResolver.Resolve) — оставлена ради
-            // прямых вызывающих, строящих TileVisualState вручную.
+            // у LethalTrapType Спринта 13a (ArrowWave/BombBlast/BladeTact) не
+            // было НИ ОДНОЙ ветки здесь вовсе — Resolve() проваливался до
+            // градиента распада, армированная плита выглядела обычным полом.
+            // Игрок видел "необъяснимую преграду": ход отклоняется
+            // (CanAdvanceTo видит LethalTrap), а глазами — ничего не видно,
+            // что бы это объясняло. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА, без
+            // гейта примеривания.
             if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
-                state.LethalTrap == LethalTrapType.BladeTact || state.LethalTrap == LethalTrapType.LavaWave)
+                state.LethalTrap == LethalTrapType.BladeTact)
                 return TimedTrapActiveColor;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2):
             // триггер одной из пяти ловушек не отличим от обычного пола,

@@ -10,6 +10,7 @@
         "Burmalda.Artifacts",
         "Burmalda.RunModifiers",
         "Burmalda.RunLifecycle",
+        "Burmalda.Decay",
         "Unity.RenderPipelines.Core.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

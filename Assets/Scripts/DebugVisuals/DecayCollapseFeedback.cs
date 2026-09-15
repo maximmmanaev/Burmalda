@@ -16,11 +16,12 @@ namespace Burmalda.DebugVisuals
         /// </summary>
         public static float CollapseDurationSeconds = 0.32f;
 
-        /// <summary>
-        /// Сила вибро-пульсации в последней трети распада (см.
-        /// <see cref="DecayPulseController"/>), 0..1. 0 — вибрация
-        /// выключена совсем, тот же рычаг, что <see cref="TrapRevealFeedback.VibrationStrength"/>.
-        /// </summary>
-        public static float PulseVibrationStrength = 0.5f;
+        // Issue #264 (2026-09-14, «убрать вибрацию разрушения/распада —
+        // оставить только звук/визуал»): PulseVibrationStrength удалён
+        // целиком, не оставлен как неиспользуемый параметр/захардкожен в 0
+        // — владелец попросил убрать саму способность, не просто
+        // приглушить (см. doc-комментарий DecayPulseController.PlayPulseSound
+        // — звук и визуальная пульсация оверлея трещин остаются нетронуты,
+        // это чисто про вибро-отклик).
     }
 }

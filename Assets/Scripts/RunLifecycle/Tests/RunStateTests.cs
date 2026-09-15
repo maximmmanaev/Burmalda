@@ -48,6 +48,25 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
+        public void TryAdvanceTo_Lava_StepSucceedsBeforeHazardIsResolved_NotABlockedWall()
+        {
+            // issue #258: «Лава должна быть проходимой, но летальной, а не
+            // физической стеной» — в отличие от четырёх рантайм-типов
+            // ловушек, шаг на Лаву больше не отклоняется TryAdvanceTo;
+            // проигрыш наступает через тот же ResolveHazard/d20, что и для
+            // прочих ловушек (здесь — roll=5, Death), не в обход него.
+            var (grid, trail, _, runState) = CreateRun(); // d20Roll=5 — Death
+            var lava = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+
+            var advanced = trail.TryAdvanceTo(lava);
+
+            Assert.IsTrue(advanced, "Шаг на Лаву должен физически засчитываться, а не отклоняться как раньше.");
+            Assert.AreEqual(lava, trail.CurrentPosition, "Игрок должен фактически оказаться на плите Лавы, а не остаться перед ней.");
+            Assert.IsFalse(runState.IsAlive, "Разрешение опасности (d20) всё равно должно сработать после шага.");
+        }
+
+        [Test]
         public void LethalTrapTriggered_ArrowWave_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
             // issue #213: новый LethalTrapType не должен провалиться в
@@ -97,12 +116,20 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
-        public void LethalTrapTriggered_LavaWave_SetsIsAliveFalseAndFiresDiedWithOwnReason()
+        public void LethalTrapTriggered_RuntimeTransitionToLava_SetsIsAliveFalseAndFiresDiedWithOwnReason()
         {
-            // issue #216: тот же регресс-тест, что и для BladeTact/ArrowWave выше.
+            // issue #216, переименован issue #262: раньше проверял отдельный
+            // C#-идентификатор LethalTrapType.LavaWave (волна Лавы,
+            // Movement.LavaWaveTrapSystem) — владелец слил его с
+            // LethalTrapType.Lava (см. её doc-комментарий), отдельного
+            // значения для волны больше нет. Тест сохранён не как дубль
+            // LethalTrapTriggered_Lava_... выше (тот идёт через MarkLethalTrap,
+            // генерация) — этот целенаправленно проверяет РАНТАЙМ-переход
+            // (TransitionToLethalTrap, тот же путь, что использует
+            // LavaWaveTrapSystem) приводит к тому же исходу.
             var (grid, trail, _, runState) = CreateRun();
             var lavaTile = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(lavaTile).TransitionToLethalTrap(LethalTrapType.LavaWave);
+            grid.GetOrCreateTile(lavaTile).TransitionToLethalTrap(LethalTrapType.Lava);
             string firedReason = null;
             runState.Died += reason => firedReason = reason;
 
