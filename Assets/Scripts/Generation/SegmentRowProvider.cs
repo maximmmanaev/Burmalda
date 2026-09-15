@@ -267,6 +267,18 @@ namespace Burmalda.Generation
             for (var localRow = 0; localRow < template.RowCount; localRow++)
                 _grid.ClaimRow(baseRow + localRow);
 
+            // Доработка хотфикса «разрешение конфликта выбрано неверно»
+            // (владелец, 2026-09-16): ClaimRow выше — best-effort, не
+            // гарантия (TunnelGridReveal может материализовать ряды ДО
+            // того, как этот SegmentRowProvider вообще создан, см.
+            // Generation.Tests.SegmentGenerationCoexistenceTests.
+            // RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerNowThrows).
+            // Явный источник — вторая, независимая от порядка линия обороны:
+            // весь этот метод пишет авторский контент, Tile.GuardAgainstConflictingRole
+            // обязан отдать ему приоритет над Core.TunnelObstacleGenerator
+            // независимо от того, кто из двух дописался до плиты первым.
+            using var _ = new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored);
+
             // Первый проход — собрать координату рычага и все координаты его
             // ворот (в абсолютных координатах сетки): Tile.MarkLever нужен
             // весь список целей сразу, а расположение Lever/LeverGate в

@@ -153,8 +153,13 @@ namespace Burmalda.DebugVisuals
             // возможна» в число" — накопительный счётчик за жизнь процесса
             // (Tile.RoleConflictRejectedCount), не сбрасывается между
             // забегами, см. doc-комментарий Core.Tile.RoleConflictRejectedCount.
+            // Доработка «разрешение конфликта выбрано неверно», п. 2:
+            // одного числа недостаточно — "по числу нельзя понять, теряется
+            // ли авторский контент" — ряд показывает ещё и пару последнего
+            // конфликта (какая роль отклонена, какая осталась).
             if (_roleConflictCounterValueText != null)
-                _roleConflictCounterValueText.text = Tile.RoleConflictRejectedCount.ToString();
+                _roleConflictCounterValueText.text = FormatRoleConflictCounter(
+                    Tile.RoleConflictRejectedCount, Tile.LastRoleConflictRejectedRole, Tile.LastRoleConflictKeptRole);
         }
 
         private static string FormatTrapCounter(int trapsTriggered, int rowsTraversed)
@@ -164,6 +169,20 @@ namespace Burmalda.DebugVisuals
             return trapsTriggered == 0
                 ? $"{trapsTriggered} / {rowsTraversed} рядов"
                 : $"{trapsTriggered} / {rowsTraversed} рядов (1 на {perRow:0.#})";
+        }
+
+        // Доработка хотфикса «разрешение конфликта выбрано неверно», п. 2
+        // (владелец, 2026-09-16): одного числа мало — не видно, теряется ли
+        // авторский контент. Показывает и накопительный счёт, и пару
+        // последнего конфликта (что отклонено, что осталось) — если
+        // отклонённая роль систематически оказывается авторской
+        // (ManaSource/KeySource/Altar/Boss/триггеры шаблонов), разрешение
+        // конфликта сломано, видно прямо на панели.
+        private static string FormatRoleConflictCounter(int count, string lastRejectedRole, string lastKeptRole)
+        {
+            return count == 0
+                ? "0"
+                : $"{count} (последний: «{lastRejectedRole}» отклонена, «{lastKeptRole}» осталась)";
         }
 
         private static void EnsureEventSystemExists()
@@ -323,7 +342,7 @@ namespace Burmalda.DebugVisuals
             // забегов там ноль — легаси-генератор можно выводить из игры
             // раньше" — тот же readout-приём, что и ряд 11 выше.
             _roleConflictCounterValueText = BuildReadoutRow(_panelRoot.transform, 20, "Страж ролей: конфликтов отклонено",
-                Tile.RoleConflictRejectedCount.ToString());
+                FormatRoleConflictCounter(Tile.RoleConflictRejectedCount, Tile.LastRoleConflictRejectedRole, Tile.LastRoleConflictKeptRole));
         }
 
         /// <summary>Строка "подпись + значение" без слайдера — только читается, нечего крутить. Возвращает Text значения, вызывающая сторона сама решает, куда его сохранить и как обновлять в Update().</summary>

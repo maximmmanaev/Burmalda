@@ -633,6 +633,95 @@ namespace Burmalda.Core.Tests
             }
         }
 
+        // Доработка хотфикса «разрешение конфликта выбрано неверно»
+        // (владелец, 2026-09-16): «первая побеждает» систематически
+        // отклоняла авторский контент, потому что Core.TunnelObstacleGenerator
+        // роллит на TileMaterialized ПЕРВЫМ, раньше, чем
+        // Generation.SegmentRowProvider.ApplyTemplate успевает записать тот
+        // же GetOrCreateTile. Разрешение — явный источник
+        // (Tile.RoleWriteSource), Authored побеждает Generated НЕЗАВИСИМО
+        // от порядка. Два теста ниже проверяют оба порядка (Authored
+        // вторым — реальный производственный случай; Authored первым — для
+        // полноты), каждый сам выставляет ThrowOnRoleConflict/CurrentWriteSource
+        // локально и восстанавливает в finally, тот же приём, что тест выше.
+        [Test]
+        public void MarkingExclusiveRole_AuthoredArrivesSecond_OverridesGeneratedAndClearsItsFields()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            var countBefore = Tile.RoleConflictRejectedCount;
+            try
+            {
+                Tile.ThrowOnRoleConflict = false;
+                var tile = new Tile(new GridCoordinate(1, 1));
+
+                // Generated (по умолчанию, без scope) — как TunnelObstacleGenerator.
+                tile.MarkLethalTrap(LethalTrapType.Lava);
+
+                // Authored (внутри RoleWriteScope) — как SegmentRowProvider.ApplyTemplate.
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                    Assert.DoesNotThrow(() => tile.MarkArrowWaveTrigger(3, RowWaveDirection.LeftToRight));
+
+                Assert.IsFalse(tile.LethalTrap.HasValue, "проигравшая (Generated) роль должна быть очищена, не просто отклонена молча рядом");
+                Assert.IsTrue(tile.ArrowWaveTargetRow.HasValue, "победившая (Authored) роль должна быть записана");
+                Assert.AreEqual(countBefore + 1, Tile.RoleConflictRejectedCount);
+                StringAssert.Contains("LethalTrap", Tile.LastRoleConflictRejectedRole);
+                Assert.AreEqual(nameof(Tile.ArrowWaveTargetRow), Tile.LastRoleConflictKeptRole);
+            }
+            finally
+            {
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
+        [Test]
+        public void MarkingExclusiveRole_GeneratedArrivesAfterAuthored_RejectsGeneratedAndKeepsAuthored()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            var countBefore = Tile.RoleConflictRejectedCount;
+            try
+            {
+                Tile.ThrowOnRoleConflict = false;
+                var tile = new Tile(new GridCoordinate(1, 1));
+
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                    tile.MarkArrowWaveTrigger(3, RowWaveDirection.LeftToRight);
+
+                // Generated (по умолчанию, вне scope) — как TunnelObstacleGenerator.
+                Assert.DoesNotThrow(() => tile.MarkLethalTrap(LethalTrapType.Lava));
+
+                Assert.IsTrue(tile.ArrowWaveTargetRow.HasValue, "авторская роль должна остаться нетронутой");
+                Assert.IsFalse(tile.LethalTrap.HasValue, "генерируемая роль должна быть отклонена, не наложена поверх авторской");
+                Assert.AreEqual(countBefore + 1, Tile.RoleConflictRejectedCount);
+                Assert.AreEqual(nameof(Tile.ArrowWaveTargetRow), Tile.LastRoleConflictKeptRole);
+                StringAssert.Contains("LethalTrap", Tile.LastRoleConflictRejectedRole);
+            }
+            finally
+            {
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
+        [Test]
+        public void RoleWriteScope_Dispose_RestoresPreviousSourceEvenOnException()
+        {
+            Assert.AreEqual(Tile.RoleWriteSource.Generated, Tile.CurrentWriteSource, "источник по умолчанию — Generated");
+            try
+            {
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                {
+                    Assert.AreEqual(Tile.RoleWriteSource.Authored, Tile.CurrentWriteSource);
+                    throw new InvalidOperationException("тестовое исключение внутри scope");
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // ожидаемо — проверяем именно что using всё равно восстановил источник.
+            }
+
+            Assert.AreEqual(Tile.RoleWriteSource.Generated, Tile.CurrentWriteSource,
+                "Dispose обязан восстановить прежний источник, даже если внутри scope было исключение");
+        }
+
         // issue #213 — ловушка «Стрела» (docs/wiki/traps.md).
         [Test]
         public void NewTile_HasNoArrowWaveTrigger()
