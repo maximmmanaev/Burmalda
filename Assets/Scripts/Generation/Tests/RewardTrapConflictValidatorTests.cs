@@ -28,7 +28,6 @@ namespace Burmalda.Generation.Tests
                     'x' => SegmentTileType.BombTrigger,
                     't' => SegmentTileType.BladeTactTrigger,
                     'r' => SegmentTileType.FallingRockTrigger,
-                    'f' => SegmentTileType.LavaWaveTrigger,
                     _ => SegmentTileType.Open,
                 };
             return tiles;
@@ -139,69 +138,9 @@ namespace Burmalda.Generation.Tests
             }
         }
 
-        [Test]
-        public void LavaWaveTrigger_RewardInEarlierRowWithinMaxRows_IsConflict()
-        {
-            // LavaWaveTrapSystem: ряд триггера и до MaxRows-1 рядов НАЗАД
-            // (меньший индекс ряда) становятся лавой, весь ряд целиком.
-            var savedMaxRows = LavaWaveTrapSystem.MaxRows;
-            try
-            {
-                LavaWaveTrapSystem.MaxRows = 6;
-                var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
-                    "..m..",
-                    ".....",
-                    "..f..",
-                    ".....",
-                    "....."));
-
-                var conflicts = RewardTrapConflictValidator.FindConflicts(template);
-
-                Assert.AreEqual(1, conflicts.Count);
-                Assert.AreEqual(SegmentTileType.LavaWaveTrigger, conflicts[0].TriggerType);
-            }
-            finally
-            {
-                LavaWaveTrapSystem.MaxRows = savedMaxRows;
-            }
-        }
-
-        [Test]
-        public void LavaWaveTrigger_RewardInLaterRow_IsNotConflict()
-        {
-            // Волна идёт НАЗАД (к меньшему Row) — награда ВПЕРЕДИ триггера
-            // (больший Row, ближе к выходу) вне зоны поражения.
-            var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
-                "..f..",
-                ".....",
-                "..m..",
-                ".....",
-                "....."));
-
-            Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
-        }
-
-        [Test]
-        public void LavaWaveTrigger_RewardBeyondMaxRows_IsNotConflict()
-        {
-            var savedMaxRows = LavaWaveTrapSystem.MaxRows;
-            try
-            {
-                LavaWaveTrapSystem.MaxRows = 2; // ряд триггера + 1 назад, не больше
-                var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
-                    "..m..",
-                    ".....",
-                    ".....",
-                    "..f..",
-                    "....."));
-
-                Assert.IsEmpty(RewardTrapConflictValidator.FindConflicts(template));
-            }
-            finally
-            {
-                LavaWaveTrapSystem.MaxRows = savedMaxRows;
-            }
-        }
+        // Триггер волны «Лава» (issue #216) и его тесты выше убраны вместе с
+        // самой механикой (переработка логики ловушек, владелец,
+        // Movement.LavaWaveTrapSystem удалён целиком).
 
         [Test]
         public void FallingRockTrigger_RewardOneRowAhead_IsConflict()
@@ -244,8 +183,7 @@ namespace Burmalda.Generation.Tests
         public void FallingRockTrigger_OnLastRow_TargetBeyondTemplate_IsNotConflict()
         {
             // Цель за пределами шаблона (следующий сегмент) — эта проверка
-            // консервативно её не видит, известное ограничение (тот же
-            // принцип, что уже принят для LavaWave через границы сегментов).
+            // консервативно её не видит, известное ограничение.
             // Триггер намеренно на последнем ряду 5-рядного шаблона —
             // добавленные открытые ряды идут ПЕРЕД ним, а не после, иначе
             // "последний ряд" перестал бы им быть.

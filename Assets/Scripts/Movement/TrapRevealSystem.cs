@@ -84,7 +84,6 @@ namespace Burmalda.Movement
             tile.ArrowWaveTargetRow.HasValue // триггер Стрелы (issue #213) — тот же приём, что и прочие триггеры ниже
             || tile.IsBombTrigger // триггер Бомбы (issue #214) — тот же приём
             || tile.BladeTactTargetRow.HasValue // триггер Лезвий (issue #215) — тот же приём
-            || tile.IsFallingRockTrigger // триггер Падающего камня (issue #217) — тот же приём
-            || tile.IsLavaTrigger; // триггер Лавы (issue #216) — тот же приём (сама волна лавы, в отличие от триггера, видна всегда, как статичная Лава)
+            || tile.IsFallingRockTrigger; // триггер Падающего камня (issue #217) — тот же приём. Триггер Лавы (issue #216) убран вместе с волной.
     }
 }
