@@ -73,43 +73,133 @@ namespace Burmalda.Core
         /// <see cref="ThrowOnRoleConflict"/>: строго (бросает) — только в
         /// Editor Play mode и в EditMode-тестах, где эта гонка сигнализирует
         /// об ошибке генерации, ради чего страж и заводился. В собранной
-        /// игре (включая development-сборку) — не бросает: отклоняет вторую
-        /// запись, оставляет первую, наращивает <see cref="RoleConflictRejectedCount"/>
-        /// и логирует через <see cref="RoleConflictRejected"/> (Core не
-        /// ссылается на UnityEngine, <c>noEngineReferences</c> в
-        /// Burmalda.Core.asmdef — Debug.LogWarning отсюда недоступен, тот же
-        /// приём, что уже <see cref="TunnelGrid.TileMaterialized"/>). Сама
-        /// гонка генераторов этим не чинится — трекается отдельным issue.
+        /// игре (включая development-сборку) — не бросает: разрешает
+        /// конфликт (см. следующий абзац), логирует через
+        /// <see cref="RoleConflictRejected"/> (Core не ссылается на
+        /// UnityEngine, <c>noEngineReferences</c> в Burmalda.Core.asmdef —
+        /// Debug.LogWarning отсюда недоступен, тот же приём, что уже
+        /// <see cref="TunnelGrid.TileMaterialized"/>). Сама гонка
+        /// генераторов этим не чинится — трекается отдельным issue.
+        ///
+        /// <b>Доработка «разрешение конфликта выбрано неверно» (владелец,
+        /// 2026-09-16):</b> первая версия хотфикса разрешала конфликт
+        /// правилом "первая запись побеждает" — но
+        /// <c>Core.TunnelObstacleGenerator</c> подписан на
+        /// <see cref="TunnelGrid.TileMaterialized"/> и роллит в момент
+        /// ПЕРВОЙ материализации плиты, а <c>Generation.SegmentRowProvider.
+        /// ApplyTemplate</c> вызывает <see cref="TunnelGrid.GetOrCreateTile"/>
+        /// сам — легаси-ролл систематически происходит ПЕРВЫМ, авторская
+        /// запись шаблона — ВТОРОЙ. "Первая побеждает" систематически
+        /// отклоняла именно авторский контент, который случайный обстакл
+        /// затирал молча. Разрешение теперь — явный источник записи
+        /// (<see cref="RoleWriteSource"/>/<see cref="CurrentWriteSource"/>),
+        /// не эвристика по порядку вызова: <see cref="RoleWriteSource.Authored"/>
+        /// побеждает <see cref="RoleWriteSource.Generated"/> НЕЗАВИСИМО от
+        /// того, кто писал первым — если авторская запись приходит ВТОРОЙ
+        /// (обычный случай), она замещает уже стоящую генерируемую роль
+        /// (см. <see cref="ClearActiveExclusiveRole"/>), а не отклоняется.
+        /// Конфликт между двумя авторскими или двумя генерируемыми записями
+        /// (оба редки/не должны происходить по конструкции — не пойман
+        /// приоритетом источника, так как источники СОВПАДАЮТ) по-прежнему
+        /// разрешается в пользу первой — для одинаковых источников порядок
+        /// снова единственный доступный критерий.
+        ///
+        /// <b>Доработка PR #290, п.1 (владелец, 2026-09-16):</b> Authored-vs-
+        /// Generated — теперь ШТАТНЫЙ, ожидаемый на каждом сегменте случай
+        /// (легаси роллит первым, шаблон пишет следом), а не признак
+        /// поломки генерации — разрешается молча и ОДИНАКОВО во всех
+        /// режимах, включая строгий: <see cref="ThrowOnRoleConflict"/>
+        /// бросает ТОЛЬКО когда источник конфликта совпадает (Generated-vs-
+        /// Generated или Authored-vs-Authored) — там приоритет источника не
+        /// различает победителя, и конфликт снова означает ошибку генерации
+        /// (регрессия, новый генератор, ручной тест), ради которой страж и
+        /// заводился. Иначе в Editor Play mode падало бы исключение на
+        /// первом же сегменте — режим стал бы непригоден для проверки.
         /// </summary>
         /// <returns>
-        /// true — можно записывать роль (конфликта нет, или это повтор той
-        /// же роли); false — конфликт отклонён (только когда
-        /// <see cref="ThrowOnRoleConflict"/> == false) — вызывающий Mark*-
-        /// метод обязан НЕ писать поле в этом случае, первая роль остаётся.
+        /// true — можно записывать роль (конфликта нет, это повтор той же
+        /// роли, или авторская запись только что вытеснила генерируемую);
+        /// false — конфликт отклонён В ПОЛЬЗУ УЖЕ СТОЯЩЕЙ роли (только
+        /// когда конфликт не бросил — см. doc-комментарий выше) — вызывающий
+        /// Mark*-метод обязан НЕ писать поле в этом случае.
         /// </returns>
         private bool GuardAgainstConflictingRole(bool alreadyThisRole, string incomingRole)
         {
             if (alreadyThisRole) return true;
 
             var existing = ActiveExclusiveRoleName();
-            if (existing == null) return true;
+            if (existing == null)
+            {
+                _activeRoleSource = CurrentWriteSource;
+                return true;
+            }
+
+            var incomingSource = CurrentWriteSource;
+            var existingSource = _activeRoleSource;
+            // Разные источники — приоритет разрешает конфликт однозначно,
+            // независимо от порядка. Одинаковые источники — приоритет
+            // ничего не различает, порядок остаётся единственным критерием
+            // (и единственный случай, где строгий режим ещё бросает).
+            var resolvedByPriority = incomingSource != existingSource;
+            var incomingWins = resolvedByPriority && incomingSource == RoleWriteSource.Authored;
+            var winnerRole = incomingWins ? incomingRole : existing;
+            var loserRole = incomingWins ? existing : incomingRole;
 
             var message =
-                $"Tile {Coordinate}: попытка пометить роль '{incomingRole}', но плита уже несёт взаимоисключающую роль '{existing}' — два генератора записали в одну плиту (см. docs/wiki/changelog.md, задача «двойные флаги на плитах»).";
+                $"Tile {Coordinate}: конфликт ролей — попытка пометить '{incomingRole}' ({incomingSource}), но плита уже несёт взаимоисключающую роль '{existing}' ({existingSource}). Победила '{winnerRole}', отклонена '{loserRole}' (два генератора записали в одну плиту, см. docs/wiki/changelog.md, задача «двойные флаги на плитах»).";
 
-            if (ThrowOnRoleConflict)
+            if (ThrowOnRoleConflict && !resolvedByPriority)
                 throw new InvalidOperationException(message);
 
             RoleConflictRejectedCount++;
+            LastRoleConflictRejectedRole = loserRole;
+            LastRoleConflictKeptRole = winnerRole;
             RoleConflictRejected?.Invoke(message);
-            return false;
+
+            if (!incomingWins) return false;
+
+            ClearActiveExclusiveRole();
+            _activeRoleSource = incomingSource;
+            return true;
         }
 
         /// <summary>
+        /// Обнуляет поле(я) РОВНО той роли, что сейчас возвращает
+        /// <see cref="ActiveExclusiveRoleName"/> — зеркало её же переключателя.
+        /// Вызывается только из <see cref="GuardAgainstConflictingRole"/> в
+        /// момент, когда авторская запись вытесняет генерируемую (см. её
+        /// doc-комментарий, доработка «разрешение конфликта выбрано
+        /// неверно») — без этого поле проигравшей роли осталось бы
+        /// установленным рядом с полем победившей, тот самый "двойной
+        /// флаг", который весь этот страж должен предотвращать.
+        /// </summary>
+        private void ClearActiveExclusiveRole()
+        {
+            if (IsBlocked) { IsBlocked = false; return; }
+            if (LethalTrap.HasValue) { LethalTrap = null; return; }
+            if (IsManaSource) { IsManaSource = false; return; }
+            if (IsKeySource) { IsKeySource = false; KeySourceAmount = null; return; }
+            if (IsAltar) { IsAltar = false; return; }
+            if (IsBoss) { IsBoss = false; return; }
+            if (IsLever) { IsLever = false; LeverGateTargets = null; return; }
+            if (IsGated) { IsGated = false; LeverCoordinate = null; return; }
+            if (ArrowWaveTargetRow.HasValue) { ArrowWaveTargetRow = null; ArrowWaveDirection = null; return; }
+            if (IsBombTrigger) { IsBombTrigger = false; return; }
+            if (BladeTactTargetRow.HasValue) { BladeTactTargetRow = null; return; }
+            if (IsFallingRockTrigger) { IsFallingRockTrigger = false; FallingRockTargetCoordinate = null; return; }
+            if (IsLavaTrigger) { IsLavaTrigger = false; }
+        }
+
+        /// <summary>Источник, записавший текущую активную эксклюзивную роль этой плиты — см. doc-комментарий <see cref="GuardAgainstConflictingRole"/> (доработка «разрешение конфликта выбрано неверно»). Бессмысленно, пока роль не установлена.</summary>
+        private RoleWriteSource _activeRoleSource;
+
+        /// <summary>
         /// Строгий режим стража ролей — см. doc-комментарий
-        /// <see cref="GuardAgainstConflictingRole"/>. По умолчанию false
-        /// (поведение built-игры: отклонить и залогировать, забег
-        /// продолжается). Включается явно двумя местами:
+        /// <see cref="GuardAgainstConflictingRole"/>. По умолчанию false.
+        /// Даже когда true, бросает НЕ на любом конфликте — только когда
+        /// источники совпадают (см. п.1 доработки PR #290 там же);
+        /// Authored-vs-Generated разрешается молча приоритетом источника в
+        /// любом режиме. Включается явно двумя местами:
         /// <c>Bootstrap.RunBootstrap.Awake</c> — по <c>Application.isEditor</c>
         /// (НЕ <c>Debug.isDebugBuild</c> — тот был бы true и на
         /// development-сборке, где страж обязан не падать), и
@@ -120,9 +210,53 @@ namespace Burmalda.Core
         public static bool ThrowOnRoleConflict;
 
         /// <summary>
-        /// Число отклонённых конфликтов роли (растёт только когда
-        /// <see cref="ThrowOnRoleConflict"/> == false) — накопительное за
-        /// жизнь процесса, не сбрасывается между забегами: дебаг-панель
+        /// Источник записи роли — см. doc-комментарий
+        /// <see cref="GuardAgainstConflictingRole"/> (доработка «разрешение
+        /// конфликта выбрано неверно», владелец, 2026-09-16).
+        /// </summary>
+        public enum RoleWriteSource
+        {
+            /// <summary>Процедурный легаси-генератор (<c>Core.TunnelObstacleGenerator</c>) — значение по умолчанию, никто явно не оборачивает его вызовы в <see cref="RoleWriteScope"/>.</summary>
+            Generated,
+
+            /// <summary>Авторский контент, утверждённый владельцем (<c>Generation.SegmentRowProvider</c> — шаблоны и <c>ExtraTrapDensity</c>). Требует явного <see cref="RoleWriteScope"/> вокруг записывающих вызовов.</summary>
+            Authored,
+        }
+
+        /// <summary>
+        /// Текущий источник записи роли — см. <see cref="RoleWriteSource"/>.
+        /// Static, не per-instance: вся генерация тоннеля однопоточная и
+        /// синхронная, скоуп виден всем <see cref="Tile"/> одновременно, тот
+        /// же приём, что уже <see cref="ThrowOnRoleConflict"/>.
+        /// </summary>
+        public static RoleWriteSource CurrentWriteSource { get; private set; } = RoleWriteSource.Generated;
+
+        /// <summary>
+        /// IDisposable-скоуп, переключающий <see cref="CurrentWriteSource"/>
+        /// на время авторской записи — оборачивает ровно тот код, что
+        /// реально пишет авторский контент
+        /// (<c>Generation.SegmentRowProvider.ApplyTemplate</c>/
+        /// <c>ApplyExtraTrapDensity</c>), восстанавливает прежнее значение
+        /// на Dispose даже при исключении внутри (стандартный C# using).
+        /// </summary>
+        public readonly struct RoleWriteScope : IDisposable
+        {
+            private readonly RoleWriteSource _previous;
+
+            public RoleWriteScope(RoleWriteSource source)
+            {
+                _previous = CurrentWriteSource;
+                CurrentWriteSource = source;
+            }
+
+            public void Dispose() => CurrentWriteSource = _previous;
+        }
+
+        /// <summary>
+        /// Число разрешённых конфликтов роли (растёт при каждом конфликте,
+        /// когда <see cref="ThrowOnRoleConflict"/> == false — независимо от
+        /// того, чья роль победила) — накопительное за жизнь процесса, не
+        /// сбрасывается между забегами: дебаг-панель
         /// (<c>DebugVisuals.TrapDensityDebugPanel</c>) показывает его как
         /// диагностику "гонка теоретически возможна → сколько раз реально
         /// произошла", не как счётчик текущего забега.
@@ -130,8 +264,25 @@ namespace Burmalda.Core
         public static int RoleConflictRejectedCount { get; private set; }
 
         /// <summary>
-        /// Сообщение об отклонённом конфликте роли, когда
-        /// <see cref="ThrowOnRoleConflict"/> == false — см. doc-комментарий
+        /// Имя роли, отклонённой в САМОМ ПОСЛЕДНЕМ конфликте — см.
+        /// <see cref="RoleConflictRejectedCount"/>. Вместе с
+        /// <see cref="LastRoleConflictKeptRole"/> отвечает на вопрос
+        /// "теряется ли авторский контент": если здесь систематически
+        /// оказываются роли <c>Generation.SegmentRowProvider</c>
+        /// (ManaSource/KeySource/Altar/Boss/триггеры шаблонов) — авторский
+        /// контент теряется, разрешение конфликта сломано. Null, пока
+        /// конфликтов не было.
+        /// </summary>
+        public static string LastRoleConflictRejectedRole { get; private set; }
+
+        /// <summary>Имя роли, оставшейся победителем в САМОМ ПОСЛЕДНЕМ конфликте — см. <see cref="LastRoleConflictRejectedRole"/>.</summary>
+        public static string LastRoleConflictKeptRole { get; private set; }
+
+        /// <summary>
+        /// Сообщение о разрешённом конфликте роли, когда
+        /// <see cref="ThrowOnRoleConflict"/> == false — координата плиты,
+        /// обе роли, оба источника, кто победил (доработка «разрешение
+        /// конфликта выбрано неверно», п. 3). См. doc-комментарий
         /// <see cref="GuardAgainstConflictingRole"/> про то, почему Core не
         /// логирует это напрямую.
         /// </summary>

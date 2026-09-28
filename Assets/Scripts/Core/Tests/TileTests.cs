@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 
 namespace Burmalda.Core.Tests
@@ -594,6 +595,39 @@ namespace Burmalda.Core.Tests
             Assert.DoesNotThrow(() => marker.Mark(tile), $"повторная пометка той же роли ({marker.Name}) должна остаться тихим не-op");
         }
 
+        // Доработка PR #290, п.2 (владелец, 2026-09-16): ActiveExclusiveRoleName
+        // и ClearActiveExclusiveRole — два переключателя по одному и тому же
+        // набору ролей, синхронизируемые вручную. Расхождение между ними не
+        // поймал бы ни один тест конфликта выше (он просто никогда не создал
+        // бы такую комбинацию) — а последствие ровно то, против чего страж
+        // писался: висячий двойной флаг после "победившего" замещения. Тест
+        // бьёт по ExclusiveRoleMarkers — той же канонической таблице, что и
+        // вся матрица конфликтов выше, не по отдельному новому списку: новая
+        // роль без строки в ClearActiveExclusiveRole уронит тест сразу, как
+        // только появится в этой таблице (а появиться в ней обязана — без
+        // маркера её не проверить вообще ничем).
+        [TestCaseSource(nameof(ExclusiveRoleMarkers))]
+        public void ClearActiveExclusiveRole_MirrorsActiveExclusiveRoleName_ForEveryMarkedRole((string Name, Action<Tile> Mark) marker)
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            marker.Mark(tile);
+
+            var activeRoleNameMethod = typeof(Tile).GetMethod("ActiveExclusiveRoleName", BindingFlags.NonPublic | BindingFlags.Instance);
+            var clearMethod = typeof(Tile).GetMethod("ClearActiveExclusiveRole", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.IsNotNull(activeRoleNameMethod, "ActiveExclusiveRoleName не найден рефлексией — переименован?");
+            Assert.IsNotNull(clearMethod, "ClearActiveExclusiveRole не найден рефлексией — переименован?");
+
+            var activeBeforeClear = (string)activeRoleNameMethod.Invoke(tile, null);
+            Assert.IsNotNull(activeBeforeClear,
+                $"{marker.Name}: ActiveExclusiveRoleName не увидел только что помеченную роль — маркер и переключатель разошлись.");
+
+            clearMethod.Invoke(tile, null);
+
+            var activeAfterClear = (string)activeRoleNameMethod.Invoke(tile, null);
+            Assert.IsNull(activeAfterClear,
+                $"{marker.Name}: ClearActiveExclusiveRole не снял роль, которую видит ActiveExclusiveRoleName — списки разошлись, висячий двойной флаг воспроизводим.");
+        }
+
         // Хотфикс «страж ролей плиты роняет забег вместо диагностики»
         // (владелец, 2026-09-16, см. doc-комментарий
         // GuardAgainstConflictingRole/ThrowOnRoleConflict): все тесты выше
@@ -631,6 +665,126 @@ namespace Burmalda.Core.Tests
                 Tile.RoleConflictRejected -= OnRejected;
                 Tile.ThrowOnRoleConflict = savedThrow;
             }
+        }
+
+        // Доработка хотфикса «разрешение конфликта выбрано неверно»
+        // (владелец, 2026-09-16): «первая побеждает» систематически
+        // отклоняла авторский контент, потому что Core.TunnelObstacleGenerator
+        // роллит на TileMaterialized ПЕРВЫМ, раньше, чем
+        // Generation.SegmentRowProvider.ApplyTemplate успевает записать тот
+        // же GetOrCreateTile. Разрешение — явный источник
+        // (Tile.RoleWriteSource), Authored побеждает Generated НЕЗАВИСИМО
+        // от порядка. Два теста ниже проверяют оба порядка (Authored
+        // вторым — реальный производственный случай; Authored первым — для
+        // полноты) — ОБА с ThrowOnRoleConflict = true (доработка PR #290,
+        // п.1): Authored-vs-Generated обязан разрешаться молча даже в
+        // строгом режиме, иначе Editor Play mode падал бы на первом же
+        // сегменте. Каждый тест сам выставляет флаг локально и
+        // восстанавливает в finally, тот же приём, что тест выше.
+        [Test]
+        public void MarkingExclusiveRole_AuthoredArrivesSecond_OverridesGeneratedAndClearsItsFields()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            var countBefore = Tile.RoleConflictRejectedCount;
+            try
+            {
+                Tile.ThrowOnRoleConflict = true;
+                var tile = new Tile(new GridCoordinate(1, 1));
+
+                // Generated (по умолчанию, без scope) — как TunnelObstacleGenerator.
+                tile.MarkLethalTrap(LethalTrapType.Lava);
+
+                // Authored (внутри RoleWriteScope) — как SegmentRowProvider.ApplyTemplate.
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                    Assert.DoesNotThrow(() => tile.MarkArrowWaveTrigger(3, RowWaveDirection.LeftToRight));
+
+                Assert.IsFalse(tile.LethalTrap.HasValue, "проигравшая (Generated) роль должна быть очищена, не просто отклонена молча рядом");
+                Assert.IsTrue(tile.ArrowWaveTargetRow.HasValue, "победившая (Authored) роль должна быть записана");
+                Assert.AreEqual(countBefore + 1, Tile.RoleConflictRejectedCount);
+                StringAssert.Contains("LethalTrap", Tile.LastRoleConflictRejectedRole);
+                Assert.AreEqual(nameof(Tile.ArrowWaveTargetRow), Tile.LastRoleConflictKeptRole);
+            }
+            finally
+            {
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
+        [Test]
+        public void MarkingExclusiveRole_GeneratedArrivesAfterAuthored_RejectsGeneratedAndKeepsAuthored()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            var countBefore = Tile.RoleConflictRejectedCount;
+            try
+            {
+                Tile.ThrowOnRoleConflict = true;
+                var tile = new Tile(new GridCoordinate(1, 1));
+
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                    tile.MarkArrowWaveTrigger(3, RowWaveDirection.LeftToRight);
+
+                // Generated (по умолчанию, вне scope) — как TunnelObstacleGenerator.
+                Assert.DoesNotThrow(() => tile.MarkLethalTrap(LethalTrapType.Lava));
+
+                Assert.IsTrue(tile.ArrowWaveTargetRow.HasValue, "авторская роль должна остаться нетронутой");
+                Assert.IsFalse(tile.LethalTrap.HasValue, "генерируемая роль должна быть отклонена, не наложена поверх авторской");
+                Assert.AreEqual(countBefore + 1, Tile.RoleConflictRejectedCount);
+                Assert.AreEqual(nameof(Tile.ArrowWaveTargetRow), Tile.LastRoleConflictKeptRole);
+                StringAssert.Contains("LethalTrap", Tile.LastRoleConflictRejectedRole);
+            }
+            finally
+            {
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
+        // Симметрично двум тестам выше: ОДИНАКОВЫЙ источник (обе записи
+        // Authored) приоритетом не разрешается — порядок снова единственный
+        // критерий, и строгий режим по-прежнему обязан бросать (доработка
+        // PR #290, п.1 — "бросать только там, где приоритет источника НЕ
+        // разрешает конфликт"). Generated-vs-Generated уже покрыт всей
+        // матрицей MarkingExclusiveRole_AfterDifferentRoleAlreadySet_ThrowsInvalidOperationException
+        // выше (она никогда не использует RoleWriteScope).
+        [Test]
+        public void MarkingExclusiveRole_BothAuthored_StillThrowsInStrictMode()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            try
+            {
+                Tile.ThrowOnRoleConflict = true;
+                var tile = new Tile(new GridCoordinate(1, 1));
+
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                {
+                    tile.MarkLethalTrap(LethalTrapType.Lava);
+                    Assert.Throws<InvalidOperationException>(() => tile.MarkArrowWaveTrigger(3, RowWaveDirection.LeftToRight));
+                }
+            }
+            finally
+            {
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
+        [Test]
+        public void RoleWriteScope_Dispose_RestoresPreviousSourceEvenOnException()
+        {
+            Assert.AreEqual(Tile.RoleWriteSource.Generated, Tile.CurrentWriteSource, "источник по умолчанию — Generated");
+            try
+            {
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                {
+                    Assert.AreEqual(Tile.RoleWriteSource.Authored, Tile.CurrentWriteSource);
+                    throw new InvalidOperationException("тестовое исключение внутри scope");
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // ожидаемо — проверяем именно что using всё равно восстановил источник.
+            }
+
+            Assert.AreEqual(Tile.RoleWriteSource.Generated, Tile.CurrentWriteSource,
+                "Dispose обязан восстановить прежний источник, даже если внутри scope было исключение");
         }
 
         // issue #213 — ловушка «Стрела» (docs/wiki/traps.md).

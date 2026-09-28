@@ -147,16 +147,25 @@ namespace Burmalda.Generation.Tests
         /// расширен на пять триггеров ловушек, чтобы <see cref="RewardTrapConflictValidator"/>
         /// мог статически рассуждать об их площади поражения. Побочный эффект —
         /// <c>GuardAgainstConflictingRole</c> внутри <c>Tile.MarkArrowWaveTrigger</c>
-        /// теперь ВИДИТ уже установленную Lava и бросает исключение вместо
-        /// молчаливого наложения. Ранее описанный здесь подслучай "накладывается
-        /// без исключения" для триггеров ловушек больше не воспроизводим — гонка
-        /// генераторов на плите с триггером теперь падает громко. Это не фикс
-        /// самой гонки (обстакловый генератор всё ещё может материализовать ряд
-        /// раньше, чем его заявит <see cref="SegmentRowProvider"/>) — просто её
-        /// прежде тихий побочный эффект для триггеров ловушек стал исключением.
+        /// теперь ВИДИТ уже установленную Lava. Первая версия хотфикса «страж
+        /// роняет забег вместо диагностики» (2026-09-16) заставила его бросать
+        /// исключение вместо молчаливого наложения — лечило симптом (крэш), не
+        /// диагноз (кто должен победить), и в Editor Play mode означало
+        /// исключение на первом же сегменте.
+        ///
+        /// Доработка PR #290 (владелец, 2026-09-16): <c>Tile.RoleWriteSource</c> —
+        /// <c>SegmentRowProvider.ApplyTemplate</c> пишет как Authored,
+        /// <c>Core.TunnelObstacleGenerator</c> — как Generated (по умолчанию).
+        /// Authored побеждает Generated НЕЗАВИСИМО от порядка записи — этот
+        /// тест теперь проверяет ИМЕННО это: гонка генераторов на плите с
+        /// триггером больше не падает НИ громко, ни тихо — она разрешена
+        /// приоритетом источника, авторский триггер побеждает случайную Lava.
+        /// Это не фикс самой гонки (обстакловый генератор всё ещё может
+        /// материализовать ряд раньше, чем его заявит <see cref="SegmentRowProvider"/>) —
+        /// просто её исход стал детерминированным и правильным.
         /// </summary>
         [Test]
-        public void RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerNowThrows()
+        public void RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerWins()
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
@@ -187,15 +196,21 @@ namespace Burmalda.Generation.Tests
             var template = new SegmentTemplate("adversarial", 1, SegmentRewardTag.Coins, tiles);
             var selector = new SegmentSelector(new List<SegmentTemplate> { template }, new RunSeed(1));
 
-            // Tile.MarkArrowWaveTrigger теперь гейтится через
-            // GuardAgainstConflictingRole (см. doc-комментарий выше) — попытка
-            // наложить триггер Стрелы поверх уже стоящей Lava бросает
-            // исключение прямо из конструктора SegmentRowProvider, вместо того
-            // чтобы молча дать плите две несовместимые роли.
-            var exception = Assert.Throws<System.InvalidOperationException>(() =>
-                new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000));
-            StringAssert.Contains("ArrowWaveTargetRow", exception.Message);
-            StringAssert.Contains("Lava", exception.Message);
+            // Authored-vs-Generated разрешается молча и одинаково во всех
+            // режимах (доработка PR #290, п.1) — это НЕ строгий случай, хотя
+            // Generation.Tests.TileGuardStrictModeSetUp держит
+            // ThrowOnRoleConflict == true для всей сборки: приоритет
+            // источника разрешает конфликт раньше, чем строгий режим успел
+            // бы его увидеть.
+            SegmentRowProvider segments = null;
+            Assert.DoesNotThrow(() =>
+                segments = new SegmentRowProvider(grid, trail, selector, _ => 1, rowsPerTier: 1000000));
+            using var _ = segments;
+
+            Assert.IsTrue(tile.ArrowWaveTargetRow.HasValue,
+                "авторский триггер Стрелы должен победить — приоритет источника, а не порядок записи.");
+            Assert.IsFalse(tile.LethalTrap.HasValue,
+                "случайная Lava от обстаклового генератора должна быть отклонена и очищена, не остаться рядом со Стрелой.");
         }
 
         // Roll, гарантированно попадающий в диапазон Lava (см.
