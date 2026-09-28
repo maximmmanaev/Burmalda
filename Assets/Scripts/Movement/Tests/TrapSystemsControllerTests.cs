@@ -96,8 +96,16 @@ namespace Burmalda.Movement.Tests
             InvokePrivate(_controller, "Update"); // самолечение — строит системы
 
             var trigger = new Core.GridCoordinate(1, _input.Grid.Width / 2);
+            var away = new Core.GridCoordinate(1, _input.Grid.Width / 2 - 1);
             _input.Grid.GetOrCreateTile(trigger).MarkBombTrigger();
-            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger), "шаг на триггер должен был пройти");
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger), "шаг на триггер должен был пройти"); // "Detected"
+            // Переработка логики ловушек (владелец): активация — только при
+            // уходе с триггера ("Triggered"), не при приходе, см. doc-
+            // комментарий Movement.BombTrapSystem. Возвращается, чтобы
+            // проверка ниже (LethalTrap на самой плите-триггере) осталась
+            // верной — плита занята игроком в момент взрыва.
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(away), "уход с триггера должен был пройти");
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger), "возврат на триггер должен был пройти");
 
             var bomb = (BombTrapSystem)GetPrivateField(_controller, "_bomb");
             Assert.IsFalse(_input.Grid.GetOrCreateTile(trigger).LethalTrap.HasValue, "взрыв ещё не должен был произойти — задержка не истекла");
@@ -122,7 +130,10 @@ namespace Burmalda.Movement.Tests
 
             var trigger = new Core.GridCoordinate(1, _input.Grid.Width / 2);
             _input.Grid.GetOrCreateTile(trigger).MarkBombTrigger();
-            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger));
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger)); // "Detected"
+            // Переработка логики ловушек: активация — только при уходе с
+            // триггера ("Triggered"), см. doc-комментарий Movement.BombTrapSystem.
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(new Core.GridCoordinate(1, _input.Grid.Width / 2 - 1)));
 
             var bomb = (BombTrapSystem)GetPrivateField(_controller, "_bomb");
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(10));

@@ -22,8 +22,12 @@ namespace Burmalda.Movement.Tests
             return (grid, trail, scheduler);
         }
 
+        // Переработка логики ловушек (владелец): глобальный жизненный цикл
+        // Hidden → Detected → WaitingForExit → Triggered — приход на триггер
+        // раскрывает сигнатуру опасности САМОГО триггера, не запускает
+        // предупреждение на целевой плите впереди (см. тесты ниже).
         [Test]
-        public void PositionChanged_TrailReachesTrigger_BeginsWarningOnTargetTile_DoesNotBlockYet()
+        public void PositionChanged_TrailReachesTrigger_RevealsDangerSignature_DoesNotWarnTargetYet()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
@@ -33,8 +37,28 @@ namespace Burmalda.Movement.Tests
 
             trail.TryAdvanceTo(trigger);
 
-            Assert.IsTrue(grid.GetOrCreateTile(target).IsFallingRockWarningActive, "целевая плита обязана подсветиться сразу при активации триггера — \"однозначно видно, куда упадёт\"");
+            Assert.IsTrue(grid.GetOrCreateTile(trigger).IsDangerSignatureRevealed, "\"Detected\" обязан раскрыть сигнатуру опасности триггера");
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsFallingRockWarningActive, "мигание целевой плиты — \"Triggered\", наступает только при уходе с триггера, не при приходе на него");
+        }
+
+        // "WaitingForExit" — пока игрок стоит на триггере, предупреждение на
+        // целевой плите не запускается, сколько бы тиков ни прошло.
+        [Test]
+        public void Tick_PlayerStaysOnTrigger_DoesNotWarnTargetUntilPlayerLeaves()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
+            using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger); // "Detected"
+
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds * 2);
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsFallingRockWarningActive, "пока игрок стоит на триггере, предупреждение не должно запускаться");
             Assert.IsFalse(grid.GetOrCreateTile(target).IsBlocked);
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — наконец уходит (не на target)
+            Assert.IsTrue(grid.GetOrCreateTile(target).IsFallingRockWarningActive, "уход с триггера обязан был запустить предупреждение");
         }
 
         [Test]
@@ -46,7 +70,8 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
 
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера, не на target
 
             Assert.IsFalse(grid.GetOrCreateTile(trigger).IsFallingRockWarningActive, "предупреждение — на целевой плите впереди, не на самом триггере");
         }
@@ -59,7 +84,8 @@ namespace Burmalda.Movement.Tests
             var target = new GridCoordinate(2, 2);
             grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера, не на target
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds / 2); // половина задержки — рано
 
@@ -97,7 +123,8 @@ namespace Burmalda.Movement.Tests
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
             var crushed = false;
             fallingRock.PlayerCrushed += _ => crushed = true;
-            trail.TryAdvanceTo(trigger); // активирует, игрок остаётся на триггере, не идёт на цель
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — активирует, не на цель
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
@@ -114,8 +141,9 @@ namespace Burmalda.Movement.Tests
             var target = new GridCoordinate(2, 2);
             grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
-            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds); // цель блокируется, игрок всё ещё на триггере
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — активирует, не на цель
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds); // цель блокируется
 
             var advanced = trail.TryAdvanceTo(target);
 
@@ -133,7 +161,8 @@ namespace Burmalda.Movement.Tests
             var target = new GridCoordinate(2, 2);
             grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — активирует, не на цель
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
@@ -149,7 +178,8 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             var neighborTile = grid.GetOrCreateTile(new GridCoordinate(2, 1));
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — активирует, не на цель
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
@@ -168,9 +198,9 @@ namespace Burmalda.Movement.Tests
             var crushCount = 0;
             fallingRock.PlayerCrushed += _ => crushCount++;
 
-            trail.TryAdvanceTo(trigger); // первый визит — регистрирует активацию
-            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад
-            trail.TryAdvanceTo(trigger); // повторный визит — не должен зарегистрировать вторую
+            trail.TryAdvanceTo(trigger); // первый визит — "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад — "Triggered", уход с триггера регистрирует активацию
+            trail.TryAdvanceTo(trigger); // повторный визит — уже в _firedTriggers, "Detected" пропускается
             trail.TryAdvanceTo(target); // игрок доходит до цели к моменту падения
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);

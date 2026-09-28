@@ -60,10 +60,11 @@ namespace Burmalda.Movement.Tests
             Assert.IsFalse(grid.GetOrCreateTile(trigger).LethalTrap.HasValue);
         }
 
-        // === Issue #260: мигание-предупреждение во время ожидания ===
+        // === Переработка логики ловушек (владелец): глобальный жизненный
+        // цикл Hidden → Detected → WaitingForExit → Triggered ===
 
         [Test]
-        public void PositionChanged_TrailReachesTrigger_BeginsWarningOnWholeBlastArea()
+        public void PositionChanged_TrailReachesTrigger_RevealsDangerSignature_DoesNotWarnAreaYet()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(2, 2);
@@ -73,10 +74,30 @@ namespace Burmalda.Movement.Tests
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(trigger);
 
+            Assert.IsTrue(grid.GetOrCreateTile(trigger).IsDangerSignatureRevealed, "\"Detected\" обязан раскрыть сигнатуру опасности триггера");
             for (var row = 1; row <= 3; row++)
             for (var column = 1; column <= 3; column++)
-                Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(row, column)).IsBombWarningActive,
-                    $"({row},{column}) должна мигать предупреждением — вся площадь 3×3, не только сам триггер");
+                Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(row, column)).IsBombWarningActive,
+                    $"мигание 3×3 — \"Triggered\", наступает только при уходе с триггера, ({row},{column}) не должна мигать при простом приходе");
+        }
+
+        // "WaitingForExit" — пока игрок стоит на триггере, мигание не
+        // запускается, сколько бы тиков ни прошло.
+        [Test]
+        public void Tick_PlayerStaysOnTrigger_DoesNotWarnAreaUntilPlayerLeaves()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkBombTrigger();
+            using var bomb = new BombTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            trail.TryAdvanceTo(trigger); // "Detected"
+
+            bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0) * 2);
+            Assert.IsFalse(grid.GetOrCreateTile(trigger).IsBombWarningActive, "пока игрок стоит на триггере, мигание не должно запускаться");
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — наконец уходит
+            Assert.IsTrue(grid.GetOrCreateTile(trigger).IsBombWarningActive, "уход с триггера обязан был запустить мигание всей площади");
         }
 
         [Test]
@@ -87,7 +108,8 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера
 
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0) / 2); // половина задержки — рано
 
@@ -103,7 +125,8 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger); // игрок стоит на триггере — он же плита площади
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует
 
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0));
 
@@ -126,7 +149,8 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует
 
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0));
 
@@ -149,7 +173,8 @@ namespace Burmalda.Movement.Tests
             var farTile = grid.GetOrCreateTile(new GridCoordinate(2, 4)); // за пределами радиуса 1 по столбцу
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует
 
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0));
 
@@ -168,7 +193,8 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 0));
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 0)); // "Triggered" — уход с триггера, активирует
 
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0));
 
@@ -192,7 +218,8 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger); // игрок стоит на триггере (2,2) — соседняя (1,1) свободна
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует; игрок на (1,2) — соседняя (1,1) свободна
 
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0));
 
@@ -209,7 +236,9 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger); // последний ход — игрок стоит на триггере
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует
+            trail.TryAdvanceTo(trigger); // возвращается — последний ход, игрок стоит на триггере к моменту взрыва
 
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0));
 
@@ -228,7 +257,9 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger); // стоит на триггере, входит в собственную площадь взрыва
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует
+            trail.TryAdvanceTo(trigger); // возвращается — стоит на триггере, входит в собственную площадь взрыва
             GridCoordinate? firedCoordinate = null;
             LethalTrapType? firedType = null;
             trail.LethalTrapTriggered += (coordinate, type) =>
@@ -251,9 +282,11 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger); // активирует триггер, запускает отсчёт
+            trail.TryAdvanceTo(trigger); // "Detected"
             // Уходит за пределы площади 3×3 (радиус 1 вокруг (2,2) — строки
-            // 1..3, столбцы 1..3) ДО того, как истечёт задержка.
+            // 1..3, столбцы 1..3) ДО того, как истечёт задержка. Первый шаг
+            // ниже — "Triggered" (уход с триггера сам по себе запускает
+            // отсчёт, см. doc-комментарий класса), остальные — дальнейший путь наружу.
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(new GridCoordinate(0, 2));
             trail.TryAdvanceTo(new GridCoordinate(0, 1));
@@ -289,24 +322,31 @@ namespace Burmalda.Movement.Tests
             // дыра/LethalTrap, не "возврат в обычное состояние" — см. класс
             // тестов выше) — это структурно ДЕЛАЕТ повторный проход через
             // уже сработавший триггер физически недостижимым: он либо
-            // Blocked (дыра), либо остаётся LethalTrap под игроком (если тот
-            // стоял на нём в момент взрыва, как здесь). Тест проверяет
-            // именно это — не сам факт "вторая бомба не запланирована"
-            // напрямую (после взрыва запланировать её было бы уже не на чем:
-            // _firedTriggers не пропустит повторный OnPositionChanged, даже
-            // если бы плита была снова проходима).
+            // Blocked (дыра, если игрок НЕ стоял на нём в момент взрыва —
+            // сценарий здесь), либо остаётся LethalTrap под игроком (если
+            // тот стоял на нём). Тест проверяет именно это — не сам факт
+            // "вторая бомба не запланирована" напрямую (после взрыва
+            // запланировать её было бы уже не на чем: _firedTriggers не
+            // пропустит повторный OnPositionChanged, даже если бы плита была
+            // снова проходима).
+            //
+            // Переработка логики ловушек: игрок обязан ПОКИНУТЬ триггер,
+            // чтобы активировать его ("Triggered", см. doc-комментарий
+            // класса) — к моменту взрыва он стоит на (1,2), не на самом
+            // триггере, поэтому именно триггер (не (1,2)) становится Blocked.
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(2, 2);
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger); // игрок стоит на триггере в момент взрыва
-            bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0)); // первая (и единственная) бомба полностью отработала
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует; игрок стоит здесь в момент взрыва
+            bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0)); // первая (и единственная) бомба полностью отработала — триггер становится Blocked (не занят игроком)
 
-            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // назад на уже посещённую безопасную плиту
             var reApproached = trail.TryAdvanceTo(trigger); // попытка снова шагнуть на триггер
 
-            Assert.IsFalse(reApproached, "триггер теперь несёт LethalTrap=BombBlast после взрыва — обычный шаг на него отклоняется, как на любую другую активную ловушку, второй бомбе взяться неоткуда");
+            Assert.IsFalse(reApproached, "триггер теперь Blocked (постоянная дыра) после взрыва — обычный шаг на него отклоняется, как на любую другую стену, второй бомбе взяться неоткуда");
+            Assert.IsTrue(grid.GetOrCreateTile(trigger).IsBlocked);
         }
 
         // issue #254, второй раунд (владелец: «ловушки в такт шагам это
@@ -322,7 +362,9 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
-            trail.TryAdvanceTo(trigger); // последний ход за весь тест
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует
+            trail.TryAdvanceTo(trigger); // возвращается — последний ход за весь тест, дальше стоит на месте
 
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0));
 
