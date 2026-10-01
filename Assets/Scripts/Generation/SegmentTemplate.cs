@@ -177,7 +177,11 @@ namespace Burmalda.Generation
             || type == SegmentTileType.BombTrigger
             || type == SegmentTileType.BladeTactTrigger
             || type == SegmentTileType.FallingRockTrigger
-            || type == SegmentTileType.LavaWaveTrigger
+            // LavaWaveTrigger существовал на момент написания этого
+            // валидатора (задача MovingWallTrap, ветка от main ДО удаления
+            // волны Лавы) — убран отдельной задачей (переработка логики
+            // ловушек, владелец), ссылка на несуществующий enum-член не
+            // компилировалась на интеграционной ветке, где обе задачи сошлись.
             || IsMovingWallTriggerType(type);
 
         // Владелец, 2026-09-05 «оставить только пять новых ловушек»: раньше
