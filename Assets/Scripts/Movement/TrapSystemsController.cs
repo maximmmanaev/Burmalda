@@ -6,9 +6,12 @@ namespace Burmalda.Movement
 {
     /// <summary>
     /// <b>Переработка логики ловушек (владелец):</b> волновая Лава убрана из
-    /// игры целиком — этот класс и весь его doc-комментарий ниже описывают
-    /// исторический момент, когда систем было пять; сейчас тикает четыре
-    /// (Стрела/Бомба/Лезвия/Падающий камень).
+    /// игры целиком, MovingWallTrap (TR-05/06/07, Давилка/Стена слева/Стена
+    /// справа) добавлена той же задачей — счёт систем не изменился (было
+    /// пять, одна убрана, одна добавлена, тикает пять:
+    /// Стрела/Бомба/Лезвия/Падающий камень/MovingWallTrap). Этот класс и
+    /// весь его doc-комментарий ниже описывают исторический момент, когда
+    /// состав систем был другим; механика самопроверки/тика не изменилась.
     ///
     /// Тикает пять систем ловушек (issue #212, Стрела/Бомба/Лезвия/Падающий
     /// камень/Лава — issues #213–#217) на каждый забег. Баг с устройства
@@ -98,6 +101,7 @@ namespace Burmalda.Movement
         private BombTrapSystem _bomb;
         private BladeTactTrapSystem _bladeTact;
         private FallingRockTrapSystem _fallingRock;
+        private MovingWallTrap _movingWall;
 
         private void Awake()
         {
@@ -115,10 +119,12 @@ namespace Burmalda.Movement
             DisposeAll();
         }
 
-        // Тикает все четыре системы реальным временем (issue #254) и заодно
+        // Тикает все пять систем реальным временем (issue #254) и заодно
         // служит ленивой самопроверкой (issue #256, см. doc-комментарий
         // класса) — дёшево не-op на кадрах, где уже построено или ещё не
-        // готово. Волновая Лава (пятая система) убрана из игры целиком.
+        // готово. Волновая Лава убрана из игры целиком, MovingWallTrap
+        // добавлен той же задачей (переработка логики ловушек, владелец) —
+        // счёт систем не изменился.
         private void Update()
         {
             if (_arrowWave == null)
@@ -132,6 +138,7 @@ namespace Burmalda.Movement
             _bomb.Tick(deltaSeconds);
             _bladeTact.Tick(deltaSeconds);
             _fallingRock.Tick(deltaSeconds);
+            _movingWall.Tick(deltaSeconds);
         }
 
         private bool IsReady() => _input != null && _input.Grid != null && _input.Trail != null;
@@ -164,6 +171,7 @@ namespace Burmalda.Movement
             // Задача «падающий камень: новая спецификация» — ретранслирует
             // на стабильное событие этого Controller'а, см. её doc-комментарий.
             _fallingRock.PlayerCrushed += OnFallingRockPlayerCrushed;
+            _movingWall = new MovingWallTrap(grid, _trail, new RealTimeThreatScheduler());
         }
 
         private void OnFallingRockPlayerCrushed(GridCoordinate coordinate) => FallingRockPlayerCrushed?.Invoke(coordinate);
@@ -181,6 +189,8 @@ namespace Burmalda.Movement
             if (_fallingRock != null) _fallingRock.PlayerCrushed -= OnFallingRockPlayerCrushed;
             _fallingRock?.Dispose();
             _fallingRock = null;
+            _movingWall?.Dispose();
+            _movingWall = null;
         }
     }
 }

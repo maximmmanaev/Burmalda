@@ -117,18 +117,22 @@ namespace Burmalda.DebugVisuals
             // issue #193) — он не скрытый триггер ловушки, у него своя
             // безусловная строка ниже, без гейта Идолом Чутья.
             var isTrapTrigger = tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
-                tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger;
+                tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger || tile.MovingWallTargetRow.HasValue;
             if (isTrapTrigger)
             {
                 lines.Add("Триггер механизма");
                 if (TrapInsight.HasTrapTypeInsight)
                 {
+                    // Волна Лавы убрана из игры (переработка логики ловушек,
+                    // владелец) — прежний "else = волна лавы" фолбэк стал
+                    // недостижимым (isTrapTrigger выше уже перечисляет все
+                    // оставшиеся причины явно), заменён явной веткой.
                     string exactType;
                     if (tile.ArrowWaveTargetRow.HasValue) exactType = "волна стрел";
                     else if (tile.IsBombTrigger) exactType = "бомба";
                     else if (tile.BladeTactTargetRow.HasValue) exactType = "такт лезвий";
                     else if (tile.IsFallingRockTrigger) exactType = "падающий камень";
-                    else exactType = "волна лавы";
+                    else exactType = "движущаяся стена";
                     lines.Add($"(Идол Чутья) Точный тип: {exactType}");
                 }
             }

@@ -5,6 +5,13 @@ using UnityEngine;
 namespace Burmalda.Movement.Tests
 {
     /// <summary>
+    /// <b>BURMALDA Trap System Spec v0.1: добавлена пятая система —
+    /// MovingWallTrap (волновая Лава убрана из игры целиком той же
+    /// переработкой, см. ниже — счёт систем не вырос, а остался на месте:
+    /// было пять, одна убрана, одна добавлена).</b> Doc-комментарий ниже —
+    /// исторический (описывает момент, когда систем было пять по другому
+    /// составу), см. аналогичную пометку в <see cref="TrapSystemsController"/>.
+    ///
     /// Баг с устройства (владелец, 2026-09-14, «ловушки вообще пропали»,
     /// issue #256, портирован сюда вместе с переходом всех систем на
     /// реальное время — issue #254): <see cref="TrapSystemsController"/>
@@ -58,7 +65,7 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void Update_CalledAfterMissedInitialRunStarted_SelfHealsAndBuildsAllFourSystems()
+        public void Update_CalledAfterMissedInitialRunStarted_SelfHealsAndBuildsAllFiveSystems()
         {
             SetUpReproducingRealBootstrapRace();
 
@@ -70,10 +77,14 @@ namespace Burmalda.Movement.Tests
             Assert.IsNotNull(GetPrivateField(_controller, "_bomb"));
             Assert.IsNotNull(GetPrivateField(_controller, "_bladeTact"));
             Assert.IsNotNull(GetPrivateField(_controller, "_fallingRock"));
+            // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — пятая система
+            // (волновая Лава убрана из игры целиком, переработка логики
+            // ловушек, владелец — её ассерт на _lavaWave удалён вместе с ней).
+            Assert.IsNotNull(GetPrivateField(_controller, "_movingWall"));
         }
 
         [Test]
-        public void Update_AfterSelfHeal_TicksAllFourSystemsWithRealDeltaTime_DoesNotThrow()
+        public void Update_AfterSelfHeal_TicksAllFiveSystemsWithRealDeltaTime_DoesNotThrow()
         {
             // Сквозной тест: недостаточно, чтобы поля просто были не-null —
             // Update() на следующем кадре обязан уже начать тикать их
@@ -82,6 +93,36 @@ namespace Burmalda.Movement.Tests
             InvokePrivate(_controller, "Update"); // самолечение — строит системы
 
             Assert.DoesNotThrow(() => InvokePrivate(_controller, "Update"), "второй кадр обязан тикать уже построенные системы, не падать");
+        }
+
+        // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — тот же сквозной
+        // приём, что Update_TriggerActuallyFiresOnRealGridAfterSelfHeal ниже
+        // для Бомбы: система, построенная самолечением Update(), обязана
+        // реально видеть и отрабатывать триггер MovingWallTrap на настоящей
+        // сетке забега. Активация — на УХОД с плиты-триггера (см.
+        // doc-комментарий MovingWallTrap), не на приход, поэтому нужен ещё
+        // один шаг после самого триггера.
+        [Test]
+        public void Update_MovingWallTriggerActuallyFiresOnRealGridAfterSelfHeal()
+        {
+            SetUpReproducingRealBootstrapRace();
+            InvokePrivate(_controller, "Update"); // самолечение — строит системы
+
+            // Старт трейла — (0, Width/2) (см. GridTraceInputController.Awake),
+            // триггер обязан быть соседним (IsAdjacentTo — 8 окружающих
+            // ячеек, не любая клетка ряда).
+            var startColumn = _input.Grid.Width / 2;
+            var trigger = new Core.GridCoordinate(1, startColumn);
+            var targetRow = 2;
+            _input.Grid.GetOrCreateTile(trigger).MarkMovingWallTrigger(targetRow, Core.MovingWallMode.Both);
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger));
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(new Core.GridCoordinate(1, startColumn - 1))); // уход с триггера — "Triggered"
+
+            var movingWall = (MovingWallTrap)GetPrivateField(_controller, "_movingWall");
+            movingWall.Tick(MovingWallTrap.StepSeconds);
+
+            Assert.IsTrue(_input.Grid.GetOrCreateTile(new Core.GridCoordinate(targetRow, 0)).IsBlocked,
+                "система, построенная самолечением Update(), обязана реально закрыть край ряда на настоящей сетке забега");
         }
 
         [Test]
