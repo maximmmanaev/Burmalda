@@ -365,6 +365,18 @@ namespace Burmalda.Generation
                 case SegmentTileType.LavaWaveTrigger:
                     tile.MarkLavaTrigger();
                     break;
+                case SegmentTileType.MovingWallBothTrigger:
+                    // TR-05 «Давилка» — тот же дефолт цели, что у
+                    // FallingRockTrigger (ряд+1, T стоит ПЕРЕД закрывающимся
+                    // рядом).
+                    tile.MarkMovingWallTrigger(coordinate.Row + 1, MovingWallMode.Both);
+                    break;
+                case SegmentTileType.MovingWallLeftTrigger:
+                    tile.MarkMovingWallTrigger(coordinate.Row + 1, MovingWallMode.FromLeft);
+                    break;
+                case SegmentTileType.MovingWallRightTrigger:
+                    tile.MarkMovingWallTrigger(coordinate.Row + 1, MovingWallMode.FromRight);
+                    break;
                 case SegmentTileType.Open:
                     // Доработка PR #290, п.3 (владелец, 2026-09-16): случайный
                     // ролл ExtraTrapDensity — не авторский контент шаблона,
@@ -414,7 +426,13 @@ namespace Burmalda.Generation
             // Равновероятный выбор среди всех пяти — дебаг-стресс-тест
             // плотности, не авторский подбор конкретного типа под конкретную
             // плиту (это и есть отличие от авторских шаблонов, которые этот
-            // рычаг намеренно дополняет, а не заменяет).
+            // рычаг намеренно дополняет, а не заменяет). MovingWallTrap
+            // (TR-05/06/07) сюда НЕ входит и не должен — Critical Generation
+            // Rule («на affected row запрещены любые другие триггеры
+            // ловушек», см. SegmentTemplate.ValidateMovingWallExclusiveRow)
+            // требует знания о соседних плитах ряда, а этот рычаг решает по
+            // одной Open-плите независимо — случайно расставленная Давилка
+            // могла бы молча нарушить собственное же правило.
             var candidateType = UnityEngine.Random.Range(0, 5) switch
             {
                 0 => SegmentTileType.ArrowWaveTrigger,

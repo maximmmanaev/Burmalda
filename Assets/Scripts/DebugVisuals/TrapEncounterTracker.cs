@@ -80,6 +80,6 @@ namespace Burmalda.DebugVisuals
         // третьем месте, не заводится заново.
         private static bool IsTrapTrigger(Tile tile) =>
             tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger || tile.BladeTactTargetRow.HasValue ||
-            tile.IsFallingRockTrigger || tile.IsLavaTrigger;
+            tile.IsFallingRockTrigger || tile.IsLavaTrigger || tile.MovingWallTargetRow.HasValue;
     }
 }

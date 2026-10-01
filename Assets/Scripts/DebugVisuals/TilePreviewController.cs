@@ -117,7 +117,8 @@ namespace Burmalda.DebugVisuals
             // issue #193) — он не скрытый триггер ловушки, у него своя
             // безусловная строка ниже, без гейта Идолом Чутья.
             var isTrapTrigger = tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
-                tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger || tile.IsLavaTrigger;
+                tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger || tile.IsLavaTrigger ||
+                tile.MovingWallTargetRow.HasValue;
             if (isTrapTrigger)
             {
                 lines.Add("Триггер механизма");
@@ -128,6 +129,7 @@ namespace Burmalda.DebugVisuals
                     else if (tile.IsBombTrigger) exactType = "бомба";
                     else if (tile.BladeTactTargetRow.HasValue) exactType = "такт лезвий";
                     else if (tile.IsFallingRockTrigger) exactType = "падающий камень";
+                    else if (tile.MovingWallTargetRow.HasValue) exactType = "движущаяся стена";
                     else exactType = "волна лавы";
                     lines.Add($"(Идол Чутья) Точный тип: {exactType}");
                 }

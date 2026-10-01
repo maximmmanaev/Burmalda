@@ -22,6 +22,15 @@ namespace Burmalda.Generation
     /// 'x' BombTrigger (был 'e'), 't' BladeTactTrigger (был 'b'),
     /// 'r' FallingRockTrigger (был 'p'), 'f' LavaWaveTrigger (новый символ,
     /// не заменял старый — Лава-волна не существовала как старый тип).
+    ///
+    /// BURMALDA Trap System Spec v0.1 (TR-05/06/07) добавляет три новых
+    /// символа для <c>Movement.MovingWallTrap</c>: 'd' MovingWallBothTrigger
+    /// (Давилка), 'j' MovingWallLeftTrigger (Стена слева), 'q'
+    /// MovingWallRightTrigger (Стена справа) — ни в одном существующем
+    /// шаблоне ниже не встречаются, авторский контент на них появится
+    /// отдельной задачей (эта задача — только механика и валидатор
+    /// <see cref="SegmentTemplate"/>, не новые раскладки в каталоге).
+    ///
     /// 'A'/'B' встречаются ТОЛЬКО в <see cref="AltarTemplate"/>/
     /// <see cref="BossTemplate"/> (владелец, 2026-09-04/05: детерминированный
     /// поток, не случайный отбор) — в остальных шаблонах <see cref="All"/>
@@ -949,6 +958,9 @@ namespace Burmalda.Generation
                     't' => SegmentTileType.BladeTactTrigger,
                     'r' => SegmentTileType.FallingRockTrigger,
                     'f' => SegmentTileType.LavaWaveTrigger,
+                    'd' => SegmentTileType.MovingWallBothTrigger,   // «Давилка» (TR-05)
+                    'j' => SegmentTileType.MovingWallLeftTrigger,   // «Стена слева» (TR-06)
+                    'q' => SegmentTileType.MovingWallRightTrigger,  // «Стена справа» (TR-07)
                     _ => SegmentTileType.Open
                 };
 
