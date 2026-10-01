@@ -691,6 +691,7 @@ Test Runner недоступен в этой среде.
 - [#217](https://github.com/maximmmanaev/Burmalda/issues/217) — Падающий камень
 - [#260](https://github.com/maximmmanaev/Burmalda/issues/260) — Бомба взрывается мгновенно и показывает текстуру Стрелы вместо собственной анимации (см. раздел выше)
 - [#268](https://github.com/maximmmanaev/Burmalda/issues/268) — Стрела/Лезвия не убивают игрока, стоящего на месте (см. раздел выше)
+- [#297](https://github.com/maximmmanaev/Burmalda/issues/297) — воронка Бомбы становится Лавой, не постоянной дырой (BURMALDA Trap System Spec v0.1, см. раздел выше)
 
 Инфраструктурный #212 остался на milestone [«Спринт 12: Скрытые ловушки»](https://github.com/maximmmanaev/Burmalda/milestone/26)
 (там был заведён и там же сделан). Пять типов (#213–#217) перевешены на
