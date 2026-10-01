@@ -96,6 +96,20 @@ namespace Burmalda.Movement
         /// </summary>
         public event Action<GridCoordinate> FallingRockPlayerCrushed;
 
+        /// <summary>
+        /// Задача «симуляция стрелы» (владелец) — реле для
+        /// <see cref="ArrowWaveTrapSystem.WaveStarted"/>, тот же приём, что
+        /// <see cref="FallingRockPlayerCrushed"/> выше: стабильное событие
+        /// на Controller'е, не на <c>_arrowWave</c> напрямую (та система
+        /// пересобирается на каждый забег, см. <see cref="Rebuild"/>).
+        /// Подписчик — <c>DebugVisuals.ArrowProjectileVisualController</c>
+        /// (запускает пролёт 3D-объекта стрелы); <c>Movement</c> не
+        /// ссылается на <c>DebugVisuals</c> (см. asmdef), поэтому подписка
+        /// идёт СНАРУЖИ, этот класс только хранит и передаёт дальше — тот
+        /// же принцип, что у <see cref="CurrentTierProvider"/>.
+        /// </summary>
+        public event Action<int, RowWaveDirection> ArrowWaveStarted;
+
         private GridTraceTrail _trail;
         private ArrowWaveTrapSystem _arrowWave;
         private BombTrapSystem _bomb;
@@ -165,6 +179,9 @@ namespace Burmalda.Movement
             // doc-комментарии этого класса, больше не существует по
             // конструкции.
             _arrowWave = new ArrowWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
+            // Задача «симуляция стрелы» — ретранслирует на стабильное
+            // событие этого Controller'а, см. её doc-комментарий.
+            _arrowWave.WaveStarted += OnArrowWaveStarted;
             _bomb = new BombTrapSystem(grid, _trail, new RealTimeThreatScheduler(), CurrentTierProvider);
             _bladeTact = new BladeTactTrapSystem(grid, _trail, new RealTimeThreatScheduler());
             _fallingRock = new FallingRockTrapSystem(grid, _trail, new RealTimeThreatScheduler());
@@ -176,10 +193,13 @@ namespace Burmalda.Movement
 
         private void OnFallingRockPlayerCrushed(GridCoordinate coordinate) => FallingRockPlayerCrushed?.Invoke(coordinate);
 
+        private void OnArrowWaveStarted(int row, RowWaveDirection direction) => ArrowWaveStarted?.Invoke(row, direction);
+
         private void DisposeAll()
         {
             _trail = null;
 
+            if (_arrowWave != null) _arrowWave.WaveStarted -= OnArrowWaveStarted;
             _arrowWave?.Dispose();
             _arrowWave = null;
             _bomb?.Dispose();

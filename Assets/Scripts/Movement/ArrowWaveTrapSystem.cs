@@ -64,9 +64,32 @@ namespace Burmalda.Movement
     /// плиту — следующий <see cref="OnPositionChanged"/> с ДРУГОЙ координатой.
     /// Повторное наступление на уже сработавший триггер — не-op
     /// (<see cref="_firedTriggers"/> не даёт взвести его снова).
+    ///
+    /// <b>Задача «симуляция стрелы» (владелец): «нужен 3D объект, который
+    /// пролетает иногда слева иногда справа — симуляция стрелы, плиты
+    /// становятся смертельными по очереди волной».</b> Сама механика волны
+    /// (эта секция doc-комментария и весь код ниже) НЕ меняется — владелец
+    /// явно подтвердил «так же, как было». Новое — чисто визуальное:
+    /// <see cref="WaveStarted"/> уведомляет внешний визуальный слой
+    /// (<c>DebugVisuals.ArrowProjectileVisual</c>) о начале волны (момент
+    /// «Triggered» выше, не «Detected»), чтобы тот мог запустить пролёт
+    /// 3D-объекта через ряд синхронно с таймингом волны. Эта система
+    /// ничего не знает про рендер — чистая модель, как и остальные классы
+    /// семейства (см. их же doc-комментарии).
     /// </summary>
     public sealed class ArrowWaveTrapSystem : IDisposable
     {
+        /// <summary>
+        /// Поднимается в момент активации триггера — тот же момент, что
+        /// запускает саму волну (см. <see cref="ActivateWave"/>, «Triggered»:
+        /// игрок ПОКИНУЛ плиту-триггер, не момент прихода на неё), ДО первой
+        /// задержки <see cref="StepSeconds"/>. Визуальный слой читает отсюда
+        /// ряд/направление и сам решает длительность пролёта (вся волна
+        /// проходит за <c>Width * StepSeconds</c> секунд — столько же,
+        /// сколько реально занимает армирование всех столбцов ряда).
+        /// </summary>
+        public event Action<int, RowWaveDirection> WaveStarted;
+
         // Единственный параметр скорости волны — и задержка до первого
         // столбца, и время между последующими столбцами (владелец: "Скорость
         // волны — параметр, настраиваемый в дебаг-панели"). Дефолт 0.3с —
@@ -155,13 +178,15 @@ namespace Burmalda.Movement
             if (!_firedTriggers.Add(coordinate)) return; // одноразовый триггер
 
             var direction = tile.ArrowWaveDirection.Value;
+            var row = tile.ArrowWaveTargetRow.Value;
             var wave = new ActiveWave
             {
-                Row = tile.ArrowWaveTargetRow.Value,
+                Row = row,
                 Direction = direction,
                 NextColumnIndex = FirstColumnIndex(direction, _grid.Width)
             };
             ScheduleNextStep(wave, StepSeconds);
+            WaveStarted?.Invoke(row, direction);
         }
 
         private void OnTileDue(GridCoordinate coordinate)

@@ -210,6 +210,54 @@ namespace Burmalda.Movement.Tests
             Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, 0)).LethalTrap.HasValue, "триггер одноразовый — повторный проход не должен запустить вторую волну");
         }
 
+        // Задача «симуляция стрелы» (владелец) — WaveStarted уведомляет
+        // визуальный слой (DebugVisuals.ArrowProjectileVisual) о начале
+        // волны. Поднимается в момент "Triggered" (см. doc-комментарий
+        // класса про глобальный цикл Detected/WaitingForExit/Triggered) —
+        // игрок ПОКИНУЛ плиту-триггер, не момент прихода на неё (приход —
+        // только "Detected", ничего не запускает).
+        [Test]
+        public void PositionChanged_TrailLeavesTrigger_RaisesWaveStartedWithRowAndDirection()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.RightToLeft);
+            using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
+            int? firedRow = null;
+            RowWaveDirection? firedDirection = null;
+            arrowWave.WaveStarted += (row, direction) =>
+            {
+                firedRow = row;
+                firedDirection = direction;
+            };
+
+            trail.TryAdvanceTo(trigger); // "Detected" — не должно поднимать событие
+            Assert.IsNull(firedRow, "приход на триггер — только Detected, WaveStarted не должен подниматься до ухода");
+
+            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // "Triggered" — уход с триггера
+
+            Assert.AreEqual(2, firedRow);
+            Assert.AreEqual(RowWaveDirection.RightToLeft, firedDirection);
+        }
+
+        [Test]
+        public void PositionChanged_RevisitingAlreadyFiredTrigger_DoesNotRaiseWaveStartedAgain()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
+            using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // "Triggered" — первая (и единственная) активация, до подписки ниже
+            var fireCount = 0;
+            arrowWave.WaveStarted += (_, _) => fireCount++;
+
+            trail.TryAdvanceTo(trigger); // повторно на уже сработавший триггер — "Detected" пропускается (_firedTriggers)
+            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // уход снова — не на чем активироваться повторно
+
+            Assert.AreEqual(0, fireCount, "одноразовый триггер — WaveStarted не должен подниматься второй раз");
+        }
+
         [Test]
         public void Dispose_StopsReactingToFurtherPositionChangesAndTicks()
         {
