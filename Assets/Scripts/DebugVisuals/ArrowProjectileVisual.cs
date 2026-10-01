@@ -23,9 +23,11 @@ namespace Burmalda.DebugVisuals
     ///
     /// <b>Примитивная геометрия, не финальный арт</b> — тот же принцип, что
     /// <see cref="TunnelDebugVisual"/> (её doc-комментарий): тонкий вытянутый
-    /// куб (древко) + сфера на ведущем конце (наконечник), собранные кодом
-    /// без .prefab. Настоящая 3D-модель стрелы — отдельная задача авторинга
-    /// (как текстуры <see cref="TileArtKind"/> уже не в скоупе агента).
+    /// куб (древко) + немного больший куб на ведущем конце (наконечник),
+    /// собранные кодом без .prefab — оба Cube, не Sphere (см. doc-комментарий
+    /// <see cref="BuildArrowObject"/> про баг с устройства). Настоящая
+    /// 3D-модель стрелы — отдельная задача авторинга (как текстуры
+    /// <see cref="TileArtKind"/> уже не в скоупе агента).
     ///
     /// <b>Коллайдеры примитивов удаляются сразу после создания</b> — в
     /// отличие от плит <see cref="TunnelDebugVisual"/> (которым BoxCollider
@@ -171,7 +173,19 @@ namespace Burmalda.DebugVisuals
             // (направление само по себе не меняет геометрию объекта, только
             // то, с какой стороны древка стоит наконечник) — тот же приём,
             // что различает FirstColumnIndex в ArrowWaveTrapSystem.
-            var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            //
+            // Баг с устройства (живой плейтест, 2026-10-01): PrimitiveType.Sphere
+            // падал на реальной сборке с "Can't add component because class
+            // 'SphereCollider' doesn't exist!" на каждый пуск волны — IL2CPP
+            // стриппинг вырезает SphereCollider, потому что ничто больше в
+            // проекте на него не ссылается (тот же класс бага, что уже
+            // решался для MeshCollider, см. doc-комментарий TunnelDebugVisual).
+            // Не фатально (CreatePrimitive логирует и возвращает GameObject
+            // без коллайдера, Destroy(null) ниже безопасен), но заливало
+            // dev-console реальными ошибками на каждую стрелу — визуально
+            // неотличимо от "игра ломается". Cube/BoxCollider — тот же
+            // примитив, что уже безопасно использует TunnelDebugVisual везде.
+            var head = GameObject.CreatePrimitive(PrimitiveType.Cube);
             head.name = "Head";
             UnityEngine.Object.Destroy(head.GetComponent<Collider>());
             head.transform.SetParent(root.transform, worldPositionStays: false);
