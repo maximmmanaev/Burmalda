@@ -85,11 +85,13 @@ namespace Burmalda.DebugVisuals.Tests
         // Владелец, 2026-09-05 («оставить только пять новых ловушек») —
         // Pit/Explosion убраны из игры целиком, вместе со своими ветками
         // HiddenTrapSignature/скрытой сигнатурой (у оставшихся типов —
-        // Лава статична и всегда видна, у Стрелы/Бомбы/Лезвий сама угроза
-        // видна ВСЕГДА, скрыт только триггер, не угроза). Волна Лавы больше
-        // не отдельный тип (issue #262, слита с LethalTrapType.Lava выше —
+        // Лава статична и всегда видна, у Бомбы/Лезвий сама угроза видна
+        // ВСЕГДА, скрыт только триггер, не угроза). Волна Лавы больше не
+        // отдельный тип (issue #262, слита с LethalTrapType.Lava выше —
         // резолвится веткой Resolve_Lava_ReturnsLava над этим блоком).
-        [TestCase(LethalTrapType.ArrowWave)]
+        // ArrowWave убран из этого списка задачей «симуляция стрелы» (см.
+        // Resolve_ArrowWave_DoesNotReturnTimedTrapActive ниже) — владелец,
+        // 2026-10-01, живой плейтест.
         [TestCase(LethalTrapType.BombBlast)]
         [TestCase(LethalTrapType.BladeTact)]
         public void Resolve_NewTurnBasedTrapTypes_ReturnTimedTrapActive(LethalTrapType trapType)
@@ -97,6 +99,18 @@ namespace Burmalda.DebugVisuals.Tests
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: trapType, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(state));
+        }
+
+        // Задача «симуляция стрелы» (владелец, 2026-10-01, живой плейтест):
+        // «убери изменение текстуры плиты при срабатывании ловушки стрелы» —
+        // единственный визуальный сигнал волны теперь летящий 3D-объект
+        // (DebugVisuals.ArrowProjectileVisual), не арт плиты.
+        [Test]
+        public void Resolve_ArrowWave_DoesNotReturnTimedTrapActive()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.ArrowWave, decayProgress01: 0f, isTrapTrigger: false);
+
+            Assert.AreNotEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(state));
         }
 
         // Issue #260 («Бомба взрывается мгновенно и показывает текстуру
@@ -154,8 +168,12 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_ActiveTrap_TakesPriorityOverTrapTrigger()
         {
-            // Не должно случиться одновременно по построению генератора, но проверяем приоритет ветвления явно.
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.ArrowWave, decayProgress01: 0f, isTrapTrigger: true, isDangerSignatureRevealed: true);
+            // Не должно случиться одновременно по построению генератора, но
+            // проверяем приоритет ветвления явно. BombBlast, не ArrowWave —
+            // ArrowWave больше не входит в ветку TimedTrapActive (задача
+            // «симуляция стрелы»), тест про приоритет LethalTrap вообще, не
+            // конкретно про Стрелу.
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.BombBlast, decayProgress01: 0f, isTrapTrigger: true, isDangerSignatureRevealed: true);
 
             Assert.AreEqual(TileArtKind.TimedTrapActive, TileArtKindResolver.Resolve(state));
         }
