@@ -102,15 +102,16 @@ namespace Burmalda.DebugVisuals.Tests
 
         // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
         // смертельной навсегда... выглядит как непроходимая стена»):
-        // настоящая причина — у этих четырёх LethalTrapType не было ветки
-        // здесь вовсе, армированная плита выглядела обычным полом (падала
-        // до градиента распада) — игрок видел необъяснимую преграду, а не
+        // настоящая причина — у этих LethalTrapType не было ветки здесь
+        // вовсе, армированная плита выглядела обычным полом (падала до
+        // градиента распада) — игрок видел необъяснимую преграду, а не
         // "перестал гаситься тайл". Реюзит TimedTrapActiveColor — активная
         // угроза прямо сейчас, видна ВСЕГДА, без гейта примериванием (тот же
         // принцип, что у Лавы выше). Волна Лавы больше не отдельный тип
         // (issue #262, слита с LethalTrapType.Lava — см. Resolve_Lava_...
-        // выше).
-        [TestCase(LethalTrapType.ArrowWave)]
+        // выше). ArrowWave убран из этого списка задачей «симуляция стрелы»
+        // (см. Resolve_ArrowWave_DoesNotReturnTimedTrapActiveColor ниже) —
+        // владелец, 2026-10-01, живой плейтест.
         [TestCase(LethalTrapType.BombBlast)]
         [TestCase(LethalTrapType.BladeTact)]
         public void Resolve_NewTurnBasedTrapTypes_ReturnTimedTrapActiveColor(LethalTrapType trapType)
@@ -118,6 +119,20 @@ namespace Burmalda.DebugVisuals.Tests
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: trapType, decayProgress01: 0f, isTrapTrigger: false);
 
             Assert.AreEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(state));
+        }
+
+        // Задача «симуляция стрелы» (владелец, 2026-10-01, живой плейтест):
+        // «убери изменение текстуры плиты при срабатывании ловушки стрелы» —
+        // единственный визуальный сигнал волны теперь летящий 3D-объект
+        // (DebugVisuals.ArrowProjectileVisual), не цвет/текстура плиты.
+        // Столбец под активной волной падает сквозь эту ветку до градиента
+        // распада — визуально обычный пол.
+        [Test]
+        public void Resolve_ArrowWave_DoesNotReturnTimedTrapActiveColor()
+        {
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.ArrowWave, decayProgress01: 0f, isTrapTrigger: false);
+
+            Assert.AreNotEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(state));
         }
 
         // Issue #260 («Бомба взрывается мгновенно и показывает текстуру
@@ -178,8 +193,11 @@ namespace Burmalda.DebugVisuals.Tests
         public void Resolve_LethalTrap_TakesPriorityOverTrapTrigger()
         {
             // Не должно случиться одновременно по построению генератора, но
-            // проверяем приоритет ветвления явно.
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.ArrowWave, decayProgress01: 0f, isTrapTrigger: true);
+            // проверяем приоритет ветвления явно. BombBlast, не ArrowWave —
+            // ArrowWave больше не входит в ветку TimedTrapActiveColor
+            // (задача «симуляция стрелы»), тест про приоритет LethalTrap
+            // вообще, не конкретно про Стрелу.
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.BombBlast, decayProgress01: 0f, isTrapTrigger: true);
 
             Assert.AreEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(state));
         }
@@ -488,14 +506,29 @@ namespace Burmalda.DebugVisuals.Tests
         // пол даже без раскрытия — "сработавшая ловушка — угроза прямо
         // сейчас, скрывать нельзя". Лава и активная ловушка с таймингом —
         // вне правила "раскрытие при примеривании", остаются видимыми
-        // независимо от IsDangerSignatureRevealed.
+        // независимо от IsDangerSignatureRevealed. BombBlast, не ArrowWave —
+        // с задачи «симуляция стрелы» это правило для Стрелы больше не
+        // верно (см. Resolve_ArrowWave_DoesNotReturnTimedTrapActiveColor).
         [Test]
         public void Resolve_ActiveTrap_NotRevealed_DoesNotLookLikeOrdinaryFreshTile()
+        {
+            var active = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.BombBlast, decayProgress01: 0.4f, isTrapTrigger: false, isDangerSignatureRevealed: false);
+            var ordinary = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.4f, isTrapTrigger: false);
+
+            Assert.AreNotEqual(TileDebugColor.Resolve(ordinary), TileDebugColor.Resolve(active));
+        }
+
+        // Обратная сторона — зеркальный тест для ArrowWave: задача
+        // «симуляция стрелы» (владелец, 2026-10-01) намеренно делает
+        // активный столбец волны визуально НЕОТЛИЧИМЫМ от обычного пола
+        // (единственный сигнал — летящий 3D-объект, не плита).
+        [Test]
+        public void Resolve_ArrowWave_NotRevealed_LooksLikeOrdinaryFreshTile()
         {
             var active = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.ArrowWave, decayProgress01: 0.4f, isTrapTrigger: false, isDangerSignatureRevealed: false);
             var ordinary = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0.4f, isTrapTrigger: false);
 
-            Assert.AreNotEqual(TileDebugColor.Resolve(ordinary), TileDebugColor.Resolve(active));
+            Assert.AreEqual(TileDebugColor.Resolve(ordinary), TileDebugColor.Resolve(active));
         }
 
         [Test]
