@@ -208,10 +208,10 @@ namespace Burmalda.Movement.Tests
             Assert.AreEqual(6, collapsedCount, "у левого края сетки (столбец 0) площадь 3×3 обрезается до 2×3 = 6 тайлов");
         }
 
-        // === Issue #260: судьба площади после взрыва — постоянная дыра, не возврат к норме ===
+        // === BURMALDA Trap System Spec v0.1: судьба площади после взрыва — Лава, не постоянная дыра ===
 
         [Test]
-        public void Tick_TileNotOccupiedByPlayer_BecomesPermanentlyBlocked_NotLethalTrap()
+        public void Tick_TileNotOccupiedByPlayer_BecomesLava_NotBlocked()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(2, 2);
@@ -224,8 +224,28 @@ namespace Burmalda.Movement.Tests
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0));
 
             var untouchedByPlayer = grid.GetOrCreateTile(new GridCoordinate(1, 1));
-            Assert.IsTrue(untouchedByPlayer.IsBlocked, "меняет решение issue #214 — площадь взрыва теперь становится постоянной дырой, владелец запросил это явно (issue #260)");
-            Assert.IsFalse(untouchedByPlayer.LethalTrap.HasValue, "постоянная дыра не должна ОДНОВременно оставаться LethalTrap — иначе будущий шаг снова бросил бы d20 на остывшую воронку");
+            Assert.AreEqual(LethalTrapType.Lava, untouchedByPlayer.LethalTrap,
+                "BURMALDA Trap System Spec v0.1 — меняет решение issue #214/#260 ЕЩЁ РАЗ: воронка взрыва теперь Лава, не постоянная дыра");
+            Assert.IsFalse(untouchedByPlayer.IsBlocked, "Лава не должна ОДНОВРЕМЕННО быть Blocked — иначе она перестала бы быть проходимым риском (issue #258)");
+        }
+
+        // Лава (в отличие от прежнего Blocked) проходима — риск, которым
+        // можно рискнуть заново (issue #258, GridTraceTrail.CanAdvanceTo).
+        [Test]
+        public void Tick_TileNotOccupiedByPlayer_BecomesLava_StaysTraversable()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkBombTrigger();
+            using var bomb = new BombTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует отсчёт
+
+            bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0));
+
+            Assert.IsTrue(trail.CanAdvanceTo(new GridCoordinate(1, 1)),
+                "Лава физически проходима (issue #258) — в отличие от прежнего Blocked, воронка не обязана быть тупиком");
         }
 
         [Test]
@@ -318,35 +338,40 @@ namespace Burmalda.Movement.Tests
         [Test]
         public void PositionChanged_RevisitingAlreadyFiredTrigger_DoesNotQueueSecondBomb()
         {
-            // Issue #260 переработал судьбу площади после взрыва (постоянная
-            // дыра/LethalTrap, не "возврат в обычное состояние" — см. класс
-            // тестов выше) — это структурно ДЕЛАЕТ повторный проход через
-            // уже сработавший триггер физически недостижимым: он либо
-            // Blocked (дыра, если игрок НЕ стоял на нём в момент взрыва —
-            // сценарий здесь), либо остаётся LethalTrap под игроком (если
-            // тот стоял на нём). Тест проверяет именно это — не сам факт
-            // "вторая бомба не запланирована" напрямую (после взрыва
-            // запланировать её было бы уже не на чем: _firedTriggers не
-            // пропустит повторный OnPositionChanged, даже если бы плита была
-            // снова проходима).
-            //
-            // Переработка логики ловушек: игрок обязан ПОКИНУТЬ триггер,
-            // чтобы активировать его ("Triggered", см. doc-комментарий
-            // класса) — к моменту взрыва он стоит на (1,2), не на самом
-            // триггере, поэтому именно триггер (не (1,2)) становится Blocked.
+            // Issue #260/BURMALDA Trap System Spec v0.1 переработали судьбу
+            // площади после взрыва (LethalTrap — Lava у неигровых плит,
+            // BombBlast у плиты под игроком, не "возврат в обычное
+            // состояние" — см. класс тестов выше). Лава ПРОХОДИМА
+            // (GridTraceTrail.CanAdvanceTo, issue #258) — если бы триггер
+            // оказался среди неигровых плит площади, повторный шаг на него
+            // бы ПРОШЁЛ, и этот тест перестал бы что-либо проверять про
+            // "вторая бомба не запланирована". Поэтому сценарий —
+            // "уйти-и-вернуться" (тот же приём, что у остальных тестов
+            // площади, где игрок должен стоять на триггере в момент взрыва):
+            // переработка логики ловушек требует ПОКИНУТЬ триггер, чтобы
+            // активировать отсчёт ("Triggered"), но ничто не запрещает
+            // вернуться на него до того, как истечёт задержка — к моменту
+            // взрыва игрок снова стоит на триггере, его исход — BombBlast
+            // (не Lava), которая, в отличие от Lava, не проходима повторно.
+            // Защита от второй бомбы в принципе — не impassability, а
+            // _firedTriggers (не пропустит повторный OnPositionChanged, даже
+            // если бы плита была снова проходима) — этот тест проверяет
+            // наблюдаемое следствие, не сам механизм напрямую.
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(2, 2);
             grid.GetOrCreateTile(trigger).MarkBombTrigger();
             using var bomb = new BombTrapSystem(grid, trail, scheduler);
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(trigger); // "Detected"
-            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует; игрок стоит здесь в момент взрыва
-            bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0)); // первая (и единственная) бомба полностью отработала — триггер становится Blocked (не занят игроком)
+            trail.TryAdvanceTo(new GridCoordinate(1, 2)); // "Triggered" — уход с триггера, активирует отсчёт
+            trail.TryAdvanceTo(trigger); // возврат на триггер ДО взрыва — стоит на нём в момент срабатывания
+            bomb.Tick(BombTrapSystem.ComputeDelaySeconds(0)); // бомба полностью отработала — триггер под игроком становится BombBlast, не Lava
 
-            var reApproached = trail.TryAdvanceTo(trigger); // попытка снова шагнуть на триггер
+            var reApproached = trail.TryAdvanceTo(new GridCoordinate(1, 2)); // шаг прочь и обратно на уже взорвавшийся триггер
 
-            Assert.IsFalse(reApproached, "триггер теперь Blocked (постоянная дыра) после взрыва — обычный шаг на него отклоняется, как на любую другую стену, второй бомбе взяться неоткуда");
-            Assert.IsTrue(grid.GetOrCreateTile(trigger).IsBlocked);
+            Assert.IsTrue(reApproached, "сосед триггера проходим — это обычный шаг прочь, не на сам триггер");
+            Assert.IsFalse(trail.TryAdvanceTo(trigger), "триггер несёт LethalTrap=BombBlast (не Lava) — обычный шаг на него отклоняется, как на любую другую активную ловушку, второй бомбе взяться неоткуда");
+            Assert.AreEqual(LethalTrapType.BombBlast, grid.GetOrCreateTile(trigger).LethalTrap);
         }
 
         // issue #254, второй раунд (владелец: «ловушки в такт шагам это

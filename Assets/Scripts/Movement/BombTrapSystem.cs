@@ -5,6 +5,16 @@ using Burmalda.Core;
 namespace Burmalda.Movement
 {
     /// <summary>
+    /// <b>BURMALDA Trap System Spec v0.1 (владелец): неигровые плиты площади
+    /// взрыва становятся Лавой, не постоянной дырой.</b> Меняет решение
+    /// issue #214/#260 (см. список ниже, второй пункт — формулировка там
+    /// теперь историческая, оставлена как есть, актуальное поведение см. в
+    /// <see cref="OnTileDue"/>): владелец явно подтвердил переход
+    /// Blocked→Lava этой задачей. Лава (<see cref="LethalTrapType.Lava"/>)
+    /// в отличие от Blocked — ПРОХОДИМА (<see cref="GridTraceTrail.CanAdvanceTo"/>,
+    /// issue #258): воронка взрыва теперь риск, которым можно рискнуть
+    /// заново (d20), не навсегда запечатанная стена.
+    ///
     /// Ловушка «Бомба» (docs/wiki/traps.md, issue #214) — раньше сосуществовала
     /// с ближайшим по духу, но не совпадающим ни по одному из трёх
     /// параметров прецедентом (<c>Movement.ExplosiveTrapArmingSystem</c>/
@@ -118,20 +128,19 @@ namespace Burmalda.Movement
     /// issue #258, остаётся проходимой после успешного исхода), при
     /// Knockback телепорт уводит его прежде, чем плита успевает получить
     /// какую-либо дальнейшую роль.</item>
-    /// <item>любая другая плита площади — становится непроходимой навсегда
-    /// (<see cref="Tile.TransitionToBlocked"/>, тот же путь, что и
-    /// «Падающий камень») — <b>меняет более раннее решение issue #214</b>
-    /// («плиты не разрушаются, дыры — отдельное решение, не реализовывать
-    /// без явного запроса») — владелец запросил это явно этой задачей,
-    /// значит «отдельное решение» наступило. <see cref="Tile.ClearLethalTrap"/>
-    /// вызывается ПЕРЕД <see cref="Tile.TransitionToBlocked"/> — площадь не
-    /// должна нести одновременно <see cref="LethalTrapType.BombBlast"/> и
-    /// <see cref="Tile.IsBlocked"/>: без явной очистки будущий шаг игрока на
-    /// такую плиту попал бы на более раннюю ветку <see cref="GridTraceTrail.TryAdvanceTo"/>
-    /// (проверяет <see cref="Tile.LethalTrap"/> раньше <see cref="Tile.IsBlocked"/>)
-    /// и заново бросал бы d20 на давно остывшую воронку — постоянная дыра
-    /// обязана вести себя как обычная стена (без риска), не как ловушка,
-    /// которая к тому же ещё и блокирует.</item>
+    /// <item><b>(BURMALDA Trap System Spec v0.1 — текущее поведение)</b> любая
+    /// другая плита площади — становится <see cref="LethalTrapType.Lava"/>
+    /// (<see cref="Tile.TransitionToLethalTrap"/>), не Blocked. Историческая
+    /// версия этого пункта (issue #214/#260, «плиты не разрушаются, дыры —
+    /// отдельное решение» → «становятся постоянной дырой, владелец запросил
+    /// это явно») описывала <see cref="Tile.TransitionToBlocked"/> — эта
+    /// задача меняет её ЕЩЁ РАЗ: воронка теперь риск, которым можно
+    /// рискнуть заново (Лава проходима, issue #258), не навсегда
+    /// запечатанная стена. <see cref="Tile.TransitionToLethalTrap"/>
+    /// перезаписывает <see cref="Tile.LethalTrap"/> напрямую (не бросает,
+    /// в отличие от <see cref="Tile.MarkLethalTrap"/>) — предварительный
+    /// <see cref="Tile.ClearLethalTrap"/>, нужный для старой ветки на
+    /// Blocked, больше не нужен.</item>
     /// </list>
     ///
     /// Одноразовая ловушка на триггер — повторный проход не запускает
@@ -288,10 +297,14 @@ namespace Burmalda.Movement
 
             foreach (var target in ComputeBlastArea(coordinate))
             {
-                if (target == playerCoordinate) continue; // разобрано выше — d20 вместо постоянной дыры
-                var tile = _grid.GetOrCreateTile(target);
-                tile.ClearLethalTrap(); // см. doc-комментарий класса — дыра не должна ОСТАВАТЬСЯ ещё и ловушкой
-                tile.TransitionToBlocked();
+                if (target == playerCoordinate) continue; // разобрано выше — d20 вместо лавы
+                // BURMALDA Trap System Spec v0.1 (владелец): «неигровые
+                // плиты площади взрыва становятся Лавой» — меняет решение
+                // issue #214/#260 («становятся постоянной дырой, Blocked»).
+                // TransitionToLethalTrap перезаписывает LethalTrap напрямую
+                // (не бросает, в отличие от MarkLethalTrap) — предварительный
+                // ClearLethalTrap() больше не нужен.
+                _grid.GetOrCreateTile(target).TransitionToLethalTrap(LethalTrapType.Lava);
             }
         }
 
