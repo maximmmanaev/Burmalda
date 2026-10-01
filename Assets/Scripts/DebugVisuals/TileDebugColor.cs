@@ -234,8 +234,13 @@ namespace Burmalda.DebugVisuals
             // (CanAdvanceTo видит LethalTrap), а глазами — ничего не видно,
             // что бы это объясняло. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА, без
             // гейта примеривания.
-            if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
-                state.LethalTrap == LethalTrapType.BladeTact)
+            //
+            // Задача «симуляция стрелы» (владелец, 2026-10-01, живой
+            // плейтест): «убери изменение текстуры плиты при срабатывании
+            // ловушки стрелы» — ArrowWave убран из этой ветки, тот же приём,
+            // что в TileArtKindResolver.Resolve (см. её doc-комментарий).
+            // Bomb/BladeTact не трогаются — владелец просил только про стрелу.
+            if (state.LethalTrap == LethalTrapType.BombBlast || state.LethalTrap == LethalTrapType.BladeTact)
                 return TimedTrapActiveColor;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2):
             // триггер одной из пяти ловушек не отличим от обычного пола,

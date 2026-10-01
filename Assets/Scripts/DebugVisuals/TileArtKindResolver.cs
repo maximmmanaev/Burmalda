@@ -60,8 +60,16 @@ namespace Burmalda.DebugVisuals
             // было ветки здесь вовсе, армированная плита выглядела обычным
             // полом. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА, без гейта
             // примеривания.
-            if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
-                state.LethalTrap == LethalTrapType.BladeTact)
+            //
+            // Задача «симуляция стрелы» (владелец, 2026-10-01, живой
+            // плейтест): «убери изменение текстуры плиты при срабатывании
+            // ловушки стрелы» — ArrowWave убран из этой ветки. Теперь
+            // единственный визуальный сигнал волны — летящий 3D-объект
+            // (DebugVisuals.ArrowProjectileVisual), столбец под ним
+            // визуально остаётся обычным полом (падает сквозь эту ветку до
+            // градиента распада в конце). Bomb/BladeTact не трогаются —
+            // владелец просил только про стрелу.
+            if (state.LethalTrap == LethalTrapType.BombBlast || state.LethalTrap == LethalTrapType.BladeTact)
                 return TileArtKind.TimedTrapActive;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2):
             // триггер одной из пяти ловушек не отличим от обычного пола,
