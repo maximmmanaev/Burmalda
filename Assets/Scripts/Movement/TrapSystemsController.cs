@@ -5,6 +5,12 @@ using UnityEngine;
 namespace Burmalda.Movement
 {
     /// <summary>
+    /// <b>Переработка логики ловушек (владелец): добавлена шестая система —
+    /// MovingWallTrap (TR-05/06/07, Давилка/Стена слева/Стена справа).</b>
+    /// Весь doc-комментарий ниже — исторический (описывает момент, когда
+    /// систем было пять); механика самопроверки/тика не изменилась, просто
+    /// добавилась ещё одна система в тот же список.
+    ///
     /// Тикает пять систем ловушек (issue #212, Стрела/Бомба/Лезвия/Падающий
     /// камень/Лава — issues #213–#217) на каждый забег. Баг с устройства
     /// (владелец, 2026-09-04, «новых ловушек в игре нет») — все пять были
@@ -94,6 +100,7 @@ namespace Burmalda.Movement
         private BladeTactTrapSystem _bladeTact;
         private FallingRockTrapSystem _fallingRock;
         private LavaWaveTrapSystem _lavaWave;
+        private MovingWallTrap _movingWall;
 
         private void Awake()
         {
@@ -129,6 +136,7 @@ namespace Burmalda.Movement
             _bladeTact.Tick(deltaSeconds);
             _fallingRock.Tick(deltaSeconds);
             _lavaWave.Tick(deltaSeconds);
+            _movingWall.Tick(deltaSeconds);
         }
 
         private bool IsReady() => _input != null && _input.Grid != null && _input.Trail != null;
@@ -162,6 +170,7 @@ namespace Burmalda.Movement
             // на стабильное событие этого Controller'а, см. её doc-комментарий.
             _fallingRock.PlayerCrushed += OnFallingRockPlayerCrushed;
             _lavaWave = new LavaWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
+            _movingWall = new MovingWallTrap(grid, _trail, new RealTimeThreatScheduler());
         }
 
         private void OnFallingRockPlayerCrushed(GridCoordinate coordinate) => FallingRockPlayerCrushed?.Invoke(coordinate);
@@ -181,6 +190,8 @@ namespace Burmalda.Movement
             _fallingRock = null;
             _lavaWave?.Dispose();
             _lavaWave = null;
+            _movingWall?.Dispose();
+            _movingWall = null;
         }
     }
 }

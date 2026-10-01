@@ -187,7 +187,8 @@ namespace Burmalda.Core
             if (IsBombTrigger) { IsBombTrigger = false; return; }
             if (BladeTactTargetRow.HasValue) { BladeTactTargetRow = null; return; }
             if (IsFallingRockTrigger) { IsFallingRockTrigger = false; FallingRockTargetCoordinate = null; return; }
-            if (IsLavaTrigger) { IsLavaTrigger = false; }
+            if (IsLavaTrigger) { IsLavaTrigger = false; return; }
+            if (MovingWallTargetRow.HasValue) { MovingWallTargetRow = null; MovingWallTriggerMode = null; }
         }
 
         /// <summary>Источник, записавший текущую активную эксклюзивную роль этой плиты — см. doc-комментарий <see cref="GuardAgainstConflictingRole"/> (доработка «разрешение конфликта выбрано неверно»). Бессмысленно, пока роль не установлена.</summary>
@@ -313,6 +314,7 @@ namespace Burmalda.Core
             if (BladeTactTargetRow.HasValue) return nameof(BladeTactTargetRow);
             if (IsFallingRockTrigger) return nameof(IsFallingRockTrigger);
             if (IsLavaTrigger) return nameof(IsLavaTrigger);
+            if (MovingWallTargetRow.HasValue) return nameof(MovingWallTargetRow);
             return null;
         }
 
@@ -617,6 +619,33 @@ namespace Burmalda.Core
             if (IsLavaTrigger) return;
             if (!GuardAgainstConflictingRole(false, nameof(IsLavaTrigger))) return;
             IsLavaTrigger = true;
+        }
+
+        /// <summary>
+        /// Плита — триггер «Давилки»/«Стены слева»/«Стены справа» (BURMALDA
+        /// Trap System Spec v0.1, TR-05/06/07, <c>Movement.MovingWallTrap</c>):
+        /// плита ВПЕРЕДИ триггера, чей ряд начинает закрываться — не сама
+        /// плита-триггер, тот же приём, что <see cref="FallingRockTargetCoordinate"/>.
+        /// Null, пока плита не помечена триггером.
+        /// </summary>
+        public int? MovingWallTargetRow { get; private set; }
+
+        /// <summary>Режим закрытия — актуален только вместе с <see cref="MovingWallTargetRow"/>. Задаётся на генерации, не выбирается заново при активации (см. <see cref="Core.MovingWallMode"/>). Названо не так, как сам enum-тип (<c>MovingWallTriggerMode</c>, не <c>MovingWallMode</c>) — иначе имя свойства заслонило бы имя типа в пределах этого же класса/namespace.</summary>
+        public MovingWallMode? MovingWallTriggerMode { get; private set; }
+
+        /// <summary>
+        /// Помечает плиту как триггер закрывающейся стены с целевым рядом
+        /// <paramref name="targetRow"/> и режимом <paramref name="mode"/>.
+        /// Повторные вызовы сохраняют первые значения. Строгий страж — см.
+        /// <see cref="GuardAgainstConflictingRole"/> (задача «награда
+        /// никогда не лежит на ловушке»).
+        /// </summary>
+        public void MarkMovingWallTrigger(int targetRow, MovingWallMode mode)
+        {
+            if (MovingWallTargetRow.HasValue) return;
+            if (!GuardAgainstConflictingRole(false, nameof(MovingWallTargetRow))) return;
+            MovingWallTargetRow = targetRow;
+            MovingWallTriggerMode = mode;
         }
 
         /// <summary>

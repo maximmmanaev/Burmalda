@@ -205,8 +205,13 @@ namespace Burmalda.Movement
         /// центральный столбец. Для width=5 (стандартная ширина тоннеля) даёт
         /// ровно [[0,4],[1,3],[2]] — то есть владельческие "1 и 5", "2 и 4",
         /// "3" в 0-индексации.
+        ///
+        /// <c>internal</c>, не <c>private</c> — переиспользуется
+        /// <c>MovingWallTrap.BuildStages</c> для узора «Давилка» (TR-05, тот
+        /// же порядок колонок, но без обратного хода — необратимое
+        /// закрытие, не такт).
         /// </summary>
-        private static List<int[]> ComputeRingColumns(int width)
+        internal static List<int[]> ComputeRingColumns(int width)
         {
             var rings = new List<int[]>();
             var left = 0;
