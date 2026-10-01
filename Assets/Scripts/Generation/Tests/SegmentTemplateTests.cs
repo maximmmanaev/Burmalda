@@ -221,10 +221,15 @@ namespace Burmalda.Generation.Tests
         // тоже запрещённое сочетание (правило "любой другой триггер", не
         // список исключений для самой MovingWallTrap).
         [Test]
-        public void Constructor_TwoMovingWallTriggersTargetSameRow_Throws()
+        public void Constructor_MovingWallTriggerTargetRowHasAnotherMovingWallTrigger_Throws()
         {
+            // Правило "любой другой триггер" включает и другой MovingWall-
+            // триггер — не только чужие типы (см. тест выше с BombTrigger).
+            // Триггер на ряду 0 целится в ряд 1 (targetRow = triggerRow+1);
+            // второй триггер физически стоит НА этом ряду 1 — конфликт,
+            // независимо от того, куда целится сам второй триггер.
             var tiles = OpenRows(5);
-            tiles[1, 0] = SegmentTileType.MovingWallLeftTrigger;
+            tiles[0, 0] = SegmentTileType.MovingWallLeftTrigger;
             tiles[1, 2] = SegmentTileType.MovingWallRightTrigger;
 
             Assert.Throws<ArgumentException>(() =>

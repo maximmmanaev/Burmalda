@@ -21,7 +21,7 @@ namespace Burmalda.Movement.Tests
         // Триггер стоит ПЕРЕД закрывающимся рядом — тот же принцип, что у
         // FallingRockTrigger (targetRow = triggerRow + 1), см. doc-комментарий
         // Tile.MovingWallTargetRow/SegmentRowProvider.ApplyTileType.
-        private static GridCoordinate Trigger => new GridCoordinate(0, 2);
+        private static GridCoordinate Trigger => new GridCoordinate(0, 1);
         private static int TargetRow => 1;
 
         [Test]
@@ -66,7 +66,7 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(Trigger).MarkMovingWallTrigger(TargetRow, MovingWallMode.Both);
             using var wall = new MovingWallTrap(grid, trail, scheduler);
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3)); // "Triggered" — уход с плиты-триггера
+            trail.TryAdvanceTo(new GridCoordinate(0, 0)); // "Triggered" — уход с плиты-триггера, назад на уже посещённый старт (соседняя с Trigger клетка)
 
             wall.Tick(MovingWallTrap.StepSeconds);
 
@@ -86,7 +86,7 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(Trigger).MarkMovingWallTrigger(TargetRow, MovingWallMode.Both);
             using var wall = new MovingWallTrap(grid, trail, scheduler);
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3));
+            trail.TryAdvanceTo(new GridCoordinate(0, 0));
 
             wall.Tick(MovingWallTrap.StepSeconds); // стадия 0: [0,4]
             wall.Tick(MovingWallTrap.StepSeconds); // стадия 1: [1,3]
@@ -116,7 +116,7 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(Trigger).MarkMovingWallTrigger(TargetRow, MovingWallMode.FromLeft);
             using var wall = new MovingWallTrap(grid, trail, scheduler);
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3));
+            trail.TryAdvanceTo(new GridCoordinate(0, 0));
 
             for (var expectedColumn = 0; expectedColumn < Width; expectedColumn++)
             {
@@ -136,7 +136,7 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(Trigger).MarkMovingWallTrigger(TargetRow, MovingWallMode.FromRight);
             using var wall = new MovingWallTrap(grid, trail, scheduler);
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3));
+            trail.TryAdvanceTo(new GridCoordinate(0, 0));
 
             for (var i = 0; i < Width; i++)
             {
@@ -154,7 +154,7 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(Trigger).MarkMovingWallTrigger(TargetRow, MovingWallMode.FromLeft);
             using var wall = new MovingWallTrap(grid, trail, scheduler);
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3));
+            trail.TryAdvanceTo(new GridCoordinate(0, 0));
             trail.TryAdvanceTo(new GridCoordinate(TargetRow, 0)); // игрок встаёт на колонку, которая закроется первой стадией
 
             GridCoordinate? firedCoordinate = null;
@@ -178,7 +178,7 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(Trigger).MarkMovingWallTrigger(TargetRow, MovingWallMode.Both);
             using var wall = new MovingWallTrap(grid, trail, scheduler);
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3)); // игрок остаётся вне целевого ряда
+            trail.TryAdvanceTo(new GridCoordinate(0, 0)); // игрок остаётся вне целевого ряда
 
             wall.Tick(MovingWallTrap.StepSeconds);
 
@@ -195,7 +195,7 @@ namespace Burmalda.Movement.Tests
             var otherRowTile = grid.GetOrCreateTile(new GridCoordinate(2, 0));
             using var wall = new MovingWallTrap(grid, trail, scheduler);
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3));
+            trail.TryAdvanceTo(new GridCoordinate(0, 0));
 
             for (var i = 0; i < 5; i++) wall.Tick(MovingWallTrap.StepSeconds);
 
@@ -210,7 +210,7 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(Trigger).MarkMovingWallTrigger(TargetRow, MovingWallMode.Both);
             using var wall = new MovingWallTrap(grid, trail, scheduler);
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3));
+            trail.TryAdvanceTo(new GridCoordinate(0, 0));
             for (var i = 0; i < 5; i++) wall.Tick(MovingWallTrap.StepSeconds); // первая последовательность полностью отработала, ряд закрыт целиком
 
             // Возврат на плиту-триггер и повторный уход не должны поставить
@@ -218,7 +218,7 @@ namespace Burmalda.Movement.Tests
             // прочих систем этого семейства — здесь наблюдаемо не иначе,
             // но по крайней мере не должно быть исключения/повторной записи роли).
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3));
+            trail.TryAdvanceTo(new GridCoordinate(0, 0));
             wall.Tick(MovingWallTrap.StepSeconds);
 
             for (var column = 0; column < Width; column++)
@@ -229,8 +229,8 @@ namespace Burmalda.Movement.Tests
         public void PositionChanged_LeavingOneTriggerOntoAnotherTrigger_ActivatesOldBeforeDetectingNew()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 0));
-            var firstTrigger = new GridCoordinate(0, 0);
-            var secondTrigger = new GridCoordinate(0, 1);
+            var firstTrigger = new GridCoordinate(0, 1); // не сам старт — TryAdvanceTo на уже занятую стартом клетку невалиден (GridCoordinate.IsAdjacentTo исключает Equals)
+            var secondTrigger = new GridCoordinate(0, 2);
             grid.GetOrCreateTile(firstTrigger).MarkMovingWallTrigger(1, MovingWallMode.Both);
             grid.GetOrCreateTile(secondTrigger).MarkMovingWallTrigger(3, MovingWallMode.Both);
             using var wall = new MovingWallTrap(grid, trail, scheduler);
@@ -258,7 +258,7 @@ namespace Burmalda.Movement.Tests
             wall.Dispose();
 
             trail.TryAdvanceTo(Trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 3));
+            trail.TryAdvanceTo(new GridCoordinate(0, 0));
             wall.Tick(MovingWallTrap.StepSeconds);
 
             for (var column = 0; column < Width; column++)
