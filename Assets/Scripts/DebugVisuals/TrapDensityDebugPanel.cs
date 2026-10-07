@@ -347,14 +347,14 @@ namespace Burmalda.DebugVisuals
             _roleConflictCounterValueText = BuildReadoutRow(_panelRoot.transform, 19, "Страж ролей: конфликтов отклонено",
                 FormatRoleConflictCounter(Tile.RoleConflictRejectedCount, Tile.LastRoleConflictRejectedRole, Tile.LastRoleConflictKeptRole));
 
-            // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — шестая система
+            // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — пятая система
             // ловушек, тот же приём, что ряды 13–16 выше: "меняется только
             // скорость... ранний Ярус — стены идут медленно, поздний —
             // быстро откусывают клетки" (владелец). Добавлен ПОСЛЕДНИМ
-            // рядом (21), не встроен между существующими — вставка в
+            // рядом (20), не встроен между существующими — вставка в
             // середину сдвинула бы все rowIndex ниже неё, ручная
             // перенумерация лишний риск опечатки без пользы.
-            BuildRow(_panelRoot.transform, 21, "Скорость: Давилка/Стена", 0.01f, MaxWaveSpeedSeconds, MovingWallTrap.StepSeconds,
+            BuildRow(_panelRoot.transform, 20, "Скорость: Давилка/Стена", 0.01f, MaxWaveSpeedSeconds, MovingWallTrap.StepSeconds,
                 v => MovingWallTrap.StepSeconds = v, FormatSeconds);
         }
 
