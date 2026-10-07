@@ -70,6 +70,12 @@ namespace Burmalda.Generation.Tests
         // не редактировался ради самого списка — TemplatesWithoutAvoidableRoute_AreActuallyWithoutAvoidableRoute
         // ниже поймал бы расхождение и без этой правки; запись оставлена
         // как объяснение, а не как немая правка.
+        //
+        // Переработка логики ловушек (владелец): «разлив-у-развилки»/
+        // «бомба-и-поток-лавы»/«огненная-теснина» удалены из списка вместе
+        // с самими шаблонами (строились вокруг волны Лавы, убранной из
+        // игры целиком, см. SegmentTemplateCatalog.cs) — 25 записей ниже, не
+        // 29.
         private static readonly string[] TemplatesWithoutAvoidableRoute =
         {
             // тир 2
@@ -78,14 +84,13 @@ namespace Burmalda.Generation.Tests
             "камни-в-нише", "клинки-по-контуру",
             // тир 3
             "коридор-с-лезвиями", "взрывной-проход", "коридор-лезвий",
-            "такт-лезвий-волной", "мины-в-проходе", "разлив-у-развилки",
+            "такт-лезвий-волной", "мины-в-проходе",
             // тир 4
             "смешанная-опасность", "решето", "выкуп",
-            "стрелы-и-жила", "бомба-и-поток-лавы", "перекрёстный-огонь",
+            "стрелы-и-жила", "перекрёстный-огонь",
             "камнепад-и-лезвия",
             // тир 5
             "испытание", "щедрый-риск", "мост", "последний-рывок",
-            "огненная-теснина",
         };
 
         [TestCaseSource(nameof(TemplateNamesExpectedToHaveAvoidableRoute))]
@@ -214,12 +219,14 @@ namespace Burmalda.Generation.Tests
         // всего в 3 шаблонах из тогдашних 43 (~7% каталога) — за забег
         // игрок их почти не видел. Ориентир владельца — примерно четверть
         // каталога содержит хотя бы одну ловушку нового поведения, и все
-        // пять типов представлены (не просто общий процент за счёт одного
-        // популярного типа).
+        // типы представлены (не просто общий процент за счёт одного
+        // популярного типа). 'f' LavaWaveTrigger убран из этого списка вместе
+        // с самой механикой (переработка логики ловушек, владелец) — из пяти
+        // типов остаются четыре.
         private static readonly SegmentTileType[] NewBehaviorTrapTypes =
         {
             SegmentTileType.ArrowWaveTrigger, SegmentTileType.BombTrigger, SegmentTileType.BladeTactTrigger,
-            SegmentTileType.FallingRockTrigger, SegmentTileType.LavaWaveTrigger
+            SegmentTileType.FallingRockTrigger
         };
 
         [Test]

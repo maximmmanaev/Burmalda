@@ -5,6 +5,11 @@ using UnityEngine;
 namespace Burmalda.Movement
 {
     /// <summary>
+    /// <b>Переработка логики ловушек (владелец):</b> волновая Лава убрана из
+    /// игры целиком — этот класс и весь его doc-комментарий ниже описывают
+    /// исторический момент, когда систем было пять; сейчас тикает четыре
+    /// (Стрела/Бомба/Лезвия/Падающий камень).
+    ///
     /// Тикает пять систем ловушек (issue #212, Стрела/Бомба/Лезвия/Падающий
     /// камень/Лава — issues #213–#217) на каждый забег. Баг с устройства
     /// (владелец, 2026-09-04, «новых ловушек в игре нет») — все пять были
@@ -107,7 +112,6 @@ namespace Burmalda.Movement
         private BombTrapSystem _bomb;
         private BladeTactTrapSystem _bladeTact;
         private FallingRockTrapSystem _fallingRock;
-        private LavaWaveTrapSystem _lavaWave;
 
         private void Awake()
         {
@@ -125,10 +129,10 @@ namespace Burmalda.Movement
             DisposeAll();
         }
 
-        // Тикает все пять систем реальным временем (issue #254) и заодно
+        // Тикает все четыре системы реальным временем (issue #254) и заодно
         // служит ленивой самопроверкой (issue #256, см. doc-комментарий
         // класса) — дёшево не-op на кадрах, где уже построено или ещё не
-        // готово.
+        // готово. Волновая Лава (пятая система) убрана из игры целиком.
         private void Update()
         {
             if (_arrowWave == null)
@@ -142,7 +146,6 @@ namespace Burmalda.Movement
             _bomb.Tick(deltaSeconds);
             _bladeTact.Tick(deltaSeconds);
             _fallingRock.Tick(deltaSeconds);
-            _lavaWave.Tick(deltaSeconds);
         }
 
         private bool IsReady() => _input != null && _input.Grid != null && _input.Trail != null;
@@ -178,7 +181,6 @@ namespace Burmalda.Movement
             // Задача «падающий камень: новая спецификация» — ретранслирует
             // на стабильное событие этого Controller'а, см. её doc-комментарий.
             _fallingRock.PlayerCrushed += OnFallingRockPlayerCrushed;
-            _lavaWave = new LavaWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
         }
 
         private void OnFallingRockPlayerCrushed(GridCoordinate coordinate) => FallingRockPlayerCrushed?.Invoke(coordinate);
@@ -199,8 +201,6 @@ namespace Burmalda.Movement
             if (_fallingRock != null) _fallingRock.PlayerCrushed -= OnFallingRockPlayerCrushed;
             _fallingRock?.Dispose();
             _fallingRock = null;
-            _lavaWave?.Dispose();
-            _lavaWave = null;
         }
     }
 }

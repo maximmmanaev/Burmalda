@@ -362,9 +362,6 @@ namespace Burmalda.Generation
                     // уже использовал для ArrowWave/BladeTact).
                     tile.MarkFallingRockTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
                     break;
-                case SegmentTileType.LavaWaveTrigger:
-                    tile.MarkLavaTrigger();
-                    break;
                 case SegmentTileType.Open:
                     // Доработка PR #290, п.3 (владелец, 2026-09-16): случайный
                     // ролл ExtraTrapDensity — не авторский контент шаблона,
@@ -411,17 +408,18 @@ namespace Burmalda.Generation
             if (chance <= 0f) return;
             if (UnityEngine.Random.value >= chance) return;
 
-            // Равновероятный выбор среди всех пяти — дебаг-стресс-тест
+            // Равновероятный выбор среди всех четырёх — дебаг-стресс-тест
             // плотности, не авторский подбор конкретного типа под конкретную
             // плиту (это и есть отличие от авторских шаблонов, которые этот
-            // рычаг намеренно дополняет, а не заменяет).
-            var candidateType = UnityEngine.Random.Range(0, 5) switch
+            // рычаг намеренно дополняет, а не заменяет). Волна «Лава» была
+            // пятым вариантом — убрана из игры (переработка логики ловушек,
+            // владелец).
+            var candidateType = UnityEngine.Random.Range(0, 4) switch
             {
                 0 => SegmentTileType.ArrowWaveTrigger,
                 1 => SegmentTileType.BombTrigger,
                 2 => SegmentTileType.BladeTactTrigger,
-                3 => SegmentTileType.FallingRockTrigger,
-                _ => SegmentTileType.LavaWaveTrigger,
+                _ => SegmentTileType.FallingRockTrigger,
             };
 
             if (RewardTrapConflictValidator.WouldEndangerAnyReward(template, localRow, column, candidateType))
@@ -440,9 +438,6 @@ namespace Burmalda.Generation
                     break;
                 case SegmentTileType.FallingRockTrigger:
                     tile.MarkFallingRockTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
-                    break;
-                case SegmentTileType.LavaWaveTrigger:
-                    tile.MarkLavaTrigger();
                     break;
             }
         }

@@ -98,13 +98,13 @@ namespace Burmalda.DebugVisuals
 
             // Владелец, 2026-09-05 «оставить только пять новых ловушек»:
             // понятие "скрытая ловушка" (яма/сработавший взрыв,
-            // Core.TrapSignature) удалено вместе с Pit/Explosion — из пяти
-            // оставшихся LethalTrapType ни один не бывает скрытым: Лава
-            // видна всегда по замыслу, а ArrowWave/BombBlast/BladeTact/
-            // LavaWave — активная угроза ПРЯМО СЕЙЧАС, тоже видна всегда
-            // (issue #163 больше не применяется к самой ловушке — только к
-            // её триггеру, см. ниже). Точный тип без Идола Чутья и раньше
-            // не скрывался для Лавы — теперь так же для всех пяти.
+            // Core.TrapSignature) удалено вместе с Pit/Explosion — ни один
+            // оставшийся LethalTrapType не бывает скрытым: Лава видна всегда
+            // по замыслу, а ArrowWave/BombBlast/BladeTact — активная угроза
+            // ПРЯМО СЕЙЧАС, тоже видна всегда (issue #163 больше не
+            // применяется к самой ловушке — только к её триггеру, см. ниже).
+            // Точный тип без Идола Чутья и раньше не скрывался для Лавы —
+            // теперь так же для всех оставшихся.
             if (tile.LethalTrap.HasValue)
                 lines.Add($"Смертельная ловушка: {tile.LethalTrap.Value}");
 
@@ -117,7 +117,7 @@ namespace Burmalda.DebugVisuals
             // issue #193) — он не скрытый триггер ловушки, у него своя
             // безусловная строка ниже, без гейта Идолом Чутья.
             var isTrapTrigger = tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
-                tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger || tile.IsLavaTrigger;
+                tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger;
             if (isTrapTrigger)
             {
                 lines.Add("Триггер механизма");

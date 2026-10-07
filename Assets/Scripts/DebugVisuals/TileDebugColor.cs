@@ -210,9 +210,11 @@ namespace Burmalda.DebugVisuals
             if (state.IsBlocked) return BlockedColor;
             // Issue #163: лава остаётся видимой как раньше (PRD v8 §4.2)
             // — единственный статичный LethalTrapType, для которого Resolve()
-            // возвращает его собственный цвет напрямую. Issue #262: волна
-            // Лавы (Movement.LavaWaveTrapSystem) ставит тот же идентификатор
-            // — эта ветка ловит и её, отдельной ветки под волну больше нет.
+            // возвращает его собственный цвет напрямую. Раньше сюда же (issue
+            // #262) попадала и волна Лавы (Movement.LavaWaveTrapSystem,
+            // ставила тот же идентификатор) — убрана из игры целиком
+            // (переработка логики ловушек, владелец), эта ветка теперь ловит
+            // только статичный источник.
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
             // Issue #260: мигание Бомбы — до общей ветки TimedTrapActive
             // ниже, тот же порядок, что в TileArtKindResolver.Resolve.

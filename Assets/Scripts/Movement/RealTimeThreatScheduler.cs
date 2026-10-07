@@ -8,9 +8,9 @@ namespace Burmalda.Movement
     /// Планировщик отложенных угроз, тикаемый РЕАЛЬНЫМ ВРЕМЕНЕМ, не ходами
     /// (issue #254, docs/wiki/traps.md, раздел «Разделение тактов/реального
     /// времени») — единственный планировщик отложенных угроз в проекте,
-    /// используют все пять систем ловушек (<see cref="ArrowWaveTrapSystem"/>/
+    /// используют все системы ловушек (<see cref="ArrowWaveTrapSystem"/>/
     /// <see cref="BombTrapSystem"/>/<see cref="BladeTactTrapSystem"/>/
-    /// <see cref="FallingRockTrapSystem"/>/<see cref="LavaWaveTrapSystem"/>).
+    /// <see cref="FallingRockTrapSystem"/> — волновая Лава убрана из игры).
     /// Планировщик ничего не знает о <see cref="GridTraceTrail"/> — вызывающая
     /// сторона сама решает, что значит «плита созрела» (через
     /// <see cref="TileDue"/>); единица времени — <c>deltaSeconds</c>, а не
