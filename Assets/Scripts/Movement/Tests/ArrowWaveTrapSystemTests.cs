@@ -212,8 +212,9 @@ namespace Burmalda.Movement.Tests
 
         // Задача «симуляция стрелы» (владелец) — WaveStarted уведомляет
         // визуальный слой (DebugVisuals.ArrowProjectileVisual) о начале
-        // волны. Поднимается В МОМЕНТ активации триггера, ДО первой
-        // задержки StepSeconds — тот же момент, что запускает саму волну.
+        // волны. Поднимается В МОМЕНТ активации триггера (уход игрока с
+        // него, "Triggered"), ДО первой задержки StepSeconds — тот же
+        // момент, что запускает саму волну.
         [Test]
         public void PositionChanged_TrailReachesTrigger_RaisesWaveStartedWithRowAndDirection()
         {
@@ -229,7 +230,9 @@ namespace Burmalda.Movement.Tests
                 firedDirection = direction;
             };
 
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected" — WaveStarted ещё не поднимается
+            Assert.IsNull(firedRow, "приход на триггер волну не запускает");
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
 
             Assert.AreEqual(2, firedRow);
             Assert.AreEqual(RowWaveDirection.RightToLeft, firedDirection);
@@ -242,12 +245,13 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
             using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — первая (и единственная) волна стартовала
             var fireCount = 0;
             arrowWave.WaveStarted += (_, _) => fireCount++;
 
-            trail.TryAdvanceTo(new GridCoordinate(0, 2));
             trail.TryAdvanceTo(trigger); // повторно на уже сработавший триггер
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // и снова уход
 
             Assert.AreEqual(0, fireCount, "одноразовый триггер — WaveStarted не должен подниматься второй раз");
         }
