@@ -368,7 +368,8 @@ namespace Burmalda.DebugVisuals
                     // isExplosiveTrapTrigger/isTimedTrapTrigger/activeTimedTrap —
                     // тот же набор триггеров, что в Movement.TrapRevealSystem.HasHiddenDanger.
                     isTrapTrigger: tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
-                        tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger,
+                        tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger ||
+                        tile.MovingWallTargetRow.HasValue,
                     isBoss: tile.IsBoss,
                     // Задача «тёплый набор плит» (владелец): «плитка с ключом
                     // и маной после сбора должна становиться обычной, ключ и
