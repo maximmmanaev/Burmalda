@@ -74,7 +74,7 @@ namespace Burmalda.Generation.Tests
             var tiles = OpenRows(5);
             tiles[1, 1] = SegmentTileType.ArrowWaveTrigger;
             tiles[2, 1] = SegmentTileType.BladeTactTrigger;
-            tiles[3, 1] = SegmentTileType.LavaWaveTrigger;
+            tiles[3, 1] = SegmentTileType.FallingRockTrigger;
 
             var template = new SegmentTemplate("triggers", 1, SegmentRewardTag.Coins, tiles);
             Assert.IsTrue(SegmentReachabilityValidator.IsTraversable(template));

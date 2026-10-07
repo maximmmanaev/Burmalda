@@ -77,10 +77,17 @@
 
 ### 4. Лава
 
+> **Убрана из игры целиком (переработка логики ловушек, владелец) — СМ.
+> РАЗДЕЛ В КОНЦЕ ДОКУМЕНТА.** Раздел ниже описывает `Movement.LavaWaveTrapSystem`
+> как исторический факт — сама система, её триггер (`Tile.IsLavaTrigger`),
+> символ 'f' каталога и все связанные тесты удалены. Статичная Лава
+> (`LethalTrapType.Lava`/`SegmentTileType.Lava`, символ 'l') НЕ затронута и
+> остаётся в игре — см. новый раздел про то, что именно убрано, а что нет.
+>
 > **Ревизия issue #262 (2026-09-14), СМ. РАЗДЕЛ НИЖЕ.** C#-идентификатор
 > волны изменился: раньше отдельный `LethalTrapType.LavaWave`, теперь тот же
 > `LethalTrapType.Lava`, что у статичной Лавы из генерации — плиты волны
-> ведут себя идентично статичной Лаве, включая проходимость (issue #258).
+> вели себя идентично статичной Лаве, включая проходимость (issue #258).
 
 **Сразу** после активации горизонтальные ряды начинают превращаться в лаву,
 ряд за рядом, **отрезая путь назад** и вынуждая двигаться вперёд.
@@ -632,6 +639,49 @@ Test-first: `FallingRockTrapSystemTests` переписан целиком (не
 `ReportFallingRockCrush` (через d20, не безусловно). Числа выше (8
 конфликтов/4 шаблона) перепроверены отдельным Python-скриптом — Unity Test
 Runner недоступен в этой среде.
+
+## Переработка логики ловушек: волна Лавы убрана из игры целиком (владелец)
+
+Часть переработки логики ловушек по новой спецификации владельца
+(TR-01..07). Статичная Лава (`LethalTrapType.Lava`/`SegmentTileType.Lava`,
+символ 'l' каталога) НЕ затронута и остаётся в игре как есть — переработке
+подлежала только динамическая волна-триггер (issue #216,
+`Movement.LavaWaveTrapSystem`), не механика static-hazard генерации.
+
+**Убрано целиком:**
+- `Movement.LavaWaveTrapSystem` (класс и его тесты) — раздел «4. Лава» выше
+  описывает её как исторический факт, не текущее поведение.
+- `Core.Tile.IsLavaTrigger`/`MarkLavaTrigger` — из `ActiveExclusiveRoleName`/
+  `ClearActiveExclusiveRole` (Core, «двойные флаги на плитах»), из матрицы
+  `ExclusiveRoleMarkers` (`Core.Tests.TileTests`).
+- `Generation.SegmentTileType.LavaWaveTrigger`, символ 'f' в
+  `SegmentTemplateCatalog.ParseRows` и в тестовых `Grid()`-хелперах.
+- Ветка `LavaWaveTrigger` в `SegmentRowProvider.ApplyTileType`/
+  `ApplyExtraTrapDensity` (случайный выбор среди четырёх оставшихся типов,
+  не пяти) и в `RewardTrapConflictValidator.AffectedCells`/`IsTriggerType`.
+- `TunnelObstacleController`/`RealTimeThreatScheduler`/`TrapSystemsController`
+  — волна тикалась своим экземпляром планировщика, как и остальные четыре;
+  просто не тикает больше, тикает четыре системы, не пять.
+- Ряд «Скорость: волна Лавы» (`DebugVisuals.TrapDensityDebugPanel`) и вся
+  дублированная по пяти местам проверка `IsTrapTrigger`/`HasHiddenDanger`
+  (`Movement.TrapRevealSystem`, `DebugVisuals.TunnelDebugVisual`/
+  `TrapEncounterTracker`/`StepClickController`/`TilePreviewController`/
+  `HudDesign.RunHudDesignOverlay`) — четыре флага вместо пяти в каждом месте.
+- Три шаблона каталога, построенные ВОКРУГ волны как механики
+  (`бомба-и-поток-лавы`, `разлив-у-развилки`, `огненная-теснина`) — удалены
+  вместе с механикой, не переосмыслены под другую ловушку (контент — домен
+  владельца, не решение агента). Четвёртый (`лавовый-рукав`) построен
+  вокруг СТАТИЧНОЙ Лавы (остаётся) и нёс лишь один стоящий отдельно триггер
+  волны — клетка оставлена открытой, не заменена другим триггером.
+
+**Не тронуто**: `LethalTrapType.Lava` (единственный C#-идентификатор,
+issue #262, сохранён — статичная Лава по-прежнему им пользуется),
+`TunnelObstacleGenerator.LavaShare`/`MarkLethalTrap(LethalTrapType.Lava)`
+(процедурная генерация статичной Лавы), `SegmentTileType.Lava`/символ 'l'
+(авторский статичный тип), `TileArtKind.Lava`/`TileDebugColor.LavaColor`
+(рендер статичной Лавы), `GridTraceTrail.CanAdvanceTo`/`TryAdvanceTo`
+(логика "Лава проходима, но летальна" не менялась — единственный источник
+`LethalTrapType.Lava` теперь статика, поведение то же самое).
 
 ## Issues
 

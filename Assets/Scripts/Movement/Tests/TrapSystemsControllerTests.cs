@@ -6,7 +6,7 @@ namespace Burmalda.Movement.Tests
 {
     /// <summary>
     /// Баг с устройства (владелец, 2026-09-14, «ловушки вообще пропали»,
-    /// issue #256, портирован сюда вместе с переходом всех пяти систем на
+    /// issue #256, портирован сюда вместе с переходом всех систем на
     /// реальное время — issue #254): <see cref="TrapSystemsController"/>
     /// подписывается на <see cref="GridTraceInputController.RunStarted"/> в
     /// своём <c>OnEnable()</c>, но в реальной игре
@@ -18,11 +18,13 @@ namespace Burmalda.Movement.Tests
     /// класс гонки, что уже был найден и решён для лоадаута артефактов, но
     /// не был решён здесь. Controller безвозвратно пропускает единственное
     /// событие, которое должно было его построить, и ни разу не строит ни
-    /// одну из пяти систем ловушек за весь забег — в отличие от ВСЕХ
-    /// остальных контроллеров забега (<c>Boss.BossController</c>/
+    /// одну из систем ловушек за весь забег — в отличие от ВСЕХ остальных
+    /// контроллеров забега (<c>Boss.BossController</c>/
     /// <c>Generation.SegmentGenerationController</c> и т.д.), у него не было
     /// ленивой самопроверки в <c>Update()</c>, подстраховывающей именно этот
-    /// случай.
+    /// случай. На момент бага систем было пять — волновая Лава с тех пор
+    /// убрана из игры целиком (переработка логики ловушек, владелец),
+    /// остаются четыре.
     ///
     /// Приватные методы вызываются рефлексией — тот же паттерн, что
     /// <c>Bootstrap.Tests.RunBootstrapTests</c>: вне Play Mode
@@ -56,7 +58,7 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void Update_CalledAfterMissedInitialRunStarted_SelfHealsAndBuildsAllFiveSystems()
+        public void Update_CalledAfterMissedInitialRunStarted_SelfHealsAndBuildsAllFourSystems()
         {
             SetUpReproducingRealBootstrapRace();
 
@@ -68,11 +70,10 @@ namespace Burmalda.Movement.Tests
             Assert.IsNotNull(GetPrivateField(_controller, "_bomb"));
             Assert.IsNotNull(GetPrivateField(_controller, "_bladeTact"));
             Assert.IsNotNull(GetPrivateField(_controller, "_fallingRock"));
-            Assert.IsNotNull(GetPrivateField(_controller, "_lavaWave"));
         }
 
         [Test]
-        public void Update_AfterSelfHeal_TicksAllFiveSystemsWithRealDeltaTime_DoesNotThrow()
+        public void Update_AfterSelfHeal_TicksAllFourSystemsWithRealDeltaTime_DoesNotThrow()
         {
             // Сквозной тест: недостаточно, чтобы поля просто были не-null —
             // Update() на следующем кадре обязан уже начать тикать их
