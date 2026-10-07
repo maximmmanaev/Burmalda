@@ -187,7 +187,6 @@ namespace Burmalda.Core
             if (IsBombTrigger) { IsBombTrigger = false; return; }
             if (BladeTactTargetRow.HasValue) { BladeTactTargetRow = null; return; }
             if (IsFallingRockTrigger) { IsFallingRockTrigger = false; FallingRockTargetCoordinate = null; return; }
-            if (IsLavaTrigger) { IsLavaTrigger = false; return; }
             if (MovingWallTargetRow.HasValue) { MovingWallTargetRow = null; MovingWallTriggerMode = null; }
         }
 
@@ -313,7 +312,6 @@ namespace Burmalda.Core
             if (IsBombTrigger) return nameof(IsBombTrigger);
             if (BladeTactTargetRow.HasValue) return nameof(BladeTactTargetRow);
             if (IsFallingRockTrigger) return nameof(IsFallingRockTrigger);
-            if (IsLavaTrigger) return nameof(IsLavaTrigger);
             if (MovingWallTargetRow.HasValue) return nameof(MovingWallTargetRow);
             return null;
         }
@@ -389,11 +387,11 @@ namespace Burmalda.Core
         /// награду" — срабатывание обязано превратить плиту в смертельную,
         /// не бросить исключение.
         ///
-        /// Используется всеми пятью ловушками Спринта 13a (docs/wiki/traps.md,
+        /// Используется остальными ловушками Спринта 13a (docs/wiki/traps.md,
         /// <c>Movement.ArrowWaveTrapSystem</c>/<c>BombTrapSystem</c>/
-        /// <c>BladeTactTrapSystem</c>/<c>LavaWaveTrapSystem</c>) — список
-        /// рантайм-переходов растёт РАЗДЕЛЕНИЕМ ФАЗ (генерация/рантайм), а не
-        /// перечислением исключений в страже, см. его doc-комментарий.
+        /// <c>BladeTactTrapSystem</c>) — список рантайм-переходов растёт
+        /// РАЗДЕЛЕНИЕМ ФАЗ (генерация/рантайм), а не перечислением исключений
+        /// в страже, см. его doc-комментарий.
         /// </summary>
         public void TransitionToLethalTrap(LethalTrapType trapType)
         {
@@ -407,8 +405,7 @@ namespace Burmalda.Core
         /// issue #213, <c>Movement.ArrowWaveTrapSystem</c>): «каждая плита
         /// опасна короткий момент, пока волна проходит, затем снова
         /// безопасна» — в отличие от <see cref="LethalTrapType.Lava"/>
-        /// (постоянна и с генерации, и с момента активации волны — issue
-        /// #262, оба источника делят один идентификатор), опасность волны
+        /// (постоянна, ставится только на генерации), опасность волны
         /// Стрелы временная НА КАЖДОЙ отдельной плите ряда.
         ///
         /// Вызывать ТОЛЬКО на плите, которую сама вызывающая система же и
@@ -598,28 +595,6 @@ namespace Burmalda.Core
 
         /// <summary>Завершает фазу предупреждения (камень упал) — см. <see cref="IsFallingRockWarningActive"/>. Повторные вызовы — не-op.</summary>
         public void EndFallingRockWarning() => IsFallingRockWarningActive = false;
-
-        /// <summary>
-        /// Плита — триггер ловушки «Лава» (docs/wiki/traps.md, issue #216):
-        /// сама эта плита — начало волны, отдельной координаты/ряда цели не
-        /// хранит (владелец: «волна идёт от ряда триггера назад» — ряд
-        /// вычисляется из <see cref="Coordinate"/> самого триггера, не
-        /// задаётся отдельно, в отличие от <see cref="ArrowWaveTargetRow"/>/
-        /// <see cref="BladeTactTargetRow"/>), см. <c>Movement.LavaWaveTrapSystem</c>.
-        /// </summary>
-        public bool IsLavaTrigger { get; private set; }
-
-        /// <summary>
-        /// Помечает плиту как триггер волны Лавы. Повторные вызовы — не-op.
-        /// Строгий страж — см. <see cref="GuardAgainstConflictingRole"/>
-        /// (задача «награда никогда не лежит на ловушке»).
-        /// </summary>
-        public void MarkLavaTrigger()
-        {
-            if (IsLavaTrigger) return;
-            if (!GuardAgainstConflictingRole(false, nameof(IsLavaTrigger))) return;
-            IsLavaTrigger = true;
-        }
 
         /// <summary>
         /// Плита — триггер «Давилки»/«Стены слева»/«Стены справа» (BURMALDA

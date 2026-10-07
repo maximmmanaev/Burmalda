@@ -22,10 +22,10 @@ namespace Burmalda.Movement
     /// после срабатывания триггера тикается реальными секундами, один
     /// параметр <see cref="TactSeconds"/> на весь путь такта.
     ///
-    /// Проход трейла через плиту-триггер (<see cref="Tile.BladeTactTargetRow"/>,
-    /// ещё не подключено ни к одному генератору сегментов — отдельная
-    /// задача авторинга, здесь только механика) запускает такт: через
-    /// <see cref="TactSeconds"/> секунд начинается пятитактовый паттерн по
+    /// Уход трейла с плиты-триггера (<see cref="Tile.BladeTactTargetRow"/> —
+    /// см. doc-комментарий ниже про глобальный цикл Detected/Triggered)
+    /// запускает такт: через <see cref="TactSeconds"/> секунд начинается
+    /// пятитактовый паттерн по
     /// заявленному ряду — симметричные пары столбцов от края к центру и
     /// обратно (владелец: «1 и 5 → 2 и 4 → 3 → 2 и 4 → 1 и 5», здесь —
     /// обобщение на произвольную ширину сетки: крайняя пара → следующая
@@ -69,6 +69,15 @@ namespace Burmalda.Movement
     /// вторую параллельную последовательность (тот же приём, что у прочих
     /// систем этого семейства). Несколько одновременно активных
     /// последовательностей (разные триггеры) поддерживаются независимо.
+    ///
+    /// <b>Переработка логики ловушек (владелец): глобальный жизненный цикл
+    /// Hidden → Detected → WaitingForExit → Triggered.</b> Раньше такт
+    /// запускался в момент ПРИХОДА на триггер. Теперь приход только
+    /// раскрывает сигнатуру опасности (<see cref="Tile.RevealDangerSignature"/>,
+    /// «Detected») и запоминает плиту как <see cref="_pendingTriggerCoordinate"/>
+    /// — пока игрок стоит на ней («WaitingForExit»), ничего не запускается.
+    /// Такт стартует («Triggered») только когда игрок реально ПОКИДАЕТ эту
+    /// плиту — тот же приём, что <see cref="ArrowWaveTrapSystem"/>.
     /// </summary>
     public sealed class BladeTactTrapSystem : IDisposable
     {
@@ -102,6 +111,11 @@ namespace Burmalda.Movement
         // нет одной "естественной" координаты на шаг, как у ArrowWaveTrapSystem.
         private readonly Dictionary<GridCoordinate, ActiveBladeTact> _waitingTacts = new Dictionary<GridCoordinate, ActiveBladeTact>();
 
+        // "WaitingForExit" — плита, на которой игрок стоит ПРЯМО СЕЙЧАС и
+        // которая несёт ещё не сработавший триггер (см. doc-комментарий
+        // класса). Null, если игрок не стоит на таком триггере.
+        private GridCoordinate? _pendingTriggerCoordinate;
+
         private bool _disposed;
 
         public BladeTactTrapSystem(TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler)
@@ -127,8 +141,28 @@ namespace Burmalda.Movement
 
         private void OnPositionChanged(GridCoordinate coordinate)
         {
+            // "Triggered" — только что покинули плиту с висящим триггером
+            // (см. doc-комментарий класса). Проверяется ПЕРЕД "Detected"
+            // ниже — та же последовательность, что у ArrowWaveTrapSystem.
+            if (_pendingTriggerCoordinate.HasValue && _pendingTriggerCoordinate.Value != coordinate)
+            {
+                ActivateTact(_pendingTriggerCoordinate.Value);
+                _pendingTriggerCoordinate = null;
+            }
+
+            // "Detected" — раскрываем сигнатуру, встаём в ожидание ухода.
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
             if (!tile.BladeTactTargetRow.HasValue) return;
+            if (_firedTriggers.Contains(coordinate)) return; // уже сработал раньше
+
+            _pendingTriggerCoordinate = coordinate;
+            tile.RevealDangerSignature();
+        }
+
+        /// <summary>"Triggered" — запускает такт для триггера в <paramref name="coordinate"/>. Вызывается только из <see cref="OnPositionChanged"/> в момент ухода игрока с этой плиты.</summary>
+        private void ActivateTact(GridCoordinate coordinate)
+        {
+            if (!_grid.TryGetTile(coordinate, out var tile) || !tile.BladeTactTargetRow.HasValue) return;
             if (!_firedTriggers.Add(coordinate)) return; // одноразовый триггер
 
             var wave = new ActiveBladeTact

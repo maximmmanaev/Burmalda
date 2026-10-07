@@ -38,14 +38,15 @@ namespace Burmalda.Movement
     /// подтверждён — ArrowWave/BladeTact/LavaWave по-прежнему используют
     /// <c>TimedTrapActive</c> заслуженно (для них это не баг, задача про
     /// Бомбу), а отдельная задача про текстуру статичной Лавы (issue #258 —
-    /// другая Лава, <see cref="LethalTrapType.Lava"/>, не
-    /// <see cref="LethalTrapType.LavaWave"/>) ЭТОГО корня не касается вовсе
-    /// (Лава туда никогда не попадала — <c>TileArtKindResolver</c> отдаёт ей
-    /// отдельную ветку <c>TileArtKind.Lava</c> ещё до общей проверки). Если
-    /// будущая задача даст волновой Лаве (<see cref="LethalTrapType.LavaWave"/>)
-    /// собственную текстуру — правильное место править то же самое, что
-    /// правит эта задача для Бомбы (<c>TileArtKindResolver</c>/<c>TileDebugColor</c>),
-    /// а не заново искать причину.</item>
+    /// другая Лава, <see cref="LethalTrapType.Lava"/>, не тогдашний отдельный
+    /// C#-идентификатор волны <c>LethalTrapType.LavaWave</c>) ЭТОГО корня не
+    /// касается вовсе (Лава туда никогда не попадала — <c>TileArtKindResolver</c>
+    /// отдаёт ей отдельную ветку <c>TileArtKind.Lava</c> ещё до общей
+    /// проверки). Исторический раздел: <c>LavaWave</c> позже слит с
+    /// <see cref="LethalTrapType.Lava"/> (issue #262), а сама волновая Лава
+    /// (<c>Movement.LavaWaveTrapSystem</c>) с тех пор убрана из игры целиком
+    /// (переработка логики ловушек, владелец) — вопрос "дать ли волне
+    /// отдельную текстуру" больше не актуален.</item>
     /// </list>
     ///
     /// <b>Реальное время, не ходы (владелец, 2026-09-14, issue #254 —
@@ -80,7 +81,8 @@ namespace Burmalda.Movement
     /// 0, безопасно для тестов и для любого вызывающего кода, которому
     /// прогресс безразличен.
     ///
-    /// Проход трейла через плиту-триггер (<see cref="Tile.IsBombTrigger"/>)
+    /// Уход трейла с плиты-триггера (<see cref="Tile.IsBombTrigger"/> — см.
+    /// doc-комментарий ниже про глобальный цикл Detected/Triggered)
     /// запускает отсчёт и сразу поднимает предупреждение на всю площадь
     /// (<see cref="Tile.BeginBombWarning"/>, issue #260 — «плитки квадрата
     /// 3×3 должны мигать, пока идёт отсчёт») — визуал мигания
@@ -136,6 +138,17 @@ namespace Burmalda.Movement
     /// вторую параллельную бомбу (тот же приём, что <see cref="ArrowWaveTrapSystem"/>).
     /// Несколько одновременных бомб (разные триггеры) поддерживаются
     /// независимо друг от друга.
+    ///
+    /// <b>Переработка логики ловушек (владелец): глобальный жизненный цикл
+    /// Hidden → Detected → WaitingForExit → Triggered.</b> Раньше отсчёт
+    /// запускался в момент ПРИХОДА на триггер. Теперь приход только
+    /// раскрывает сигнатуру опасности САМОЙ плиты-триггера
+    /// (<see cref="Tile.RevealDangerSignature"/>, «Detected» — мигание 3×3
+    /// ещё не начинается, размер площади игроку не известен) и запоминает
+    /// плиту как <see cref="_pendingTriggerCoordinate"/> — пока игрок стоит
+    /// на ней («WaitingForExit»), ничего не запускается. Отсчёт стартует
+    /// («Triggered») только когда игрок реально ПОКИДАЕТ эту плиту — тот же
+    /// приём, что <see cref="ArrowWaveTrapSystem"/>.
     /// </summary>
     public sealed class BombTrapSystem : IDisposable
     {
@@ -165,6 +178,13 @@ namespace Burmalda.Movement
         private readonly RealTimeThreatScheduler _scheduler;
         private readonly Func<int> _currentTierProvider;
         private readonly HashSet<GridCoordinate> _firedTriggers = new HashSet<GridCoordinate>();
+
+        // "WaitingForExit" — плита, на которой игрок стоит ПРЯМО СЕЙЧАС и
+        // которая несёт ещё не сработавший триггер (см. doc-комментарий
+        // класса про глобальный цикл Detected/Triggered). Null, если игрок
+        // не стоит на таком триггере.
+        private GridCoordinate? _pendingTriggerCoordinate;
+
         private bool _disposed;
 
         public BombTrapSystem(TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler, Func<int> currentTierProvider = null)
@@ -204,8 +224,31 @@ namespace Burmalda.Movement
 
         private void OnPositionChanged(GridCoordinate coordinate)
         {
+            // "Triggered" — только что покинули плиту с висящим триггером
+            // (см. doc-комментарий класса). Проверяется ПЕРЕД "Detected"
+            // ниже — та же последовательность, что у ArrowWaveTrapSystem.
+            if (_pendingTriggerCoordinate.HasValue && _pendingTriggerCoordinate.Value != coordinate)
+            {
+                ActivateFuse(_pendingTriggerCoordinate.Value);
+                _pendingTriggerCoordinate = null;
+            }
+
+            // "Detected" — раскрываем сигнатуру САМОЙ плиты-триггера (не всей
+            // будущей площади поражения — её размер игроку ещё не известен,
+            // мигание 3×3 начинается только при "Triggered" ниже), встаём в
+            // ожидание ухода.
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
             if (!tile.IsBombTrigger) return;
+            if (_firedTriggers.Contains(coordinate)) return; // уже сработал раньше
+
+            _pendingTriggerCoordinate = coordinate;
+            tile.RevealDangerSignature();
+        }
+
+        /// <summary>"Triggered" — запускает отсчёт для триггера в <paramref name="coordinate"/>. Вызывается только из <see cref="OnPositionChanged"/> в момент ухода игрока с этой плиты.</summary>
+        private void ActivateFuse(GridCoordinate coordinate)
+        {
+            if (!_grid.TryGetTile(coordinate, out var tile) || !tile.IsBombTrigger) return;
             if (!_firedTriggers.Add(coordinate)) return; // одноразовый триггер
 
             // "Плитки квадрата 3×3 должны мигать, пока идёт отсчёт" —

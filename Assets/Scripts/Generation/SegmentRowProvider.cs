@@ -362,9 +362,6 @@ namespace Burmalda.Generation
                     // уже использовал для ArrowWave/BladeTact).
                     tile.MarkFallingRockTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
                     break;
-                case SegmentTileType.LavaWaveTrigger:
-                    tile.MarkLavaTrigger();
-                    break;
                 case SegmentTileType.MovingWallBothTrigger:
                     // TR-05 «Давилка» — тот же дефолт цели, что у
                     // FallingRockTrigger (ряд+1, T стоит ПЕРЕД закрывающимся
@@ -423,23 +420,23 @@ namespace Burmalda.Generation
             if (chance <= 0f) return;
             if (UnityEngine.Random.value >= chance) return;
 
-            // Равновероятный выбор среди всех пяти — дебаг-стресс-тест
+            // Равновероятный выбор среди всех четырёх — дебаг-стресс-тест
             // плотности, не авторский подбор конкретного типа под конкретную
             // плиту (это и есть отличие от авторских шаблонов, которые этот
-            // рычаг намеренно дополняет, а не заменяет). MovingWallTrap
+            // рычаг намеренно дополняет, а не заменяет). Волна «Лава» была
+            // пятым вариантом — убрана из игры (переработка логики ловушек,
             // (TR-05/06/07) сюда НЕ входит и не должен — Critical Generation
             // Rule («на affected row запрещены любые другие триггеры
             // ловушек», см. SegmentTemplate.ValidateMovingWallExclusiveRow)
             // требует знания о соседних плитах ряда, а этот рычаг решает по
             // одной Open-плите независимо — случайно расставленная Давилка
             // могла бы молча нарушить собственное же правило.
-            var candidateType = UnityEngine.Random.Range(0, 5) switch
+            var candidateType = UnityEngine.Random.Range(0, 4) switch
             {
                 0 => SegmentTileType.ArrowWaveTrigger,
                 1 => SegmentTileType.BombTrigger,
                 2 => SegmentTileType.BladeTactTrigger,
-                3 => SegmentTileType.FallingRockTrigger,
-                _ => SegmentTileType.LavaWaveTrigger,
+                _ => SegmentTileType.FallingRockTrigger,
             };
 
             if (RewardTrapConflictValidator.WouldEndangerAnyReward(template, localRow, column, candidateType))
@@ -458,9 +455,6 @@ namespace Burmalda.Generation
                     break;
                 case SegmentTileType.FallingRockTrigger:
                     tile.MarkFallingRockTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
-                    break;
-                case SegmentTileType.LavaWaveTrigger:
-                    tile.MarkLavaTrigger();
                     break;
             }
         }

@@ -68,14 +68,16 @@ namespace Burmalda.DebugVisuals
     /// систем ловушек, перешедших с тактов ходов на реальное время
     /// (<see cref="Movement.ArrowWaveTrapSystem.StepSeconds"/>/
     /// <see cref="Movement.BladeTactTrapSystem.TactSeconds"/>/
-    /// <see cref="Movement.LavaWaveTrapSystem.RowStepSeconds"/>/
+    /// Movement.LavaWaveTrapSystem.RowStepSeconds (система убрана из игры
+    /// целиком, переработка логики ловушек, владелец)/
     /// Movement.BombTrapSystem.DelaySeconds (заменено кривой issue #260, см.
     /// ниже)/<see cref="Movement.FallingRockTrapSystem.DelaySeconds"/>) —
     /// прямое требование задачи: "скорость волны — параметр, настраиваемый в
     /// дебаг-панели, без пересборки". Второй раунд задачи (владелец: «никаких
     /// ловушек в такт быть не должно, только тайминги») распространил это на
     /// все пять типов, не только на три волновых — Бомба/Падающий камень
-    /// добавлены сюда же тем же приёмом.
+    /// добавлены сюда же тем же приёмом. Один из пяти ползунков (волна Лавы)
+    /// с тех пор убран вместе с самой ловушкой.
     ///
     /// <b>Issue #260 (2026-09-14, «Бомба взрывается мгновенно, кривая по
     /// Ярусу»):</b> ползунок задержки Бомбы заменён тремя —
@@ -119,7 +121,7 @@ namespace Burmalda.DebugVisuals
         // подбора на дебаг-панели.
         private const float MaxBombDelaySeconds = 10f;
         private const float MaxBombDelayReductionPerTier = 2f;
-        private const int RowCount = 22; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 7 таймингов ловушек (3 скорости волн + задержка камня + 3 параметра кривой Бомбы) + 1 readout счётчика отклонённых конфликтов стража ролей (хотфикс «страж ролей плиты роняет забег вместо диагностики», см. BuildPanel) + 1 скорость MovingWallTrap (Давилка/Стена слева/Стена справа, TR-05/06/07, BURMALDA Trap System Spec v0.1)
+        private const int RowCount = 21; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 6 таймингов ловушек (2 скорости волн + задержка камня + 3 параметра кривой Бомбы — скорость волны Лавы убрана вместе с LavaWaveTrapSystem, переработка логики ловушек) + 1 readout счётчика отклонённых конфликтов стража ролей (хотфикс «страж ролей плиты роняет забег вместо диагностики», см. BuildPanel) + 1 скорость MovingWallTrap (Давилка/Стена слева/Стена справа, TR-05/06/07, BURMALDA Trap System Spec v0.1)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -312,8 +314,9 @@ namespace Burmalda.DebugVisuals
                 v => ArrowWaveTrapSystem.StepSeconds = v, FormatSeconds);
             BuildRow(_panelRoot.transform, 14, "Скорость: такт Лезвий", 0.01f, MaxWaveSpeedSeconds, BladeTactTrapSystem.TactSeconds,
                 v => BladeTactTrapSystem.TactSeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 15, "Скорость: волна Лавы", 0.01f, MaxWaveSpeedSeconds, LavaWaveTrapSystem.RowStepSeconds,
-                v => LavaWaveTrapSystem.RowStepSeconds = v, FormatSeconds);
+            // Ряд "Скорость: волна Лавы" (LavaWaveTrapSystem.RowStepSeconds)
+            // стоял здесь — убран вместе с самой системой (переработка
+            // логики ловушек, владелец), ряды ниже сдвинуты на один номер.
 
             // Второй раунд той же задачи (владелец: "никаких ловушек в
             // такт быть не должно, только тайминги") — Падающий камень тоже
@@ -323,17 +326,17 @@ namespace Burmalda.DebugVisuals
             // "Задержка: взрыв Бомбы" (BombTrapSystem.DelaySeconds) больше
             // нет, поле удалено при переходе на кривую, этот ряд был
             // оставлен по инерции и не компилировался — убран.
-            BuildRow(_panelRoot.transform, 16, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
+            BuildRow(_panelRoot.transform, 15, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
                 v => FallingRockTrapSystem.DelaySeconds = v, FormatSeconds);
 
             // Issue #260 («Бомба взрывается мгновенно... задержка должна
             // уменьшаться с Ярусом») — три параметра кривой вместо одного
             // фиксированного числа, см. BombTrapSystem.ComputeDelaySeconds.
-            BuildRow(_panelRoot.transform, 17, "Задержка Бомбы: база (Ярус 0)", 0.1f, MaxBombDelaySeconds, BombTrapSystem.BaseDelaySeconds,
+            BuildRow(_panelRoot.transform, 16, "Задержка Бомбы: база (Ярус 0)", 0.1f, MaxBombDelaySeconds, BombTrapSystem.BaseDelaySeconds,
                 v => BombTrapSystem.BaseDelaySeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 18, "Задержка Бомбы: снижение/Ярус", 0f, MaxBombDelayReductionPerTier, BombTrapSystem.DelayReductionPerTier,
+            BuildRow(_panelRoot.transform, 17, "Задержка Бомбы: снижение/Ярус", 0f, MaxBombDelayReductionPerTier, BombTrapSystem.DelayReductionPerTier,
                 v => BombTrapSystem.DelayReductionPerTier = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 19, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
+            BuildRow(_panelRoot.transform, 18, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
                 v => BombTrapSystem.MinDelaySeconds = v, FormatSeconds);
 
             // Хотфикс «страж ролей плиты роняет забег вместо диагностики»
@@ -341,7 +344,7 @@ namespace Burmalda.DebugVisuals
             // «гонка теоретически возможна» в число. Если после нескольких
             // забегов там ноль — легаси-генератор можно выводить из игры
             // раньше" — тот же readout-приём, что и ряд 11 выше.
-            _roleConflictCounterValueText = BuildReadoutRow(_panelRoot.transform, 20, "Страж ролей: конфликтов отклонено",
+            _roleConflictCounterValueText = BuildReadoutRow(_panelRoot.transform, 19, "Страж ролей: конфликтов отклонено",
                 FormatRoleConflictCounter(Tile.RoleConflictRejectedCount, Tile.LastRoleConflictRejectedRole, Tile.LastRoleConflictKeptRole));
 
             // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — шестая система

@@ -52,10 +52,10 @@ namespace Burmalda.DebugVisuals
         public float DecayProgress01 { get; }
 
         /// <summary>
-        /// Плита — триггер одной из пяти ловушек (Стрела/Бомба/Лезвия/
-        /// Падающий камень/Лава — см. <c>Core.Tile.ArrowWaveTargetRow</c>/
-        /// <c>IsBombTrigger</c>/<c>BladeTactTargetRow</c>/<c>IsFallingRockTrigger</c>/
-        /// <c>IsLavaTrigger</c>). Сама плита-триггер не опасна — цветом/артом
+        /// Плита — триггер одной из четырёх ловушек (Стрела/Бомба/Лезвия/
+        /// Падающий камень — см. <c>Core.Tile.ArrowWaveTargetRow</c>/
+        /// <c>IsBombTrigger</c>/<c>BladeTactTargetRow</c>/<c>IsFallingRockTrigger</c>;
+        /// пятая, волновая Лава, убрана из игры целиком). Сама плита-триггер не опасна — цветом/артом
         /// отмечена только после раскрытия примериванием
         /// (<see cref="IsDangerSignatureRevealed"/>), не выдаёт, КАКАЯ именно
         /// из пяти это ловушка (см. <c>TileArtKindResolver</c>). Владелец,

@@ -177,19 +177,22 @@ namespace Burmalda.Generation
             || type == SegmentTileType.BombTrigger
             || type == SegmentTileType.BladeTactTrigger
             || type == SegmentTileType.FallingRockTrigger
-            || type == SegmentTileType.LavaWaveTrigger
             || IsMovingWallTriggerType(type);
 
         // Владелец, 2026-09-05 «оставить только пять новых ловушек»: раньше
         // здесь была ValidateTriggerTargetsDoNotConflict/IsExclusiveRole —
         // проверка целилась специфично в ExplosiveTrigger (единственный
         // старый тип, чья цель — "следующий ряд, тот же столбец", а не сама
-        // плита-триггер). Ни у одного из пяти оставшихся типов ловушек нет
-        // отдельной "целевой" плиты вне себя самой (ArrowWaveTrigger/
+        // плита-триггер). Ни у одного из тогдашних пяти типов ловушек не
+        // было отдельной "целевой" плиты вне себя самой (ArrowWaveTrigger/
         // BladeTactTrigger целятся в СВОЙ ЖЕ ряд через coordinate.Row, см.
-        // SegmentRowProvider.ApplyTileType, Bomb/FallingRock/LavaWave — в
-        // саму плиту-триггер) — конфликт "триггер целится в структурную
-        // роль" физически не воспроизводим, проверка удалена как мёртвая
-        // вместе с ExplosiveTrigger.
+        // SegmentRowProvider.ApplyTileType, Bomb/LavaWave — в саму
+        // плиту-триггер) — конфликт "триггер целится в структурную роль"
+        // физически не воспроизводим, проверка удалена как мёртвая вместе с
+        // ExplosiveTrigger. С тех пор FallingRock переехал на отдельную цель
+        // впереди (задача «падающий камень: новая спецификация»), а
+        // LavaWave убран из игры целиком (переработка логики ловушек) — этот
+        // абзац остаётся историческим объяснением, почему проверки вообще
+        // нет, не описанием текущего состояния всех типов.
     }
 }

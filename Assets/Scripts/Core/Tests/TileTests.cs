@@ -507,13 +507,15 @@ namespace Burmalda.Core.Tests
         // эти тесты проверяют следствие — сам инвариант на Tile, вторая
         // линия обороны, если причина всё же повторится.
         // Пять триггеров ловушек Спринта 13a (ArrowWave/Bomb/BladeTact/
-        // FallingRock/LavaWave) добавлены в эту матрицу задачей «награда
-        // никогда не лежит на ловушке» — раньше их Mark*-методы не вызывали
-        // GuardAgainstConflictingRole вовсе (см. их doc-комментарии в
-        // Tile.cs). Явная цель: плита-источник Маны/Ключей не может
+        // FallingRock/LavaWave) были добавлены в эту матрицу задачей
+        // «награда никогда не лежит на ловушке» — раньше их Mark*-методы не
+        // вызывали GuardAgainstConflictingRole вовсе (см. их doc-комментарии
+        // в Tile.cs). Явная цель: плита-источник Маны/Ключей не может
         // одновременно стать ни одним из них, и наоборот — матрица ниже
         // строит это автоматически, полным перекрёстным произведением со
-        // всеми остальными ролями, не только с наградами.
+        // всеми остальными ролями, не только с наградами. LavaTrigger убран
+        // из списка вместе с Movement.LavaWaveTrapSystem (переработка логики
+        // ловушек, владелец) — остаются четыре триггера.
         private static readonly (string Name, Action<Tile> Mark)[] ExclusiveRoleMarkers =
         {
             ("Blocked", t => t.MarkBlocked()),
@@ -528,7 +530,6 @@ namespace Burmalda.Core.Tests
             ("BombTrigger", t => t.MarkBombTrigger()),
             ("BladeTactTrigger", t => t.MarkBladeTactTrigger(0)),
             ("FallingRockTrigger", t => t.MarkFallingRockTrigger(new GridCoordinate(0, 0))),
-            ("LavaTrigger", t => t.MarkLavaTrigger()),
             // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — шестая ловушка,
             // тот же приём, что у остальных Mark*Trigger выше: MarkMovingWallTrigger
             // тоже проходит через GuardAgainstConflictingRole (см. Tile.cs).
@@ -1112,37 +1113,11 @@ namespace Burmalda.Core.Tests
             Assert.Throws<InvalidOperationException>(() => tile.MarkBlocked());
         }
 
-        // issue #216 — ловушка «Лава» (docs/wiki/traps.md).
-        [Test]
-        public void NewTile_IsNotLavaTrigger()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
+        // issue #216 — ловушка «Лава» (docs/wiki/traps.md) — волновой
+        // триггер (IsLavaTrigger/MarkLavaTrigger) убран из игры целиком
+        // (переработка логики ловушек, владелец); три теста этого метода
+        // здесь стояли, удалены вместе с ним.
 
-            Assert.IsFalse(tile.IsLavaTrigger);
-        }
-
-        [Test]
-        public void MarkLavaTrigger_SetsIsLavaTrigger()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-
-            tile.MarkLavaTrigger();
-
-            Assert.IsTrue(tile.IsLavaTrigger);
-        }
-
-        [Test]
-        public void MarkLavaTrigger_CalledTwice_StaysTrue()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-
-            tile.MarkLavaTrigger();
-            tile.MarkLavaTrigger();
-
-            Assert.IsTrue(tile.IsLavaTrigger);
-        }
-
-        // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — «Давилка»/«Стена
         // слева»/«Стена справа», единый reusable-класс Movement.MovingWallTrap,
         // режим выбирается параметром MovingWallMode на плите-триггере (тот
         // же принцип пары полей "цель + параметр", что у ArrowWaveTargetRow/

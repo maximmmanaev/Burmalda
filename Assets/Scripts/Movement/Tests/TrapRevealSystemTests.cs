@@ -132,19 +132,9 @@ namespace Burmalda.Movement.Tests
             Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
         }
 
-        // issue #216 — триггер Лавы скрыт тем же приёмом, что и прочие триггеры выше.
-        [Test]
-        public void Tick_LavaTriggerTile_RevealsSignature()
-        {
-            var grid = new TunnelGrid(Width);
-            var coordinate = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(coordinate).MarkLavaTrigger();
-            var system = new TrapRevealSystem(grid);
-
-            system.Tick(coordinate);
-
-            Assert.IsTrue(grid.GetOrCreateTile(coordinate).IsDangerSignatureRevealed);
-        }
+        // issue #216 — триггер волновой Лавы убран из игры целиком
+        // (переработка логики ловушек, владелец) — тест этого метода стоял
+        // здесь, удалён вместе с ним.
 
         // Владелец, 2026-09-04 (отменяет issue #193): рычаг видим всегда,
         // не опасность и не скрытый механизм — примеривание не должно

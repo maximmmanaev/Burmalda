@@ -5,11 +5,11 @@ using UnityEngine;
 namespace Burmalda.Movement
 {
     /// <summary>
-    /// <b>Переработка логики ловушек (владелец): добавлена шестая система —
-    /// MovingWallTrap (TR-05/06/07, Давилка/Стена слева/Стена справа).</b>
-    /// Весь doc-комментарий ниже — исторический (описывает момент, когда
-    /// систем было пять); механика самопроверки/тика не изменилась, просто
-    /// добавилась ещё одна система в тот же список.
+    /// <b>Переработка логики ловушек (владелец):</b> волновая Лава убрана из
+    /// игры целиком, добавлена MovingWallTrap (TR-05/06/07, Давилка/Стена
+    /// слева/Стена справа). Весь doc-комментарий ниже — исторический
+    /// (описывает момент, когда систем было пять, включая волновую Лаву);
+    /// сейчас тикает пять: Стрела/Бомба/Лезвия/Падающий камень/MovingWallTrap.
     ///
     /// Тикает пять систем ловушек (issue #212, Стрела/Бомба/Лезвия/Падающий
     /// камень/Лава — issues #213–#217) на каждый забег. Баг с устройства
@@ -99,7 +99,6 @@ namespace Burmalda.Movement
         private BombTrapSystem _bomb;
         private BladeTactTrapSystem _bladeTact;
         private FallingRockTrapSystem _fallingRock;
-        private LavaWaveTrapSystem _lavaWave;
         private MovingWallTrap _movingWall;
 
         private void Awake()
@@ -118,10 +117,10 @@ namespace Burmalda.Movement
             DisposeAll();
         }
 
-        // Тикает все пять систем реальным временем (issue #254) и заодно
+        // Тикает все четыре системы реальным временем (issue #254) и заодно
         // служит ленивой самопроверкой (issue #256, см. doc-комментарий
         // класса) — дёшево не-op на кадрах, где уже построено или ещё не
-        // готово.
+        // готово. Волновая Лава (пятая система) убрана из игры целиком.
         private void Update()
         {
             if (_arrowWave == null)
@@ -135,7 +134,6 @@ namespace Burmalda.Movement
             _bomb.Tick(deltaSeconds);
             _bladeTact.Tick(deltaSeconds);
             _fallingRock.Tick(deltaSeconds);
-            _lavaWave.Tick(deltaSeconds);
             _movingWall.Tick(deltaSeconds);
         }
 
@@ -169,7 +167,6 @@ namespace Burmalda.Movement
             // Задача «падающий камень: новая спецификация» — ретранслирует
             // на стабильное событие этого Controller'а, см. её doc-комментарий.
             _fallingRock.PlayerCrushed += OnFallingRockPlayerCrushed;
-            _lavaWave = new LavaWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
             _movingWall = new MovingWallTrap(grid, _trail, new RealTimeThreatScheduler());
         }
 
@@ -188,8 +185,6 @@ namespace Burmalda.Movement
             if (_fallingRock != null) _fallingRock.PlayerCrushed -= OnFallingRockPlayerCrushed;
             _fallingRock?.Dispose();
             _fallingRock = null;
-            _lavaWave?.Dispose();
-            _lavaWave = null;
             _movingWall?.Dispose();
             _movingWall = null;
         }
