@@ -286,14 +286,13 @@ namespace Burmalda.Generation.Tests
             Assert.IsFalse(tile.IsBombTrigger);
             Assert.IsFalse(tile.BladeTactTargetRow.HasValue);
             Assert.IsFalse(tile.IsFallingRockTrigger);
-            Assert.IsFalse(tile.IsLavaTrigger);
         }
 
         [Test]
         public void ApplyTemplate_ExtraTrapChanceOne_OpenTileBecomesSomeTrap()
         {
             // 1 — гарантированно конвертирует КАЖДУЮ Open-плиту материализуемого
-            // сегмента в один из пяти типов (какой именно — равновероятный
+            // сегмента в один из четырёх типов (какой именно — равновероятный
             // случайный выбор, см. SegmentRowProvider.ApplyExtraTrapDensity) —
             // проверяем только сам факт превращения, не конкретный тип.
             ExtraTrapDensity.Chance = 1f;
@@ -303,7 +302,7 @@ namespace Burmalda.Generation.Tests
 
             var tile = grid.GetOrCreateTile(new GridCoordinate(1, 0));
             var isSomeTrap = tile.LethalTrap.HasValue || tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
-                              tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger || tile.IsLavaTrigger;
+                              tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger;
             Assert.IsTrue(isSomeTrap, "при шансе 1 Open-плита должна была стать каким-то триггером ловушки.");
         }
 
@@ -345,12 +344,6 @@ namespace Burmalda.Generation.Tests
                 {
                     var withinBombRadius = Math.Abs(r - rewardRow) <= BombTrapSystem.RadiusTiles && Math.Abs(c - rewardColumn) <= BombTrapSystem.RadiusTiles;
                     Assert.IsFalse(withinBombRadius, $"({r},{c}): Бомба в радиусе {BombTrapSystem.RadiusTiles} от награды.");
-                }
-
-                if (candidate.IsLavaTrigger)
-                {
-                    var rewardBehindTrigger = rewardRow <= r && rewardRow > r - LavaWaveTrapSystem.MaxRows;
-                    Assert.IsFalse(rewardBehindTrigger, $"({r},{c}): волна Лавы дошла бы до ряда награды {rewardRow}.");
                 }
             }
 

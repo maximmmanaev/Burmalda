@@ -199,7 +199,7 @@ namespace Burmalda.DebugVisuals.HudDesign
         private bool IsTrapTriggerTile(GridCoordinate coordinate) =>
             _input.Grid != null && _input.Grid.TryGetTile(coordinate, out var tile) &&
             (tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger || tile.BladeTactTargetRow.HasValue ||
-             tile.IsFallingRockTrigger || tile.IsLavaTrigger);
+             tile.IsFallingRockTrigger);
 
         private void PositionAimVisuals(GridCoordinate coordinate)
         {

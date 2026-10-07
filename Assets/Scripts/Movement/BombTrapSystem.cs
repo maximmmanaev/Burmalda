@@ -38,14 +38,15 @@ namespace Burmalda.Movement
     /// подтверждён — ArrowWave/BladeTact/LavaWave по-прежнему используют
     /// <c>TimedTrapActive</c> заслуженно (для них это не баг, задача про
     /// Бомбу), а отдельная задача про текстуру статичной Лавы (issue #258 —
-    /// другая Лава, <see cref="LethalTrapType.Lava"/>, не
-    /// <see cref="LethalTrapType.LavaWave"/>) ЭТОГО корня не касается вовсе
-    /// (Лава туда никогда не попадала — <c>TileArtKindResolver</c> отдаёт ей
-    /// отдельную ветку <c>TileArtKind.Lava</c> ещё до общей проверки). Если
-    /// будущая задача даст волновой Лаве (<see cref="LethalTrapType.LavaWave"/>)
-    /// собственную текстуру — правильное место править то же самое, что
-    /// правит эта задача для Бомбы (<c>TileArtKindResolver</c>/<c>TileDebugColor</c>),
-    /// а не заново искать причину.</item>
+    /// другая Лава, <see cref="LethalTrapType.Lava"/>, не тогдашний отдельный
+    /// C#-идентификатор волны <c>LethalTrapType.LavaWave</c>) ЭТОГО корня не
+    /// касается вовсе (Лава туда никогда не попадала — <c>TileArtKindResolver</c>
+    /// отдаёт ей отдельную ветку <c>TileArtKind.Lava</c> ещё до общей
+    /// проверки). Исторический раздел: <c>LavaWave</c> позже слит с
+    /// <see cref="LethalTrapType.Lava"/> (issue #262), а сама волновая Лава
+    /// (<c>Movement.LavaWaveTrapSystem</c>) с тех пор убрана из игры целиком
+    /// (переработка логики ловушек, владелец) — вопрос "дать ли волне
+    /// отдельную текстуру" больше не актуален.</item>
     /// </list>
     ///
     /// <b>Реальное время, не ходы (владелец, 2026-09-14, issue #254 —
