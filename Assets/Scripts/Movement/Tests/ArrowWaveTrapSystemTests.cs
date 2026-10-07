@@ -29,6 +29,46 @@ namespace Burmalda.Movement.Tests
                 Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, column)).LethalTrap.HasValue);
         }
 
+        // Переработка логики ловушек (владелец): глобальный жизненный цикл
+        // Hidden → Detected → WaitingForExit → Triggered — приход на триггер
+        // раскрывает сигнатуру опасности, не запускает волну (см. тест выше).
+        [Test]
+        public void PositionChanged_TrailReachesTrigger_RevealsDangerSignature()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
+            using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
+
+            trail.TryAdvanceTo(trigger);
+
+            Assert.IsTrue(grid.GetOrCreateTile(trigger).IsDangerSignatureRevealed, "\"Detected\" обязан раскрыть сигнатуру опасности триггера");
+        }
+
+        // "WaitingForExit" — пока игрок стоит на триггере (сколько угодно
+        // тиков реального времени), волна не запускается. Она стартует
+        // ровно в момент, когда игрок реально уходит с плиты, не раньше.
+        [Test]
+        public void Tick_PlayerStaysOnTrigger_DoesNotArmAnythingUntilPlayerLeaves()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
+            using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger); // "Detected"
+
+            for (var i = 0; i < Width; i++) arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds);
+            for (var column = 0; column < Width; column++)
+                Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, column)).LethalTrap.HasValue,
+                    "пока игрок стоит на триггере, волна не должна запускаться, сколько бы времени ни прошло");
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — наконец уходит
+            arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds);
+
+            Assert.AreEqual(LethalTrapType.ArrowWave, grid.GetOrCreateTile(new GridCoordinate(2, 0)).LethalTrap,
+                "уход с триггера обязан был запустить волну");
+        }
+
         [Test]
         public void Tick_DelayElapses_ArmsFirstColumn_LeftToRight()
         {
@@ -36,7 +76,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
             using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected" — ничего не запускает
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
 
             arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds);
 
@@ -80,7 +121,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.RightToLeft);
             using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
 
             arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds);
 
@@ -95,7 +137,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
             using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
             arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds); // столбец 0 опасен
 
             arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds);
@@ -111,7 +154,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
             using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
 
             for (var column = 0; column < Width; column++)
             {
@@ -140,7 +184,8 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
             var otherRowTile = grid.GetOrCreateTile(new GridCoordinate(3, 0));
             using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
 
             for (var i = 0; i < Width + 1; i++) arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds);
 
@@ -154,11 +199,12 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
             using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
             for (var i = 0; i < Width + 1; i++) arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds); // первая волна полностью прошла
 
             trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад
-            trail.TryAdvanceTo(trigger); // повторно на триггер
+            trail.TryAdvanceTo(trigger); // повторно на триггер — уже в _firedTriggers, "Detected" пропускается
             arrowWave.Tick(ArrowWaveTrapSystem.StepSeconds);
 
             Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, 0)).LethalTrap.HasValue, "триггер одноразовый — повторный проход не должен запустить вторую волну");
@@ -184,8 +230,10 @@ namespace Burmalda.Movement.Tests
         // поэтому физически не могла догнать стоящего на месте игрока — она
         // была безопасна по построению, не по игровому замыслу. Ядро
         // критерия приёмки: "игрок стоит на месте несколько секунд — волна
-        // всё равно продвигается" — здесь трейл вообще не делает ни одного
-        // хода между тиками, только реальное время идёт вперёд.
+        // всё равно продвигается" — после ухода с триггера (обязателен по
+        // новому глобальному циклу Detected/Triggered — см. doc-комментарий
+        // класса) трейл больше не делает ни одного хода между тиками, только
+        // реальное время идёт вперёд.
         [Test]
         public void Tick_PlayerStandsStillForSeveralSeconds_WaveStillAdvancesOnRealTimeAlone()
         {
@@ -193,7 +241,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkArrowWaveTrigger(targetRow: 2, RowWaveDirection.LeftToRight);
             using var arrowWave = new ArrowWaveTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger); // единственный ход за весь тест — дальше игрок стоит на месте
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера, последний ход за весь тест, дальше игрок стоит на месте
 
             // Несколько секунд реального времени несколькими мелкими Tick —
             // ни одного хода трейла между ними.

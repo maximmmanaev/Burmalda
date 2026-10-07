@@ -23,13 +23,13 @@ namespace Burmalda.Movement
     /// (первый столбец и каждый следующий) тикается реальными секундами,
     /// один параметр <see cref="StepSeconds"/> на весь путь волны.
     ///
-    /// Проход трейла через плиту-триггер (<see cref="Tile.ArrowWaveTargetRow"/>/
-    /// <see cref="Tile.ArrowWaveDirection"/>, заданы на генерации, ЕЩЁ НЕ
-    /// подключено ни к одному генератору сегментов — отдельная задача
-    /// авторинга шаблонов, здесь только механика) запускает волну: через
-    /// <see cref="StepSeconds"/> секунд первый по направлению столбец
-    /// заявленного ряда становится смертельным (<see cref="Tile.TransitionToLethalTrap"/>)
-    /// ровно на <see cref="StepSeconds"/> секунд, затем безопасен снова
+    /// Уход трейла с плиты-триггера (<see cref="Tile.ArrowWaveTargetRow"/>/
+    /// <see cref="Tile.ArrowWaveDirection"/>, заданы на генерации — см. doc-
+    /// комментарий ниже про глобальный цикл Detected/Triggered) запускает
+    /// волну: через <see cref="StepSeconds"/> секунд первый по направлению
+    /// столбец заявленного ряда становится смертельным
+    /// (<see cref="Tile.TransitionToLethalTrap"/>) ровно на
+    /// <see cref="StepSeconds"/> секунд, затем безопасен снова
     /// (<see cref="Tile.ClearLethalTrap"/>) и опасным становится следующий
     /// столбец — пока волна не дойдёт до противоположного края ряда.
     ///
@@ -52,6 +52,18 @@ namespace Burmalda.Movement
     /// Одноразовая ловушка на триггер — повторный проход не запускает вторую
     /// параллельную волну. Несколько одновременно активных волн (разные
     /// триггеры) поддерживаются независимо друг от друга.
+    ///
+    /// <b>Переработка логики ловушек (владелец): глобальный жизненный цикл
+    /// Hidden → Detected → WaitingForExit → Triggered.</b> Раньше волна
+    /// запускалась в момент ПРИХОДА на триггер. Теперь приход только
+    /// раскрывает сигнатуру опасности (<see cref="Tile.RevealDangerSignature"/>,
+    /// «Detected») и запоминает плиту как <see cref="_pendingTriggerCoordinate"/>
+    /// — пока игрок стоит на ней («WaitingForExit»), ничего не запускается
+    /// (обычный распад пола по-прежнему тикает — не бесконечная пауза).
+    /// Волна стартует («Triggered») только когда игрок реально ПОКИДАЕТ эту
+    /// плиту — следующий <see cref="OnPositionChanged"/> с ДРУГОЙ координатой.
+    /// Повторное наступление на уже сработавший триггер — не-op
+    /// (<see cref="_firedTriggers"/> не даёт взвести его снова).
     /// </summary>
     public sealed class ArrowWaveTrapSystem : IDisposable
     {
@@ -84,6 +96,12 @@ namespace Burmalda.Movement
         // игровой смысл сам по себе.
         private readonly Dictionary<GridCoordinate, ActiveWave> _waitingWaves = new Dictionary<GridCoordinate, ActiveWave>();
 
+        // "WaitingForExit" — плита, на которой игрок стоит ПРЯМО СЕЙЧАС и
+        // которая несёт ещё не сработавший триггер (см. doc-комментарий
+        // класса). Null, если игрок не стоит на таком триггере. Ровно одна
+        // координата за раз — игрок физически занимает одну плиту.
+        private GridCoordinate? _pendingTriggerCoordinate;
+
         private bool _disposed;
 
         public ArrowWaveTrapSystem(TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler)
@@ -109,8 +127,31 @@ namespace Burmalda.Movement
 
         private void OnPositionChanged(GridCoordinate coordinate)
         {
+            // "Triggered" — только что покинули плиту с висящим триггером
+            // (см. doc-комментарий класса). Проверяется ПЕРЕД "Detected" ниже
+            // — если игрок шагнул с одного триггера сразу на другой, старый
+            // обязан активироваться раньше, чем новый встанет в ожидание.
+            if (_pendingTriggerCoordinate.HasValue && _pendingTriggerCoordinate.Value != coordinate)
+            {
+                ActivateWave(_pendingTriggerCoordinate.Value);
+                _pendingTriggerCoordinate = null;
+            }
+
+            // "Detected" — пришли на ещё не сработавший триггер: раскрываем
+            // сигнатуру опасности и встаём в ожидание ухода, ничего не
+            // запускаем (см. doc-комментарий класса).
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
             if (!tile.ArrowWaveTargetRow.HasValue) return;
+            if (_firedTriggers.Contains(coordinate)) return; // уже сработал раньше
+
+            _pendingTriggerCoordinate = coordinate;
+            tile.RevealDangerSignature();
+        }
+
+        /// <summary>"Triggered" — запускает волну для триггера в <paramref name="coordinate"/>. Вызывается только из <see cref="OnPositionChanged"/> в момент ухода игрока с этой плиты.</summary>
+        private void ActivateWave(GridCoordinate coordinate)
+        {
+            if (!_grid.TryGetTile(coordinate, out var tile) || !tile.ArrowWaveTargetRow.HasValue) return;
             if (!_firedTriggers.Add(coordinate)) return; // одноразовый триггер
 
             var direction = tile.ArrowWaveDirection.Value;

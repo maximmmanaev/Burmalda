@@ -6,7 +6,7 @@ namespace Burmalda.Movement.Tests
 {
     /// <summary>
     /// Баг с устройства (владелец, 2026-09-14, «ловушки вообще пропали»,
-    /// issue #256, портирован сюда вместе с переходом всех пяти систем на
+    /// issue #256, портирован сюда вместе с переходом всех систем на
     /// реальное время — issue #254): <see cref="TrapSystemsController"/>
     /// подписывается на <see cref="GridTraceInputController.RunStarted"/> в
     /// своём <c>OnEnable()</c>, но в реальной игре
@@ -18,11 +18,13 @@ namespace Burmalda.Movement.Tests
     /// класс гонки, что уже был найден и решён для лоадаута артефактов, но
     /// не был решён здесь. Controller безвозвратно пропускает единственное
     /// событие, которое должно было его построить, и ни разу не строит ни
-    /// одну из пяти систем ловушек за весь забег — в отличие от ВСЕХ
-    /// остальных контроллеров забега (<c>Boss.BossController</c>/
+    /// одну из систем ловушек за весь забег — в отличие от ВСЕХ остальных
+    /// контроллеров забега (<c>Boss.BossController</c>/
     /// <c>Generation.SegmentGenerationController</c> и т.д.), у него не было
     /// ленивой самопроверки в <c>Update()</c>, подстраховывающей именно этот
-    /// случай.
+    /// случай. На момент бага систем было пять — волновая Лава с тех пор
+    /// убрана из игры целиком (переработка логики ловушек, владелец),
+    /// остаются четыре.
     ///
     /// Приватные методы вызываются рефлексией — тот же паттерн, что
     /// <c>Bootstrap.Tests.RunBootstrapTests</c>: вне Play Mode
@@ -56,7 +58,7 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void Update_CalledAfterMissedInitialRunStarted_SelfHealsAndBuildsAllFiveSystems()
+        public void Update_CalledAfterMissedInitialRunStarted_SelfHealsAndBuildsAllFourSystems()
         {
             SetUpReproducingRealBootstrapRace();
 
@@ -68,11 +70,10 @@ namespace Burmalda.Movement.Tests
             Assert.IsNotNull(GetPrivateField(_controller, "_bomb"));
             Assert.IsNotNull(GetPrivateField(_controller, "_bladeTact"));
             Assert.IsNotNull(GetPrivateField(_controller, "_fallingRock"));
-            Assert.IsNotNull(GetPrivateField(_controller, "_lavaWave"));
         }
 
         [Test]
-        public void Update_AfterSelfHeal_TicksAllFiveSystemsWithRealDeltaTime_DoesNotThrow()
+        public void Update_AfterSelfHeal_TicksAllFourSystemsWithRealDeltaTime_DoesNotThrow()
         {
             // Сквозной тест: недостаточно, чтобы поля просто были не-null —
             // Update() на следующем кадре обязан уже начать тикать их
@@ -96,8 +97,16 @@ namespace Burmalda.Movement.Tests
             InvokePrivate(_controller, "Update"); // самолечение — строит системы
 
             var trigger = new Core.GridCoordinate(1, _input.Grid.Width / 2);
+            var away = new Core.GridCoordinate(1, _input.Grid.Width / 2 - 1);
             _input.Grid.GetOrCreateTile(trigger).MarkBombTrigger();
-            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger), "шаг на триггер должен был пройти");
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger), "шаг на триггер должен был пройти"); // "Detected"
+            // Переработка логики ловушек (владелец): активация — только при
+            // уходе с триггера ("Triggered"), не при приходе, см. doc-
+            // комментарий Movement.BombTrapSystem. Возвращается, чтобы
+            // проверка ниже (LethalTrap на самой плите-триггере) осталась
+            // верной — плита занята игроком в момент взрыва.
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(away), "уход с триггера должен был пройти");
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger), "возврат на триггер должен был пройти");
 
             var bomb = (BombTrapSystem)GetPrivateField(_controller, "_bomb");
             Assert.IsFalse(_input.Grid.GetOrCreateTile(trigger).LethalTrap.HasValue, "взрыв ещё не должен был произойти — задержка не истекла");
@@ -122,7 +131,10 @@ namespace Burmalda.Movement.Tests
 
             var trigger = new Core.GridCoordinate(1, _input.Grid.Width / 2);
             _input.Grid.GetOrCreateTile(trigger).MarkBombTrigger();
-            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger));
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(trigger)); // "Detected"
+            // Переработка логики ловушек: активация — только при уходе с
+            // триггера ("Triggered"), см. doc-комментарий Movement.BombTrapSystem.
+            Assert.IsTrue(_input.Trail.TryAdvanceTo(new Core.GridCoordinate(1, _input.Grid.Width / 2 - 1)));
 
             var bomb = (BombTrapSystem)GetPrivateField(_controller, "_bomb");
             bomb.Tick(BombTrapSystem.ComputeDelaySeconds(10));

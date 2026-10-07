@@ -21,22 +21,21 @@ namespace Burmalda.Generation
     /// триггер и награда — РАЗНЫЕ плиты шаблона, а связь между ними
     /// возникает только В РАНТАЙМЕ, когда область поражения триггера
     /// (<c>Movement.BombTrapSystem.ComputeBlastArea</c>, весь ряд
-    /// <c>ArrowWaveTrapSystem</c>/<c>BladeTactTrapSystem</c>, ряды назад
-    /// <c>LavaWaveTrapSystem</c>, плита впереди
+    /// <c>ArrowWaveTrapSystem</c>/<c>BladeTactTrapSystem</c>, плита впереди
     /// <c>Movement.FallingRockTrapSystem</c> — см. ниже) докатывается до
     /// соседней плиты и вызывает <see cref="Tile.TransitionToLethalTrap"/>
-    /// (Бомба/Стрела/Лезвия/Лава) либо <see cref="Tile.TransitionToBlocked"/>
+    /// (Бомба/Стрела/Лезвия) либо <see cref="Tile.TransitionToBlocked"/>
     /// (Падающий камень) — оба метода НАМЕРЕННО пишут поверх любой прежней
     /// роли, включая награду (см. их doc-комментарии). Этот класс проверяет
     /// тот же исход СТАТИЧЕСКИ, на этапе авторинга — повторяет области
     /// поражения каждого триггера один в один с рантайм-системами, не
     /// дублируя их код (площадь Бомбы читает
-    /// <see cref="Movement.BombTrapSystem.RadiusTiles"/> напрямую, глубина
-    /// волны Лавы — <see cref="Movement.LavaWaveTrapSystem.MaxRows"/> —
-    /// оба mutable static, если владелец раздвинет их на дебаг-панели,
-    /// гарантия этого класса относится к значениям НА МОМЕНТ ПРОВЕРКИ, не
-    /// навсегда — приемлемо, это debug-стресс-параметры, не отгружаемый
-    /// баланс).
+    /// <see cref="Movement.BombTrapSystem.RadiusTiles"/> напрямую — mutable
+    /// static, если владелец раздвинет её на дебаг-панели, гарантия этого
+    /// класса относится к значению НА МОМЕНТ ПРОВЕРКИ, не навсегда —
+    /// приемлемо, это debug-стресс-параметр, не отгружаемый баланс). Триггер
+    /// волны «Лава» (ряды назад, <c>Movement.LavaWaveTrapSystem.MaxRows</c>)
+    /// убран из игры целиком (переработка логики ловушек, владелец).
     ///
     /// <b>FallingRockTrigger (задача 4, «падающий камень: новая
     /// спецификация»): раньше здесь стояла обратная формулировка</b> —
@@ -155,25 +154,6 @@ namespace Burmalda.Generation
                     }
                     break;
 
-                case SegmentTileType.LavaWaveTrigger:
-                    // LavaWaveTrapSystem: ряд триггера (offset 0) и до
-                    // MaxRows-1 рядов НАЗАД (в сторону убывания Row), весь
-                    // ряд целиком на каждом шаге. Инварианты «не ряд игрока/
-                    // не ряд впереди» и «не Алтарь» — рантайм-only (знание о
-                    // текущей позиции игрока/о том, что плита стала Алтарём,
-                    // недоступно на этапе авторинга) — эта проверка
-                    // сознательно консервативнее: считает область поражения
-                    // максимальной, не полагаясь на то, что рантайм её
-                    // сузит.
-                    for (var offset = 0; offset < LavaWaveTrapSystem.MaxRows; offset++)
-                    {
-                        var candidateRow = row - offset;
-                        if (candidateRow < 0) break;
-                        for (var c = 0; c < template.Width; c++)
-                            yield return (candidateRow, c);
-                    }
-                    break;
-
                 case SegmentTileType.FallingRockTrigger:
                     // Задача «падающий камень: новая спецификация»
                     // (владелец): камень падает на плиту ВПЕРЕДИ триггера,
@@ -198,7 +178,6 @@ namespace Burmalda.Generation
             SegmentTileType.ArrowWaveTrigger => true,
             SegmentTileType.BombTrigger => true,
             SegmentTileType.BladeTactTrigger => true,
-            SegmentTileType.LavaWaveTrigger => true,
             SegmentTileType.FallingRockTrigger => true,
             _ => false,
         };

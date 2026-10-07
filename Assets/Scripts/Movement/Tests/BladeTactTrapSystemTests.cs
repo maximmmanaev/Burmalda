@@ -32,6 +32,44 @@ namespace Burmalda.Movement.Tests
                 Assert.IsFalse(IsLethal(grid, 1, column));
         }
 
+        // Переработка логики ловушек (владелец): глобальный жизненный цикл
+        // Hidden → Detected → WaitingForExit → Triggered — приход на триггер
+        // раскрывает сигнатуру опасности, не запускает такт (см. тест выше).
+        [Test]
+        public void PositionChanged_TrailReachesTrigger_RevealsDangerSignature()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
+            using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
+
+            trail.TryAdvanceTo(trigger);
+
+            Assert.IsTrue(grid.GetOrCreateTile(trigger).IsDangerSignatureRevealed, "\"Detected\" обязан раскрыть сигнатуру опасности триггера");
+        }
+
+        // "WaitingForExit" — пока игрок стоит на триггере, такт не
+        // запускается, сколько бы тиков реального времени ни прошло.
+        [Test]
+        public void Tick_PlayerStaysOnTrigger_DoesNotArmAnythingUntilPlayerLeaves()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
+            using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger); // "Detected"
+
+            for (var i = 0; i < 11; i++) blades.Tick(BladeTactTrapSystem.TactSeconds);
+            for (var column = 0; column < Width; column++)
+                Assert.IsFalse(IsLethal(grid, 1, column), "пока игрок стоит на триггере, такт не должен запускаться");
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — наконец уходит
+            blades.Tick(BladeTactTrapSystem.TactSeconds);
+
+            Assert.IsTrue(IsLethal(grid, 1, 0), "уход с триггера обязан был запустить такт");
+            Assert.IsTrue(IsLethal(grid, 1, 4));
+        }
+
         [Test]
         public void Tick_DelayElapses_ArmsFirstTact_OuterColumns()
         {
@@ -39,7 +77,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера, остаётся в том же ряду
 
             blades.Tick(BladeTactTrapSystem.TactSeconds);
 
@@ -96,7 +135,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
 
             for (var cycle = 0; cycle < 2; cycle++)
             {
@@ -121,7 +161,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
             blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 1: [0,4]
 
             blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 2: [1,3]
@@ -139,7 +180,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger); // игрок на ряду 1 — та же "зона"
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера, но остаётся в ряду 1 — той же "зоне"
             blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 1: [0,4] активен
 
             trail.TryAdvanceTo(new GridCoordinate(0, 2)); // покидает ряд 1
@@ -165,7 +207,8 @@ namespace Burmalda.Movement.Tests
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             var otherRowTile = grid.GetOrCreateTile(new GridCoordinate(2, 0));
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
 
             for (var i = 0; i < 11; i++) blades.Tick(BladeTactTrapSystem.TactSeconds);
 
@@ -179,11 +222,12 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера
             for (var i = 0; i < 11; i++) blades.Tick(BladeTactTrapSystem.TactSeconds); // первая последовательность полностью отработала
 
             trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад
-            trail.TryAdvanceTo(trigger); // повторно на триггер
+            trail.TryAdvanceTo(trigger); // повторно на триггер — уже в _firedTriggers, "Detected" пропускается
             blades.Tick(BladeTactTrapSystem.TactSeconds);
 
             Assert.IsFalse(IsLethal(grid, 1, 0), "триггер одноразовый — повторный проход не должен запустить вторую последовательность");
@@ -215,7 +259,8 @@ namespace Burmalda.Movement.Tests
             var trigger = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(trigger).MarkBladeTactTrigger(targetRow: 1);
             using var blades = new BladeTactTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger); // единственный ход за весь тест
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера, последний ход за весь тест
 
             blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 1: [0,4]
             blades.Tick(BladeTactTrapSystem.TactSeconds); // такт 2: [1,3]
