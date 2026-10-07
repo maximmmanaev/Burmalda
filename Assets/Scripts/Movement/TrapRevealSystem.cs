@@ -84,6 +84,7 @@ namespace Burmalda.Movement
             tile.ArrowWaveTargetRow.HasValue // триггер Стрелы (issue #213) — тот же приём, что и прочие триггеры ниже
             || tile.IsBombTrigger // триггер Бомбы (issue #214) — тот же приём
             || tile.BladeTactTargetRow.HasValue // триггер Лезвий (issue #215) — тот же приём
-            || tile.IsFallingRockTrigger; // триггер Падающего камня (issue #217) — тот же приём. Триггер Лавы (issue #216) убран вместе с волной.
+            || tile.IsFallingRockTrigger // триггер Падающего камня (issue #217) — тот же приём
+            || tile.MovingWallTargetRow.HasValue; // триггер Давилки/Стены слева/справа (TR-05/06/07, Trap System Spec v0.1) — тот же приём
     }
 }
