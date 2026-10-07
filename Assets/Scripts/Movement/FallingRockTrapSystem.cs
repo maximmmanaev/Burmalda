@@ -37,9 +37,10 @@ namespace Burmalda.Movement
     /// тот же аргумент в doc-комментарии <see cref="BombTrapSystem"/> —
     /// отсчёт до падения камня не должен зависеть от того, продолжает ли
     /// игрок идти. Построена на <see cref="RealTimeThreatScheduler"/>:
-    /// проход трейла через плиту-триггер (<see cref="Tile.FallingRockTargetCoordinate"/>,
+    /// уход трейла с плиты-триггера (<see cref="Tile.FallingRockTargetCoordinate"/>,
     /// заданный на генерации — <c>Generation.SegmentRowProvider</c>/
-    /// <c>Core.TunnelObstacleGenerator</c>) запускает отсчёт и сразу
+    /// <c>Core.TunnelObstacleGenerator</c> — см. doc-комментарий ниже про
+    /// глобальный цикл Detected/Triggered) запускает отсчёт и сразу
     /// поднимает предупреждение на целевой плите. Через
     /// <see cref="DelaySeconds"/> секунд:
     /// <list type="bullet">
@@ -69,6 +70,17 @@ namespace Burmalda.Movement
     /// Одноразовая ловушка на триггер — повторный проход не запускает
     /// вторую параллельную активацию (тот же приём, что у прочих систем
     /// этого семейства).
+    ///
+    /// <b>Переработка логики ловушек (владелец): глобальный жизненный цикл
+    /// Hidden → Detected → WaitingForExit → Triggered.</b> Раньше отсчёт
+    /// запускался в момент ПРИХОДА на триггер. Теперь приход только
+    /// раскрывает сигнатуру опасности плиты-триггера
+    /// (<see cref="Tile.RevealDangerSignature"/>, «Detected» — целевая плита
+    /// впереди ещё не подсвечена, её мигание начинается только при
+    /// «Triggered») и запоминает плиту как <see cref="_pendingTriggerCoordinate"/>
+    /// — пока игрок стоит на ней («WaitingForExit»), ничего не запускается.
+    /// Отсчёт стартует («Triggered») только когда игрок реально ПОКИДАЕТ эту
+    /// плиту — тот же приём, что <see cref="ArrowWaveTrapSystem"/>.
     /// </summary>
     public sealed class FallingRockTrapSystem : IDisposable
     {
@@ -82,6 +94,13 @@ namespace Burmalda.Movement
         private readonly GridTraceTrail _trail;
         private readonly RealTimeThreatScheduler _scheduler;
         private readonly HashSet<GridCoordinate> _firedTriggers = new HashSet<GridCoordinate>();
+
+        // "WaitingForExit" — плита, на которой игрок стоит ПРЯМО СЕЙЧАС и
+        // которая несёт ещё не сработавший триггер (см. doc-комментарий
+        // класса про глобальный цикл Detected/Triggered). Null, если игрок
+        // не стоит на таком триггере.
+        private GridCoordinate? _pendingTriggerCoordinate;
+
         private bool _disposed;
 
         public FallingRockTrapSystem(TunnelGrid grid, GridTraceTrail trail, RealTimeThreatScheduler scheduler)
@@ -120,8 +139,30 @@ namespace Burmalda.Movement
 
         private void OnPositionChanged(GridCoordinate coordinate)
         {
+            // "Triggered" — только что покинули плиту с висящим триггером
+            // (см. doc-комментарий класса). Проверяется ПЕРЕД "Detected"
+            // ниже — та же последовательность, что у ArrowWaveTrapSystem.
+            if (_pendingTriggerCoordinate.HasValue && _pendingTriggerCoordinate.Value != coordinate)
+            {
+                ActivateFall(_pendingTriggerCoordinate.Value);
+                _pendingTriggerCoordinate = null;
+            }
+
+            // "Detected" — раскрываем сигнатуру плиты-триггера (не целевой
+            // плиты впереди — её мигание начинается только при "Triggered"
+            // ниже, см. doc-комментарий класса), встаём в ожидание ухода.
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
             if (!tile.FallingRockTargetCoordinate.HasValue) return;
+            if (_firedTriggers.Contains(coordinate)) return; // уже сработал раньше
+
+            _pendingTriggerCoordinate = coordinate;
+            tile.RevealDangerSignature();
+        }
+
+        /// <summary>"Triggered" — запускает падение для триггера в <paramref name="coordinate"/>. Вызывается только из <see cref="OnPositionChanged"/> в момент ухода игрока с этой плиты.</summary>
+        private void ActivateFall(GridCoordinate coordinate)
+        {
+            if (!_grid.TryGetTile(coordinate, out var tile) || !tile.FallingRockTargetCoordinate.HasValue) return;
             if (!_firedTriggers.Add(coordinate)) return; // одноразовый триггер
 
             var target = tile.FallingRockTargetCoordinate.Value;
