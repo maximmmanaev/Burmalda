@@ -121,7 +121,7 @@ namespace Burmalda.DebugVisuals
         // подбора на дебаг-панели.
         private const float MaxBombDelaySeconds = 10f;
         private const float MaxBombDelayReductionPerTier = 2f;
-        private const int RowCount = 20; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 6 таймингов ловушек (2 скорости волн + задержка камня + 3 параметра кривой Бомбы — скорость волны Лавы убрана вместе с LavaWaveTrapSystem, переработка логики ловушек) + 1 readout счётчика отклонённых конфликтов стража ролей (хотфикс «страж ролей плиты роняет забег вместо диагностики», см. BuildPanel)
+        private const int RowCount = 21; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 6 таймингов ловушек (2 скорости волн + задержка камня + 3 параметра кривой Бомбы — скорость волны Лавы убрана вместе с LavaWaveTrapSystem, переработка логики ловушек) + 1 readout счётчика отклонённых конфликтов стража ролей (хотфикс «страж ролей плиты роняет забег вместо диагностики», см. BuildPanel) + 1 скорость MovingWallTrap (Давилка/Стена слева/Стена справа, TR-05/06/07, BURMALDA Trap System Spec v0.1)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -346,6 +346,16 @@ namespace Burmalda.DebugVisuals
             // раньше" — тот же readout-приём, что и ряд 11 выше.
             _roleConflictCounterValueText = BuildReadoutRow(_panelRoot.transform, 19, "Страж ролей: конфликтов отклонено",
                 FormatRoleConflictCounter(Tile.RoleConflictRejectedCount, Tile.LastRoleConflictRejectedRole, Tile.LastRoleConflictKeptRole));
+
+            // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — пятая система
+            // ловушек, тот же приём, что ряды 13–16 выше: "меняется только
+            // скорость... ранний Ярус — стены идут медленно, поздний —
+            // быстро откусывают клетки" (владелец). Добавлен ПОСЛЕДНИМ
+            // рядом (20), не встроен между существующими — вставка в
+            // середину сдвинула бы все rowIndex ниже неё, ручная
+            // перенумерация лишний риск опечатки без пользы.
+            BuildRow(_panelRoot.transform, 20, "Скорость: Давилка/Стена", 0.01f, MaxWaveSpeedSeconds, MovingWallTrap.StepSeconds,
+                v => MovingWallTrap.StepSeconds = v, FormatSeconds);
         }
 
         /// <summary>Строка "подпись + значение" без слайдера — только читается, нечего крутить. Возвращает Text значения, вызывающая сторона сама решает, куда его сохранить и как обновлять в Update().</summary>

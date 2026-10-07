@@ -530,6 +530,10 @@ namespace Burmalda.Core.Tests
             ("BombTrigger", t => t.MarkBombTrigger()),
             ("BladeTactTrigger", t => t.MarkBladeTactTrigger(0)),
             ("FallingRockTrigger", t => t.MarkFallingRockTrigger(new GridCoordinate(0, 0))),
+            // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — шестая ловушка,
+            // тот же приём, что у остальных Mark*Trigger выше: MarkMovingWallTrigger
+            // тоже проходит через GuardAgainstConflictingRole (см. Tile.cs).
+            ("MovingWallTrigger", t => t.MarkMovingWallTrigger(0, MovingWallMode.Both)),
         };
 
         private static IEnumerable<TestCaseData> ExclusiveRoleConflictPairs()
@@ -1113,5 +1117,41 @@ namespace Burmalda.Core.Tests
         // триггер (IsLavaTrigger/MarkLavaTrigger) убран из игры целиком
         // (переработка логики ловушек, владелец); три теста этого метода
         // здесь стояли, удалены вместе с ним.
+
+        // слева»/«Стена справа», единый reusable-класс Movement.MovingWallTrap,
+        // режим выбирается параметром MovingWallMode на плите-триггере (тот
+        // же принцип пары полей "цель + параметр", что у ArrowWaveTargetRow/
+        // ArrowWaveDirection).
+        [Test]
+        public void NewTile_HasNoMovingWallTargetRow()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.MovingWallTargetRow.HasValue);
+            Assert.IsFalse(tile.MovingWallTriggerMode.HasValue);
+        }
+
+        [Test]
+        public void MarkMovingWallTrigger_SetsTargetRowAndMode()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkMovingWallTrigger(targetRow: 4, MovingWallMode.FromLeft);
+
+            Assert.AreEqual(4, tile.MovingWallTargetRow);
+            Assert.AreEqual(MovingWallMode.FromLeft, tile.MovingWallTriggerMode);
+        }
+
+        [Test]
+        public void MarkMovingWallTrigger_CalledTwice_KeepsFirstValues()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkMovingWallTrigger(4, MovingWallMode.FromLeft);
+            tile.MarkMovingWallTrigger(9, MovingWallMode.FromRight);
+
+            Assert.AreEqual(4, tile.MovingWallTargetRow);
+            Assert.AreEqual(MovingWallMode.FromLeft, tile.MovingWallTriggerMode);
+        }
     }
 }

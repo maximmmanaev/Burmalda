@@ -92,7 +92,8 @@ namespace Burmalda.DebugVisuals
             tile.ArrowWaveTargetRow.HasValue
             || tile.IsBombTrigger
             || tile.BladeTactTargetRow.HasValue
-            || tile.IsFallingRockTrigger;
+            || tile.IsFallingRockTrigger
+            || tile.MovingWallTargetRow.HasValue;
 
         private void PlayClick()
         {

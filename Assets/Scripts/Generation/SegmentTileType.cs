@@ -84,9 +84,27 @@ namespace Burmalda.Generation
         BladeTactTrigger,
 
         /// <summary>Триггер «Падающего камня» (issue #217) — камень падает на саму эту плиту, без отдельной цели.</summary>
-        FallingRockTrigger
+        FallingRockTrigger,
 
         // Триггер волны «Лава» (issue #216) убран из игры вместе с
         // Movement.LavaWaveTrapSystem (переработка логики ловушек, владелец).
+
+        /// <summary>
+        /// Триггер «Давилки» (BURMALDA Trap System Spec v0.1, TR-05,
+        /// <c>Movement.MovingWallTrap</c>, <see cref="Core.MovingWallMode.Both"/> —
+        /// сам enum лежит в <c>Core</c>, не в <c>Movement</c>: <c>Tile</c>
+        /// хранит его как поле, а <c>Core</c> не может ссылаться на
+        /// <c>Movement</c>, см. doc-комментарий <c>Core.MovingWallMode</c>) —
+        /// цель по умолчанию: ряд+1, тот же принцип, что у
+        /// <see cref="FallingRockTrigger"/> (T стоит ПЕРЕД закрывающимся
+        /// рядом, не в нём самом). Стены смыкаются с обоих краёв к центру.
+        /// </summary>
+        MovingWallBothTrigger,
+
+        /// <summary>Триггер «Стены слева» (TR-06, <see cref="Core.MovingWallMode.FromLeft"/>) — та же цель по умолчанию, что <see cref="MovingWallBothTrigger"/>. Стена растёт от левого края направо.</summary>
+        MovingWallLeftTrigger,
+
+        /// <summary>Триггер «Стены справа» (TR-07, <see cref="Core.MovingWallMode.FromRight"/>) — та же цель по умолчанию, что <see cref="MovingWallBothTrigger"/>. Стена растёт от правого края налево.</summary>
+        MovingWallRightTrigger
     }
 }
