@@ -150,6 +150,60 @@ def check_git(args):
             block("`git reset --hard` необратимо теряет изменения. Используй `git stash` "
                   "или `git restore <путь>` для конкретных файлов; иначе спроси владельца.")
 
+OWNER_ONLY = ("Мерж и изменение защиты веток делает только владелец вручную. "
+              "Агент заканчивает работу открытым PR с зелёным CI и сообщает владельцу.")
+
+def check_gh(args):
+    # пропускаем глобальные опции gh (-R/--repo, --hostname)
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in ("-R", "--repo", "--hostname"):
+            i += 2
+        elif a.startswith("-"):
+            i += 1
+        else:
+            break
+    if i >= len(args):
+        return
+    sub, rest = args[i], args[i + 1:]
+    if sub == "pr":
+        pos = [a for a in rest if not a.startswith("-")]
+        if pos and pos[0] == "merge":
+            block("`gh pr merge` (с любыми флагами, включая --admin и --auto) запрещён. " + OWNER_ONLY)
+    elif sub == "api":
+        method = None
+        implicit_post = False
+        endpoint = None
+        j = 0
+        while j < len(rest):
+            a = rest[j]
+            if a in ("-X", "--method") and j + 1 < len(rest):
+                method = rest[j + 1].upper(); j += 2; continue
+            if a.startswith("--method="):
+                method = a.split("=", 1)[1].upper()
+            elif re.fullmatch(r"-X[A-Za-z]+", a):
+                method = a[2:].upper()
+            elif a in ("-f", "-F", "--field", "--raw-field", "--input"):
+                implicit_post = True; j += 2; continue
+            elif a in ("-H", "--header", "-q", "--jq", "-t", "--template", "--cache", "--hostname"):
+                j += 2; continue
+            elif not a.startswith("-") and endpoint is None:
+                endpoint = a
+            j += 1
+        if endpoint is None:
+            return
+        ep = endpoint.lstrip("/")
+        if "/merge" in ep:
+            block("`gh api` к пути с /merge запрещён. " + OWNER_ONLY)
+        if endpoint == "graphql" and re.search(r"mergePullRequest|enablePullRequestAutoMerge|enableAutoMerge",
+                                              " ".join(rest)):
+            block("GraphQL-мутация мержа запрещена. " + OWNER_ONLY)
+        eff = method or ("POST" if implicit_post else "GET")
+        if eff in ("PUT", "DELETE", "PATCH", "POST") and \
+           re.search(r"(^|/)pulls(/|$)|/branches/.+/protection|(^|/)rulesets(/|$)", ep):
+            block("`gh api -X %s %s` меняет PR или защиту веток. " % (eff, endpoint) + OWNER_ONLY)
+
 def check_segment(seg, depth=0):
     # убираем префиксные присваивания VAR=val и обёртки env/command/time/sudo
     while seg and (re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", seg[0]) or
@@ -167,6 +221,8 @@ def check_segment(seg, depth=0):
                 return
     if prog == "git":
         check_git(seg[1:])
+    elif prog == "gh":
+        check_gh(seg[1:])
 
 try:
     for s in segments(strip_heredocs(cmd)):

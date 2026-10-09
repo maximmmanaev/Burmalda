@@ -1682,3 +1682,11 @@ docs/raw/**, *.unity, *.prefab; путь нормализуется). Сбой �
 `implementation-workflow.md`: между красным и зелёным — `check.sh targeted`,
 перед каждым коммитом — `check.sh full`, коммит только при коде 0 (раньше
 полный прогон был один раз перед PR). Код игры не менялся.
+
+## 2026-10-09 — хук блокирует мерж и изменение защиты веток (issue #318)
+
+`guard-bash.sh` блокирует `gh pr merge` (любые флаги), `gh api` с `/merge` в
+пути или GraphQL-мутацией мержа, `gh api` с PUT/DELETE/PATCH/POST (в т.ч.
+неявным POST через -f/-F/--input) к `pulls`, `branches/.../protection`,
+`rulesets`. Сообщение: мерж и защиту веток делает только владелец.
+`scripts/test-hooks.sh` — 138 тестов. Код игры не менялся.
