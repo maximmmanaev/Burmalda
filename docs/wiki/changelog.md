@@ -1673,3 +1673,10 @@ docs/raw/**, *.unity, *.prefab; путь нормализуется). Сбой �
 блокирует (код 2). Проверка: `scripts/test-hooks.sh` (69 тестов). Хуки не
 ловят запись через Bash (sed -i, tee, `>`) и команды вне Claude Code. Код игры
 не менялся.
+
+## 2026-10-09 — CLAUDE.md: скилл karpathy-guidelines (issue #314)
+
+В CLAUDE.md после `@AGENTS.md` добавлена строка: для написания, правки и
+ревью кода применять скилл `andrej-karpathy-skills:karpathy-guidelines`.
+Строка `@AGENTS.md` осталась первой (проверка (a) agent-files). AGENTS.md и
+workflow не менялись, код игры не менялся.
