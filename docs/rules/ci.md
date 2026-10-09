@@ -33,5 +33,6 @@ scripts/check.sh full                # как в CI: playmode, затем editmo
 ```
 
 - Режимы повторяют CI (`testMode: all`). Все тестовые сборки проекта Editor-only, поэтому playmode-прогон выполняет 0 тестов, а editmode — все (1517 на 2026-10-09); это ожидаемо и в CI, и локально.
+- `full` падает (код 1), если пройдено меньше `MIN_EDITMODE_TESTS` EditMode-тестов (в начале `scripts/check.sh`, сейчас 1400); при намеренном удалении тестов порог меняется в том же PR. В `targeted` порог не применяется. Разово переопределить: `CHECK_MIN_EDITMODE=N scripts/check.sh full`.
 - Редактор с этим проектом должен быть закрыт: иначе код выхода 2 и ничего не запускается. Если после сбоя остался `Temp/UnityLockfile` без процесса Unity, удалите его.
 - Лог и XML лежат вне репозитория: `~/.cache/burmalda-check/` (`<playmode|editmode>.log`, `-results.xml`). Путь Unity берётся из `ProjectSettings/ProjectVersion.txt`, переопределяется `UNITY_PATH`.

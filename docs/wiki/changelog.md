@@ -1674,9 +1674,11 @@ docs/raw/**, *.unity, *.prefab; путь нормализуется). Сбой �
 ловят запись через Bash (sed -i, tee, `>`) и команды вне Claude Code. Код игры
 не менялся.
 
-## 2026-10-09 — CLAUDE.md: скилл karpathy-guidelines (issue #314)
+## 2026-10-09 — порог EditMode-тестов в check.sh и правило полного прогона (issue #316)
 
-В CLAUDE.md после `@AGENTS.md` добавлена строка: для написания, правки и
-ревью кода применять скилл `andrej-karpathy-skills:karpathy-guidelines`.
-Строка `@AGENTS.md` осталась первой (проверка (a) agent-files). AGENTS.md и
-workflow не менялись, код игры не менялся.
+`scripts/check.sh full` падает с кодом 1, если пройдено меньше
+`MIN_EDITMODE_TESTS` (1400) EditMode-тестов; в `targeted` порога нет;
+разовое переопределение — `CHECK_MIN_EDITMODE`. Правило в AGENTS.md и
+`implementation-workflow.md`: между красным и зелёным — `check.sh targeted`,
+перед каждым коммитом — `check.sh full`, коммит только при коде 0 (раньше
+полный прогон был один раз перед PR). Код игры не менялся.
