@@ -1636,3 +1636,12 @@ Test-first: новый `DeathNotificationOverlayTests` — уведомлени�
 `Burmalda.DebugVisuals.Tests.asmdef` получил новую ссылку на
 `Burmalda.Decay` (нужна для `TrailDecayController` в тесте). Полный
 EditMode: **1218/1218**.
+
+## 2026-10-09 — AGENTS.md + @AGENTS.md в CLAUDE.md + CI-проверка (issue #303)
+
+Добавлен `AGENTS.md` (карта проекта: ссылки на docs/rules, PRD v9, wiki,
+жёсткие ограничения), `CLAUDE.md` теперь начинается с `@AGENTS.md`, дубли
+убраны. Новый workflow `agent-files.yml` на `pull_request`: есть строка
+`@AGENTS.md` в CLAUDE.md, пути в обратных кавычках из AGENTS.md существуют,
+AGENTS.md не длиннее 120 строк. Команда локального запуска тестов в
+репозитории не описана. Код игры не менялся, EditMode не запускался.
