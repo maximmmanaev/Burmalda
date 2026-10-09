@@ -10,12 +10,13 @@ Claude Code", ни "Co-Authored-By: Claude...", ни аналогов. См.
 - НЕ трогать .unity и .prefab файлы автономно — это YAML-сцены, ломаются при автоправках. Такие изменения — только вручную.
 - Баланс (кривые множителя, вероятности d20, экономика Ритуала) не менять без явного запроса — это требует плейтеста, не только кода.
 - `docs/raw/`: агенту запрещено редактировать, удалять или переписывать что-либо в этой папке.
+- Во время итераций (между красным и зелёным) гонять только целевые тест(ы) по задаче, не весь EditMode-прогон. Полный EditMode-прогон — один раз, перед открытием PR. См. `docs/rules/implementation-workflow.md`.
 
 ## Когда что читать
 
 - Начало задачи — `docs/rules/token-economy.md`; расход контекста — `docs/rules/agent-efficiency.md`.
 - Правка кода, баг — `docs/rules/implementation-workflow.md`, `docs/rules/code-style.md`.
-- Термины, фичи — `docs/rules/terminology.md`, нужные разделы актуального PRD (самый свежий файл в docs/raw, см. шапку).
+- Термины, фичи — `docs/rules/terminology.md`, нужные разделы актуального PRD (самый свежий файл в docs/raw; какой версии — написано в `docs/wiki/roadmap.md`).
 - Баланс, валюты, артефакты, .unity/.prefab, названия и тексты — `docs/rules/forbidden-actions.md`.
 - Конец задачи, wiki, changelog, тесты и CI — `docs/rules/documentation.md`, `docs/rules/ci.md`.
 - PR, конфликты, сборка спринта — `docs/rules/git-workflow.md`; карта wiki — `docs/wiki/index.md`.
