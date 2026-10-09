@@ -15,7 +15,7 @@ set -uo pipefail
 # Число пройденных EditMode-тестов не должно падать ниже этого значения; при намеренном
 # удалении тестов меняется в том же PR. Применяется только в `full` (в `targeted` — нет).
 # Для проверки без правки файла: CHECK_MIN_EDITMODE=99999 scripts/check.sh full
-MIN_EDITMODE_TESTS=1400
+MIN_EDITMODE_TESTS=1500
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(sed -n 's/^m_EditorVersion: *//p' "$ROOT/ProjectSettings/ProjectVersion.txt")"
