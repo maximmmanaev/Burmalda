@@ -1674,6 +1674,22 @@ docs/raw/**, *.unity, *.prefab; путь нормализуется). Сбой �
 ловят запись через Bash (sed -i, tee, `>`) и команды вне Claude Code. Код игры
 не менялся.
 
+## 2026-10-09 — ещё запреты в хуке и проверка protected-paths (issue #311)
+
+`guard-bash.sh` теперь блокирует `git clean` (кроме `-n`/`--dry-run`), `git
+checkout .`, `git restore .`, `git stash drop/clear`, `git push --delete` и
+`git push origin :ветка`, `git add '*'` и `:/`; `scripts/test-hooks.sh` — 106
+тестов. Новый workflow `protected-paths.yml`: PR с изменениями в `docs/raw/**`,
+`*.unity`, `*.prefab` падает без метки `owner-approved` (метка создана). Код
+игры не менялся.
+
+## 2026-10-09 — CLAUDE.md: скилл karpathy-guidelines (issue #314)
+
+В CLAUDE.md после `@AGENTS.md` добавлена строка: для написания, правки и
+ревью кода применять скилл `andrej-karpathy-skills:karpathy-guidelines`.
+Строка `@AGENTS.md` осталась первой (проверка (a) agent-files). AGENTS.md и
+workflow не менялись, код игры не менялся.
+
 ## 2026-10-09 — порог EditMode-тестов в check.sh и правило полного прогона (issue #316)
 
 `scripts/check.sh full` падает с кодом 1, если пройдено меньше
@@ -1690,3 +1706,11 @@ docs/raw/**, *.unity, *.prefab; путь нормализуется). Сбой �
 неявным POST через -f/-F/--input) к `pulls`, `branches/.../protection`,
 `rulesets`. Сообщение: мерж и защиту веток делает только владелец.
 `scripts/test-hooks.sh` — 138 тестов. Код игры не менялся.
+
+## 2026-10-09 — возвращены записи changelog про #311 и #314 (issue #320)
+
+Записи про #311 (запреты в хуке, protected-paths) и #314 (скилл
+karpathy-guidelines в CLAUDE.md) пропали при разрешении конфликтов в
+changelog.md при мерже PR #312 и #315. Возвращены дословно из коммитов 1eb5a4c
+и 2743e8d, на хронологически верное место (между #309 и #316), остальные
+записи не менялись. Код игры не менялся.
