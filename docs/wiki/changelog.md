@@ -1663,3 +1663,13 @@ batchmode, лог и XML в `~/.cache/burmalda-check/`, сводка до 40 с�
 локально playmode выполняет 0 тестов: все тестовые сборки Editor-only.
 Порядок запуска — в `docs/rules/ci.md`, указатель — в AGENTS.md. Код игры не
 менялся.
+
+## 2026-10-09 — хуки-защитники Claude Code (issue #309)
+
+`.claude/settings.json` подключает PreToolUse-хуки: `guard-bash.sh` (git add
+-A/./-u, commit -a, push в main и force, branch -D, reset --hard, атрибуция
+агента в коммите/PR) и `guard-files.sh` (Edit/Write/NotebookEdit для
+docs/raw/**, *.unity, *.prefab; путь нормализуется). Сбой разбора входа
+блокирует (код 2). Проверка: `scripts/test-hooks.sh` (69 тестов). Хуки не
+ловят запись через Bash (sed -i, tee, `>`) и команды вне Claude Code. Код игры
+не менялся.
