@@ -44,6 +44,14 @@ for c in 'git add -A' 'git add --all' 'git add .' 'git add -u' 'git add -Av' 'gi
          'git branch -D old' 'git branch -Df old' 'git reset --hard' 'git reset --hard HEAD~1' \
          'git -C /tmp add -A' 'cd x && git add -A' 'echo a; git add .' \
          'bash -c "git add -A"' \
+         "git add '*'" 'git add :/' 'git add ":(top)"' \
+         'git clean -fd' 'git clean -f' 'git clean -fdx' 'git clean -xdf' \
+         'git checkout .' 'git checkout -- .' 'git checkout HEAD -- .' \
+         'git restore .' 'git restore --source=HEAD~1 .' 'git restore --staged --worktree .' \
+         'git stash drop' 'git stash drop stash@{1}' 'git stash clear' \
+         'git push --delete origin feature/x' 'git push origin --delete feature/x' \
+         'git push -d origin feature/x' 'git push origin :feature/x' \
+         'cd x && git clean -fd' 'bash -c "git stash clear"' \
          "git commit -m x -m \"$CO\"" \
          "gh pr create --title t --body \"$GEN\"" \
          "git commit -m \"\$(cat <<'EOT'
@@ -68,6 +76,11 @@ fix: x
 git add -A не использовать
 EOT
 )\"" \
+         'git restore AGENTS.md' 'git restore --staged AGENTS.md' 'git restore --source=HEAD~1 AGENTS.md' \
+         'git clean -n' 'git clean -nd' 'git clean --dry-run -fd' \
+         'git checkout main' 'git checkout -b feature/y' 'git checkout -- AGENTS.md' \
+         'git stash' 'git stash list' 'git stash pop' 'git stash push -m wip' \
+         'git push origin feature/x:feature/x' 'git add docs/' \
          'gh pr create --title t --body "Closes #1"' 'ls -la'; do
   tb 0 "$c"
 done
