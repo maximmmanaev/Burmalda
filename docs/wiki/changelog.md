@@ -1690,3 +1690,10 @@ docs/raw/**, *.unity, *.prefab; путь нормализуется). Сбой �
 неявным POST через -f/-F/--input) к `pulls`, `branches/.../protection`,
 `rulesets`. Сообщение: мерж и защиту веток делает только владелец.
 `scripts/test-hooks.sh` — 138 тестов. Код игры не менялся.
+
+## 2026-10-09 — порог MIN_EDITMODE_TESTS поднят до 1500 (issue #322)
+
+В `scripts/check.sh` `MIN_EDITMODE_TESTS` 1400 → 1500 (цель из #316). Полный
+прогон без открытого редактора: 1517 EditMode-тестов, код 0;
+`CHECK_MIN_EDITMODE=99999 scripts/check.sh full` — код 1. Запись про #316 выше
+осталась как была (порог 1400 на тот момент). Код игры не менялся.
