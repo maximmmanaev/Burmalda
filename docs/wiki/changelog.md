@@ -1673,3 +1673,12 @@ docs/raw/**, *.unity, *.prefab; путь нормализуется). Сбой �
 блокирует (код 2). Проверка: `scripts/test-hooks.sh` (69 тестов). Хуки не
 ловят запись через Bash (sed -i, tee, `>`) и команды вне Claude Code. Код игры
 не менялся.
+
+## 2026-10-09 — ещё запреты в хуке и проверка protected-paths (issue #311)
+
+`guard-bash.sh` теперь блокирует `git clean` (кроме `-n`/`--dry-run`), `git
+checkout .`, `git restore .`, `git stash drop/clear`, `git push --delete` и
+`git push origin :ветка`, `git add '*'` и `:/`; `scripts/test-hooks.sh` — 106
+тестов. Новый workflow `protected-paths.yml`: PR с изменениями в `docs/raw/**`,
+`*.unity`, `*.prefab` падает без метки `owner-approved` (метка создана). Код
+игры не менялся.
