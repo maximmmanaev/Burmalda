@@ -1,0 +1,44 @@
+name: Protected Paths
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+# Правила: docs/rules/forbidden-actions.md. Агент не правит docs/raw и сцены/префабы
+# Unity; если PR их всё же затрагивает, его должен одобрить владелец меткой owner-approved.
+jobs:
+  check:
+    name: Protected paths
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Diff не затрагивает защищённые пути (или есть метка owner-approved)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only --no-renames "origin/${BASE_REF}...HEAD" \
+            | grep -iE '^docs/raw/|\.unity$|\.prefab$' || true)
+          if [ -z "$changed" ]; then
+            echo "Защищённые пути не затронуты."
+            exit 0
+          fi
+          echo "Затронуты защищённые пути:"
+          echo "$changed"
+          if echo "$LABELS" | jq -e 'index("owner-approved")' >/dev/null; then
+            echo "Есть метка owner-approved — пропускаем."
+            exit 0
+          fi
+          while IFS= read -r f; do
+            echo "::error file=${f}::защищённый путь изменён без метки owner-approved"
+          done <<< "$changed"
+          echo "Владелец должен добавить метку owner-approved (docs/rules/forbidden-actions.md)."
+          exit 1
