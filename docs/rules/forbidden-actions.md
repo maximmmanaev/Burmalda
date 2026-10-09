@@ -6,6 +6,8 @@
 
 Правило 1 (.unity/.prefab) и запреты из AGENTS.md (docs/raw, `git add -A`/`.`, push в main, force, `git reset --hard`, `git branch -D`, атрибуция агента) проверяются хуками (`.claude/hooks`), не только текстом. Тесты хуков: `scripts/test-hooks.sh`.
 
+Мерж PR и изменение защиты веток делает только владелец вручную: хук блокирует `gh pr merge` (в т.ч. `--admin`/`--auto`), `gh api` с `/merge` в пути и `gh api` с PUT/DELETE/PATCH/POST к `pulls`, `branches/.../protection`, `rulesets`. Комментарии к PR — через `gh pr comment`.
+
 Хуки не видят запись через Bash и действия вне Claude Code, поэтому CI (`.github/workflows/protected-paths.yml`) падает на PR, чей diff затрагивает `docs/raw/**`, `*.unity` или `*.prefab`, пока владелец не поставит метку `owner-approved`. Хуки дополнительно блокируют `git clean` (кроме `-n`), `git checkout .`, `git restore .`, `git stash drop/clear`, удаление веток через push и `git add '*'`/`:/`.
 
 ## Послабление: черновые балансные числа при явном разрешении задачи
