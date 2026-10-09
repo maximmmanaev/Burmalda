@@ -74,7 +74,8 @@ def check_git(args):
         for a in rest:
             if a == "--":
                 continue
-            if a in ("--all", "--update", ".", "./") or \
+            if a in ("--all", "--update", ".", "./", "*") or a.startswith(":/") or \
+               a.startswith(":(top)") or \
                (short_cluster(a) and ("A" in a or "u" in a)):
                 block("`git add %s` добавляет всё подряд (могут уехать чужие файлы). "
                       "Добавляй только явные пути: `git add путь/к/файлу`, "
@@ -94,11 +95,18 @@ def check_git(args):
                or (short_cluster(a) and "f" in a) or a.startswith("+"):
                 block("force-push запрещён. Ветку при необходимости обновляй новым "
                       "коммитом/merge; переписывание истории согласуй с владельцем.")
+        for a in rest:
+            if a == "--delete" or (short_cluster(a) and "d" in a):
+                block("`git push --delete` удаляет ветку на удалённом репозитории. "
+                      "Удаление веток согласуй с владельцем (он делает это на GitHub).")
         if "--all" in rest:
             block("`git push --all` затрагивает и main. Пушь одну ветку явно: "
                   "`git push origin <ветка>`.")
         refspecs = pos[1:]
         for r in refspecs:
+            if r.startswith(":"):
+                block("`git push origin :ветка` удаляет ветку на удалённом репозитории. "
+                      "Удаление веток согласуй с владельцем.")
             dst = r.split(":")[-1]
             dst = re.sub(r"^refs/heads/", "", dst)
             if dst in PROTECTED:
@@ -116,6 +124,27 @@ def check_git(args):
                       "`git branch -d` (откажет, если не смержена) или спроси владельца.")
         if "--delete" in rest and ("--force" in rest or any(short_cluster(a) and "f" in a for a in rest)):
             block("принудительное удаление ветки запрещено; используй `git branch -d`.")
+    elif sub == "clean":
+        dry = any(a == "--dry-run" or (short_cluster(a) and "n" in a) for a in rest)
+        if not dry:
+            block("`git clean` безвозвратно удаляет неотслеживаемые файлы (в т.ч. чужие "
+                  "рабочие файлы владельца). Посмотри, что будет удалено: `git clean -n`; "
+                  "удаляй конкретный файл по явному пути или спроси владельца.")
+    elif sub == "checkout":
+        if any(a in (".", "./", ":/") for a in rest):
+            block("`git checkout .` / `checkout -- .` затирает все правки в рабочей "
+                  "директории. Восстанови конкретный файл по явному пути "
+                  "(`git restore путь/к/файлу`) или спроси владельца.")
+    elif sub == "restore":
+        if any(a in (".", "./", ":/", "*") for a in rest):
+            block("`git restore .` (в т.ч. с --source) затирает все правки. Восстанови "
+                  "конкретный файл по явному пути (`git restore путь/к/файлу`) или "
+                  "спроси владельца.")
+    elif sub == "stash":
+        pos = [a for a in rest if not a.startswith("-")]
+        if pos and pos[0] in ("drop", "clear"):
+            block("`git stash %s` безвозвратно удаляет сохранённые правки. Посмотри "
+                  "`git stash list`; удаление записей согласуй с владельцем." % pos[0])
     elif sub == "reset":
         if "--hard" in rest:
             block("`git reset --hard` необратимо теряет изменения. Используй `git stash` "
