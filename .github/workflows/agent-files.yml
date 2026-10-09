@@ -31,8 +31,8 @@ jobs:
           done < <(grep -oE '`(docs|Assets|Tools)/[^`]*`' AGENTS.md | tr -d '`')
           exit $status
 
-      - name: AGENTS.md не длиннее 120 строк
+      - name: AGENTS.md не длиннее 30 строк
         run: |
           n=$(wc -l < AGENTS.md)
           echo "AGENTS.md: $n строк"
-          test "$n" -le 120
+          test "$n" -le 30
