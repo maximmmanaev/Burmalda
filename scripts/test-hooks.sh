@@ -52,6 +52,13 @@ for c in 'git add -A' 'git add --all' 'git add .' 'git add -u' 'git add -Av' 'gi
          'git push --delete origin feature/x' 'git push origin --delete feature/x' \
          'git push -d origin feature/x' 'git push origin :feature/x' \
          'cd x && git clean -fd' 'bash -c "git stash clear"' \
+         'gh pr merge' 'gh pr merge 1' 'gh pr merge 1 --squash' 'gh pr merge --admin 12' 'gh pr merge --auto 3' \
+         'gh -R o/r pr merge 5' 'cd x && gh pr merge 1' 'gh pr merge' \
+         'gh api repos/o/r/pulls/1/merge -X PUT' 'gh api -X PUT repos/o/r/pulls/1/merge' 'gh api repos/o/r/pulls/1/merge' \
+         'gh api -X PATCH repos/o/r/pulls/1 -f state=closed' 'gh api --method POST repos/o/r/pulls -f title=x' \
+         'gh api repos/o/r/pulls -f title=x' 'gh api -XDELETE repos/o/r/branches/main/protection' \
+         'gh api -X PUT repos/o/r/branches/main/protection --input p.json' 'gh api -X POST repos/o/r/rulesets -f name=x' \
+         'gh api -X DELETE repos/o/r/rulesets/5' 'gh api graphql -f query="mutation { mergePullRequest(input:{pullRequestId:\"x\"}) { clientMutationId } }"' \
          "git commit -m x -m \"$CO\"" \
          "gh pr create --title t --body \"$GEN\"" \
          "git commit -m \"\$(cat <<'EOT'
@@ -81,6 +88,10 @@ EOT
          'git checkout main' 'git checkout -b feature/y' 'git checkout -- AGENTS.md' \
          'git stash' 'git stash list' 'git stash pop' 'git stash push -m wip' \
          'git push origin feature/x:feature/x' 'git add docs/' \
+         'gh pr view 1' 'gh pr checks 1' 'gh pr create --title t --body x' 'gh pr list' 'gh pr diff 1' \
+         'gh pr comment 1 --body ok' 'gh pr view 1 --json state' \
+         'gh api repos/o/r/pulls/1' 'gh api repos/o/r/pulls' 'gh api -X GET repos/o/r/branches/main/protection' \
+         'gh api repos/o/r/rulesets' 'gh api repos/o/r/commits' 'gh issue create --title t --body x' \
          'gh pr create --title t --body "Closes #1"' 'ls -la'; do
   tb 0 "$c"
 done
