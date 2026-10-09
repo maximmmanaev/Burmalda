@@ -1,0 +1,38 @@
+name: Agent Files
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: AGENTS.md / CLAUDE.md
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: CLAUDE.md импортирует AGENTS.md
+        run: grep -qx '@AGENTS.md' CLAUDE.md
+
+      - name: Пути из AGENTS.md существуют
+        run: |
+          status=0
+          while IFS= read -r p; do
+            case "$p" in
+              *'*'*|*'<'*) continue ;;
+            esac
+            if [ ! -e "${p%/}" ]; then
+              echo "::error file=AGENTS.md::путь не существует: $p"
+              status=1
+            fi
+          done < <(grep -oE '`(docs|Assets|Tools)/[^`]*`' AGENTS.md | tr -d '`')
+          exit $status
+
+      - name: AGENTS.md не длиннее 120 строк
+        run: |
+          n=$(wc -l < AGENTS.md)
+          echo "AGENTS.md: $n строк"
+          test "$n" -le 120
