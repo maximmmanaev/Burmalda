@@ -5,11 +5,17 @@
 #   scripts/check.sh targeted <фильтр>   EditMode, -testFilter (имя теста/фикстуры/namespace)
 #   scripts/check.sh full                playmode + editmode, как в CI
 #
-# Коды выхода: 0 — упавших нет; 1 — есть упавшие или прогон не дал результата;
+# Коды выхода: 0 — упавших нет; 1 — есть упавшие, прогон не дал результата или в `full`
+# пройдено меньше MIN_EDITMODE_TESTS;
 # 2 — проект открыт в редакторе (ничего не запускалось); 64 — неверные аргументы.
 # Лог и XML: ~/.cache/burmalda-check/ (вне репозитория).
 
 set -uo pipefail
+
+# Число пройденных EditMode-тестов не должно падать ниже этого значения; при намеренном
+# удалении тестов меняется в том же PR. Применяется только в `full` (в `targeted` — нет).
+# Для проверки без правки файла: CHECK_MIN_EDITMODE=99999 scripts/check.sh full
+MIN_EDITMODE_TESTS=1400
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(sed -n 's/^m_EditorVersion: *//p' "$ROOT/ProjectSettings/ProjectVersion.txt")"
@@ -82,9 +88,12 @@ for run in "${runs[@]}"; do
     rc=1
     continue
   fi
-  python3 - "$xml" "$platform" "$elapsed" "$log" <<'PY' || rc=1
+  min=0
+  [ "$mode" = full ] && [ "$platform" = editmode ] && min="${CHECK_MIN_EDITMODE:-$MIN_EDITMODE_TESTS}"
+  python3 - "$xml" "$platform" "$elapsed" "$log" "$min" <<'PY' || rc=1
 import sys, xml.etree.ElementTree as ET
-xml, platform, elapsed, log = sys.argv[1:5]
+xml, platform, elapsed, log, min_passed = sys.argv[1:6]
+min_passed = int(min_passed)
 root = ET.parse(xml).getroot()
 passed = int(root.get("passed", 0)); failed = int(root.get("failed", 0))
 total = int(root.get("total", 0)); skipped = int(root.get("skipped", 0))
@@ -98,7 +107,12 @@ for c in bad[:MAX]:
 if len(bad) > MAX:
     print(f"  ... и ещё {len(bad) - MAX} упавших (см. XML)")
 print(f"  лог: {log}")
-sys.exit(1 if failed else 0)
+too_few = min_passed > 0 and passed < min_passed
+if too_few:
+    print(f"  ПОРОГ: пройдено {passed} EditMode-тестов, порог {min_passed} "
+          f"(MIN_EDITMODE_TESTS в scripts/check.sh). Часть тестов не запустилась или удалена; "
+          f"при намеренном удалении поправь порог в том же PR.")
+sys.exit(1 if failed or too_few else 0)
 PY
   [ "$code" -ne 0 ] && [ "$code" -ne 2 ] && [ "$rc" -eq 0 ] && rc=1
 done
