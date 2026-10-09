@@ -19,4 +19,5 @@ Claude Code", ни "Co-Authored-By: Claude...", ни аналогов. См.
 - Термины, фичи — `docs/rules/terminology.md`, нужные разделы актуального PRD (самый свежий файл в docs/raw; какой версии — написано в `docs/wiki/roadmap.md`).
 - Баланс, валюты, артефакты, .unity/.prefab, названия и тексты — `docs/rules/forbidden-actions.md`.
 - Конец задачи, wiki, changelog, тесты и CI — `docs/rules/documentation.md`, `docs/rules/ci.md`.
+- Локальный прогон: scripts/check.sh, см. `docs/rules/ci.md`.
 - PR, конфликты, сборка спринта — `docs/rules/git-workflow.md`; карта wiki — `docs/wiki/index.md`.
