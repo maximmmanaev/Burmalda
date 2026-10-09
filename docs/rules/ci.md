@@ -22,3 +22,16 @@ Workflow: [`.github/workflows/unity-tests.yml`](../../.github/workflows/unity-te
 2. Добавить полученный `.ulf`-файл лицензии как секрет `UNITY_LICENSE` в настройках репозитория (Settings → Secrets and variables → Actions).
 
 Это действие требует ручного шага пользователя (активация лицензии через email/логин Unity ID) и не может быть автоматизировано агентом.
+
+## Локальный прогон
+
+Скрипт [`scripts/check.sh`](../../scripts/check.sh) гоняет Unity в batchmode и печатает сводку до 40 строк (пройдено/упало, имена и первая строка ошибки упавших, путь к логу). Код 0 — упавших нет.
+
+```sh
+scripts/check.sh targeted <фильтр>   # EditMode, -testFilter: имя теста, фикстуры или namespace
+scripts/check.sh full                # как в CI: playmode, затем editmode
+```
+
+- Режимы повторяют CI (`testMode: all`). Все тестовые сборки проекта Editor-only, поэтому playmode-прогон выполняет 0 тестов, а editmode — все (1517 на 2026-10-09); это ожидаемо и в CI, и локально.
+- Редактор с этим проектом должен быть закрыт: иначе код выхода 2 и ничего не запускается. Если после сбоя остался `Temp/UnityLockfile` без процесса Unity, удалите его.
+- Лог и XML лежат вне репозитория: `~/.cache/burmalda-check/` (`<playmode|editmode>.log`, `-results.xml`). Путь Unity берётся из `ProjectSettings/ProjectVersion.txt`, переопределяется `UNITY_PATH`.
