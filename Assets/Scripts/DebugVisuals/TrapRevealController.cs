@@ -163,7 +163,9 @@ namespace Burmalda.DebugVisuals
         {
             for (var i = 0; i < count; i++)
             {
+#if !UNITY_WEBGL // Handheld недоступен в WebGL-сборке (issue #326)
                 Handheld.Vibrate();
+#endif
                 if (i < count - 1) yield return new WaitForSeconds(interval);
             }
         }
