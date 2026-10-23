@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <style>
+      /* Яндекс Игры 1.10.2, 1.6.1.8: без прокрутки, swipe-to-refresh, выделения и контекстного меню. */
+      html, body {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        overflow: hidden; overscroll-behavior: none;
+        background: {{{ BACKGROUND_COLOR }}};
+        touch-action: none;
+        -webkit-user-select: none; user-select: none;
+        -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+      }
+      /* Яндекс Игры 1.10, 1.10.1: холст на весь видимый экран при любом размере и повороте. */
+      #unity-canvas {
+        position: fixed; left: 0; top: 0;
+        width: 100vw; height: 100vh; height: 100dvh;
+        display: block; outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+    <script>
+      document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      document.addEventListener('selectstart', function (e) { e.preventDefault(); });
+      createUnityInstance(document.querySelector('#unity-canvas'), {
+        arguments: [],
+        dataUrl: "Build/{{{ DATA_FILENAME }}}",
+        frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_WASM
+        codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}}
+      }).catch(function (message) {
+        console.error(message);
+      });
+    </script>
+  </body>
+</html>
