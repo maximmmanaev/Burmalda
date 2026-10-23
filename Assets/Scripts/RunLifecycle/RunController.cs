@@ -50,6 +50,9 @@ namespace Burmalda.RunLifecycle
         /// <summary>Причина последней смерти — для будущего UI, пока никак не отображается.</summary>
         public string LastDeathReason { get; private set; }
 
+        /// <summary>Срабатывает после смерти в забеге (платформа Яндекс Игр размечает конец геймплея).</summary>
+        public event Action<string> RunDied;
+
         /// <summary>Текущий <see cref="RunState"/> — для смежных систем, которым нужно сообщать о смерти напрямую (например, <c>Boss.BossEncounterSystem.ReportBossDefeat</c>). Null до первого забега.</summary>
         public RunState RunState => _runState;
 
@@ -97,6 +100,7 @@ namespace Burmalda.RunLifecycle
         {
             LastDeathReason = reason;
             _input.MarkDead();
+            RunDied?.Invoke(reason);
         }
 
         private void DisposeRunState()

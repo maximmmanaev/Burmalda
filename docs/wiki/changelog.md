@@ -1730,3 +1730,10 @@ workflow не менялись, код игры не менялся.
 Собралось: 62,5 МБ распакованно (Brotli 15,9). Правка игрового кода одна:
 `Handheld.Vibrate()` под `#if !UNITY_WEBGL`. Чек-лист и блокеры MVP (нет SDK,
 сохранения, монетизация) — `docs/specs/yandex-games.md`. Полный EditMode: 1517 пройдено, 0 упало.
+
+## 2026-10-23 — платформенный слой Яндекс Игр (issue #328)
+
+`Assets/Scripts/Platform/`: интерфейс сервисов, пустая и Яндекс-реализации (фабрика по платформе),
+`.jslib`-обёртка SDK (init, `LoadingAPI.ready`, `GameplayAPI.start/stop`, пауза, язык), пауза звука и времени.
+Старт/конец геймплея — по `RunStarted` и новому `RunController.RunDied`. Шаблон страницы WebGL `Burmalda`
+(без прокрутки и контекстного меню). Сборка 62,5 МБ. Не проверено в браузере — `docs/specs/yandex-games.md`.

@@ -41,14 +41,14 @@
 В браузере загрузка **не проверялась** (делает владелец).
 
 ### Что мешает MVP на платформе (по важности)
-1. **Нет Yandex SDK.** Нет в `Packages/manifest.json`, нет `LoadingAPI.ready`, `GameplayAPI`, паузы/возобновления
+1. ~~**Нет Yandex SDK.**~~ Сделано в #328, см. раздел «Платформенный слой» ниже. Было: Нет в `Packages/manifest.json`, нет `LoadingAPI.ready`, `GameplayAPI`, паузы/возобновления
    (1.1, 1.19). Без этого игру не примут. Нужен выбор: готовый Unity-пакет SDK или свой `.jslib`.
 2. **Сохранения не работают.** `Persistence/SaveController.cs` нигде не создаётся (ни в коде, ни на сцене);
    он пишет в файл через `System.IO` и `Application.persistentDataPath`. В WebGL это виртуальная ФС в
    IndexedDB, сброс данных браузера стирает прогресс, облака нет (1.2.2, 1.9, 1.11). Нужен слой над SDK
    (`player.setData/getData`) и подключение в `RunBootstrap`.
 3. **Нет монетизации.** `Monetization/` пуста: нет rewarded и покупок через SDK (1.12, 4.1, 4.5, 1.4).
-4. **Шаблон страницы.** Стоит `webGLTemplate: APPLICATION:Default` (`ProjectSettings/ProjectSettings.asset:825`):
+4. ~~**Шаблон страницы.**~~ Сделано в #328 (шаблон `Burmalda`), в браузере не проверено. Было: Стоит `webGLTemplate: APPLICATION:Default` (`ProjectSettings/ProjectSettings.asset:825`):
    не адаптивный, без полноэкранного режима и защиты от прокрутки/контекстного меню (1.6.1.1, 1.6.1.8, 1.10). Не проверено в браузере.
 5. **Сжатие.** `webGLCompressionFormat: 0` (Brotli) при `webGLDecompressionFallback: 0` требует заголовка
    `Content-Encoding: br` от хостинга; как отдаёт Яндекс — не проверено. Запасной вариант: сжатие Disabled
@@ -62,3 +62,28 @@
 ### Что решать владельцу
 Пакет SDK или свой слой; формат сохранений (только облако SDK или ещё локальный запас); сжатие (Brotli или без);
 шаблон страницы; когда подключать рекламу/покупки (до или после первой публикации).
+
+## Платформенный слой (issue #328)
+
+Код: `Assets/Scripts/Platform/` (asmdef `Burmalda.Platform`), `Assets/Plugins/WebGL/YandexGames.jslib`,
+шаблон `Assets/WebGLTemplates/Burmalda/index.html` (в `ProjectSettings` — `PROJECT:Burmalda`).
+- `IPlatformServices`: инициализация, `SignalReady`, `GameplayStart/Stop`, `Paused/Resumed`, `Language`. Реклама — позже.
+- `PlatformServicesFactory`: WebGL-плеер → `YandexPlatformServices`, иначе `NullPlatformServices` (редактор, тесты).
+- `PlatformHost` создаётся из кода (`RuntimeInitializeOnLoadMethod`, сцена не менялась): SDK → `LoadingAPI.ready()`;
+  `GameplayAPI.start()` на старте забега (`RunStarted`), `stop()` на смерти (`RunController.RunDied`).
+- Пауза: `Time.timeScale = 0` и `AudioListener.pause` по `game_api_pause`, возврат по `game_api_resume`.
+  Сами `start/stop` на паузе не вызываем: по документации платформа делает это сама.
+- Язык: `ysdk.environment.i18n.lang`; в игре пока нигде не используется (локализации в проекте нет).
+- SDK подключается динамически (`/sdk.js`, относительный путь, как рекомендует документация для архива из Консоли).
+  Не загрузился или `init` упал — предупреждение в консоли, игра идёт без платформы.
+- Шаблон: холст `100vw × 100dvh`, `overflow: hidden`, `overscroll-behavior: none`, `touch-action: none`,
+  без выделения и контекстного меню (1.10.1, 1.10.2, 1.6.1.8). Сборка: `scripts/build-webgl.sh` OK, 62,5 МБ.
+
+**Не проверено:** работа в браузере и на телефоне (только сборка и грепы); реальный ответ SDK; полноэкранный режим
+(1.6.1.1) — в шаблоне ничего не делается, не выяснено, достаточно ли кнопки платформы; конец геймплея при победе над
+боссом/возврате в лагерь не размечен (только смерть); `Module.SendMessage` есть в собранном `framework.js`, но вызов не прогонялся.
+
+**Как проверять локально:** по документации платформы `/sdk.js` проксируется только локальным сервером
+(<https://yandex.ru/dev/games/doc/ru/sdk/sdk-about>, «Для проксирования /sdk.js при разработке используйте локальный сервер»;
+точная команда в этой версии документации не найдена — не проверено). Запуск через Консоль разработчика с
+debug-панелью или `?debug-mode=16`: индикатор лоадера должен показать `IT`. Без SDK в консоли будет `sdk.js не загрузился` — это штатно.
