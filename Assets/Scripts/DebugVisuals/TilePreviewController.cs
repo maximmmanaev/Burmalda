@@ -176,8 +176,8 @@ namespace Burmalda.DebugVisuals
             AppendValueLine(lines, tile.IsKeySource && !hasLethalDanger, "Источник Ключей");
 
             if (tile.IsAltar) lines.Add("Алтарь");
-            if (tile.IsBoss) lines.Add("Точка Босса");
-            if (tile.BossRoomTile.HasValue) lines.Add($"Комната Босса: {DescribeBossRoomTile(tile.BossRoomTile.Value)}");
+            if (tile.IsSanctuaryEntry) lines.Add("Точка Босса");
+            if (tile.SanctuaryTile.HasValue) lines.Add($"Комната Босса: {DescribeSanctuaryTile(tile.SanctuaryTile.Value)}");
 
             return string.Join("\n", lines);
         }
@@ -186,14 +186,14 @@ namespace Burmalda.DebugVisuals
         // описание для отладочного примеривания — содержимое Комнаты видно
         // всегда (награда, не опасность), нет смысла прятать точный тип за
         // сигнатурой, как для ловушек/рычага.
-        private static string DescribeBossRoomTile(BossRoomTileKind kind)
+        private static string DescribeSanctuaryTile(SanctuaryTileKind kind)
         {
             switch (kind)
             {
-                case BossRoomTileKind.Vein: return "Жила (+Мана)";
-                case BossRoomTileKind.Resonance: return "Резонанс (+0.5 к множителю)";
-                case BossRoomTileKind.Echo: return "Эхо (×2 к множителю)";
-                case BossRoomTileKind.Rift: return "Разлом";
+                case SanctuaryTileKind.Vein: return "Жила (+Мана)";
+                case SanctuaryTileKind.Resonance: return "Резонанс (+0.5 к множителю)";
+                case SanctuaryTileKind.Echo: return "Эхо (×2 к множителю)";
+                case SanctuaryTileKind.Rift: return "Разлом";
                 default: return kind.ToString();
             }
         }

@@ -1,13 +1,13 @@
 using NUnit.Framework;
 
-namespace Burmalda.BossRoom.Tests
+namespace Burmalda.Sanctuary.Tests
 {
     public class RoomMultiplierTests
     {
         [Test]
         public void NewRoomMultiplier_StartsAtOne()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
 
             Assert.AreEqual(1f, multiplier.CurrentMultiplier);
         }
@@ -15,7 +15,7 @@ namespace Burmalda.BossRoom.Tests
         [Test]
         public void ApplyResonanceTile_AddsFlatBonus()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
 
             multiplier.ApplyResonanceTile();
 
@@ -25,7 +25,7 @@ namespace Burmalda.BossRoom.Tests
         [Test]
         public void ApplyResonanceTile_CalledTwice_Stacks()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
 
             multiplier.ApplyResonanceTile();
             multiplier.ApplyResonanceTile();
@@ -36,7 +36,7 @@ namespace Burmalda.BossRoom.Tests
         [Test]
         public void ApplyEchoTile_MultipliesCurrentMultiplier()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
 
             multiplier.ApplyEchoTile();
 
@@ -46,7 +46,7 @@ namespace Burmalda.BossRoom.Tests
         [Test]
         public void ApplyEchoTile_CalledTwice_Stacks()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
 
             multiplier.ApplyEchoTile();
             multiplier.ApplyEchoTile();
@@ -57,7 +57,7 @@ namespace Burmalda.BossRoom.Tests
         [Test]
         public void ApplyEchoTile_AfterResonance_MultipliesTheAccumulatedValue()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
             multiplier.ApplyResonanceTile(); // 1.5
 
             multiplier.ApplyEchoTile();
@@ -68,7 +68,7 @@ namespace Burmalda.BossRoom.Tests
         [Test]
         public void TickRiftResonance_AddsProportionalToElapsedTime()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
 
             multiplier.TickRiftResonance(3f);
 
@@ -78,7 +78,7 @@ namespace Burmalda.BossRoom.Tests
         [Test]
         public void TickRiftResonance_ZeroOrNegative_IsNoOp()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
 
             multiplier.TickRiftResonance(0f);
             multiplier.TickRiftResonance(-1f);
@@ -89,7 +89,7 @@ namespace Burmalda.BossRoom.Tests
         [Test]
         public void ApplyToIncome_MultipliesAndTruncates()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
             multiplier.ApplyResonanceTile(); // 1.5x
 
             Assert.AreEqual(15, multiplier.ApplyToIncome(10)); // 10*1.5=15 exactly
@@ -99,7 +99,7 @@ namespace Burmalda.BossRoom.Tests
         [Test]
         public void ApplyToIncome_AtStartingMultiplier_ReturnsBaseAmountUnchanged()
         {
-            var multiplier = new RoomMultiplier();
+            var multiplier = new SanctuaryMultiplier();
 
             Assert.AreEqual(42, multiplier.ApplyToIncome(42));
         }

@@ -38,9 +38,9 @@ namespace Burmalda.DebugVisuals
     /// живой <c>RunArtifactLoadout</c> (см. <see cref="RunBootstrap.Loadout"/>),
     /// строка ниже читает его напрямую. Множитель Комнаты / дистанция до
     /// волны тоже больше не в этом списке — задача «Комната Босса» (владелец,
-    /// 2026-09-02) завела <see cref="RunBootstrap.BossRoom"/>
-    /// (<c>BossRoom.BossRoomController</c>), <see cref="Update"/> ниже читает
-    /// его в <see cref="RunHudDataSources.ActiveBossRoom"/> на каждый кадр.
+    /// 2026-09-02) завела <see cref="RunBootstrap.Sanctuary"/>
+    /// (<c>BossRoom.SanctuaryController</c>), <see cref="Update"/> ниже читает
+    /// его в <see cref="RunHudDataSources.ActiveSanctuary"/> на каждый кадр.
     /// - <b>Несомые Реликвии и суммарный Вес НЕ реализованы вообще</b> — в
     ///   коде нет ни одного поля/класса под "Вес" (PRD v8 §6.3 описывает
     ///   механику, ничего из неё не построено, даже Relic.cs без Weight).
@@ -74,7 +74,7 @@ namespace Burmalda.DebugVisuals
         // тому же паттерну "отследить смену ссылки", что уже есть в
         // RunFeedbackDebugUI (_wiredBossController) — не переподписываемся
         // каждый кадр, только когда экземпляр реально сменился.
-        private Burmalda.BossRoom.BossRoom _wiredBossRoom;
+        private Burmalda.Sanctuary.Sanctuary _wiredSanctuary;
         private const float EchoFlashDurationSeconds = 0.5f;
         private float _echoFlashExpiresAtTime = -1f;
 
@@ -88,26 +88,26 @@ namespace Burmalda.DebugVisuals
             _input = RunBootstrap.Instance?.Input;
             _currency = RunBootstrap.Instance?.Currency;
             // Задача «Комната Босса» (владелец, 2026-09-02): единственный
-            // писатель RunHudDataSources.ActiveBossRoom — раньше поле не
+            // писатель RunHudDataSources.ActiveSanctuary — раньше поле не
             // заполнял никто (см. её doc-комментарий), теперь читаем живой
             // экземпляр из RunBootstrap.BossRoom на каждый кадр, как и
-            // Input/Currency выше. DrawBossRoomBlock() ниже уже был готов
+            // Input/Currency выше. DrawSanctuaryBlock() ниже уже был готов
             // читать это поле — правка ограничена этой одной строкой.
-            var activeRoom = RunBootstrap.Instance?.BossRoom?.ActiveRoom;
-            RunHudDataSources.ActiveBossRoom = activeRoom;
+            var activeRoom = RunBootstrap.Instance?.Sanctuary?.ActiveSanctuary;
+            RunHudDataSources.ActiveSanctuary = activeRoom;
 
-            if (activeRoom != _wiredBossRoom)
+            if (activeRoom != _wiredSanctuary)
             {
-                if (_wiredBossRoom != null) _wiredBossRoom.EchoCollected -= HandleEchoCollected;
-                _wiredBossRoom = activeRoom;
-                if (_wiredBossRoom != null) _wiredBossRoom.EchoCollected += HandleEchoCollected;
+                if (_wiredSanctuary != null) _wiredSanctuary.EchoCollected -= HandleEchoCollected;
+                _wiredSanctuary = activeRoom;
+                if (_wiredSanctuary != null) _wiredSanctuary.EchoCollected += HandleEchoCollected;
             }
         }
 
         private void OnDisable()
         {
-            if (_wiredBossRoom != null) _wiredBossRoom.EchoCollected -= HandleEchoCollected;
-            _wiredBossRoom = null;
+            if (_wiredSanctuary != null) _wiredSanctuary.EchoCollected -= HandleEchoCollected;
+            _wiredSanctuary = null;
         }
 
         private void HandleEchoCollected() => _echoFlashExpiresAtTime = Time.time + EchoFlashDurationSeconds;
@@ -121,7 +121,7 @@ namespace Burmalda.DebugVisuals
             DrawCurrencyBlock();
             DrawLastReturnResultBlock();
             DrawArtifactLoadoutBlock();
-            DrawBossRoomBlock();
+            DrawSanctuaryBlock();
         }
 
         // Верхняя треть экрана слева — числа валют, всегда видны в забеге.
@@ -178,7 +178,7 @@ namespace Burmalda.DebugVisuals
         // Владелец, 2026-09-05 («закрыть вертикальный срез — плита Эхо»):
         // самый крупный элемент экрана в момент взятия Эха увеличивается
         // ещё, и на весь экран накладывается затухающая вспышка в цвет
-        // Эха (см. <see cref="TileDebugColor.BossRoomEchoColor"/>) — "экран
+        // Эха (см. <see cref="TileDebugColor.SanctuaryEchoColor"/>) — "экран
         // реагирует целиком", не только число. Уровень исполнения тот же,
         // что у всего класса: функциональная вспышка через GUI.DrawTexture,
         // не финальный VFX.
@@ -186,12 +186,12 @@ namespace Burmalda.DebugVisuals
         private const int MultiplierEchoPopFontSize = 175;
 
         // Множитель Комнаты — самый крупный элемент экрана, ТОЛЬКО внутри
-        // Комнаты (RunHudDataSources.ActiveBossRoom != null И ещё активна).
+        // Комнаты (RunHudDataSources.ActiveSanctuary != null И ещё активна).
         // Дистанция до волны — рядом, когда волна есть (у BossRoom она есть
         // всегда с момента создания).
-        private void DrawBossRoomBlock()
+        private void DrawSanctuaryBlock()
         {
-            var room = RunHudDataSources.ActiveBossRoom;
+            var room = RunHudDataSources.ActiveSanctuary;
             if (room == null || !room.IsActive) return;
 
             var echoFlashRemaining = _echoFlashExpiresAtTime - Time.time;
@@ -200,7 +200,7 @@ namespace Burmalda.DebugVisuals
             if (echoFlashProgress01 > 0f)
             {
                 var previousColor = GUI.color;
-                var flashColor = TileDebugColor.BossRoomEchoColor;
+                var flashColor = TileDebugColor.SanctuaryEchoColor;
                 flashColor.a = echoFlashProgress01 * 0.45f; // затухает до полностью прозрачного к концу вспышки
                 GUI.color = flashColor;
                 GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
@@ -218,9 +218,9 @@ namespace Burmalda.DebugVisuals
             // (самый крупный элемент, но не в нижней трети, где палец).
             GUI.Label(new Rect(0f, Screen.height * 0.2f, Screen.width, 220f), $"×{room.Multiplier.CurrentMultiplier:0.0}", multiplierStyle);
 
-            var distanceRows = _input.Trail.CurrentPosition.Row - room.Wave.RowPosition;
+            var distanceRows = _input.Trail.CurrentPosition.Row - room.Collapse.RowPosition;
             var distanceStyle = new GUIStyle(GUI.skin.box) { fontSize = 26, alignment = TextAnchor.MiddleCenter };
-            GUI.Box(new Rect(Screen.width / 2f - 200f, Screen.height * 0.2f + 230f, 400f, 90f), $"До волны: {distanceRows:0.0} ряд.", distanceStyle);
+            GUI.Box(new Rect(Screen.width / 2f - 200f, Screen.height * 0.2f + 230f, 400f, 90f), $"До обрушения: {distanceRows:0.0} ряд.", distanceStyle);
         }
     }
 }

@@ -15,7 +15,7 @@ namespace Burmalda.RunLifecycle
     /// обрушение плиты под ногами игрока
     /// (<see cref="TrailDecaySystem.TileDestroyed"/> для текущей позиции) —
     /// по аналогии с legacy/burmolda_demo.html, attemptDeath().
-    /// Поражение от Босса — отдельный путь, <see cref="ReportBossDefeat"/>:
+    /// Поражение от Босса — отдельный путь, ReportBossDefeat (удалён):
     /// d20 к нему НЕ применяется (PRD v7 §8.3, issue #82) — детерминировано.
     /// Ничего не знает про рестарт — при новом забеге создаётся новый
     /// экземпляр (мир перегенерируется заново, см. GridTraceInputController.Restart).
@@ -83,8 +83,11 @@ namespace Burmalda.RunLifecycle
             _disposed = true;
         }
 
-        /// <summary>Поражение от Босса (PRD v7 §8.3, issue #82) — детерминировано, d20 не бросается.</summary>
-        public void ReportBossDefeat(string reason) => Die(reason);
+        /// <summary>
+        /// Пол Святилища обрушился под игроком (PRD v10 §14.2): обычная опасность —
+        /// Бросок Судьбы, если он ещё доступен, иначе смерть.
+        /// </summary>
+        public void ReportSanctuaryCollapse() => ResolveHazard("Пол Святилища обрушился");
 
         /// <summary>
         /// Падающий камень (issue #217, задача «падающий камень: новая
@@ -96,7 +99,7 @@ namespace Burmalda.RunLifecycle
         /// <see cref="ResolveHazard"/> (d20, PRD раздел 9), не мгновенная
         /// безусловная смерть: владелец не просил для этой ловушки
         /// исключения из стандартного разрешения опасности, как это явно
-        /// сделано для <see cref="ReportBossDefeat"/>.
+        /// сделано для ReportBossDefeat (удалён).
         ///
         /// Подключается СНАРУЖИ (<c>Bootstrap.RunBootstrap</c>), не через
         /// конструктор — <c>Movement</c> не ссылается на <c>RunLifecycle</c>

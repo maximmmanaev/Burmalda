@@ -187,6 +187,12 @@ namespace Burmalda.Generation
             SegmentTileType.ManaSource => true,
             SegmentTileType.KeySource => true,
             SegmentTileType.GateVaultKeySource => true,
+            // Награды Святилища (PRD v10 §14.2): не лежат в зонах удара.
+            SegmentTileType.SanctuaryVein => true,
+            SegmentTileType.SanctuaryResonance => true,
+            SegmentTileType.SanctuaryEcho => true,
+            SegmentTileType.SanctuaryRift => true,
+            SegmentTileType.Sarcophagus => true,
             _ => false,
         };
     }

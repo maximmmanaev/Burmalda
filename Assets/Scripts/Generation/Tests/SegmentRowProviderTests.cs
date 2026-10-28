@@ -163,12 +163,12 @@ namespace Burmalda.Generation.Tests
         {
             var (grid, trail) = CreateTrail();
             var tiles = OpenRows(5);
-            tiles[1, 2] = SegmentTileType.Boss;
+            tiles[1, 2] = SegmentTileType.SanctuaryEntry;
 
             var template = new SegmentTemplate("with-boss", 1, SegmentRewardTag.Coins, tiles);
             using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1, rowsPerTier: 1000000);
 
-            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsBoss);
+            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsSanctuaryEntry);
         }
 
         [Test]
@@ -412,9 +412,8 @@ namespace Burmalda.Generation.Tests
 
             provider.EnsureCoveredThrough(50);
 
-            // BossTemplate: 5 рядов, 'B' на локальном ряду 2 → Комната стартует
-            // на ряду 43, вход в Комнату на абсолютном ряду 45.
-            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(45, 2)).IsBoss, "Комната Босса должна остаться в конце Яруса");
+            // Святилище: вход — локальный ряд 0 шаблона, стартующего на ряду 43.
+            Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(43, 2)).IsSanctuaryEntry, "Святилище должно остаться в конце Яруса");
         }
 
         [Test]
@@ -429,17 +428,17 @@ namespace Burmalda.Generation.Tests
             provider.EnsureCoveredThrough(50);
 
             var altarCount = 0;
-            var bossCount = 0;
-            for (var r = 1; r <= 50; r++)
+            var entryTileCount = 0;
+            for (var r = 1; r <= 60; r++) // Святилище 43..57: его Алтарь на выходе лежит за номинальной границей 50
                 for (var c = 0; c < Width; c++)
                 {
                     var tile = grid.GetOrCreateTile(new GridCoordinate(r, c));
                     if (tile.IsAltar) altarCount++;
-                    if (tile.IsBoss) bossCount++;
+                    if (tile.IsSanctuaryEntry) entryTileCount++;
                 }
 
-            Assert.AreEqual(2, altarCount, "ровно два Алтаря за Ярус");
-            Assert.AreEqual(1, bossCount, "ровно одна Комната Босса за Ярус");
+            Assert.AreEqual(3, altarCount, "два Алтаря в тоннеле и Алтарь в конце Святилища (PRD v10 §6.1)");
+            Assert.AreEqual(Width, entryTileCount, "ровно одно Святилище за Ярус: вход — целый ряд из пяти плит");
         }
 
         // Каждый landmark отмечен ровно ОДНОЙ плитой в столбце 2 (символ
@@ -455,12 +454,12 @@ namespace Burmalda.Generation.Tests
         // здесь только для предсказуемости прогона), только на гарантию
         // "не меньше минимума".
         private const int AltarMarkerOffset = 1; // AltarTemplate: 'A' на локальном ряду 1
-        private const int BossMarkerOffset = 2;  // BossTemplate: 'B' на локальном ряду 2
+        private const int BossMarkerOffset = 0;  // Святилище: вход — на локальном ряду 2
 
-        private static int StuckMarkerGap(bool prevIsBoss, bool nextIsBoss)
+        private static int StuckMarkerGap(bool prevIsSanctuaryEntry, bool nextIsBoss)
         {
-            var prevRowCount = prevIsBoss ? 5 : 6; // BossTemplate/AltarTemplate.RowCount
-            var prevOffset = prevIsBoss ? BossMarkerOffset : AltarMarkerOffset;
+            var prevRowCount = prevIsSanctuaryEntry ? SegmentTemplateCatalog.SanctuaryLeshyTemplate.RowCount : 6; // SanctuaryLeshyTemplate/AltarTemplate.RowCount
+            var prevOffset = prevIsSanctuaryEntry ? BossMarkerOffset : AltarMarkerOffset;
             var nextOffset = nextIsBoss ? BossMarkerOffset : AltarMarkerOffset;
             return (prevRowCount - prevOffset) + nextOffset;
         }
@@ -501,23 +500,28 @@ namespace Burmalda.Generation.Tests
 
         private void AssertNoLandmarksStuck(TunnelGrid grid, int scanThrough, int minExpectedLandmarks)
         {
-            var markers = new List<(int row, bool isBoss)>();
+            var markers = new List<(int row, bool isSanctuaryEntry)>();
+            var sanctuaryEndRow = 0; // Алтарь в конце Святилища — часть самого Святилища, не отдельный landmark
             for (var r = 1; r <= scanThrough; r++)
             {
                 var tile = grid.GetOrCreateTile(new GridCoordinate(r, 2));
-                if (tile.IsAltar) markers.Add((r, false));
-                if (tile.IsBoss) markers.Add((r, true));
+                if (tile.IsAltar && r > sanctuaryEndRow) markers.Add((r, false));
+                if (tile.IsSanctuaryEntry)
+                {
+                    markers.Add((r, true));
+                    sanctuaryEndRow = r + SegmentTemplateCatalog.SanctuaryLeshyTemplate.RowCount - 1;
+                }
             }
 
             Assert.GreaterOrEqual(markers.Count, minExpectedLandmarks, $"прогон на {scanThrough} рядов должен захватить хотя бы {minExpectedLandmarks} landmark'ов");
 
             for (var i = 1; i < markers.Count; i++)
             {
-                var (prevRow, prevIsBoss) = markers[i - 1];
-                var (row, isBoss) = markers[i];
+                var (prevRow, prevIsSanctuaryEntry) = markers[i - 1];
+                var (row, isSanctuaryEntry) = markers[i];
                 var actualGap = row - prevRow;
-                var minAllowedGap = StuckMarkerGap(prevIsBoss, isBoss) + MinRowsBetweenLandmarksForTests;
-                Assert.Greater(actualGap, StuckMarkerGap(prevIsBoss, isBoss),
+                var minAllowedGap = StuckMarkerGap(prevIsSanctuaryEntry, isSanctuaryEntry) + MinRowsBetweenLandmarksForTests;
+                Assert.Greater(actualGap, StuckMarkerGap(prevIsSanctuaryEntry, isSanctuaryEntry),
                     $"landmark на ряду {row} слип с предыдущим на ряду {prevRow} — нулевой реальный зазор между сегментами");
                 Assert.GreaterOrEqual(actualGap, minAllowedGap,
                     $"зазор между landmark'ами на рядах {prevRow} и {row} меньше гарантированного минимума ({MinRowsBetweenLandmarksForTests} рядов заполнителя)");
@@ -548,7 +552,7 @@ namespace Burmalda.Generation.Tests
             {
                 var tile = grid.GetOrCreateTile(new GridCoordinate(r, 2));
                 if (tile.IsAltar) sawAltar = true;
-                if (tile.IsBoss) sawBoss = true;
+                if (tile.IsSanctuaryEntry) sawBoss = true;
             }
 
             Assert.IsTrue(sawAltar, "Алтарь обязан появиться, хотя заполнитель-селектор его не содержит");

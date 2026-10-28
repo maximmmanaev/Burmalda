@@ -41,7 +41,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_NotStartNotCurrentNotDestroyed_ReturnsBossColor()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true);
 
             Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(state));
         }
@@ -55,7 +55,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_AlsoBlocked_BlockedTakesPriority()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true);
 
             Assert.AreEqual(TileDebugColor.BlockedColor, TileDebugColor.Resolve(state));
         }
@@ -63,7 +63,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_ButDestroyed_DestroyedTakesPriority()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true);
 
             Assert.AreEqual(TileDebugColor.DestroyedColor, TileDebugColor.Resolve(state));
         }
@@ -403,8 +403,8 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_TakesPriorityOverGatedAndLever()
         {
-            var gatedBoss = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true, isGated: true);
-            var leverBoss = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true, isLever: true);
+            var gatedBoss = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true, isGated: true);
+            var leverBoss = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true, isLever: true);
 
             Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(gatedBoss));
             Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(leverBoss));
@@ -422,7 +422,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_TakesPriorityOverAltar()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true, isAltar: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true, isAltar: true);
 
             Assert.AreEqual(TileDebugColor.BossColor, TileDebugColor.Resolve(state));
         }
@@ -545,6 +545,15 @@ namespace Burmalda.DebugVisuals.Tests
             var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: LethalTrapType.BladeTact, decayProgress01: 0f, isTrapTrigger: false, isDangerSignatureRevealed: false);
 
             Assert.AreEqual(TileDebugColor.TimedTrapActiveColor, TileDebugColor.Resolve(state));
+        }
+
+        [Test]
+        public void Resolve_Sarcophagus_ReturnsGold_DistinctFromSanctuaryTiles()
+        {
+            var state = new TileVisualState(false, false, false, false, null, 0f, false, hasSarcophagus: true);
+
+            Assert.AreEqual(TileDebugColor.SarcophagusColor, TileDebugColor.Resolve(state));
+            Assert.AreNotEqual(TileDebugColor.SarcophagusColor, TileDebugColor.SanctuaryVeinColor);
         }
     }
 }

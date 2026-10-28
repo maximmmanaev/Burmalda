@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Burmalda.Artifacts;
-using Burmalda.Boss;
 using Burmalda.Currencies;
 using Burmalda.Progression;
 
@@ -19,18 +18,17 @@ namespace Burmalda.Persistence
     public static class ProgressSnapshot
     {
         public static SaveData Capture(PersistentWallet coins, ArtifactCollection collection,
-            ArtifactPool pool, DepthRecord depthRecord, FirstBossVictoryTracker tracker) =>
+            ArtifactPool pool, DepthRecord depthRecord) =>
             new SaveData
             {
                 coinsBalance = coins.Balance,
                 collectionRecordedIds = new List<string>(collection.RecordedIds),
                 poolUnlockedIds = new List<string>(pool.UnlockedIds),
-                depthRecordBestTier = depthRecord.BestTier,
-                hasWonBossBefore = tracker.HasWonBefore
+                depthRecordBestTier = depthRecord.BestTier
             };
 
         public static void Apply(SaveData data, PersistentWallet coins, ArtifactCollection collection,
-            ArtifactPool pool, DepthRecord depthRecord, FirstBossVictoryTracker tracker)
+            ArtifactPool pool, DepthRecord depthRecord)
         {
             if (data == null) return;
 
@@ -38,7 +36,6 @@ namespace Burmalda.Persistence
             foreach (var id in data.collectionRecordedIds) collection.Record(id);
             foreach (var id in data.poolUnlockedIds) pool.Unlock(id);
             depthRecord.ReportTier(data.depthRecordBestTier);
-            if (data.hasWonBossBefore) tracker.RecordVictory();
         }
     }
 }

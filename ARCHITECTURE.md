@@ -8,7 +8,7 @@
 
 Один модуль = одна папка = одна asmdef `Burmalda.<Папка>`. `Core` не ссылается ни на кого,
 `Movement` → `Core`. Остальные ссылки разные (смотри `Burmalda.<Папка>.asmdef`): например,
-`Bootstrap` ссылается на 12 игровых модулей (не на D20, RunModifiers, Persistence, DebugVisuals,
+`Bootstrap` ссылается на 12 игровых модулей (не на FateRoll, RunModifiers, Persistence, DebugVisuals,
 Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не наоборот.
 
 | Папка | Ответственность | Ключевые классы |
@@ -17,13 +17,12 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
 | `Movement/` | Ввод-след, множитель, камера, 5 систем ловушек | `Movement/GridTraceInputController.cs:217`, `Movement/GridTraceTrail.cs:159`, `Movement/TrapSystemsController.cs:158` |
 | `Generation/` | Сегменты-шаблоны, выдача рядов, рычаги | `Generation/SegmentRowProvider.cs:194`, `Generation/SegmentTemplateCatalog.cs:64`, `Generation/SegmentReachabilityValidator.cs:60` |
 | `Decay/` | Обрушение плит позади игрока | `Decay/TrailDecaySystem.cs:40`, `Decay/TrailDecayController.cs:57` |
-| `RunLifecycle/` | Жизнь/смерть забега, бросок d20 | `RunLifecycle/RunController.cs:83`, `RunLifecycle/RunState.cs:126` |
-| `D20/` | Чистый бросок и исходы | `D20/D20Trial.cs`, `D20/D20Outcome.cs` |
+| `RunLifecycle/` | Жизнь/смерть забега, предложение Броска Судьбы | `RunLifecycle/RunController.cs:83`, `RunLifecycle/RunState.cs:126` |
+| `FateRoll/` | Бросок Судьбы 2D6: таблица, шансы, оплата-заглушка | `FateRoll/FateRollRules.cs`, `FateRoll/FateRollResult.cs` |
 | `Currencies/` | Мана/ключи забега, постоянные монеты | `Currencies/CurrencyController.cs:122`, `Currencies/RunCurrencyAccumulator.cs:20`, `Currencies/PersistentWallet.cs:14` |
 | `Altar/` | Алтарь, Ритуал, сундуки | `Altar/AltarController.cs:72`, `Altar/AltarTriggerSystem.cs:19` |
-| `Boss/` | Встреча с боссом, Ярус, рекорд | `Boss/BossController.cs:84`, `Boss/BossEncounterSystem.cs:40` |
-| `BossRoom/` | Комната Босса (волна, Эхо, разломы) | `BossRoom/BossRoomRunSystem.cs:33`, `BossRoom/BossRoomGenerator.cs:42` |
-| `Camp/` | Лагерь, вывод добычи, возврат | `Camp/CampController.cs:79`, `Camp/CashOutSystem.cs:24`, `Camp/ReturnJourneySystem.cs:67` |
+| `Sanctuary/` | Святилище бога: обрушение рядами в Лаву, множитель, Саркофаг; владеет Ярусом забега | `Sanctuary/SanctuaryRunSystem.cs`, `Sanctuary/Sanctuary.cs`, `Sanctuary/SanctuaryController.cs` |
+| `Camp/` | Лагерь, вывод добычи, возврат | `Camp/CampController.cs:79`, `Camp/EvacuationSystem.cs` |
 | `Artifacts/` | Каталог артефактов, лоадаут, Тотем | `Artifacts/RunArtifactLoadout.cs`, `Artifacts/ArtifactPool.cs:23` |
 | `RunModifiers/` | Знамения | `RunModifiers/RunModifiers.cs:47`, `RunModifiers/OmenPool.cs:25` |
 | `Progression/` | Ярус забега, рекорд глубины | `Progression/RunDepthTier.cs:17`, `Progression/DepthRecord.cs:15` |
@@ -44,7 +43,7 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
    (`Tile.ThrowOnRoleConflict`) и зовёт `TrySync` (`:275`), он же вызывается каждый `Update` (`:273`).
 2. `TrySync` ищет `GridTraceInputController` на сцене. Нашёл → `EnsureControllersWired`
    (`:300`) один раз добавляет на тот же GameObject контроллеры строго в порядке:
-   Decay, Run, Segments (+`EnsureBuilt`), Currency, Altar, Boss, Camp, Lever, Traps, BossRoom (`:311-349`).
+   Decay, Run, Segments (+`EnsureBuilt`), Currency, Altar, Camp, Lever, Traps, Sanctuary (`:311-349`).
 3. Каждый контроллер подписывается на `RunStarted` в `OnEnable`, т.е. в момент `AddComponent`;
    порядок вызова = порядок подписки. На каждый `RunStarted` он пересобирает свои системы
    (`RebuildRunState`, `RebuildEncounter`, `Rebuild` и т.д.).
@@ -54,10 +53,8 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
 5. Игрок тянет палец → `GridTraceTrail.TryAdvanceTo` (`Movement/GridTraceTrail.cs:159`) поднимает
    `LethalTrapTriggered`, `Advanced` (новая плита), `PositionChanged`; от них работают множитель,
    валюты, распад, босс, алтарь, ловушки (таблица §3).
-6. Опасность → `RunState.ResolveHazard` (`RunLifecycle/RunState.cs:126`): бросок d20, исходы
-   Knockback (телепорт на последний Алтарь, `:136`), Death, Fortune. Смерть → `RunState.Died` (`:151`)
-   → `RunController.OnDied` (`RunController.cs:96`) → `MarkDead` у ввода.
-7. Босс/Комната Босса сообщают о поражении через `RunState.ReportBossDefeat` (`RunState.cs:68`).
+6. Опасность → `RunState.ResolveHazard`: пока есть Броски Судьбы — `FateRollOffered`, игрок выбирает `RollFate` (2D6: на месте / к последнему Алтарю / смерть) или `DeclineFate`; после третьего броска смерть окончательна → `RunState.Died` → `RunController.OnDied` → `MarkDead` у ввода; `CampController` теряет всё несомое (`EvacuationSystem.LoseAll`).
+7. Святилище (`Sanctuary/SanctuaryRunSystem`) сообщает об обрушении пола под игроком через `RunState.ReportSanctuaryCollapse` (обычная опасность); эвакуация — `EvacuationSystem.Evacuate` на любом Алтаре.
 
 Исключение из шагов 2-3: `RunBootstrap.cs:418-428` лениво собирает `Loadout` (ждёт `Altar.Collection`).
 
@@ -65,10 +62,10 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
 
 | Событие (издатель) | Подписчики |
 |---|---|
-| `GridTraceInputController.RunStarted` (`:165`) | 14 контроллеров (Decay, Run, Segments, Currency, Altar, Boss, Camp, Lever, Traps, BossRoom, TrailMultiplier, TunnelCamera, 2 DebugVisuals) + `RunBootstrap.cs:403` |
+| `GridTraceInputController.RunStarted` (`:165`) | 14 контроллеров (Decay, Run, Segments, Currency, Altar, Camp, Lever, Traps, Sanctuary, TrailMultiplier, TunnelCamera, 2 DebugVisuals) + `RunBootstrap.cs:403` |
 | `GridTraceInputController.PressStarted` / `RunConfirmed` (`:177`/`:191`) | только `Movement/TunnelCameraController.cs:215-216` |
-| `GridTraceTrail.Advanced` (`:68`) | `TrailDecaySystem`, `TotemChargeSystem`, `TrailTileCurrencySystem`, `TrailManaIncomeSystem`, `BossRoomRunSystem`, `CashOutSystem`, `BossEncounterSystem`, `TrailMultiplierSystem`, `AltarTriggerSystem`, `PickupFeedback` |
-| `GridTraceTrail.PositionChanged` (`:78`) | `ReturnJourneySystem`, `BossRoomRunSystem`, `TunnelCameraFollow`, 5 систем ловушек, `TunnelGridReveal`, `RunState`, `LeverActivationSystem`, `SegmentRowProvider`, `TrapEncounterTracker`, `StepClickController` |
+| `GridTraceTrail.Advanced` (`:68`) | `TrailDecaySystem`, `TotemChargeSystem`, `TrailTileCurrencySystem`, `TrailManaIncomeSystem`, `SanctuaryRunSystem`, `TrailMultiplierSystem`, `AltarTriggerSystem`, `PickupFeedback` |
+| `GridTraceTrail.PositionChanged` (`:78`) | `SanctuaryRunSystem`, `TunnelCameraFollow`, 5 систем ловушек, `TunnelGridReveal`, `RunState`, `LeverActivationSystem`, `SegmentRowProvider`, `TrapEncounterTracker`, `StepClickController` |
 | `GridTraceTrail.LethalTrapTriggered` (`:99`) | `RunState.cs:43` |
 | `TrailDecaySystem.TileDestroyed` | `RunState.cs:44` |
 | `TunnelGrid.TileMaterialized` (`:31`) | `TunnelObstacleGenerator.cs:109`, `TunnelDebugVisual.cs:308` |
@@ -77,17 +74,16 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
 | `FallingRockTrapSystem.PlayerCrushed` → `TrapSystemsController.FallingRockPlayerCrushed` | `TrapSystemsController.cs:186` → `RunBootstrap.cs:345` → `RunState.ReportFallingRockCrush` |
 | `ArrowWaveTrapSystem.WaveStarted` → `TrapSystemsController.ArrowWaveStarted` | `TrapSystemsController.cs:180` → `ArrowProjectileVisual.cs:96` |
 | `RunState.Died` (`:52`) | `RunController.cs:93`, `CampController.cs:105`, `DeathNotificationOverlay.cs:85` |
-| `RunState.D20Resolved` (`:55`) | `RunFeedbackDebugUI.cs:68` |
-| `BossEncounterSystem.EncounterResolved` → `BossController.EncounterResolved` | `BossController.cs:95` → `RunFeedbackDebugUI.cs:56` |
-| `RunDepthTier.Advanced` (`:17`) | `BossController.cs:90` (`DepthRecord.ReportTier`) |
+| `RunState.FateRollOffered` / `FateRolled` | `DebugVisuals/FateRollOverlay.cs`, `RunFeedbackDebugUI.cs` |
+| `RunDepthTier.Advanced` | `SanctuaryController` (`DepthRecord.ReportTier`) |
 | `AltarTriggerSystem.RitualOpened` → `AltarController.RitualOpened` | `AltarController.cs:82`; внешних подписчиков в рантайме нет |
-| `ReturnJourneySystem.Returned` (`:126`) | `DebugVisuals/ReturnConversionHudBridge.cs:59` |
-| `BossRoom.EchoCollected` (`:73`) | `DebugVisuals/RunHudOverlay.cs:103` |
+| `EvacuationSystem.Returned` | `DebugVisuals/ReturnConversionHudBridge.cs:59` |
+| `Sanctuary.EchoCollected` | `DebugVisuals/RunHudOverlay.cs:103` |
 | `Tile.RoleConflictRejected` (static, `:289`) | `RunBootstrap.cs:247` (лог-предупреждение) |
 
 Без подписчиков в рантайме (только тесты): `PersistentWallet.Changed`, `RunCurrencyAccumulator.Changed`,
 `TrailMultiplierSystem.MultiplierChanged`, `ArtifactCollection.Recorded`, `ArtifactPool.Unlocked`,
-`OmenPool.Unlocked`, `AchievementTracker.Granted`, `FirstBossVictoryTracker.FirstVictory`,
+`OmenPool.Unlocked`, `AchievementTracker.Granted`, 
 `DepthRecord.RecordBroken`, `SecondWindCharge.Consumed`, `TotemChargeSystem.ChargeChanged/Activated`.
 
 ## 4. Системы
@@ -104,10 +100,10 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
   систем: Стрела, Бомба, Лезвия, Падающий камень, `MovingWallTrap` (`:177-187`), каждая со своим
   `RealTimeThreatScheduler`, тикают от `Update` с `Time.deltaTime` (`:138`), не от шагов.
   Статичная Лава — `LethalTrapType.Lava` (`Core/LethalTrapType.cs:35`). Волновой Лавы в коде нет.
-- **Босс.** `BossController.RebuildEncounter` (`Boss/BossController.cs:84`) создаёт `RunDepthTier` и
-  `BossEncounterSystem` (энергия = мана забега, порог растёт с Ярусом, `RequiredEnergyForTier`).
-  Поражение → `RunState.ReportBossDefeat`. Комната Босса — отдельная цепочка `BossRoomController` →
-  `BossRoomRunSystem` (`BossRoom/BossRoomController.cs:62`), тоже через `ReportBossDefeat` (`:68`).
+- **Святилище.** Раскладка (`SegmentTemplateCatalog.SanctuaryLeshyTemplate`, 15 рядов: вход, 13 рядов, Алтарь)
+  выкладывается `SegmentRowProvider` как последний landmark Яруса. `SanctuaryController` →
+  `SanctuaryRunSystem`: вход по `Tile.IsSanctuaryEntry`, обрушение рядов в Лаву (`CollapseFront`, ускоряется
+  взятым Саркофагом), плиты множителя, зачисление Маны на выходе; прохождение продвигает `RunDepthTier`.
 - **Валюты.** `CurrencyController.RebuildRunSystems` (`Currencies/CurrencyController.cs:129-140`):
   мана и ключи забега (`RunCurrencyAccumulator`), множитель `TrailMultiplierSystem`
   (`MultiplierCurve`, максимум ×20, `Core/MultiplierCurve.cs:15`), доход маны за плиту
@@ -122,7 +118,7 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
 | Место | Суть | Ссылка |
 |---|---|---|
 | Порядок подписки на события | C# вызывает подписчиков в порядке подписки. `TrailMultiplierSystem` должен быть создан раньше `TrailManaIncomeSystem` (`Currencies/TrailManaIncomeSystem.cs:21-27`); `Decay`/`Run` первыми в `RunBootstrap.cs:311` | `RunBootstrap.cs:300` |
-| Пропущенный первый `RunStarted` | `GridTraceInputController.Awake` поднимает `RunStarted` раньше, чем контроллеры подписаны; лечится ленивой сборкой в `Update` (`TrapSystemsController.cs:138`, `Boss/BossController.cs:71`, `SegmentGenerationController.cs:70`) | #256 |
+| Пропущенный первый `RunStarted` | `GridTraceInputController.Awake` поднимает `RunStarted` раньше, чем контроллеры подписаны; лечится ленивой сборкой в `Update` (`TrapSystemsController.cs:138`, `Sanctuary/SanctuaryController.cs`, `SegmentGenerationController.cs:70`) | #256 |
 | Ловушки: реальное время, не шаги | Планировщик тикает от `Update`; `RealTimeThreatScheduler` заменил пошаговый. Тело #254 касалось только Стрелы/Лезвий/Лавы, Бомба и Камень переведены позже (владелец, 2026-09-14, второй раунд — комментарий `TrapSystemsController.cs:28`) | #254 |
 | Перезапись Алтаря рантайм-переходом | Knockback телепортирует на последний Алтарь (`RunState.cs:136`); рантайм-переходы `Tile.TransitionToBlocked` (`Core/Tile.cs:348`, вызов `FallingRockTrapSystem.cs:192`) и `TransitionToLethalTrap` (`Core/Tile.cs:396`) без стража (`Tile.cs:348-351`, `:396-399`) пишут поверх роли; фикс #249 (страж Алтаря) относился к волновой Лаве, которой в коде уже нет — у оставшихся систем стража нет | #249 |
 | Шаблоны без выхода | Два шаблона каталога давали сплошной ряд Лавы (`Generation/SegmentTemplateCatalog.cs:385`, `:540`); страж — `SegmentReachabilityValidator` | #251 |

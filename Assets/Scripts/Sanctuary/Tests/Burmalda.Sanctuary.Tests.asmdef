@@ -1,12 +1,12 @@
 {
-    "name": "Burmalda.BossRoom.Tests",
-    "rootNamespace": "Burmalda.BossRoom.Tests",
+    "name": "Burmalda.Sanctuary.Tests",
+    "rootNamespace": "Burmalda.Sanctuary.Tests",
     "references": [
         "Burmalda.Core",
         "Burmalda.Movement",
         "Burmalda.Currencies",
         "Burmalda.RunLifecycle",
-        "Burmalda.BossRoom",
+        "Burmalda.Sanctuary",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

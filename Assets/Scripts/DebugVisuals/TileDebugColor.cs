@@ -134,9 +134,9 @@ namespace Burmalda.DebugVisuals
         /// </summary>
         public static readonly Color LeverGateOpenColor = new Color(1f, 210f / 255f, 90f / 255f);
 
-        // Вход в Комнату Босса (Tile.IsBoss, PRD v8 §8.1) — единственная
+        // Вход в Комнату Босса (Tile.IsSanctuaryEntry, PRD v8 §8.1) — единственная
         // строка debug-визуала под механику Босса, которая переживает v8
-        // (см. doc-комментарий TileVisualState.IsBoss).
+        // (см. doc-комментарий TileVisualState.IsSanctuaryEntry).
         // Баг с устройства (владелец, 2026-09-04): прежний насыщенно-синий
         // читался как "непонятная чужеродная плита" именно потому, что был
         // единственным холодным цветом на тёплом полу (PRD §3: золото,
@@ -146,7 +146,7 @@ namespace Burmalda.DebugVisuals
         // не подверженное распаду), но другой оттенок внутри тёплой семьи
         // (медно-оранжевый, не чистое золото) — Босс и Алтарь не должны
         // визуально сливаться, они стоят рядом на маршруте (2 Алтаря перед
-        // Боссом, PRD v9 §8.1). См. также TileArtKind.Boss — теперь под
+        // Боссом, PRD v9 §8.1). См. также TileArtKind.SanctuaryEntry — теперь под
         // этот же вход заведена текстура (переиспользует tile-altar.png с
         // другим тоном, см. TileArtCatalog.Get), это цвет — фолбэк на
         // случай, если текстуры почему-то нет (Editor/тесты).
@@ -172,16 +172,19 @@ namespace Burmalda.DebugVisuals
         /// полу, не только по числу на HUD. Голубой — самый частый тип
         /// (Жила), не пересекается ни с одним занятым цветом палитры.
         /// </summary>
-        public static readonly Color BossRoomVeinColor = new Color(110f / 255f, 190f / 255f, 1f);
+        /// <summary>Саркофаг Святилища (PRD v10 §14.2) — золотой, в забеге все Саркофаги выглядят одинаково (§15.1).</summary>
+        public static readonly Color SarcophagusColor = new Color(1f, 0.84f, 0f);
 
-        /// <summary>Резонанс — мятно-бирюзовый, см. <see cref="BossRoomVeinColor"/>.</summary>
-        public static readonly Color BossRoomResonanceColor = new Color(60f / 255f, 235f / 255f, 190f / 255f);
+        public static readonly Color SanctuaryVeinColor = new Color(110f / 255f, 190f / 255f, 1f);
 
-        /// <summary>Эхо — самый редкий и самый "заряженный" тип (×2, PRD v9 §8.3), яркая магента, см. <see cref="BossRoomVeinColor"/>.</summary>
-        public static readonly Color BossRoomEchoColor = new Color(1f, 70f / 255f, 235f / 255f);
+        /// <summary>Резонанс — мятно-бирюзовый, см. <see cref="SanctuaryVeinColor"/>.</summary>
+        public static readonly Color SanctuaryResonanceColor = new Color(60f / 255f, 235f / 255f, 190f / 255f);
+
+        /// <summary>Эхо — самый редкий и самый "заряженный" тип (×2, PRD v9 §8.3), яркая магента, см. <see cref="SanctuaryVeinColor"/>.</summary>
+        public static readonly Color SanctuaryEchoColor = new Color(1f, 70f / 255f, 235f / 255f);
 
         /// <summary>Разлом Комнаты — вне скоупа вертикального среза (не генерируется), цвет заведён для полноты enum на случай будущей интеграции.</summary>
-        public static readonly Color BossRoomRiftColor = new Color(190f / 255f, 130f / 255f, 1f);
+        public static readonly Color SanctuaryRiftColor = new Color(190f / 255f, 130f / 255f, 1f);
 
         /// <summary>
         /// Задача «двойные флаги на плитах» (плейтест владельца: сигнатура
@@ -253,8 +256,9 @@ namespace Burmalda.DebugVisuals
             if (state.IsTrapTrigger && state.IsDangerSignatureRevealed)
                 return TriggerSignatureColor;
 
-            if (state.IsBoss) return BossColor;
-            if (state.BossRoomTile.HasValue) return ResolveBossRoomTileColor(state.BossRoomTile.Value);
+            if (state.IsSanctuaryEntry) return BossColor;
+            if (state.HasSarcophagus) return SarcophagusColor;
+            if (state.SanctuaryTile.HasValue) return ResolveSanctuaryTileColor(state.SanctuaryTile.Value);
             if (state.IsAltar) return AltarColor;
             // Ворота — структурное состояние (задача «рычаг и ворота
             // невидимы»), фиксировано на плите, не связано с распадом,
@@ -285,14 +289,14 @@ namespace Burmalda.DebugVisuals
             return ResolveDecayGradient(state.DecayProgress01);
         }
 
-        private static Color ResolveBossRoomTileColor(BossRoomTileKind kind)
+        private static Color ResolveSanctuaryTileColor(SanctuaryTileKind kind)
         {
             switch (kind)
             {
-                case BossRoomTileKind.Resonance: return BossRoomResonanceColor;
-                case BossRoomTileKind.Echo: return BossRoomEchoColor;
-                case BossRoomTileKind.Rift: return BossRoomRiftColor;
-                default: return BossRoomVeinColor;
+                case SanctuaryTileKind.Resonance: return SanctuaryResonanceColor;
+                case SanctuaryTileKind.Echo: return SanctuaryEchoColor;
+                case SanctuaryTileKind.Rift: return SanctuaryRiftColor;
+                default: return SanctuaryVeinColor;
             }
         }
 

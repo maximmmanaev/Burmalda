@@ -6,10 +6,10 @@ namespace Burmalda.DebugVisuals
     /// Хуки под живые экземпляры систем, которых сейчас НИГДЕ в реальной
     /// игре не создают (issue "Задача 2 — отладочный HUD"):
     ///
-    /// - <see cref="ActiveBossRoom"/> — <c>BossRoom.BossRoom</c> (Множитель
+    /// - <see cref="ActiveSanctuary"/> — <c>BossRoom.BossRoom</c> (Множитель
     ///   Комнаты + дистанция до волны, PRD v8/v9 §8). Задача «Комната
     ///   Босса» (владелец, 2026-09-02) завела живую интеграцию
-    ///   (<c>BossRoom.BossRoomController</c>, читается через
+    ///   (<c>BossRoom.SanctuaryController</c>, читается через
     ///   <c>Bootstrap.RunBootstrap.BossRoom</c>) — <see cref="RunHudOverlay"/>
     ///   присваивает это поле на каждый кадр из неё. До входа в Комнату
     ///   (или вне текущего забега) остаётся null — тем же способом, каким
@@ -25,7 +25,7 @@ namespace Burmalda.DebugVisuals
     /// мост для него не нужен (Комната Босса своего Controller'а пока не
     /// имеет вовсе, поэтому для неё мост ниже остаётся).
     ///
-    /// <see cref="RunHudOverlay"/> читает <see cref="ActiveBossRoom"/> и
+    /// <see cref="RunHudOverlay"/> читает <see cref="ActiveSanctuary"/> и
     /// просто не рисует соответствующую строку, пока оно null — то
     /// поведение, которое задача просит явно для элементов Комнаты Босса
     /// ("заложи места в разметке и оставь пустыми, без заглушечных
@@ -41,12 +41,12 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public static class RunHudDataSources
     {
-        public static Burmalda.BossRoom.BossRoom ActiveBossRoom { get; set; }
+        public static Burmalda.Sanctuary.Sanctuary ActiveSanctuary { get; set; }
 
         /// <summary>
         /// Разбивка последней конвертации Маны/Ключей в Монеты при успешном
         /// возврате в Лагерь (PRD v9 раздел 5/10, задача по экономике "Мана
-        /// как доход забега"). В отличие от <see cref="ActiveBossRoom"/>/
+        /// как доход забега"). В отличие от <see cref="ActiveSanctuary"/>/
         /// <see cref="ActiveArtifactLoadout"/> — источник ЖИВОЙ:
         /// <c>Camp.CampController</c> уже создаёт и владеет
         /// <c>Camp.EvacuationSystem</c> на каждый забег, только само

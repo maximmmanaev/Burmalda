@@ -197,9 +197,9 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void BossArenaTemplate_ActuallyContainsBossTile()
+        public void SanctuaryTemplate_ActuallyContainsEntryTile()
         {
-            Assert.IsTrue(ContainsTileType(SegmentTemplateCatalog.BossTemplate, SegmentTileType.Boss));
+            Assert.IsTrue(ContainsTileType(SegmentTemplateCatalog.SanctuaryLeshyTemplate, SegmentTileType.SanctuaryEntry));
         }
 
         // Правка по итогам ручной проверки владельца (2026-09-04): само
@@ -210,7 +210,7 @@ namespace Burmalda.Generation.Tests
         {
             Assert.IsFalse(SegmentTemplateCatalog.All.Any(t => ContainsTileType(t, SegmentTileType.Altar)),
                 "Алтарь должен ставиться только детерминированным потоком (SegmentRowProvider), не случайным отбором.");
-            Assert.IsFalse(SegmentTemplateCatalog.All.Any(t => ContainsTileType(t, SegmentTileType.Boss)),
+            Assert.IsFalse(SegmentTemplateCatalog.All.Any(t => ContainsTileType(t, SegmentTileType.SanctuaryEntry)),
                 "Вход в Комнату Босса должен ставиться только детерминированным потоком (SegmentRowProvider), не случайным отбором.");
         }
 

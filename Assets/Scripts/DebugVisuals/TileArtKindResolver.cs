@@ -83,13 +83,13 @@ namespace Burmalda.DebugVisuals
                 return TileArtKind.TriggerSignature;
 
             // Баг с устройства (владелец, 2026-09-04): вход в Комнату — уже
-            // TileArtKind.Boss (см. её doc-комментарий), структурная плита
+            // TileArtKind.SanctuaryEntry (см. её doc-комментарий), структурная плита
             // маршрута обязана читаться. Содержимое САМОЙ Комнаты
             // (Жила/Резонанс/Эхо) по прямому указанию задачи остаётся на
             // цветном фолбэке — Комната целиком получит свой визуальный
             // режим в Спринте 20, чинить его по частям сейчас не просили.
-            if (state.IsBoss) return TileArtKind.Boss;
-            if (state.BossRoomTile.HasValue) return TileArtKind.None;
+            if (state.IsSanctuaryEntry) return TileArtKind.SanctuaryEntry;
+            if (state.HasSarcophagus || state.SanctuaryTile.HasValue) return TileArtKind.None;
             if (state.IsAltar) return TileArtKind.Altar;
             // Задача «тёплый набор плит»: прежние tile-gate-closed.png/
             // tile-gate-open.png (лист мелких UI-иконок и полный рендер

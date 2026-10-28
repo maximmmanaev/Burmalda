@@ -89,15 +89,34 @@ namespace Burmalda.Generation
             ".....",
         }));
 
-        /// <summary>См. doc-комментарий <see cref="AltarTemplate"/> — тот же вывод из пула, симметрично для входа в Комнату Босса.</summary>
-        public static readonly SegmentTemplate BossTemplate = new SegmentTemplate("арена-босса", 5, SegmentRewardTag.Artifact, ParseRows(new[]
+        /// <summary>
+        /// Святилище Лешего (PRD v10 §6.1, §14): авторская раскладка целиком, на всю
+        /// ширину тоннеля. Ряд 0 — вход (все пять плит), последний ряд — Алтарь в конце
+        /// Святилища. Ряды 1–13 — ЧЕРНОВАЯ раскладка геймдизайнера (владелец заменит).
+        /// Правка относительно присланной: Стрелы <c>w</c> из рядов 7 и 9 перенесены в
+        /// ряды 4 и 11, потому что Стрела бьёт по своему ряду и накрывала Резонанс и
+        /// Эхо (§14.2: награды не лежат в зонах удара; проверяется тестом).
+        /// Легенда: . пол, # стена, r Падающий камень, w Стрелы, d Давилка, J Жила,
+        /// R Резонанс, E Эхо, X Разлом, S Саркофаг, G вход, A Алтарь.
+        /// </summary>
+        public static readonly SegmentTemplate SanctuaryLeshyTemplate = new SegmentTemplate("святилище-лешего", 5, SegmentRewardTag.Mana, ParseRows(new[]
         {
+            "GGGGG",
             ".....",
+            ".r.w.",
+            "R.#.R",
+            ".w.rw",
+            "J.d.J",
             ".....",
-            "..B..",
+            "r.R..",
+            "#J.J#",
+            ".rE..",
+            "J.S.J",
+            ".wwr.",
+            "R.#.X",
             ".....",
-            ".....",
-        }));
+            "..A..",
+        }), isLandmark: true);
 
         public static IReadOnlyList<SegmentTemplate> All { get; } = new List<SegmentTemplate>
         {
@@ -934,7 +953,12 @@ namespace Burmalda.Generation
                     'k' => SegmentTileType.KeySource,
                     'v' => SegmentTileType.GateVaultKeySource,
                     'A' => SegmentTileType.Altar,
-                    'B' => SegmentTileType.Boss,
+                    'G' => SegmentTileType.SanctuaryEntry,
+                    'J' => SegmentTileType.SanctuaryVein,
+                    'R' => SegmentTileType.SanctuaryResonance,
+                    'E' => SegmentTileType.SanctuaryEcho,
+                    'X' => SegmentTileType.SanctuaryRift,
+                    'S' => SegmentTileType.Sarcophagus,
                     'w' => SegmentTileType.ArrowWaveTrigger,
                     'x' => SegmentTileType.BombTrigger,
                     't' => SegmentTileType.BladeTactTrigger,

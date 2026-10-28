@@ -30,6 +30,5 @@ namespace Burmalda.Persistence
         public List<string> collectionRecordedIds = new List<string>();
         public List<string> poolUnlockedIds = new List<string>();
         public int depthRecordBestTier;
-        public bool hasWonBossBefore;
     }
 }
