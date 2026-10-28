@@ -30,5 +30,7 @@ namespace Burmalda.Persistence
         public List<string> collectionRecordedIds = new List<string>();
         public List<string> poolUnlockedIds = new List<string>();
         public int depthRecordBestTier;
+        /// <summary>Привезённые, но не открытые Саркофаги (ранги, PRD v10 §22.3): потеря прогресса — критический дефект.</summary>
+        public List<int> unopenedSarcophagiRanks = new List<int>();
     }
 }

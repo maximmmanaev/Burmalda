@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Burmalda.Core;
 using Burmalda.Currencies;
 using Burmalda.Movement;
@@ -17,6 +18,8 @@ namespace Burmalda.Camp.Tests
             public RunCurrencyAccumulator Keys;
             public PersistentWallet CoinWallet;
             public EvacuationSystem System;
+            public RunSarcophagi Carried;
+            public List<Sarcophagus> Delivered = new List<Sarcophagus>();
         }
 
         private static Fixture CreateFixture(bool standOnAltar = true, float multiplier = 1f)
@@ -31,8 +34,10 @@ namespace Burmalda.Camp.Tests
             var mana = new RunCurrencyAccumulator();
             var keys = new RunCurrencyAccumulator();
             var wallet = new PersistentWallet();
-            var system = new EvacuationSystem(grid, t, mana, keys, wallet, multiplier);
-            return new Fixture { Grid = grid, Trail = t, Mana = mana, Keys = keys, CoinWallet = wallet, System = system };
+            var carried = new RunSarcophagi();
+            var f = new Fixture { Grid = grid, Trail = t, Mana = mana, Keys = keys, CoinWallet = wallet, Carried = carried };
+            f.System = new EvacuationSystem(grid, t, mana, keys, wallet, carried, list => f.Delivered.AddRange(list), multiplier);
+            return f;
         }
 
         [Test]
@@ -155,6 +160,43 @@ namespace Burmalda.Camp.Tests
             f.System.LoseAll();
 
             Assert.AreEqual(0, f.Mana.Total);
+        }
+
+        [Test]
+        public void Evacuate_CarriedSarcophagi_AreDeliveredToCampAndLeaveTheRun()
+        {
+            var f = CreateFixture();
+            f.Carried.Add(new Sarcophagus(SarcophagusRank.Junior));
+            f.Carried.Add(new Sarcophagus(SarcophagusRank.Junior));
+
+            f.System.Evacuate();
+
+            Assert.AreEqual(2, f.Delivered.Count);
+            Assert.AreEqual(0, f.Carried.Count);
+        }
+
+        [Test]
+        public void Evacuate_NotOnAltar_KeepsSarcophagiCarried()
+        {
+            var f = CreateFixture(standOnAltar: false);
+            f.Carried.Add(new Sarcophagus(SarcophagusRank.Junior));
+
+            f.System.Evacuate();
+
+            Assert.AreEqual(1, f.Carried.Count);
+            Assert.AreEqual(0, f.Delivered.Count);
+        }
+
+        [Test]
+        public void LoseAll_CarriedSarcophagi_AreLostNothingDelivered()
+        {
+            var f = CreateFixture();
+            f.Carried.Add(new Sarcophagus(SarcophagusRank.Junior));
+
+            f.System.LoseAll();
+
+            Assert.AreEqual(0, f.Carried.Count);
+            Assert.AreEqual(0, f.Delivered.Count);
         }
     }
 }
