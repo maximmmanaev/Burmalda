@@ -5,7 +5,7 @@
         "Burmalda.Core",
         "Burmalda.Movement",
         "Burmalda.Generation",
-        "Burmalda.D20",
+        "Burmalda.FateRoll",
         "Burmalda.Boss",
         "Burmalda.BossRoom",
         "Burmalda.Artifacts",

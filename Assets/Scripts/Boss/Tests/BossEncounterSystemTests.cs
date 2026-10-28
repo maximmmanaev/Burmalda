@@ -1,7 +1,6 @@
 using Burmalda.Artifacts;
 using Burmalda.Core;
 using Burmalda.Currencies;
-using Burmalda.D20;
 using Burmalda.Decay;
 using Burmalda.Movement;
 using Burmalda.Progression;
@@ -27,13 +26,12 @@ namespace Burmalda.Boss.Tests
         }
 
         // requiredEnergyForTier по умолчанию — фиксированный порог независимо от Яруса, чтобы не усложнять тесты, где сама кривая не проверяется.
-        private static Fixture CreateFixture(int requiredEnergy, int d20Roll = 5)
+        private static Fixture CreateFixture(int requiredEnergy)
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
             var decay = new TrailDecaySystem(grid, trail);
-            var d20 = new D20Trial(() => d20Roll);
-            var runState = new RunState(grid, trail, decay, d20);
+            var runState = new RunState(grid, trail, decay, () => 6, fateRollsUsed: 0);
             var mana = new RunCurrencyAccumulator();
             var pool = new ArtifactPool();
             var tracker = new FirstBossVictoryTracker();
@@ -91,18 +89,18 @@ namespace Burmalda.Boss.Tests
         }
 
         [Test]
-        public void Advanced_ReachesBossWithInsufficientMana_ResolvesDefeatAndKillsRunStateWithoutD20()
+        public void Advanced_ReachesBossWithInsufficientMana_ResolvesDefeatAndKillsRunStateWithoutFateRoll()
         {
-            var f = CreateFixture(requiredEnergy: 5000, d20Roll: 20); // Fortune, если бы d20 всё же бросился
+            var f = CreateFixture(requiredEnergy: 5000); // броски ещё есть — но Босс их не предлагает
             f.Grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkBoss();
             f.Mana.Add(4000);
-            var d20Fired = false;
-            f.RunState.D20Resolved += _ => d20Fired = true;
+            var fateOffered = false;
+            f.RunState.FateRollOffered += _ => fateOffered = true;
 
             f.Trail.TryAdvanceTo(new GridCoordinate(1, 2));
 
             Assert.IsFalse(f.RunState.IsAlive);
-            Assert.IsFalse(d20Fired, "поражение от Босса детерминировано (#82) — d20 бросаться не должен");
+            Assert.IsFalse(fateOffered, "поражение от Босса детерминировано (#82) — Бросок Судьбы не предлагается");
         }
 
         [Test]
@@ -164,7 +162,7 @@ namespace Burmalda.Boss.Tests
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
             var decay = new TrailDecaySystem(grid, trail);
-            var runState = new RunState(grid, trail, decay, new D20Trial(() => 5));
+            var runState = new RunState(grid, trail, decay, () => 6);
             var mana = new RunCurrencyAccumulator();
             var depthTier = new RunDepthTier();
             var seenTiers = new System.Collections.Generic.List<int>();

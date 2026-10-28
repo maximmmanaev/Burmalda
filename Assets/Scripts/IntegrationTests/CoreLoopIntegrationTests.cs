@@ -106,7 +106,7 @@ namespace Burmalda.IntegrationTests
             // тест и так предполагал) — тот же приём внедрённого источника
             // случайности, что уже применяется для TunnelObstacleGenerator/
             // AltarTriggerSystem, не блиндовый глобальный сид (см. issue).
-            runController.RollD20Override = () => 20;
+            runController.RollDieOverride = () => 6; // 6+6 — «на месте»
             InvokePrivate(runController, "Awake");
             InvokePrivate(runController, "Update");
 
@@ -185,6 +185,7 @@ namespace Burmalda.IntegrationTests
             Assert.IsFalse(steppedOnTrap, "Шаг на смертельную ловушку не должен засчитываться.");
             Assert.AreEqual(LethalTrapType.ArrowWave, triggeredTrap);
             Assert.AreEqual(keySource, trail.CurrentPosition, "Позиция не должна была измениться после отказа шагнуть на ловушку.");
+            _inputObject.GetComponent<RunController>().RunState.RollFate(); // Бросок Судьбы 6+6 — продолжаем с той же плиты
 
             // Обходим ловушку по диагонали.
             Assert.IsTrue(trail.TryAdvanceTo(safeDetour));

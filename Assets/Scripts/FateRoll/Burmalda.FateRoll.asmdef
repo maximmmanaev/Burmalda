@@ -1,6 +1,6 @@
 {
-    "name": "Burmalda.D20",
-    "rootNamespace": "Burmalda.D20",
+    "name": "Burmalda.FateRoll",
+    "rootNamespace": "Burmalda.FateRoll",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
