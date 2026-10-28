@@ -132,7 +132,6 @@ namespace Burmalda.Movement
                 if (tile.IsBlocked && !_breachAvailable) return false;
                 if (tile.IsGated && !tile.IsLeverGateOpen) return false;
                 if (tile.LethalTrap.HasValue && tile.LethalTrap.Value != LethalTrapType.Lava) return false;
-                if (_visited.Contains(target)) return !tile.IsDestroyed;
             }
 
             return true;
