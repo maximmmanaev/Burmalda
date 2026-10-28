@@ -180,7 +180,7 @@ namespace Burmalda.Core
             if (IsManaSource) { IsManaSource = false; return; }
             if (IsKeySource) { IsKeySource = false; KeySourceAmount = null; return; }
             if (IsAltar) { IsAltar = false; return; }
-            if (IsBoss) { IsBoss = false; return; }
+            if (IsSanctuaryEntry) { IsSanctuaryEntry = false; return; }
             if (IsLever) { IsLever = false; LeverGateTargets = null; return; }
             if (IsGated) { IsGated = false; LeverCoordinate = null; return; }
             if (ArrowWaveTargetRow.HasValue) { ArrowWaveTargetRow = null; ArrowWaveDirection = null; return; }
@@ -295,7 +295,7 @@ namespace Burmalda.Core
             if (IsManaSource) return nameof(IsManaSource);
             if (IsKeySource) return nameof(IsKeySource);
             if (IsAltar) return nameof(IsAltar);
-            if (IsBoss) return nameof(IsBoss);
+            if (IsSanctuaryEntry) return nameof(IsSanctuaryEntry);
             if (IsLever) return nameof(IsLever);
             if (IsGated) return nameof(IsGated);
             // Задача «награда никогда не лежит на ловушке» (владелец): пять
@@ -769,17 +769,17 @@ namespace Burmalda.Core
         }
 
         /// <summary>
-        /// Плита — точка встречи с Боссом (PRD раздел 8, issue #22):
-        /// обязательная, без победы дальше не пройти. Не ловушка, всегда
-        /// проходима — встреча разрешается автоматически при достижении.
+        /// Плита — вход в Святилище бога (PRD v10 §14): весь первый ряд
+        /// Святилища, поэтому обойти его нельзя. Не ловушка, всегда проходима —
+        /// вход фиксируется автоматически при достижении.
         /// </summary>
-        public bool IsBoss { get; private set; }
+        public bool IsSanctuaryEntry { get; private set; }
 
-        /// <summary>Помечает плиту как точку Босса. Повторные вызовы — не-op.</summary>
-        public void MarkBoss()
+        /// <summary>Помечает плиту как вход в Святилище. Повторные вызовы — не-op.</summary>
+        public void MarkSanctuaryEntry()
         {
-            if (!GuardAgainstConflictingRole(IsBoss, nameof(IsBoss))) return;
-            IsBoss = true;
+            if (!GuardAgainstConflictingRole(IsSanctuaryEntry, nameof(IsSanctuaryEntry))) return;
+            IsSanctuaryEntry = true;
         }
 
         /// <summary>
@@ -787,28 +787,46 @@ namespace Burmalda.Core
         /// вне Комнаты. Аналогично <see cref="LethalTrap"/>: постоянное
         /// состояние плиты, не связано с распадом.
         /// </summary>
-        public BossRoomTileKind? BossRoomTile { get; private set; }
+        public SanctuaryTileKind? SanctuaryTile { get; private set; }
 
         /// <summary>
-        /// Осмысленно только когда <see cref="BossRoomTile"/> ==
-        /// <see cref="BossRoomTileKind.Rift"/> — какое тиканье даёт эта
+        /// Осмысленно только когда <see cref="SanctuaryTile"/> ==
+        /// <see cref="SanctuaryTileKind.Rift"/> — какое тиканье даёт эта
         /// плита-Разлом, пока на ней стоишь (PRD v8 §8.2).
         /// </summary>
-        public BossRoomRiftSubtype? RiftSubtype { get; private set; }
+        public SanctuaryRiftSubtype? RiftSubtype { get; private set; }
 
         /// <summary>Помечает плиту как Жилу/Резонанс Комнаты. Повторные вызовы — не-op.</summary>
-        public void MarkBossRoomTile(BossRoomTileKind kind)
+        public void MarkSanctuaryTile(SanctuaryTileKind kind)
         {
-            if (BossRoomTile.HasValue) return;
-            BossRoomTile = kind;
+            if (SanctuaryTile.HasValue) return;
+            SanctuaryTile = kind;
         }
 
         /// <summary>Помечает плиту как Разлом Комнаты нужного подтипа. Повторные вызовы — не-op.</summary>
-        public void MarkBossRoomRift(BossRoomRiftSubtype subtype)
+        public void MarkSanctuaryRift(SanctuaryRiftSubtype subtype)
         {
-            if (BossRoomTile.HasValue) return;
-            BossRoomTile = BossRoomTileKind.Rift;
+            if (SanctuaryTile.HasValue) return;
+            SanctuaryTile = SanctuaryTileKind.Rift;
             RiftSubtype = subtype;
+        }
+
+        /// <summary>
+        /// На плите лежит Саркофаг Святилища (PRD v10 §14.2, §15.1). Не входит в
+        /// эксклюзивные роли: Саркофаг ставится авторской раскладкой только на
+        /// пустую плиту. Взятие (<see cref="TakeSarcophagus"/>) убирает его.
+        /// </summary>
+        public bool HasSarcophagus { get; private set; }
+
+        /// <summary>Кладёт Саркофаг на плиту (авторская раскладка Святилища).</summary>
+        public void MarkSarcophagus() => HasSarcophagus = true;
+
+        /// <summary>Игрок подобрал Саркофаг: true, если он тут лежал.</summary>
+        public bool TakeSarcophagus()
+        {
+            if (!HasSarcophagus) return false;
+            HasSarcophagus = false;
+            return true;
         }
 
         /// <summary>Накопленное время распада плиты в секундах.</summary>

@@ -8,14 +8,14 @@
         "Burmalda.Currencies",
         "Burmalda.Artifacts",
         "Burmalda.Altar",
-        "Burmalda.Boss",
         "Burmalda.Camp",
         "Burmalda.Progression",
         "Burmalda.RunLifecycle",
         "Burmalda.Bootstrap",
         "Burmalda.Generation",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "Burmalda.Sanctuary"
     ],
     "includePlatforms": [
         "Editor"

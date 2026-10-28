@@ -1,14 +1,13 @@
 {
-    "name": "Burmalda.Boss",
-    "rootNamespace": "Burmalda.Boss",
+    "name": "Burmalda.Sanctuary",
+    "rootNamespace": "Burmalda.Sanctuary",
     "references": [
         "Burmalda.Core",
         "Burmalda.Movement",
         "Burmalda.Currencies",
-        "Burmalda.Artifacts",
         "Burmalda.RunLifecycle",
-        "Burmalda.Progression",
-        "Burmalda.Altar"
+        "Burmalda.Generation",
+        "Burmalda.Progression"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

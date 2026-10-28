@@ -1765,3 +1765,10 @@ workflow не менялись, код игры не менялся.
 - `Tile.AdvanceDecay`: распавшаяся плита становится `LethalTrapType.Lava` (PRD v10 §7.5), а не непроходимой дырой; возврат на неё разрешён и смертелен (`GridTraceTrail.CanAdvanceTo`).
 - `TilePreviewHighlighter.IsLethalContour`: примеривание Лавы рисует красный контур (§7.4).
 - `TrailDecaySystem.CarriedSarcophagi` + `DecayAccelerationPerSarcophagus = 0.5` (**черновое**, [CONFIG]): ускорение распада под несущим Саркофаги; подключение к реальным Саркофагам — задача 5.
+
+## 2026-10-28 — Спринт v10-1, задача 4: Святилище Лешего, удаление Boss*-кода (#335, #128)
+
+- Удалены `Boss/` (`BossController`, `BossEncounterSystem`, `Boss`, `BossEncounterOutcome`, `FirstBossVictoryTracker`), `BossRoomGenerator`, `ManaToBossIndicator`, `BossVictoryDebugText`; из `SaveData` убрано `hasWonBossBefore` (старые сохранения читаются — лишнее поле игнорируется).
+- Модуль `BossRoom` переименован в `Sanctuary`: `Sanctuary` (вместо `BossRoom`), `CollapseFront` (вместо `BossWave`), `SanctuaryMultiplier` (вместо `RoomMultiplier`), `SanctuaryRunSystem`, `SanctuaryController` (владеет Ярусом: прохождение Святилища продвигает `RunDepthTier`). `BossRoomTileKind` → `SanctuaryTileKind`, `Tile.IsBoss` → `IsSanctuaryEntry`.
+- Святилище Лешего — авторская раскладка `SegmentTemplateCatalog.SanctuaryLeshyTemplate` (15 рядов: вход на всю ширину, 13 рядов раскладки, Алтарь на выходе); `SegmentRowProvider` выкладывает её последним landmark Яруса. Раскладка — черновая геймдизайнера; правка: Стрелы из рядов 7 и 9 перенесены в ряды 4 и 11 (Стрела бьёт по своему ряду и накрывала Резонанс/Эхо). Тесты: награды вне зон удара, проходимость до Саркофага и выхода.
+- Обрушение рядами в Лаву (`Sanctuary.DefaultCollapseRowsPerSecond = 0.45` — **черновое**, [CONFIG]); Саркофаг ускоряет в 1.6 раза (`SarcophagusCollapseMultiplier` — **черновое**); обрушение под игроком — обычная опасность (`RunState.ReportSanctuaryCollapse` → Бросок Судьбы). Плиты Жила/Резонанс/Эхо/Разлом, множитель ×1 → гаснет на выходе, Мана зачисляется на выходе. `Tile.HasSarcophagus` + золотая плита.

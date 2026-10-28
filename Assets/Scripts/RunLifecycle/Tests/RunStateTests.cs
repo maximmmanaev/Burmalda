@@ -407,33 +407,40 @@ namespace Burmalda.RunLifecycle.Tests
         }
 
         [Test]
-        public void ReportBossDefeat_SetsIsAliveFalseAndFiresDiedWithGivenReason_NoFateOffered()
+        public void ReportSanctuaryCollapse_WithRollsLeft_OffersFateRoll()
         {
-            // #82: Бросок Судьбы НЕ применяется к поражению от Босса — детерминировано.
             var (_, _, _, runState) = CreateRun(fateRollsUsed: 0, 6, 6);
-            string firedReason = null;
-            runState.Died += reason => firedReason = reason;
-            var offered = false;
-            runState.FateRollOffered += _ => offered = true;
 
-            runState.ReportBossDefeat("Не хватило энергии до Босса");
+            runState.ReportSanctuaryCollapse();
 
-            Assert.IsFalse(runState.IsAlive);
-            Assert.AreEqual("Не хватило энергии до Босса", firedReason);
-            Assert.IsFalse(offered);
+            Assert.IsTrue(runState.IsAwaitingFate);
+            Assert.IsTrue(runState.IsAlive);
         }
 
         [Test]
-        public void ReportBossDefeat_CalledAfterAlreadyDead_DoesNotFireDiedAgain()
+        public void ReportSanctuaryCollapse_RollsExhausted_DiesWithOwnReason()
         {
-            var (grid, trail, _, runState) = CreateRun();
-            trail.TryAdvanceTo(AddLava(grid)); // уже мёртв
-            var firedCount = 0;
-            runState.Died += _ => firedCount++;
+            var (_, _, _, runState) = CreateRun();
+            string firedReason = null;
+            runState.Died += reason => firedReason = reason;
 
-            runState.ReportBossDefeat("Не хватило энергии до Босса");
+            runState.ReportSanctuaryCollapse();
 
-            Assert.AreEqual(0, firedCount);
+            Assert.IsFalse(runState.IsAlive);
+            Assert.AreEqual("Пол Святилища обрушился", firedReason);
+        }
+
+        [Test]
+        public void ReportSanctuaryCollapse_WhileAwaitingFate_DoesNotOfferSecondRoll()
+        {
+            var (_, _, _, runState) = CreateRun(fateRollsUsed: 0, 6, 6);
+            var offers = 0;
+            runState.FateRollOffered += _ => offers++;
+
+            runState.ReportSanctuaryCollapse();
+            runState.ReportSanctuaryCollapse();
+
+            Assert.AreEqual(1, offers);
         }
 
         [Test]

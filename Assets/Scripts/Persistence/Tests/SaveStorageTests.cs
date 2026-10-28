@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Burmalda.Artifacts;
-using Burmalda.Boss;
 using Burmalda.Currencies;
 using Burmalda.Progression;
 using NUnit.Framework;
@@ -48,8 +47,7 @@ namespace Burmalda.Persistence.Tests
             coinsBalance = 42,
             collectionRecordedIds = new List<string> { "a" },
             poolUnlockedIds = new List<string> { "b", "c" },
-            depthRecordBestTier = 3,
-            hasWonBossBefore = true
+            depthRecordBestTier = 3
         };
 
         [Test]
@@ -63,7 +61,6 @@ namespace Burmalda.Persistence.Tests
             CollectionAssert.AreEqual(new[] { "a" }, r.Data.collectionRecordedIds);
             CollectionAssert.AreEqual(new[] { "b", "c" }, r.Data.poolUnlockedIds);
             Assert.AreEqual(3, r.Data.depthRecordBestTier);
-            Assert.IsTrue(r.Data.hasWonBossBefore);
         }
 
         [Test]
@@ -413,7 +410,6 @@ namespace Burmalda.Persistence.Tests
             s1.Pool.Unlock("relic-1");
             s1.Collection.Record("relic-1");
             s1.Depth.ReportTier(2);
-            s1.Tracker.RecordVictory();
             c1.MarkDirty();
             c1.Tick(10f);
 
@@ -425,7 +421,6 @@ namespace Burmalda.Persistence.Tests
             Assert.AreEqual(120, s2.Coins.Balance);
             Assert.IsTrue(s2.Pool.IsUnlocked("relic-1"));
             Assert.AreEqual(2, s2.Depth.BestTier);
-            Assert.IsTrue(s2.Tracker.HasWonBefore);
         }
 
         private sealed class Parts
@@ -434,9 +429,8 @@ namespace Burmalda.Persistence.Tests
             public ArtifactCollection Collection = new ArtifactCollection();
             public ArtifactPool Pool = new ArtifactPool();
             public DepthRecord Depth = new DepthRecord();
-            public FirstBossVictoryTracker Tracker = new FirstBossVictoryTracker();
-            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Collection, Pool, Depth, Tracker);
-            public void Apply(SaveData d) => ProgressSnapshot.Apply(d, Coins, Collection, Pool, Depth, Tracker);
+            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Collection, Pool, Depth);
+            public void Apply(SaveData d) => ProgressSnapshot.Apply(d, Coins, Collection, Pool, Depth);
         }
     }
 }

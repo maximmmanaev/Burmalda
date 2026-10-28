@@ -13,35 +13,35 @@ namespace Burmalda.Progression.Tests
         }
 
         [Test]
-        public void RecordBossVictory_IncreasesCurrentTierByOne()
+        public void RecordSanctuaryCleared_IncreasesCurrentTierByOne()
         {
             var tier = new RunDepthTier();
 
-            tier.RecordBossVictory();
+            tier.RecordSanctuaryCleared();
 
             Assert.AreEqual(1, tier.CurrentTier);
         }
 
         [Test]
-        public void RecordBossVictory_MultipleTimes_AccumulatesTier()
+        public void RecordSanctuaryCleared_MultipleTimes_AccumulatesTier()
         {
             var tier = new RunDepthTier();
 
-            tier.RecordBossVictory();
-            tier.RecordBossVictory();
-            tier.RecordBossVictory();
+            tier.RecordSanctuaryCleared();
+            tier.RecordSanctuaryCleared();
+            tier.RecordSanctuaryCleared();
 
             Assert.AreEqual(3, tier.CurrentTier);
         }
 
         [Test]
-        public void RecordBossVictory_RaisesAdvancedWithNewTier()
+        public void RecordSanctuaryCleared_RaisesAdvancedWithNewTier()
         {
             var tier = new RunDepthTier();
             var seen = -1;
             tier.Advanced += t => seen = t;
 
-            tier.RecordBossVictory();
+            tier.RecordSanctuaryCleared();
 
             Assert.AreEqual(1, seen);
         }

@@ -55,7 +55,23 @@ namespace Burmalda.Generation
         Altar,
 
         /// <summary>Точка встречи с Боссом (PRD раздел 8, issue #22) — проходима, встреча разрешается автоматически.</summary>
-        Boss,
+        /// <summary>Плита входа в Святилище (PRD v10 §14): первый ряд раскладки.</summary>
+        SanctuaryEntry,
+
+        /// <summary>Жила Святилища: +Мана × множитель (§14.4).</summary>
+        SanctuaryVein,
+
+        /// <summary>Резонанс Святилища: +0.5 к множителю (§14.4).</summary>
+        SanctuaryResonance,
+
+        /// <summary>Эхо Святилища: ×2 к множителю (§14.4).</summary>
+        SanctuaryEcho,
+
+        /// <summary>Разлом Святилища, подтип Жилы: пока стоишь — копится Мана (§14.4).</summary>
+        SanctuaryRift,
+
+        /// <summary>Саркофаг Святилища (§14.2, §15.1).</summary>
+        Sarcophagus,
 
         /// <summary>
         /// Баг с устройства (владелец, 2026-09-04, «новых ловушек в игре

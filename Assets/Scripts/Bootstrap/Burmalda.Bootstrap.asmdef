@@ -7,13 +7,12 @@
         "Burmalda.Decay",
         "Burmalda.Currencies",
         "Burmalda.Altar",
-        "Burmalda.Boss",
         "Burmalda.Camp",
         "Burmalda.Generation",
         "Burmalda.Artifacts",
         "Burmalda.Progression",
         "Burmalda.RunLifecycle",
-        "Burmalda.BossRoom"
+        "Burmalda.Sanctuary"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

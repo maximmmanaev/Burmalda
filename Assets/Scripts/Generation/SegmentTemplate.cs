@@ -26,7 +26,7 @@ namespace Burmalda.Generation
         /// <see cref="SegmentTileType.GateVaultKeySource"/>, иначе должен
         /// быть null — см. <see cref="ValidateGateVault"/>.
         /// </param>
-        public SegmentTemplate(string name, int difficultyTier, SegmentRewardTag rewardTag, SegmentTileType[,] tiles, double? gateVaultPurchases = null)
+        public SegmentTemplate(string name, int difficultyTier, SegmentRewardTag rewardTag, SegmentTileType[,] tiles, double? gateVaultPurchases = null, bool isLandmark = false)
         {
             if (tiles == null) throw new ArgumentNullException(nameof(tiles));
             if (difficultyTier < MinDifficultyTier || difficultyTier > MaxDifficultyTier)
@@ -34,7 +34,7 @@ namespace Burmalda.Generation
                     $"Тег сложности сегмента должен быть в диапазоне [{MinDifficultyTier}, {MaxDifficultyTier}] (PRD v7 §21).");
 
             var rowCount = tiles.GetLength(0);
-            if (rowCount < MinRowCount || rowCount > MaxRowCount)
+            if (!isLandmark && (rowCount < MinRowCount || rowCount > MaxRowCount))
                 throw new ArgumentException(
                     $"Шаблон сегмента должен занимать [{MinRowCount}, {MaxRowCount}] рядов (PRD v7 §21), получено {rowCount}.",
                     nameof(tiles));

@@ -1,4 +1,4 @@
-namespace Burmalda.BossRoom
+namespace Burmalda.Sanctuary
 {
     /// <summary>
     /// Живой множитель дохода Комнаты (PRD v8 §8.3, Спринт 11): «Множитель
@@ -7,7 +7,7 @@ namespace Burmalda.BossRoom
     /// из Комнаты — экземпляр этого класса живёт ровно один заход в
     /// <see cref="BossRoom"/>, новый на каждый заход.
     /// </summary>
-    public sealed class RoomMultiplier
+    public sealed class SanctuaryMultiplier
     {
         public const float StartingValue = 1f;
 

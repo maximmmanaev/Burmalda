@@ -48,20 +48,20 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         // Баг с устройства (владелец, 2026-09-04, «вход в Комнату — обязан
-        // читаться»): TileArtKind.Boss переиспользует текстуру Алтаря со
+        // читаться»): TileArtKind.SanctuaryEntry переиспользует текстуру Алтаря со
         // своим тоном (TunnelDebugVisual.BossArtTint), не None.
         [Test]
         public void Resolve_Boss_NotStartNotCurrentNotDestroyed_ReturnsBoss()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true);
 
-            Assert.AreEqual(TileArtKind.Boss, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.SanctuaryEntry, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
         public void Resolve_Boss_ButDestroyed_DestroyedTakesPriority()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: true, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true);
 
             Assert.AreEqual(TileArtKind.Destroyed, TileArtKindResolver.Resolve(state));
         }
@@ -289,9 +289,9 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_TakesPriorityOverAltar()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true, isAltar: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true, isAltar: true);
 
-            Assert.AreEqual(TileArtKind.Boss, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.SanctuaryEntry, TileArtKindResolver.Resolve(state));
         }
 
         [Test]
@@ -309,7 +309,7 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Resolve_Boss_AlsoBlocked_BlockedTakesPriority()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isBoss: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: true, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isSanctuaryEntry: true);
 
             Assert.AreEqual(TileArtKind.Blocked, TileArtKindResolver.Resolve(state));
         }

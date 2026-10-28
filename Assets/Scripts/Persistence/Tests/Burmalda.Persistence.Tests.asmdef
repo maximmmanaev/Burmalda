@@ -5,11 +5,11 @@
         "Burmalda.Currencies",
         "Burmalda.Artifacts",
         "Burmalda.Progression",
-        "Burmalda.Boss",
         "Burmalda.Altar",
         "Burmalda.Persistence",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "Burmalda.Sanctuary"
     ],
     "includePlatforms": [
         "Editor"

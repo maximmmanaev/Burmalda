@@ -1,5 +1,4 @@
 using Burmalda.Artifacts;
-using Burmalda.Boss;
 using Burmalda.Currencies;
 using Burmalda.Progression;
 using NUnit.Framework;
@@ -14,11 +13,10 @@ namespace Burmalda.Persistence.Tests
             public ArtifactCollection Collection = new ArtifactCollection();
             public ArtifactPool Pool = new ArtifactPool();
             public DepthRecord DepthRecord = new DepthRecord();
-            public FirstBossVictoryTracker Tracker = new FirstBossVictoryTracker();
 
-            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Collection, Pool, DepthRecord, Tracker);
+            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Collection, Pool, DepthRecord);
 
-            public void Apply(SaveData data) => ProgressSnapshot.Apply(data, Coins, Collection, Pool, DepthRecord, Tracker);
+            public void Apply(SaveData data) => ProgressSnapshot.Apply(data, Coins, Collection, Pool, DepthRecord);
         }
 
         [Test]
@@ -29,7 +27,6 @@ namespace Burmalda.Persistence.Tests
             f.Collection.Record("a1");
             f.Pool.Unlock("a1");
             f.DepthRecord.ReportTier(2);
-            f.Tracker.RecordVictory();
 
             var data = f.Capture();
 
@@ -37,7 +34,6 @@ namespace Burmalda.Persistence.Tests
             CollectionAssert.Contains(data.collectionRecordedIds, "a1");
             CollectionAssert.Contains(data.poolUnlockedIds, "a1");
             Assert.AreEqual(2, data.depthRecordBestTier);
-            Assert.IsTrue(data.hasWonBossBefore);
         }
 
         [Test]
@@ -66,26 +62,14 @@ namespace Burmalda.Persistence.Tests
         }
 
         [Test]
-        public void Apply_RestoresDepthRecordAndVictoryTracker()
+        public void Apply_RestoresDepthRecord()
         {
             var f = new Fixture();
-            var data = new SaveData { depthRecordBestTier = 3, hasWonBossBefore = true };
+            var data = new SaveData { depthRecordBestTier = 3 };
 
             f.Apply(data);
 
             Assert.AreEqual(3, f.DepthRecord.BestTier);
-            Assert.IsTrue(f.Tracker.HasWonBefore);
-        }
-
-        [Test]
-        public void Apply_HasWonBossBeforeFalse_DoesNotRecordVictory()
-        {
-            var f = new Fixture();
-            var data = new SaveData { hasWonBossBefore = false };
-
-            f.Apply(data);
-
-            Assert.IsFalse(f.Tracker.HasWonBefore);
         }
 
         [Test]
@@ -108,7 +92,6 @@ namespace Burmalda.Persistence.Tests
             source.Collection.Record("x2");
             source.Pool.Unlock("x1");
             source.DepthRecord.ReportTier(3);
-            source.Tracker.RecordVictory();
 
             var data = source.Capture();
             var target = new Fixture();
@@ -119,7 +102,6 @@ namespace Burmalda.Persistence.Tests
             Assert.IsTrue(target.Collection.Contains("x2"));
             Assert.IsTrue(target.Pool.IsUnlocked("x1"));
             Assert.AreEqual(3, target.DepthRecord.BestTier);
-            Assert.IsTrue(target.Tracker.HasWonBefore);
         }
     }
 }

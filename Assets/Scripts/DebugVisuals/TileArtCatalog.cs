@@ -127,8 +127,8 @@ namespace Burmalda.DebugVisuals
                 // Баг с устройства (владелец, 2026-09-04): переиспользует
                 // ту же текстуру, что Altar — свой тон применяет вызывающая
                 // сторона (см. TunnelDebugVisual.BossArtTint), не
-                // отдельный файл. См. doc-комментарий TileArtKind.Boss.
-                case TileArtKind.Boss: return _altar;
+                // отдельный файл. См. doc-комментарий TileArtKind.SanctuaryEntry.
+                case TileArtKind.SanctuaryEntry: return _altar;
                 default: return null;
             }
         }
