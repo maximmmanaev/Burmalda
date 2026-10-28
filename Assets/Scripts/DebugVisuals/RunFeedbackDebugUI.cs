@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Burmalda.Artifacts;
-using Burmalda.Boss;
 using Burmalda.FateRoll;
 using Burmalda.RunLifecycle;
 using Burmalda.RunModifiers;
@@ -15,15 +14,12 @@ namespace Burmalda.DebugVisuals
     /// финальный арт), реализован через <c>OnGUI</c> (не требует Canvas/
     /// .prefab — в проекте пока нигде нет UI-слоя, см. другие системы).
     ///
-    /// Три источника фидбека:
+    /// Два источника фидбека:
     /// - Выбор Знамения — <see cref="OmenCardText"/>, вызывается вручную
     ///   через <see cref="ShowOmenChoice"/> (живого Controller'а, выбирающего
     ///   Знамение в Лагере, в проекте ещё нет — см. doc-комментарий
     ///   <see cref="RunModifiers.RunModifiers"/> — честно задокументированный
     ///   пробел, не эта задача).
-    /// - Победа/поражение Босса — подписка на <see cref="BossController.EncounterResolved"/>
-    ///   (тот же паттерн, что читает Ярус из <see cref="BossController.DepthTier"/>),
-    ///   если <see cref="_bossController"/> задан в инспекторе.
     /// - Бросок Судьбы — подписка на <see cref="RunState.FateRolled"/> через
     ///   <see cref="RunController"/>, если задан.
     ///
@@ -36,10 +32,8 @@ namespace Burmalda.DebugVisuals
     {
         private const float MessageDurationSeconds = 3f;
 
-        [SerializeField] private BossController _bossController;
         [SerializeField] private RunController _runController;
 
-        private BossController _wiredBossController;
         private RunController _wiredRunController;
         private RunState _wiredRunState;
 
@@ -49,17 +43,9 @@ namespace Burmalda.DebugVisuals
 
         private void Update()
         {
-            if (_bossController != _wiredBossController)
-            {
-                if (_wiredBossController != null) _wiredBossController.EncounterResolved -= HandleBossEncounterResolved;
-                _wiredBossController = _bossController;
-                if (_wiredBossController != null) _wiredBossController.EncounterResolved += HandleBossEncounterResolved;
-            }
-
             // RunState пересобирается на каждый забег (RunController.RunStarted) —
             // ре-подписка нужна на каждую смену инстанса, не только на смену
-            // ссылки на RunController (тот же паттерн, что и BossController
-            // с _depthTier.Advanced).
+            // ссылки на RunController.
             var currentRunState = _runController != null ? _runController.RunState : null;
             if (currentRunState != _wiredRunState)
             {
@@ -71,9 +57,7 @@ namespace Burmalda.DebugVisuals
 
         private void OnDisable()
         {
-            if (_wiredBossController != null) _wiredBossController.EncounterResolved -= HandleBossEncounterResolved;
             if (_wiredRunState != null) _wiredRunState.FateRolled -= HandleFateRolled;
-            _wiredBossController = null;
             _wiredRunState = null;
         }
 
@@ -83,14 +67,6 @@ namespace Burmalda.DebugVisuals
             SetMessage(offered != null && offered.Count > 0
                 ? "Выбор Знамения:\n" + string.Join("\n", offered.Select(OmenCardText.BuildMessage))
                 : "Чистый спуск (Знамений не разблокировано)", Color.white);
-        }
-
-        private void HandleBossEncounterResolved(BossEncounterOutcome outcome, Relic relic)
-        {
-            var tier = _bossController != null && _bossController.DepthTier != null ? _bossController.DepthTier.CurrentTier : 0;
-            SetMessage(
-                BossVictoryDebugText.BuildMessage(outcome, relic, tier),
-                outcome != null && outcome.IsVictory ? Color.white : FateRollOutcomeText.DeathColor);
         }
 
         private void HandleFateRolled(FateRollResult result) =>

@@ -1,6 +1,6 @@
 using System.Reflection;
 using Burmalda.Altar;
-using Burmalda.Boss;
+using Burmalda.Sanctuary;
 using Burmalda.Camp;
 using Burmalda.Core;
 using Burmalda.Currencies;
@@ -99,7 +99,7 @@ namespace Burmalda.Bootstrap.Tests
             InvokePrivate(_bootstrap.Segments, "Awake");
             InvokePrivate(_bootstrap.Currency, "Awake");
             InvokePrivate(_bootstrap.Altar, "Awake");
-            InvokePrivate(_bootstrap.Boss, "Awake");
+            InvokePrivate(_bootstrap.Sanctuary, "Awake");
             InvokePrivate(_bootstrap.Camp, "Awake");
             InvokePrivate(_bootstrap.Lever, "Awake");
             InvokePrivate(_bootstrap, "Update");
@@ -115,7 +115,7 @@ namespace Burmalda.Bootstrap.Tests
             Assert.IsNotNull(_inputObject.GetComponent<SegmentGenerationController>());
             Assert.IsNotNull(_inputObject.GetComponent<CurrencyController>());
             Assert.IsNotNull(_inputObject.GetComponent<AltarController>());
-            Assert.IsNotNull(_inputObject.GetComponent<BossController>());
+            Assert.IsNotNull(_inputObject.GetComponent<SanctuaryController>());
             Assert.IsNotNull(_inputObject.GetComponent<CampController>());
             Assert.IsNotNull(_inputObject.GetComponent<LeverActivationController>());
         }
@@ -130,7 +130,7 @@ namespace Burmalda.Bootstrap.Tests
             Assert.AreSame(_inputObject.GetComponent<SegmentGenerationController>(), _bootstrap.Segments);
             Assert.AreSame(_inputObject.GetComponent<CurrencyController>(), _bootstrap.Currency);
             Assert.AreSame(_inputObject.GetComponent<AltarController>(), _bootstrap.Altar);
-            Assert.AreSame(_inputObject.GetComponent<BossController>(), _bootstrap.Boss);
+            Assert.AreSame(_inputObject.GetComponent<SanctuaryController>(), _bootstrap.Sanctuary);
             Assert.AreSame(_inputObject.GetComponent<CampController>(), _bootstrap.Camp);
             Assert.AreSame(_inputObject.GetComponent<LeverActivationController>(), _bootstrap.Lever);
         }
@@ -161,14 +161,13 @@ namespace Burmalda.Bootstrap.Tests
         }
 
         [Test]
-        public void Update_BossController_SeesCurrencyAndAltarAlreadyWired()
+        public void Update_SanctuaryController_SeesCurrencyAlreadyWired()
         {
             SetUpMinimal();
 
             WireAndAwakeControllers();
 
-            Assert.AreSame(_bootstrap.Currency, GetPrivateField(_bootstrap.Boss, "_currency"));
-            Assert.AreSame(_bootstrap.Altar, GetPrivateField(_bootstrap.Boss, "_altar"));
+            Assert.AreSame(_bootstrap.Currency, GetPrivateField(_bootstrap.Sanctuary, "_currency"));
         }
 
         [Test]
@@ -198,7 +197,7 @@ namespace Burmalda.Bootstrap.Tests
             Assert.AreEqual(1, _inputObject.GetComponents<SegmentGenerationController>().Length);
             Assert.AreEqual(1, _inputObject.GetComponents<CurrencyController>().Length);
             Assert.AreEqual(1, _inputObject.GetComponents<AltarController>().Length);
-            Assert.AreEqual(1, _inputObject.GetComponents<BossController>().Length);
+            Assert.AreEqual(1, _inputObject.GetComponents<SanctuaryController>().Length);
             Assert.AreEqual(1, _inputObject.GetComponents<CampController>().Length);
             Assert.AreEqual(1, _inputObject.GetComponents<LeverActivationController>().Length);
         }
@@ -227,39 +226,38 @@ namespace Burmalda.Bootstrap.Tests
         }
 
         [Test]
-        public void DepthTier_BeforeBossHasRunSystems_IsNull()
+        public void DepthTier_BeforeSanctuaryHasRunSystems_IsNull()
         {
             SetUpMinimal();
 
             WireAndAwakeControllers();
 
-            Assert.IsNull(_bootstrap.DepthTier, "Без RunController у Босса нет собственных run-систем — потребители должны увидеть null (прочерк), не выдуманный ноль");
+            Assert.IsNull(_bootstrap.DepthTier, "Без RunController у Святилища нет собственных run-систем — потребители должны увидеть null (прочерк), не выдуманный ноль");
         }
 
         // Полная сборка (RunController/TrailDecayController — как на реальной
         // сцене) — Ярус должен быть ЖИВЫМ: тем же экземпляром, что реально
-        // продвигается победой над Боссом, а не отдельной подделкой внутри
-        // какого-то потребителя (issue задачи: "Ярус живой, не фальшивый
+        // продвигается прохождением Святилища (issue: "Ярус живой, не фальшивый
         // экземпляр внутри HUD").
         [Test]
-        public void DepthTier_WithFullWiring_ReflectsRealBossVictory()
+        public void DepthTier_WithFullWiring_AdvancesWhenSanctuaryIsCleared()
         {
             SetUpWithRunController();
             WireAndAwakeControllers();
             InvokePrivate(_bootstrap.Currency, "Update"); // материализует RunManaCrystals/RunKeys
-            InvokePrivate(_bootstrap.Altar, "Update"); // материализует Pool/Collection-зависимый AltarTriggerSystem
-            InvokePrivate(_bootstrap.Boss, "Update"); // материализует BossEncounterSystem + RunDepthTier
+            InvokePrivate(_bootstrap.Altar, "Update");
+            InvokePrivate(_bootstrap.Sanctuary, "Update"); // материализует SanctuaryRunSystem + RunDepthTier
 
-            Assert.IsNotNull(_bootstrap.DepthTier, "После пересборки run-систем Босса Ярус должен существовать");
-            Assert.AreSame(_bootstrap.Boss.DepthTier, _bootstrap.DepthTier, "RunBootstrap.DepthTier обязан быть тем же экземпляром, что у BossController — не копией");
+            Assert.IsNotNull(_bootstrap.DepthTier, "После пересборки run-систем Святилища Ярус должен существовать");
+            Assert.AreSame(_bootstrap.Sanctuary.DepthTier, _bootstrap.DepthTier, "RunBootstrap.DepthTier обязан быть тем же экземпляром, что у SanctuaryController — не копией");
 
-            var bossCoordinate = new GridCoordinate(1, 2);
-            _input.Grid.GetOrCreateTile(bossCoordinate).MarkBoss();
-            _bootstrap.Currency.RunManaCrystals.Add(100000); // заведомо достаточно для победы черновым порогом
+            var entry = new GridCoordinate(1, 2);
+            _input.Grid.GetOrCreateTile(entry).MarkSanctuaryEntry();
+            _input.Trail.TryAdvanceTo(entry);
+            var exitRow = _bootstrap.Sanctuary.ActiveSanctuary.ExitRow;
+            for (var row = 2; row <= exitRow; row++) _input.Trail.TryAdvanceTo(new GridCoordinate(row, 2));
 
-            _input.Trail.TryAdvanceTo(bossCoordinate);
-
-            Assert.AreEqual(1, _bootstrap.DepthTier.CurrentTier, "Победа над Боссом должна была продвинуть тот самый Ярус, что читает RunBootstrap");
+            Assert.AreEqual(1, _bootstrap.DepthTier.CurrentTier, "Прохождение Святилища должно было продвинуть тот самый Ярус, что читает RunBootstrap");
         }
 
         private static void InvokePrivate(object target, string methodName, params object[] args)

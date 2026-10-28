@@ -127,7 +127,7 @@ namespace Burmalda.DebugVisuals
             // Задача «HUD накладывается сам на себя»/часть 3 («Preview Boss
             // Room» посреди экрана, ровно там, куда игрок тапает при ходе) —
             // кнопка убрана с игрового поля, теперь тумблер здесь, дефолт ВЫКЛ.
-            BuildToggleRow(_panelRoot.transform, 2, "Boss Room preview", RunHudToggles.ShowBossRoomPreview, v => RunHudToggles.ShowBossRoomPreview = v);
+            BuildToggleRow(_panelRoot.transform, 2, "Boss Room preview", RunHudToggles.ShowSanctuaryPreview, v => RunHudToggles.ShowSanctuaryPreview = v);
             // Issue #190 (Спринт 12a): сглаженный FPS/время кадра — тот же
             // принцип, дефолт ВЫКЛ.
             BuildToggleRow(_panelRoot.transform, 3, "FPS", RunHudToggles.ShowFrameRateOverlay, v => RunHudToggles.ShowFrameRateOverlay = v);

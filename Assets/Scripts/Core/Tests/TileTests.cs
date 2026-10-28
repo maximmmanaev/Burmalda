@@ -184,7 +184,7 @@ namespace Burmalda.Core.Tests
         [TestCase(nameof(Tile.MarkKeySource))]
         [TestCase(nameof(Tile.MarkBlocked))]
         [TestCase(nameof(Tile.MarkAltar))]
-        [TestCase(nameof(Tile.MarkBoss))]
+        [TestCase(nameof(Tile.MarkSanctuaryEntry))]
         public void TransitionToLethalTrap_OverAnyOtherExclusiveRole_DoesNotThrow(string markMethodName)
         {
             var tile = new Tile(new GridCoordinate(1, 1));
@@ -194,7 +194,7 @@ namespace Burmalda.Core.Tests
                 case nameof(Tile.MarkKeySource): tile.MarkKeySource(); break;
                 case nameof(Tile.MarkBlocked): tile.MarkBlocked(); break;
                 case nameof(Tile.MarkAltar): tile.MarkAltar(); break;
-                case nameof(Tile.MarkBoss): tile.MarkBoss(); break;
+                case nameof(Tile.MarkSanctuaryEntry): tile.MarkSanctuaryEntry(); break;
             }
 
             Assert.DoesNotThrow(() => tile.TransitionToLethalTrap(LethalTrapType.ArrowWave));
@@ -431,7 +431,7 @@ namespace Burmalda.Core.Tests
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            Assert.IsFalse(tile.IsBoss);
+            Assert.IsFalse(tile.IsSanctuaryEntry);
         }
 
         [Test]
@@ -439,62 +439,62 @@ namespace Burmalda.Core.Tests
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkBoss();
+            tile.MarkSanctuaryEntry();
 
-            Assert.IsTrue(tile.IsBoss);
+            Assert.IsTrue(tile.IsSanctuaryEntry);
         }
 
         [Test]
-        public void NewTile_BossRoomTileIsNull()
+        public void NewTile_SanctuaryTileIsNull()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            Assert.IsNull(tile.BossRoomTile);
+            Assert.IsNull(tile.SanctuaryTile);
             Assert.IsNull(tile.RiftSubtype);
         }
 
         [Test]
-        public void MarkBossRoomTile_Vein_SetsBossRoomTile()
+        public void MarkSanctuaryTile_Vein_SetsSanctuaryTile()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkBossRoomTile(BossRoomTileKind.Vein);
+            tile.MarkSanctuaryTile(SanctuaryTileKind.Vein);
 
-            Assert.AreEqual(BossRoomTileKind.Vein, tile.BossRoomTile);
+            Assert.AreEqual(SanctuaryTileKind.Vein, tile.SanctuaryTile);
             Assert.IsNull(tile.RiftSubtype);
         }
 
         [Test]
-        public void MarkBossRoomTile_CalledTwice_SecondCallIsNoOp()
+        public void MarkSanctuaryTile_CalledTwice_SecondCallIsNoOp()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkBossRoomTile(BossRoomTileKind.Vein);
-            tile.MarkBossRoomTile(BossRoomTileKind.Resonance);
+            tile.MarkSanctuaryTile(SanctuaryTileKind.Vein);
+            tile.MarkSanctuaryTile(SanctuaryTileKind.Resonance);
 
-            Assert.AreEqual(BossRoomTileKind.Vein, tile.BossRoomTile, "первая пометка не должна перезаписываться");
+            Assert.AreEqual(SanctuaryTileKind.Vein, tile.SanctuaryTile, "первая пометка не должна перезаписываться");
         }
 
         [Test]
-        public void MarkBossRoomRift_SetsKindRiftAndSubtype()
+        public void MarkSanctuaryRift_SetsKindRiftAndSubtype()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkBossRoomRift(BossRoomRiftSubtype.Resonance);
+            tile.MarkSanctuaryRift(SanctuaryRiftSubtype.Resonance);
 
-            Assert.AreEqual(BossRoomTileKind.Rift, tile.BossRoomTile);
-            Assert.AreEqual(BossRoomRiftSubtype.Resonance, tile.RiftSubtype);
+            Assert.AreEqual(SanctuaryTileKind.Rift, tile.SanctuaryTile);
+            Assert.AreEqual(SanctuaryRiftSubtype.Resonance, tile.RiftSubtype);
         }
 
         [Test]
-        public void MarkBossRoomRift_AfterMarkBossRoomTile_IsNoOp()
+        public void MarkSanctuaryRift_AfterMarkSanctuaryTile_IsNoOp()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkBossRoomTile(BossRoomTileKind.Vein);
-            tile.MarkBossRoomRift(BossRoomRiftSubtype.Vein);
+            tile.MarkSanctuaryTile(SanctuaryTileKind.Vein);
+            tile.MarkSanctuaryRift(SanctuaryRiftSubtype.Vein);
 
-            Assert.AreEqual(BossRoomTileKind.Vein, tile.BossRoomTile);
+            Assert.AreEqual(SanctuaryTileKind.Vein, tile.SanctuaryTile);
             Assert.IsNull(tile.RiftSubtype);
         }
 
@@ -523,7 +523,7 @@ namespace Burmalda.Core.Tests
             ("ManaSource", t => t.MarkManaSource()),
             ("KeySource", t => t.MarkKeySource()),
             ("Altar", t => t.MarkAltar()),
-            ("Boss", t => t.MarkBoss()),
+            ("Boss", t => t.MarkSanctuaryEntry()),
             ("Lever", t => t.MarkLever(Array.Empty<GridCoordinate>())),
             ("Gated", t => t.MarkGated()),
             ("ArrowWaveTrigger", t => t.MarkArrowWaveTrigger(0, RowWaveDirection.LeftToRight)),
@@ -1088,7 +1088,7 @@ namespace Burmalda.Core.Tests
         [TestCase(nameof(Tile.MarkManaSource))]
         [TestCase(nameof(Tile.MarkKeySource))]
         [TestCase(nameof(Tile.MarkAltar))]
-        [TestCase(nameof(Tile.MarkBoss))]
+        [TestCase(nameof(Tile.MarkSanctuaryEntry))]
         public void TransitionToBlocked_OverAnyOtherExclusiveRole_DoesNotThrow(string markMethodName)
         {
             var tile = new Tile(new GridCoordinate(1, 1));
@@ -1097,7 +1097,7 @@ namespace Burmalda.Core.Tests
                 case nameof(Tile.MarkManaSource): tile.MarkManaSource(); break;
                 case nameof(Tile.MarkKeySource): tile.MarkKeySource(); break;
                 case nameof(Tile.MarkAltar): tile.MarkAltar(); break;
-                case nameof(Tile.MarkBoss): tile.MarkBoss(); break;
+                case nameof(Tile.MarkSanctuaryEntry): tile.MarkSanctuaryEntry(); break;
             }
 
             Assert.DoesNotThrow(() => tile.TransitionToBlocked());

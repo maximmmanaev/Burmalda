@@ -52,7 +52,7 @@ namespace Burmalda.DebugVisuals
 
         /// <summary>
         /// Баг с устройства (владелец, 2026-09-04): вход в Комнату Босса
-        /// (<see cref="DebugVisuals.TileArtKind.Boss"/>) переиспользует
+        /// (<see cref="DebugVisuals.TileArtKind.SanctuaryEntry"/>) переиспользует
         /// текстуру Алтаря, но не должен выглядеть КАК Алтарь (оба стоят
         /// рядом на маршруте, PRD v9 §8.1) — умножается на этот тёплый
         /// медно-оранжевый тон вместо Color.white (см. её применение в
@@ -370,7 +370,7 @@ namespace Burmalda.DebugVisuals
                     isTrapTrigger: tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
                         tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger ||
                         tile.MovingWallTargetRow.HasValue,
-                    isBoss: tile.IsBoss,
+                    isSanctuaryEntry: tile.IsSanctuaryEntry,
                     // Задача «тёплый набор плит» (владелец): «плитка с ключом
                     // и маной после сбора должна становиться обычной, ключ и
                     // кристалл маны пропадать». Tile.IsManaSource/IsKeySource
@@ -391,7 +391,8 @@ namespace Burmalda.DebugVisuals
                     isLeverGateOpen: tile.IsLeverGateOpen,
                     isAltar: tile.IsAltar,
                     isDangerSignatureRevealed: tile.IsDangerSignatureRevealed,
-                    bossRoomTile: tile.BossRoomTile,
+                    sanctuaryTile: tile.SanctuaryTile,
+                    hasSarcophagus: tile.HasSarcophagus,
                     isBombWarningActive: tile.IsBombWarningActive,
                     isBombCollapsed: tile.IsBombCollapsed,
                     isFallingRockWarningActive: tile.IsFallingRockWarningActive);
@@ -831,7 +832,7 @@ namespace Burmalda.DebugVisuals
                 // Бомбы, если оба состояния почему-то истинны одновременно —
                 // тот же порядок, что уже действует в TileArtKindResolver.Resolve
                 // (IsBombWarningActive проверяется раньше IsFallingRockWarningActive).
-                var textureTint = kind == TileArtKind.Boss ? BossArtTint
+                var textureTint = kind == TileArtKind.SanctuaryEntry ? BossArtTint
                     : kind == TileArtKind.BombWarning && state.IsBombWarningActive ? ComputeBombWarningPulseTint()
                     : kind == TileArtKind.BombWarning && state.IsFallingRockWarningActive ? ComputeFallingRockWarningPulseTint()
                     : Color.white;

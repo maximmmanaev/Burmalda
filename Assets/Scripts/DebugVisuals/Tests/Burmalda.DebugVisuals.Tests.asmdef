@@ -6,14 +6,14 @@
         "Burmalda.Movement",
         "Burmalda.DebugVisuals",
         "Burmalda.FateRoll",
-        "Burmalda.Boss",
         "Burmalda.Artifacts",
         "Burmalda.RunModifiers",
         "Burmalda.RunLifecycle",
         "Burmalda.Decay",
         "Unity.RenderPipelines.Core.Runtime",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "Burmalda.Sanctuary"
     ],
     "includePlatforms": [
         "Editor"

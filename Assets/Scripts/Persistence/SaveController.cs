@@ -1,6 +1,6 @@
 using System;
 using Burmalda.Altar;
-using Burmalda.Boss;
+using Burmalda.Sanctuary;
 using Burmalda.Bootstrap;
 using Burmalda.Currencies;
 using UnityEngine;
@@ -22,7 +22,7 @@ namespace Burmalda.Persistence
 
         [SerializeField] private CurrencyController _currency;
         [SerializeField] private AltarController _altar;
-        [SerializeField] private BossController _boss;
+        [SerializeField] private SanctuaryController _sanctuary;
 
         private SaveCoordinator _coordinator;
         private bool _subscribed;
@@ -48,13 +48,13 @@ namespace Burmalda.Persistence
             var bootstrap = RunBootstrap.Instance;
             if (_currency == null && bootstrap != null) _currency = bootstrap.Currency;
             if (_altar == null && bootstrap != null) _altar = bootstrap.Altar;
-            if (_boss == null && bootstrap != null) _boss = bootstrap.Boss;
+            if (_sanctuary == null && bootstrap != null) _sanctuary = bootstrap.Sanctuary;
             if (!IsReady()) return;
 
             _coordinator = new SaveCoordinator(
                 SaveStorageFactory.Create(HostName),
-                () => ProgressSnapshot.Capture(_currency.Coins, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker),
-                data => ProgressSnapshot.Apply(data, _currency.Coins, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker),
+                () => ProgressSnapshot.Capture(_currency.Coins, _altar.Collection, _altar.Pool, _sanctuary.DepthRecord),
+                data => ProgressSnapshot.Apply(data, _currency.Coins, _altar.Collection, _altar.Pool, _sanctuary.DepthRecord),
                 () => DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             _coordinator.Load(Subscribe);
         }
@@ -67,8 +67,7 @@ namespace Burmalda.Persistence
             _currency.Coins.Changed += OnCoinsChanged;
             _altar.Collection.Recorded += OnId;
             _altar.Pool.Unlocked += OnId;
-            _boss.DepthRecord.RecordBroken += OnCoinsChanged;
-            _boss.Tracker.FirstVictory += OnChanged;
+            _sanctuary.DepthRecord.RecordBroken += OnCoinsChanged;
         }
 
         private void OnDestroy()
@@ -77,11 +76,9 @@ namespace Burmalda.Persistence
             _currency.Coins.Changed -= OnCoinsChanged;
             _altar.Collection.Recorded -= OnId;
             _altar.Pool.Unlocked -= OnId;
-            _boss.DepthRecord.RecordBroken -= OnCoinsChanged;
-            _boss.Tracker.FirstVictory -= OnChanged;
+            _sanctuary.DepthRecord.RecordBroken -= OnCoinsChanged;
         }
 
-        private void OnChanged() => _coordinator.MarkDirty();
         private void OnCoinsChanged(int _) => _coordinator.MarkDirty();
         private void OnId(string _) => _coordinator.MarkDirty();
 
@@ -109,6 +106,6 @@ namespace Burmalda.Persistence
         private bool IsReady() =>
             _currency != null && _currency.Coins != null &&
             _altar != null && _altar.Collection != null && _altar.Pool != null &&
-            _boss != null && _boss.DepthRecord != null && _boss.Tracker != null;
+            _sanctuary != null && _sanctuary.DepthRecord != null;
     }
 }

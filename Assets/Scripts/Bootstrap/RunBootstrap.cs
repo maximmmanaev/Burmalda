@@ -1,7 +1,6 @@
 using Burmalda.Altar;
 using Burmalda.Artifacts;
-using Burmalda.Boss;
-using Burmalda.BossRoom;
+using Burmalda.Sanctuary;
 using Burmalda.Camp;
 using Burmalda.Core;
 using Burmalda.Currencies;
@@ -163,9 +162,6 @@ namespace Burmalda.Bootstrap
         /// <summary>Интеграция Алтаря/Ритуала — постоянные Пул/Коллекция нужны и лоадауту, и первой победе над Боссом.</summary>
         public AltarController Altar { get; private set; }
 
-        /// <summary>Интеграция Босса — владеет живым Ярусом Глубины забега, см. <see cref="DepthTier"/>.</summary>
-        public BossController Boss { get; private set; }
-
         /// <summary>Интеграция Лагеря/Возврата/Кэш-аута.</summary>
         public CampController Camp { get; private set; }
 
@@ -186,15 +182,12 @@ namespace Burmalda.Bootstrap
         public TrapSystemsController Traps { get; private set; }
 
         /// <summary>
-        /// Интеграция Комнаты Босса (вертикальный срез, задача «Комната
-        /// Босса», владелец, 2026-09-02) — вход по <c>Core.Tile.IsBoss</c>,
-        /// генерация содержимого, сбор Жилы/Резонанса/Эха, наступающая
-        /// волна, выход с начислением Кристаллов Маны. Зависит от
-        /// <see cref="Currency"/> (начисление счёта) и уже размещённого на
-        /// сцене <c>RunLifecycle.RunController</c> (сообщить о поражении от
-        /// волны) — оба должны существовать к моменту добавления.
+        /// Интеграция Святилища (PRD v10 §14): вход по <c>Core.Tile.IsSanctuaryEntry</c>,
+        /// сбор плит множителя и Саркофага, обрушение рядов в Лаву, выход с начислением
+        /// Маны. Владеет живым Ярусом Глубины забега (<see cref="DepthTier"/>). Зависит
+        /// от <see cref="Currency"/> и уже размещённого на сцене <c>RunLifecycle.RunController</c>.
         /// </summary>
-        public BossRoomController BossRoom { get; private set; }
+        public SanctuaryController Sanctuary { get; private set; }
 
         /// <summary>
         /// Билд Амулетов/Талисманов текущего забега — новый экземпляр на
@@ -205,13 +198,10 @@ namespace Burmalda.Bootstrap
 
         /// <summary>
         /// Живой Ярус Глубины текущего забега — делегирует к
-        /// <see cref="BossController.DepthTier"/>, отдельного экземпляра
-        /// здесь нет (не нужен: у Босса это уже публичное свойство). Null,
-        /// пока <see cref="Boss"/> не пересобрал свои run-системы (см.
-        /// <c>BossController.RebuildEncounter</c>) — потребители обязаны
-        /// показывать прочерк на null, не выдуманный ноль.
+        /// <see cref="SanctuaryController.DepthTier"/>. Null, пока <see cref="Sanctuary"/> не
+        /// пересобрал свои run-системы — потребители показывают прочерк на null.
         /// </summary>
-        public RunDepthTier DepthTier => Boss != null ? Boss.DepthTier : null;
+        public RunDepthTier DepthTier => Sanctuary != null ? Sanctuary.DepthTier : null;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -319,7 +309,6 @@ namespace Burmalda.Bootstrap
             Segments.EnsureBuilt();
             if (Currency == null) Currency = GetOrAddComponent<CurrencyController>(host);
             if (Altar == null) Altar = GetOrAddComponent<AltarController>(host);
-            if (Boss == null) Boss = GetOrAddComponent<BossController>(host);
             if (Camp == null) Camp = GetOrAddComponent<CampController>(host);
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
             if (Traps == null) Traps = GetOrAddComponent<TrapSystemsController>(host);
@@ -345,8 +334,8 @@ namespace Burmalda.Bootstrap
             Traps.FallingRockPlayerCrushed += _ => Run.RunState?.ReportFallingRockCrush();
             // Зависит только от Currency (уже создана строкой выше) и
             // RunLifecycle.RunController (уже добавлен на этот host первым
-            // делом выше) — см. doc-комментарий BossRoom.
-            if (BossRoom == null) BossRoom = GetOrAddComponent<BossRoomController>(host);
+            // делом выше) — см. doc-комментарий Sanctuary.
+            if (Sanctuary == null) Sanctuary = GetOrAddComponent<SanctuaryController>(host);
 
             _controllersWired = true;
             SyncLegacyObstacleGenerator(forceRebuild: false);

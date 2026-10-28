@@ -119,7 +119,7 @@ namespace Burmalda.DebugVisuals.Tests
             // Стрелы»): Бомба получила собственные категории (BombWarning/
             // BombHole), но не собственные ФАЙЛЫ — заводить новую текстуру
             // не в скоупе агента (docs/rules/forbidden-actions.md), тот же
-            // приём, что уже применён для TileArtKind.Boss/Altar. Намеренный
+            // приём, что уже применён для TileArtKind.SanctuaryEntry/Altar. Намеренный
             // дубль, не ошибка копипаста.
             (TileArtKind.TriggerSignature, TileArtKind.BombWarning),
             (TileArtKind.Destroyed, TileArtKind.BombHole),

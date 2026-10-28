@@ -5,9 +5,9 @@
         "Burmalda.Currencies",
         "Burmalda.Artifacts",
         "Burmalda.Progression",
-        "Burmalda.Boss",
         "Burmalda.Altar",
-        "Burmalda.Bootstrap"
+        "Burmalda.Bootstrap",
+        "Burmalda.Sanctuary"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

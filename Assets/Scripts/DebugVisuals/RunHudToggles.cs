@@ -42,7 +42,7 @@ namespace Burmalda.DebugVisuals
         /// посреди экрана поверх зоны тапа хода. Теперь тумблер здесь,
         /// дефолт ВЫКЛЮЧЕН.
         /// </summary>
-        public static bool ShowBossRoomPreview { get; set; }
+        public static bool ShowSanctuaryPreview { get; set; }
 
         /// <summary>
         /// Отладочный оверлей FPS/времени кадра (<see cref="FrameRateOverlay"/>,

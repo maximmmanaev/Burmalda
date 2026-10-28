@@ -16,7 +16,7 @@ namespace Burmalda.Progression
         /// <summary>Срабатывает при каждой победе над Боссом — с новым текущим Ярусом.</summary>
         public event Action<int> Advanced;
 
-        public void RecordBossVictory()
+        public void RecordSanctuaryCleared()
         {
             CurrentTier++;
             Advanced?.Invoke(CurrentTier);

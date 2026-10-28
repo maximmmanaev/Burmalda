@@ -148,7 +148,7 @@ namespace Burmalda.Generation
         /// структурой маршрута, не случайным отбором) ставятся три
         /// фиксированных landmark-сегмента —
         /// <see cref="SegmentTemplateCatalog.AltarTemplate"/> ×2 →
-        /// <see cref="SegmentTemplateCatalog.BossTemplate"/>. Между ними
+        /// <see cref="SegmentTemplateCatalog.SanctuaryLeshyTemplate"/>. Между ними
         /// по-прежнему <see cref="SegmentSelector"/>.
         ///
         /// <b>Задача «Алтари на 1/3 и 2/3 Яруса» (владелец, Спринт «Стены
@@ -221,8 +221,8 @@ namespace Burmalda.Generation
 
                         case Landmark.Boss:
                         default:
-                            ApplyTemplate(SegmentTemplateCatalog.BossTemplate, baseRow);
-                            _appliedThroughRow += SegmentTemplateCatalog.BossTemplate.RowCount;
+                            ApplyTemplate(SegmentTemplateCatalog.SanctuaryLeshyTemplate, baseRow);
+                            _appliedThroughRow += SegmentTemplateCatalog.SanctuaryLeshyTemplate.RowCount;
                             // Следующий Ярус НОМИНАЛЬНО начинается на
                             // фиксированной сетке границ (_nextCapstoneRow до
                             // сброса), тот же принцип, что был у старой
@@ -341,8 +341,23 @@ namespace Burmalda.Generation
                 case SegmentTileType.Altar:
                     tile.MarkAltar();
                     break;
-                case SegmentTileType.Boss:
-                    tile.MarkBoss();
+                case SegmentTileType.SanctuaryEntry:
+                    tile.MarkSanctuaryEntry();
+                    break;
+                case SegmentTileType.SanctuaryVein:
+                    tile.MarkSanctuaryTile(SanctuaryTileKind.Vein);
+                    break;
+                case SegmentTileType.SanctuaryResonance:
+                    tile.MarkSanctuaryTile(SanctuaryTileKind.Resonance);
+                    break;
+                case SegmentTileType.SanctuaryEcho:
+                    tile.MarkSanctuaryTile(SanctuaryTileKind.Echo);
+                    break;
+                case SegmentTileType.SanctuaryRift:
+                    tile.MarkSanctuaryRift(SanctuaryRiftSubtype.Vein);
+                    break;
+                case SegmentTileType.Sarcophagus:
+                    tile.MarkSarcophagus();
                     break;
                 case SegmentTileType.ArrowWaveTrigger:
                     // Дефолт "ряд самого триггера/слева-направо" — см.

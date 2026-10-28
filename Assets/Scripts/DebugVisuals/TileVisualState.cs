@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isTrapTrigger, bool isBoss = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, BossRoomTileKind? bossRoomTile = null, bool isBombWarningActive = false, bool isBombCollapsed = false, bool isFallingRockWarningActive = false)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isTrapTrigger, bool isSanctuaryEntry = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, SanctuaryTileKind? sanctuaryTile = null, bool isBombWarningActive = false, bool isBombCollapsed = false, bool isFallingRockWarningActive = false, bool hasSarcophagus = false)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -19,7 +19,7 @@ namespace Burmalda.DebugVisuals
             LethalTrap = lethalTrap;
             DecayProgress01 = decayProgress01;
             IsTrapTrigger = isTrapTrigger;
-            IsBoss = isBoss;
+            IsSanctuaryEntry = isSanctuaryEntry;
             IsManaSource = isManaSource;
             IsKeySource = isKeySource;
             IsLever = isLever;
@@ -27,11 +27,15 @@ namespace Burmalda.DebugVisuals
             IsLeverGateOpen = isLeverGateOpen;
             IsAltar = isAltar;
             IsDangerSignatureRevealed = isDangerSignatureRevealed;
-            BossRoomTile = bossRoomTile;
+            SanctuaryTile = sanctuaryTile;
             IsBombWarningActive = isBombWarningActive;
             IsBombCollapsed = isBombCollapsed;
             IsFallingRockWarningActive = isFallingRockWarningActive;
+            HasSarcophagus = hasSarcophagus;
         }
+
+        /// <summary>На плите лежит Саркофаг Святилища (<c>Core.Tile.HasSarcophagus</c>, PRD v10 §14.2).</summary>
+        public bool HasSarcophagus { get; }
 
         /// <summary>Стартовая плита трейла (индекс 0) — распаду не подвержена.</summary>
         public bool IsStart { get; }
@@ -67,13 +71,13 @@ namespace Burmalda.DebugVisuals
         public bool IsTrapTrigger { get; }
 
         /// <summary>
-        /// Плита — вход в Комнату Босса (PRD v8 §8.1, см. <c>Core.Tile.IsBoss</c>).
+        /// Плита — вход в Комнату Босса (PRD v8 §8.1, см. <c>Core.Tile.IsSanctuaryEntry</c>).
         /// Единственная строка debug-визуала, которую v8 не отменяет: сама
         /// встреча с Боссом заменяется Комнатой (Спринт 11), но вход в неё —
         /// та же плита, ту же плитку нужно уметь найти на устройстве уже
         /// сейчас, иначе на неё не встать.
         /// </summary>
-        public bool IsBoss { get; }
+        public bool IsSanctuaryEntry { get; }
 
         /// <summary>
         /// Плита — источник Кристаллов Маны (PRD раздел 5, issue #12, см.
@@ -115,7 +119,7 @@ namespace Burmalda.DebugVisuals
 
         /// <summary>
         /// Плита — Алтарь (PRD, см. <c>Core.Tile.IsAltar</c>). Фиксированное
-        /// структурное состояние той же группы, что <see cref="IsBoss"/> —
+        /// структурное состояние той же группы, что <see cref="IsSanctuaryEntry"/> —
         /// не подвержено распаду, должно быть видно всегда, задача «тёплый
         /// набор плит».
         /// </summary>
@@ -132,13 +136,13 @@ namespace Burmalda.DebugVisuals
 
         /// <summary>
         /// Плита — содержимое Комнаты Босса (Жила/Резонанс/Эхо, PRD v9
-        /// §8.2, см. <c>Core.Tile.BossRoomTile</c>). Null вне Комнаты и на
-        /// плите-входе (<see cref="IsBoss"/>) самой по себе — задача
+        /// §8.2, см. <c>Core.Tile.SanctuaryTile</c>). Null вне Комнаты и на
+        /// плите-входе (<see cref="IsSanctuaryEntry"/>) самой по себе — задача
         /// «Комната Босса» (владелец, 2026-09-02): содержимое Комнаты видно
         /// всегда, как и обычные источники валюты, это награда, не
         /// скрытая опасность.
         /// </summary>
-        public BossRoomTileKind? BossRoomTile { get; }
+        public SanctuaryTileKind? SanctuaryTile { get; }
 
         /// <summary>
         /// Issue #260 («Бомба взрывается мгновенно и показывает текстуру

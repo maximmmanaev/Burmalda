@@ -25,7 +25,7 @@ namespace Burmalda.DebugVisuals.HudDesign
     /// Состояние 4 (Комната Босса) — статичный, неактивный по умолчанию
     /// каркас без единой связи с игровыми данными (см. doc-комментарий
     /// <see cref="BuildBossRoomShell"/>), виден только через
-    /// <see cref="RunHudToggles.ShowBossRoomPreview"/> (<see cref="RunHudTogglePanel"/>) —
+    /// <see cref="RunHudToggles.ShowSanctuaryPreview"/> (<see cref="RunHudTogglePanel"/>) —
     /// задача «на игровом поле не должно быть ни одной отладочной кнопки»:
     /// раньше здесь была постоянная кнопка "Preview Boss Room" ровно там,
     /// куда игрок тапает при ходе.
@@ -139,8 +139,8 @@ namespace Burmalda.DebugVisuals.HudDesign
         private void UpdateBossRoomPreview()
         {
             if (_bossRoomRoot == null) return;
-            if (_bossRoomRoot.activeSelf != RunHudToggles.ShowBossRoomPreview)
-                _bossRoomRoot.SetActive(RunHudToggles.ShowBossRoomPreview);
+            if (_bossRoomRoot.activeSelf != RunHudToggles.ShowSanctuaryPreview)
+                _bossRoomRoot.SetActive(RunHudToggles.ShowSanctuaryPreview);
         }
 
         private void UpdateCurrencyCounters()

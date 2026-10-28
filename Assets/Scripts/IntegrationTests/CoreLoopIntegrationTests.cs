@@ -2,12 +2,12 @@ using System.Reflection;
 using Burmalda.Altar;
 using Burmalda.Artifacts;
 using Burmalda.Bootstrap;
-using Burmalda.Boss;
 using Burmalda.Camp;
 using Burmalda.Core;
 using Burmalda.Currencies;
 using Burmalda.Decay;
 using Burmalda.Movement;
+using Burmalda.Sanctuary;
 using Burmalda.RunLifecycle;
 using NUnit.Framework;
 using UnityEngine;
@@ -20,7 +20,7 @@ namespace Burmalda.IntegrationTests
     /// Реликвии → возврат/кэш-аут → Лагерь." "Зал Реликвии" — устаревший
     /// v4/v5-термин; с v6 эта стадия core loop — встреча с Боссом (см.
     /// docs/wiki/roadmap.md, «продолжение» о замене Зала Реликвии Боссом),
-    /// проверяется здесь как <see cref="BossEncounterSystem"/>.
+    /// проверяется здесь как Святилище (<c>Sanctuary.SanctuaryRunSystem</c>).
     ///
     /// <b>Переработан задачей "композиционный корень RunBootstrap"</b>: до неё
     /// этот тест вручную конструировал каждую систему в порядке, скопированном
@@ -32,7 +32,7 @@ namespace Burmalda.IntegrationTests
     /// ровно так, как это происходит в реальной сцене (<c>GridTraceInputController</c>
     /// + уже размещённые там <c>TrailDecayController</c>/<c>RunController</c>
     /// + <see cref="RunBootstrap"/>, который донабирает
-    /// Currency/Altar/Boss/Camp/Lever), и дальше взаимодействует ТОЛЬКО через
+    /// Currency/Altar/Sanctuary/Camp/Lever), и дальше взаимодействует ТОЛЬКО через
     /// публичный API реальных Controller'ов — если сборка когда-нибудь
     /// сломается (неверный порядок AddComponent, отсутствующая зависимость),
     /// этот тест упадёт первым, а не только на реальном устройстве.
@@ -43,7 +43,7 @@ namespace Burmalda.IntegrationTests
     /// <c>Bootstrap.Tests.RunBootstrapTests</c>).
     ///
     /// Числа (требуемая энергия Босса, стоимость апгрейда Тотема) — НЕ
-    /// реальные балансные константы (`Boss.BossController.BaseRequiredEnergy`
+    /// реальные балансные константы (`Sanctuary.Sanctuary.DefaultCollapseRowsPerSecond`
     /// и т.п., черновые/предмет Спринта 10) — тест проверяет ПРОВОДКУ систем
     /// друг к другу, а не баланс, поэтому использует заведомо большой запас
     /// Маны вместо точного попадания в порог.
@@ -79,7 +79,7 @@ namespace Burmalda.IntegrationTests
         /// + TrailDecayController/RunController (уже размещены на сцене — см.
         /// doc-комментарий RunBootstrap) на одном GameObject, RunBootstrap —
         /// на отдельном (как самобутстрап в реальной игре), донабирающий
-        /// Currency/Altar/Boss/Camp/Lever на GameObject GridTraceInputController.
+        /// Currency/Altar/Sanctuary/Camp/Lever на GameObject GridTraceInputController.
         /// </summary>
         private void SetUp()
         {
@@ -123,7 +123,7 @@ namespace Burmalda.IntegrationTests
             InvokePrivate(_bootstrap.Segments, "Awake");
             InvokePrivate(_bootstrap.Currency, "Awake");
             InvokePrivate(_bootstrap.Altar, "Awake");
-            InvokePrivate(_bootstrap.Boss, "Awake");
+            InvokePrivate(_bootstrap.Sanctuary, "Awake");
             InvokePrivate(_bootstrap.Camp, "Awake");
             InvokePrivate(_bootstrap.Lever, "Awake");
             InvokePrivate(_bootstrap, "Update");
@@ -133,12 +133,12 @@ namespace Burmalda.IntegrationTests
             // вызываем Update() каждого явно, в том же порядке зависимостей.
             InvokePrivate(_bootstrap.Currency, "Update");
             InvokePrivate(_bootstrap.Altar, "Update");
-            InvokePrivate(_bootstrap.Boss, "Update");
+            InvokePrivate(_bootstrap.Sanctuary, "Update");
             InvokePrivate(_bootstrap.Camp, "Update");
         }
 
         [Test]
-        public void FullCoreLoop_TunnelTrapsMultiplierAltarBossReturnCamp_AllSystemsIntegrate()
+        public void FullCoreLoop_TunnelTrapsMultiplierAltarSanctuaryEvacuationCamp_AllSystemsIntegrate()
         {
             SetUp();
             // Симулирует "уже разблокировано ранее" — иначе PrimaryChest Ритуала пуст (issue #19).
@@ -155,17 +155,17 @@ namespace Burmalda.IntegrationTests
             var trap = new GridCoordinate(3, 2); // ловушка на прямом пути — трейл должен её обойти
             var safeDetour = new GridCoordinate(3, 1);
             var altar = new GridCoordinate(4, 2);
-            var boss = new GridCoordinate(5, 2);
+            var sanctuaryEntry = new GridCoordinate(5, 2);
+            var veinInSanctuary = new GridCoordinate(6, 2);
             _input.Grid.GetOrCreateTile(manaSource).MarkManaSource();
             _input.Grid.GetOrCreateTile(keySource).MarkKeySource();
             _input.Grid.GetOrCreateTile(trap).TransitionToLethalTrap(LethalTrapType.ArrowWave);
             _input.Grid.GetOrCreateTile(altar).MarkAltar();
-            _input.Grid.GetOrCreateTile(boss).MarkBoss();
+            _input.Grid.GetOrCreateTile(sanctuaryEntry).MarkSanctuaryEntry();
+            _input.Grid.GetOrCreateTile(veinInSanctuary).MarkSanctuaryTile(SanctuaryTileKind.Vein);
 
             Ritual ritualOpened = null;
             _bootstrap.Altar.RitualOpened += r => ritualOpened = r;
-            BossEncounterOutcome bossOutcome = default;
-            _bootstrap.Boss.EncounterResolved += (outcome, relic) => bossOutcome = outcome;
 
             var trail = _input.Trail;
 
@@ -204,13 +204,7 @@ namespace Burmalda.IntegrationTests
             Assert.AreEqual(CurrencyController.KeysPerSource, runKeys.Total, "Ключи с плитки-источника должны были собраться в размере KeysPerSource.");
 
             // Топ-ап валют — тест проверяет проводку систем, а не баланс.
-            // Мана — с явным запасом СВЕРХ реального BossController.BaseRequiredEnergy
-            // (5000, тир 0): в отличие от старой версии этого теста, здесь
-            // Босс разрешается через настоящий BossController, а не через
-            // BossEncounterSystem с подставным маленьким порогом — своя
-            // балансная константа контроллера, не выдуманное число теста.
             runKeys.Add(1000);
-            runMana.Add(BossController.BaseRequiredEnergy + 1000);
 
             // === Алтарь / Ритуал (PRD раздел 7) ===
             Assert.IsTrue(trail.TryAdvanceTo(altar));
@@ -222,19 +216,23 @@ namespace Burmalda.IntegrationTests
             Assert.AreEqual(1, _bootstrap.Loadout.Acquired.Count);
             Assert.IsTrue(_bootstrap.Altar.Collection.Contains(_bootstrap.Loadout.Acquired[0].Id), "Покупка должна была зафиксировать артефакт в постоянной Коллекции (issue #18).");
 
-            // === Босс ("Зал Реликвии" v4/v5 → Босс v6+, PRD раздел 8) ===
-            Assert.IsTrue(trail.TryAdvanceTo(boss));
-            Assert.IsTrue(bossOutcome.IsVictory, "С 1000+ Маны и требуемой энергией 50 Босс должен быть побеждён.");
-            Assert.AreEqual(1, _bootstrap.DepthTier.CurrentTier, "Победа над Боссом должна продвинуть Ярус Глубины забега — тот самый, что читает RunBootstrap.");
-            Assert.AreEqual(1, _bootstrap.Boss.DepthRecord.BestTier, "Постоянный рекорд глубины должен обновиться вслед за Ярусом.");
-            Assert.IsTrue(_bootstrap.Boss.Tracker.HasWonBefore);
-            Assert.IsTrue(_bootstrap.Altar.Pool.IsUnlocked(ArtifactCatalog.Talismans[0].Id), "Первая победа над Боссом должна разблокировать Талисманы/Амулеты каталога в общем Пуле.");
+            // === Святилище (PRD v10 §14): вход, Жила, выход к Алтарю в конце ===
+            var manaBeforeSanctuary = runMana.Total;
+            Assert.IsTrue(trail.TryAdvanceTo(sanctuaryEntry));
+            Assert.IsNotNull(_bootstrap.Sanctuary.ActiveSanctuary, "Вход на плиту Святилища должен был запустить Святилище.");
+            Assert.IsTrue(trail.TryAdvanceTo(veinInSanctuary));
+            var exitRow = _bootstrap.Sanctuary.ActiveSanctuary.ExitRow;
+            var exitAltar = new GridCoordinate(exitRow, 2);
+            _input.Grid.GetOrCreateTile(exitAltar).MarkAltar();
+            for (var row = veinInSanctuary.Row + 1; row <= exitRow; row++) Assert.IsTrue(trail.TryAdvanceTo(new GridCoordinate(row, 2)));
+            Assert.Greater(runMana.Total, manaBeforeSanctuary, "На выходе Мана Святилища должна была зачислиться.");
+            Assert.AreEqual(1, _bootstrap.DepthTier.CurrentTier, "Прохождение Святилища должно продвинуть Ярус Глубины забега — тот самый, что читает RunBootstrap.");
+            Assert.AreEqual(1, _bootstrap.Sanctuary.DepthRecord.BestTier, "Постоянный рекорд глубины должен обновиться вслед за Ярусом.");
 
-            // === Эвакуация (PRD v10 §15.2): мгновенно, с любого Алтаря ===
+            // === Эвакуация (PRD v10 §15.2): мгновенно, с Алтаря в конце Святилища ===
             var evacuation = _bootstrap.Camp.Evacuation;
             ReturnConversionResult? returnResult = null;
             evacuation.Returned += r => returnResult = r;
-            Assert.IsTrue(trail.TryAdvanceTo(altar)); // назад на Алтарь
             Assert.IsTrue(evacuation.Evacuate());
 
             Assert.IsNotNull(returnResult, "Эвакуация с Алтаря должна была сконвертировать Ману/Ключи в Монеты.");
@@ -266,26 +264,6 @@ namespace Burmalda.IntegrationTests
 
             Assert.IsTrue(advanced, "Плита-Алтарь сама по себе не препятствие — ход должен засчитаться.");
             Assert.IsFalse(opened);
-        }
-
-        [Test]
-        public void CoreLoop_BossEncounterWithInsufficientMana_ReportsDefeatAndDoesNotAdvanceDepth()
-        {
-            SetUp();
-            var boss = new GridCoordinate(1, 2);
-            _input.Grid.GetOrCreateTile(boss).MarkBoss(); // 0 Маны на руках — заведомо недостаточно
-
-            string defeatReason = null;
-            _bootstrap.Boss.EncounterResolved += (outcome, _) =>
-            {
-                if (!outcome.IsVictory) defeatReason = $"Не хватило энергии до Босса ({outcome.AccumulatedMana}/{outcome.RequiredEnergy})";
-            };
-
-            _input.Trail.TryAdvanceTo(boss);
-
-            Assert.IsNotNull(defeatReason, "Поражение от Босса должно было сообщиться через EncounterResolved.");
-            Assert.AreEqual(0, _bootstrap.DepthTier.CurrentTier, "Поражение не должно продвигать Ярус Глубины.");
-            Assert.IsFalse(_bootstrap.Boss.Tracker.HasWonBefore);
         }
 
         private static void InvokePrivate(object target, string methodName, params object[] args)

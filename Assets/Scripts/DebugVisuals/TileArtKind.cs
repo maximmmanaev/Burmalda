@@ -115,7 +115,7 @@ namespace Burmalda.DebugVisuals
         /// Баг с устройства (владелец, 2026-09-04, «вход в Комнату
         /// Босса — структурная плита маршрута, она обязана читаться»):
         /// раньше <see cref="TileArtKindResolver"/> возвращал
-        /// <see cref="None"/> для <c>Core.Tile.IsBoss</c> (в тёплом наборе
+        /// <see cref="None"/> для <c>Core.Tile.IsSanctuaryEntry</c> (в тёплом наборе
         /// не было отдельной текстуры под Босса вовсе) — на устройстве это
         /// падало на холодный <see cref="TileDebugColor.BossColor"/>,
         /// единственную несовместимую с палитрой плиту на маршруте.
@@ -128,6 +128,6 @@ namespace Burmalda.DebugVisuals
         /// стоят рядом на маршруте (2 Алтаря перед Боссом, PRD v9 §8.1) и не
         /// должны визуально сливаться в одну и ту же плиту.
         /// </summary>
-        Boss
+        SanctuaryEntry
     }
 }

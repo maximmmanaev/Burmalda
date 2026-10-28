@@ -7,7 +7,7 @@ namespace Burmalda.Core
     /// сборке BossRoom — <see cref="Tile"/> должен уметь хранить этот тип,
     /// не зная о системе, которая его интерпретирует.
     /// </summary>
-    public enum BossRoomTileKind
+    public enum SanctuaryTileKind
     {
         /// <summary>+N Кристаллов Маны, умноженных на текущий множитель Комнаты (PRD v8 §8.2).</summary>
         Vein,
