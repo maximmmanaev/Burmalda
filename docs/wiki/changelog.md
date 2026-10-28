@@ -1768,19 +1768,6 @@ workflow не менялись, код игры не менялся.
 
 
 
-## 2026-10-28 — Спринт v10-1, задача 2: эвакуация с Алтаря и окончательная смерть (#333)
-
-- `Camp.EvacuationSystem` (вместо `ReturnJourneySystem`): мгновенная эвакуация с любого Алтаря (`Evacuate`), Мана и Ключи → Монеты по текущему линейному курсу (`ManaToCoinsRate = 20`, `KeysToCoinsRate = 1` — черновые, [CONFIG]); `LoseAll` при окончательной смерти. Пеший возврат до ряда 0 удалён.
-- Удалены `CashOutSystem` (чекпоинт Маны на Алтаре) и `RunCurrencyAccumulator.Checkpoint/RevertToCheckpoint`; добавлен `Clear`. Алтарь Ману не фиксирует (PRD v10 §11).
-- `CampController.Evacuation`; на Алтаре появляется выбор «Дальше» / «Домой» (`ReturnToCampDebugButton`).
-- Саркофаги в эвакуации/смерти подключаются в задаче 5 (#336).
-
-## 2026-10-28 — Спринт v10-1, задача 1: распад → Лава (#332)
-
-- `Tile.AdvanceDecay`: распавшаяся плита становится `LethalTrapType.Lava` (PRD v10 §7.5), а не непроходимой дырой; возврат на неё разрешён и смертелен (`GridTraceTrail.CanAdvanceTo`).
-- `TilePreviewHighlighter.IsLethalContour`: примеривание Лавы рисует красный контур (§7.4).
-- `TrailDecaySystem.CarriedSarcophagi` + `DecayAccelerationPerSarcophagus = 0.5` (**черновое**, [CONFIG]): ускорение распада под несущим Саркофаги; подключение к реальным Саркофагам — задача 5.
-
 ## 2026-10-28 — Спринт v10-1, задача 4: Святилище Лешего, удаление Boss*-кода (#335, #128)
 
 - Удалены `Boss/` (`BossController`, `BossEncounterSystem`, `Boss`, `BossEncounterOutcome`, `FirstBossVictoryTracker`), `BossRoomGenerator`, `ManaToBossIndicator`, `BossVictoryDebugText`; из `SaveData` убрано `hasWonBossBefore` (старые сохранения читаются — лишнее поле игнорируется).
