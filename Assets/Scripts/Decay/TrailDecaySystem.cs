@@ -49,6 +49,12 @@ namespace Burmalda.Decay
         private const float BaseDecayThresholdSeconds = 3f;
         private const float DecayThresholdSecondsPerTrailIndex = 0.09f;
 
+        /// <summary>
+        /// PRD v10 §7.5: ускорение распада на каждый несомый Саркофаг. ЧЕРНОВОЕ
+        /// значение [CONFIG] — финал задаёт плейтест.
+        /// </summary>
+        public const float DecayAccelerationPerSarcophagus = 0.5f;
+
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private readonly float _decayThresholdMultiplier;
@@ -76,6 +82,9 @@ namespace Burmalda.Decay
 
         /// <summary>Разрушена ли плита под текущей позицией игрока (провал под ногами).</summary>
         public bool IsCurrentTileDestroyed => _grid.GetOrCreateTile(_trail.CurrentPosition).IsDestroyed;
+
+        /// <summary>Число несомых Саркофагов (PRD v10 §7.5): каждый ускоряет распад под игроком.</summary>
+        public int CarriedSarcophagi { get; set; }
 
         /// <summary>Распад временно приостановлен (PRD раздел 12 — Тотем, Неуязвимость).</summary>
         public bool IsSuspended => _suspendedSecondsRemaining > 0f;
@@ -110,12 +119,13 @@ namespace Burmalda.Decay
 
             _decayAcceleration += deltaSeconds * DecayAccelerationPerSecond;
 
+            var carriedFactor = 1f + DecayAccelerationPerSarcophagus * Math.Max(0, CarriedSarcophagi);
             var path = _trail.Path;
             for (var i = 1; i < path.Count; i++) // i=0 — стартовая плита, не распадается
             {
                 var tile = _grid.GetOrCreateTile(path[i]);
                 var wasDestroyed = tile.IsDestroyed;
-                tile.AdvanceDecay(deltaSeconds * _decayAcceleration);
+                tile.AdvanceDecay(deltaSeconds * _decayAcceleration * carriedFactor);
                 if (!wasDestroyed && tile.IsDestroyed) TileDestroyed?.Invoke(tile.Coordinate);
             }
         }

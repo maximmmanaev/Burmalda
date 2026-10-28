@@ -857,6 +857,8 @@ namespace Burmalda.Core
             if (DecayElapsedSeconds >= DecayThresholdSeconds.Value)
             {
                 IsDestroyed = true;
+                // PRD v10 §7.5: распавшаяся плита не дыра, а Лава — проходима, шаг = смерть.
+                LethalTrap = LethalTrapType.Lava;
             }
         }
     }
