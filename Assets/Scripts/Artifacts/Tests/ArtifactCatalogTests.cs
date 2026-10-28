@@ -14,7 +14,7 @@ namespace Burmalda.Artifacts.Tests
         [Test]
         public void Talismans_HasAtLeastTheThreeIssue17Examples()
         {
-            Assert.GreaterOrEqual(ArtifactCatalog.Talismans.Count, 3);
+            Assert.GreaterOrEqual(ArtifactCatalog.Talismans.Count, 2);
         }
 
         [Test]

@@ -96,7 +96,7 @@ namespace Burmalda.Camp
 
         private bool RunSystemsReady() =>
             _input != null && _input.Grid != null && _input.Trail != null &&
-            _currency != null && _currency.RunManaCrystals != null && _currency.RunKeys != null && _currency.Coins != null;
+            _currency != null && _currency.RunManaCrystals != null && _currency.Coins != null;
 
         private void HandleRunStarted() => RebuildRunSystems();
 
@@ -106,7 +106,7 @@ namespace Burmalda.Camp
             if (!RunSystemsReady()) return;
 
             _carried = new RunSarcophagi(); // новый забег — свои Саркофаги
-            _evacuation = new EvacuationSystem(_input.Grid, _input.Trail, _currency.RunManaCrystals, _currency.RunKeys, _currency.Coins,
+            _evacuation = new EvacuationSystem(_input.Grid, _input.Trail, _currency.RunManaCrystals, _currency.Coins,
                 _carried, DeliverToCamp);
             _evacuation.Returned += OnEvacuated;
         }

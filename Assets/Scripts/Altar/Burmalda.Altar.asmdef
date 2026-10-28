@@ -4,7 +4,6 @@
     "references": [
         "Burmalda.Core",
         "Burmalda.Movement",
-        "Burmalda.Currencies",
         "Burmalda.Artifacts"
     ],
     "includePlatforms": [],

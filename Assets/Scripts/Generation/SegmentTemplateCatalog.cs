@@ -11,9 +11,8 @@ namespace Burmalda.Generation
     /// (последняя).
     ///
     /// Символ → <see cref="SegmentTileType"/>: '.' Open, '#' Blocked,
-    /// 'l' Lava, 'L' Lever, 'g' LeverGate, 'm' ManaSource, 'k' KeySource,
-    /// 'v' GateVaultKeySource (тайник за Воротами — сумма из
-    /// <see cref="SegmentTemplate.GateVaultPurchases"/>, не 'k'), 'A' Altar,
+    /// 'l' Lava, 'L' Lever, 'g' LeverGate, 'm' ManaSource,
+    /// 'v' GateVault (тайник за Воротами — дополнительный вариант на следующем Алтаре, PRD v10 §10), 'A' Altar,
     /// 'B' Boss. Четыре ловушки Спринта 13a (issues #213–#215, #217) —
     /// единственные триггерные ловушки в игре (владелец, 2026-09-05,
     /// «оставить только пять новых ловушек»: прежние 'p' Pit/'e'
@@ -139,12 +138,12 @@ namespace Burmalda.Generation
                 ".....",
             })),
 
-            new SegmentTemplate("россыпь-ключей", 1, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("россыпь-ключей", 1, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "..k..",
-                ".k.k.",
-                "..k..",
+                "..m..",
+                ".m.m.",
+                "..m..",
                 ".....",
             })),
 
@@ -276,12 +275,12 @@ namespace Burmalda.Generation
             })),
 
             // Тир 2. Ключи по краям, центр пуст — учит держаться стен.
-            new SegmentTemplate("предбанник", 2, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("предбанник", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "k...k",
+                "m...m",
                 ".....",
-                "k...k",
+                "m...m",
                 ".....",
                 ".....",
             })),
@@ -310,12 +309,12 @@ namespace Burmalda.Generation
 
             // Тир 3. Плотная россыпь ключей, вход и выход только с правого
             // края — внутри развернуться негде.
-            new SegmentTemplate("богатый-карман", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("богатый-карман", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 ".###.",
-                ".#kk.",
-                ".#kk.",
+                ".#mm.",
+                ".#mm.",
                 ".###.",
                 ".....",
             })),
@@ -328,9 +327,9 @@ namespace Burmalda.Generation
             // ворот) открывает подход именно К ВОРОТАМ, не к ключу напрямую
             // — рычаг остаётся обязательным, карман больше не замкнут сам на себя.
             // Владелец, 2026-09-04: рычаг↔Ворота 2 ряда — короткий крюк,
-            // тайник на 1 покупку ('v' = GateVaultKeySource, не 'k' — сумма
-            // из GateVaultPricing, не общий KeysPerSource).
-            new SegmentTemplate("двор-с-рычагом", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            // тайник ('v' = GateVault — дополнительный вариант на Алтаре). До v10-3
+            // здесь и в других шаблонах стояли плиты-источники Ключей 'k', теперь это 'm' (Мана).
+            new SegmentTemplate("двор-с-рычагом", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 "...L.",
@@ -338,7 +337,7 @@ namespace Burmalda.Generation
                 "...gv",
                 "..###",
                 ".....",
-            }), gateVaultPurchases: 1.0),
+            })),
 
             // Тир 3. Рычаг в начале, ворота в конце — нажимаешь, ещё не зная,
             // что откроешь.
@@ -346,7 +345,7 @@ namespace Burmalda.Generation
             // воротам сбоку, ключ по-прежнему достижим только через них.
             // Владелец, 2026-09-04: рычаг↔Ворота 4 ряда — длинный крюк,
             // тайник на 1.5 покупки.
-            new SegmentTemplate("ворота-склада", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("ворота-склада", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 ".L...",
@@ -355,7 +354,7 @@ namespace Burmalda.Generation
                 "..###",
                 "...gv",
                 "..###",
-            }), gateVaultPurchases: 1.5),
+            })),
 
             // Тир 4. Ключевой шаблон партии: запертый склад стоит у входа,
             // рычаг лежит глубоко внизу. Чтобы забрать награду, надо пройти
@@ -366,7 +365,7 @@ namespace Burmalda.Generation
             // не к ключу напрямую.
             // Владелец, 2026-09-04: рычаг↔Ворота 4 ряда — длинный крюк,
             // тайник на 1.5 покупки.
-            new SegmentTemplate("рычаг-в-глубине", 4, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("рычаг-в-глубине", 4, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 "..###",
                 "...gv",
@@ -375,7 +374,7 @@ namespace Burmalda.Generation
                 ".....",
                 "..L..",
                 ".....",
-            }), gateVaultPurchases: 1.5),
+            })),
 
             // Тир 4. Два триггера сторожат подход к ключу: сработает любой, и
             // коридор к награде сузится (взрыв делает плиту непроходимой
@@ -390,12 +389,12 @@ namespace Burmalda.Generation
             // (owner-текст был точен про них изначально) — восстанавливает
             // и описание, и инвариант одним и тем же движением, не
             // авторство новой раскладки.
-            new SegmentTemplate("караул", 4, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("караул", 4, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 ".x.x.",
                 ".....",
-                "..k..",
+                "..m..",
                 ".....",
                 ".....",
             })),
@@ -438,15 +437,15 @@ namespace Burmalda.Generation
             // целится только в столбцы 1/3, столбцы 0/4 свободны), верхняя
             // пара осталась в ряду 2 (сдвиг внутри ряда там уже безопасен).
             // Позиции r не менялись.
-            new SegmentTemplate("щедрый-риск", 5, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("щедрый-риск", 5, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 ".r.r.",
-                "k...k",
+                "m...m",
                 "rrrrr",
                 ".....",
                 ".r.r.",
-                "k...k",
+                "m...m",
             })),
 
             // Тир 5. Диагональная цепь Маны через всю ширину — чтобы собрать
@@ -474,9 +473,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("выбор-полосы", 1, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "m...k",
+                "m...m",
                 ".....",
-                "m...k",
+                "m...m",
                 ".....",
             })),
 
@@ -485,7 +484,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..#..",
-                ".m.k.",
+                ".m.m.",
                 "..#..",
                 ".....",
             })),
@@ -509,11 +508,11 @@ namespace Burmalda.Generation
             // целился ровно в ключ. Ключ сдвинут на правый край того же
             // ряда — совпадает с флейвором строки выше ещё точнее, чем
             // раньше ("справа" в буквальном смысле), позиции r не менялись.
-            new SegmentTemplate("жадный-угол", 2, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("жадный-угол", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 "..rr.",
-                "rrr.k",
+                "rrr.m",
                 "..rrr",
                 ".....",
             })),
@@ -536,12 +535,12 @@ namespace Burmalda.Generation
 
             // Тир 3. Карман справа изолирован стеной, рычаг у входа: решать
             // надо заранее, ещё не видя содержимого.
-            new SegmentTemplate("пещера-за-рычагом", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("пещера-за-рычагом", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 ".L.#.",
                 "...#g",
-                "...#k",
+                "...#m",
                 "...#.",
             })),
 
@@ -567,11 +566,11 @@ namespace Burmalda.Generation
             // обрывался именно на этом ряду. Механическая правка — открыт
             // столбец 4, как и в ряду выше ("..lll." → тот же паттерн, что
             // ряд 1), сама плотность лавы не менялась.
-            new SegmentTemplate("ключ-за-лавой", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("ключ-за-лавой", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 ".lll.",
-                "lllk.",
+                "lllm.",
                 ".lll.",
                 ".....",
             })),
@@ -607,9 +606,9 @@ namespace Burmalda.Generation
             // заметку в SegmentTemplate.cs) — ссылка была неактуальна ещё до
             // этой задачи. Ключ перенесён в угол вне области поражения узла
             // — позиции триггеров не менялись.
-            new SegmentTemplate("выкуп", 4, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("выкуп", 4, SegmentRewardTag.Mana, ParseRows(new[]
             {
-                "...k.",
+                "...m.",
                 ".x...",
                 "x.xxx",
                 "xxx..",
@@ -651,22 +650,22 @@ namespace Burmalda.Generation
             // стояли прямо под триггерами Бомбы ("триггер уничтожает
             // награду" — та же отменённая механика, что у «выкуп» выше).
             // Сдвинуты на ряд дальше (был пустым), позиции l/x не менялись.
-            new SegmentTemplate("последний-рывок", 5, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("последний-рывок", 5, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 ".l.l.",
                 "lxlxl",
                 ".....",
-                ".k.k.",
+                ".m.m.",
             })),
 
             // Тир 5. Богатый ствол со стенами: зашёл — идёшь до конца.
-            new SegmentTemplate("шахта-жадности", 5, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("шахта-жадности", 5, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                ".#k#.",
-                ".#k#.",
-                ".#k#.",
+                ".#m#.",
+                ".#m#.",
+                ".#m#.",
                 ".....",
             })),
 
@@ -690,13 +689,13 @@ namespace Burmalda.Generation
 
             // Тир 3. Такт Лезвий (issue #215) — пятитактовый паттерн, ряд
             // триггера начинает становиться опасным через несколько ходов.
-            new SegmentTemplate("такт-лезвий-волной", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("такт-лезвий-волной", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 ".t.t.",
                 "ttttt",
                 "..t..",
-                "..k..",
+                "..m..",
             })),
 
             // Переработка логики ловушек (владелец): шаблон "бомба-и-поток-лавы"
@@ -734,13 +733,13 @@ namespace Burmalda.Generation
             })),
 
             // Тир 2. Такт Лезвий по краям — центр остаётся безопасным дольше.
-            new SegmentTemplate("клинки-по-контуру", 2, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("клинки-по-контуру", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 "t...t",
                 "ttttt",
                 ".....",
-                "..k..",
+                "..m..",
             })),
 
             // Тир 3. Три триггера Бомбы — площади взрыва почти перекрывают весь ряд.
@@ -748,13 +747,13 @@ namespace Burmalda.Generation
             // Задача «награда никогда не лежит на ловушке»: ключ стоял
             // прямо под нижним триггером (радиус захватывал его) — сдвинут
             // на тот же ряд, в угол вне радиуса; позиции x не менялись.
-            new SegmentTemplate("мины-в-проходе", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("мины-в-проходе", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 "x...x",
                 "xxxxx",
                 "..x..",
-                "k....",
+                "m....",
             })),
 
             // Переработка логики ловушек (владелец): шаблон "разлив-у-развилки"
@@ -777,13 +776,13 @@ namespace Burmalda.Generation
             })),
 
             // Тир 4. Падающие камни ведут к такту Лезвий.
-            new SegmentTemplate("камнепад-и-лезвия", 4, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("камнепад-и-лезвия", 4, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 ".r.r.",
                 "rrrrr",
                 "..t..",
-                "..k..",
+                "..m..",
             })),
 
             // Переработка логики ловушек (владелец): шаблон "огненная-теснина"
@@ -864,11 +863,11 @@ namespace Burmalda.Generation
 
             // Тир 3. Ключи в центре, на выходе горло в одну плиту: забрал —
             // протискивайся.
-            new SegmentTemplate("тиски", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("тиски", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 "#...#",
-                "#.k.#",
+                "#.m.#",
                 "#...#",
                 "##.##",
                 ".....",
@@ -899,7 +898,7 @@ namespace Burmalda.Generation
             // одна из двух проходимых плит узкого ряда: чистый путь
             // (1,1)→(2,2)→(3,3) сохраняется, но требует обхода угрозы, не
             // игнорирует её.
-            new SegmentTemplate("коридор-камней", 4, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("коридор-камней", 4, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 "#.#.#",
@@ -1064,7 +1063,7 @@ namespace Burmalda.Generation
             }), family: SegmentFamily.SnakeDoor),
 
             // Замысел: дверь — Стена слева: закрывает ряд в сторону чистого прохода, гонит вперёд.
-            new SegmentTemplate("левый-пресс", 2, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("левый-пресс", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 "####.",
@@ -1072,7 +1071,7 @@ namespace Burmalda.Generation
                 ".#j##",
                 ".....",
                 "####.",
-                ".k...",
+                ".m...",
                 ".....",
             }), family: SegmentFamily.SnakeDoor),
 
@@ -1106,7 +1105,7 @@ namespace Burmalda.Generation
             })),
 
             // Бомба на прямой через узкие ворота, обход — боковыми клетками. Ярусы 4+.
-            new SegmentTemplate("бомбовый-обход", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            new SegmentTemplate("бомбовый-обход", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 "##.##",
@@ -1114,7 +1113,7 @@ namespace Burmalda.Generation
                 "..x..",
                 ".....",
                 "##.##",
-                "k....",
+                "m....",
                 ".....",
             })),
 
@@ -1159,8 +1158,7 @@ namespace Burmalda.Generation
                     'L' => SegmentTileType.Lever,
                     'g' => SegmentTileType.LeverGate,
                     'm' => SegmentTileType.ManaSource,
-                    'k' => SegmentTileType.KeySource,
-                    'v' => SegmentTileType.GateVaultKeySource,
+                    'v' => SegmentTileType.GateVault,
                     'A' => SegmentTileType.Altar,
                     'G' => SegmentTileType.SanctuaryEntry,
                     'J' => SegmentTileType.SanctuaryVein,

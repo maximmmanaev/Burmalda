@@ -10,7 +10,7 @@ namespace Burmalda.RunModifiers
         /// <summary>Порог распада плит −25% → Кристаллы Маны ×1.5.</summary>
         FragileVault,
 
-        /// <summary>Ловушек ×2 → Ключи ×2.</summary>
+        /// <summary>Ловушек ×2 (награда за Ключи убрана вместе с Ключами, v10-3).</summary>
         HuntingPath,
 
         /// <summary>1 Алтарь перед Боссом вместо 2 → Реликвия гарантированно даёт Идола.</summary>

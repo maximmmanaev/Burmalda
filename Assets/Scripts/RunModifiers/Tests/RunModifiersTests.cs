@@ -13,7 +13,6 @@ namespace Burmalda.RunModifiers.Tests
             Assert.AreEqual(1f, modifiers.DecayThresholdMultiplier);
             Assert.AreEqual(1f, modifiers.ManaCrystalRewardMultiplier);
             Assert.AreEqual(1f, modifiers.TrapDensityMultiplier);
-            Assert.AreEqual(1f, modifiers.KeyRewardMultiplier);
             Assert.AreEqual(2, modifiers.AltarsBeforeBossCount);
             Assert.IsFalse(modifiers.RelicGuaranteesIdol);
             Assert.AreEqual(1f, modifiers.BossRequiredEnergyMultiplier);
@@ -31,17 +30,15 @@ namespace Burmalda.RunModifiers.Tests
             Assert.AreEqual(0.75f, modifiers.DecayThresholdMultiplier, 1e-5f);
             Assert.AreEqual(1.5f, modifiers.ManaCrystalRewardMultiplier, 1e-5f);
             // Не относящиеся к этому Знамению эффекты — нейтральны.
-            Assert.AreEqual(1f, modifiers.KeyRewardMultiplier);
             Assert.AreEqual(1f, modifiers.BossRequiredEnergyMultiplier);
         }
 
         [Test]
-        public void HuntingPath_DoublesTrapDensityAndKeyReward()
+        public void HuntingPath_DoublesTrapDensity()
         {
             var modifiers = new RunModifiers(OmenId.HuntingPath);
 
             Assert.AreEqual(2f, modifiers.TrapDensityMultiplier);
-            Assert.AreEqual(2f, modifiers.KeyRewardMultiplier);
             Assert.AreEqual(1f, modifiers.DecayThresholdMultiplier);
         }
 

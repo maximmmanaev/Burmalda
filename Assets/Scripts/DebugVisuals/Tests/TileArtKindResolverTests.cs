@@ -238,11 +238,11 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
-        public void Resolve_KeySource_ReturnsKeySource_NotDecayGradient()
+        public void Resolve_GateVault_ReturnsGateVault_NotDecayGradient()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isKeySource: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isGateVault: true);
 
-            Assert.AreEqual(TileArtKind.KeySource, TileArtKindResolver.Resolve(state));
+            Assert.AreEqual(TileArtKind.GateVault, TileArtKindResolver.Resolve(state));
         }
 
         // Владелец, 2026-09-04 («видимые рычаги, инвариант лавы, размер

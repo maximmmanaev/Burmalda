@@ -105,8 +105,8 @@ namespace Burmalda.DebugVisuals
         /// </summary>
         public static readonly Color ManaSourceColor = BurmaldaHudPalette.ManaPurple;
 
-        /// <summary>Источник Ключей — то же значение, что медный кружок Ключей в HUD (<see cref="BurmaldaHudPalette.CopperCoin"/>), тот же принцип, что <see cref="ManaSourceColor"/>.</summary>
-        public static readonly Color KeySourceColor = BurmaldaHudPalette.CopperCoin;
+        /// <summary>Тайник за Воротами (бывший цвет Ключей) — медный, как раньше (<see cref="BurmaldaHudPalette.CopperCoin"/>), тот же принцип, что <see cref="ManaSourceColor"/>.</summary>
+        public static readonly Color GateVaultColor = BurmaldaHudPalette.CopperCoin;
 
         /// <summary>
         /// Рычаг (<c>Tile.IsLever</c>). Видим ВСЕГДА (владелец, 2026-09-04,
@@ -165,7 +165,7 @@ namespace Burmalda.DebugVisuals
         /// <summary>
         /// Задача «Комната Босса» (владелец, 2026-09-02): содержимое Комнаты
         /// (Жила/Резонанс/Эхо, PRD v9 §8.2) — награда, видна всегда, тот же
-        /// принцип, что <see cref="ManaSourceColor"/>/<see cref="KeySourceColor"/>.
+        /// принцип, что <see cref="ManaSourceColor"/>/<see cref="GateVaultColor"/>.
         /// Три РАЗЛИЧИМЫХ цвета в этой группе (не один общий) — вертикальный
         /// срез должен быть проходим на глаз без Идола: игрок должен видеть
         /// разницу между "+Мана", "+0.5 к множителю" и "×2 к множителю" на
@@ -281,7 +281,7 @@ namespace Burmalda.DebugVisuals
             // плите, но если бы совместил — опасность всё равно важнее для
             // выживания, чем то, что под ней ценного.
             if (state.IsManaSource) return ManaSourceColor;
-            if (state.IsKeySource) return KeySourceColor;
+            if (state.IsGateVault) return GateVaultColor;
 
             // Остальной тип плиты (артефакт) добавит сюда же ветвление до
             // градиента распада — препятствие/ловушка/валюта уже не

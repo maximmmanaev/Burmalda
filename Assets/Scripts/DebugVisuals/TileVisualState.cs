@@ -10,7 +10,7 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public readonly struct TileVisualState
     {
-        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isTrapTrigger, bool isSanctuaryEntry = false, bool isManaSource = false, bool isKeySource = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, SanctuaryTileKind? sanctuaryTile = null, bool isBombWarningActive = false, bool isBombCollapsed = false, bool isFallingRockWarningActive = false, bool hasSarcophagus = false)
+        public TileVisualState(bool isStart, bool isCurrentPosition, bool isDestroyed, bool isBlocked, LethalTrapType? lethalTrap, float decayProgress01, bool isTrapTrigger, bool isSanctuaryEntry = false, bool isManaSource = false, bool isGateVault = false, bool isLever = false, bool isGated = false, bool isLeverGateOpen = false, bool isAltar = false, bool isDangerSignatureRevealed = false, SanctuaryTileKind? sanctuaryTile = null, bool isBombWarningActive = false, bool isBombCollapsed = false, bool isFallingRockWarningActive = false, bool hasSarcophagus = false)
         {
             IsStart = isStart;
             IsCurrentPosition = isCurrentPosition;
@@ -21,7 +21,7 @@ namespace Burmalda.DebugVisuals
             IsTrapTrigger = isTrapTrigger;
             IsSanctuaryEntry = isSanctuaryEntry;
             IsManaSource = isManaSource;
-            IsKeySource = isKeySource;
+            IsGateVault = isGateVault;
             IsLever = isLever;
             IsGated = isGated;
             IsLeverGateOpen = isLeverGateOpen;
@@ -89,8 +89,8 @@ namespace Burmalda.DebugVisuals
         /// </summary>
         public bool IsManaSource { get; }
 
-        /// <summary>Плита — источник Ключей (PRD раздел 5, issue #12, см. <c>Core.Tile.IsKeySource</c>). Тот же принцип видимости, что и <see cref="IsManaSource"/>.</summary>
-        public bool IsKeySource { get; }
+        /// <summary>Плита — тайник за Воротами (PRD v10 §10, см. <c>Core.Tile.IsGateVault</c>). Тот же принцип видимости, что и <see cref="IsManaSource"/>.</summary>
+        public bool IsGateVault { get; }
 
         /// <summary>
         /// Плита — рычаг (PRD 4.2/21, issue #51, см. <c>Core.Tile.IsLever</c>).

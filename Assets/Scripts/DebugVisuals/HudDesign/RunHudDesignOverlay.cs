@@ -94,7 +94,6 @@ namespace Burmalda.DebugVisuals.HudDesign
 
         private CanvasGroup _dimGroup;
         private HudCounterAnimator _manaAnimator;
-        private HudCounterAnimator _keysAnimator;
         private Text _tierText;
 
         private GameObject _aimHighlight;
@@ -147,7 +146,6 @@ namespace Burmalda.DebugVisuals.HudDesign
         {
             if (_currency == null) return;
             if (_currency.RunManaCrystals != null) _manaAnimator.SetTarget(_currency.RunManaCrystals.Total);
-            if (_currency.RunKeys != null) _keysAnimator.SetTarget(_currency.RunKeys.Total);
 
             // Ярус (design-spec.md: "подключи к RunDepthTier") — читаем ЖИВОЙ
             // экземпляр через RunBootstrap (задача "композиционный корень
@@ -243,7 +241,7 @@ namespace Burmalda.DebugVisuals.HudDesign
             _tierText = HudUiPrimitives.CreateLabel(parent, "TierLabel", "ЯРУС 0", 20, BurmaldaHudPalette.TextSecondary, bold: true, TextAnchor.MiddleRight);
             AnchorTopRight((RectTransform)_tierText.transform, new Vector2(-24f, -TierTopOffset), new Vector2(160f, 32f));
 
-            // Всё остальное (Монеты, Ключи, слоты билда, вес) — притушается при примеривании.
+            // Всё остальное (слоты билда, вес) — притушается при примеривании.
             var dimHost = HudUiPrimitives.CreateRect(parent, "DimmableGroup");
             dimHost.anchorMin = Vector2.zero;
             dimHost.anchorMax = Vector2.one;
@@ -256,12 +254,9 @@ namespace Burmalda.DebugVisuals.HudDesign
             // в забеге эта валюта больше не существует вовсе, ни начисления,
             // ни отображения. Раньше здесь был CoinsCounter, читавший
             // CurrencyController.RunCoins — само поле удалено этой задачей.
-            var keysCounter = HudUiPrimitives.CreateCurrencyCounter(dimHost, "KeysCounter", BurmaldaHudPalette.CopperCoin, HudUiPrimitives.CurrencyIconShape.Circle);
-            AnchorTopLeft((RectTransform)keysCounter.ValueText.transform.parent, new Vector2(24f, -TopMargin - 44f), new Vector2(160f, 40f));
-            _keysAnimator = keysCounter.ValueText.gameObject.AddComponent<HudCounterAnimator>();
-
-            BuildLoadoutSlotsRow(dimHost, new Vector2(24f, -TopMargin - 106f));
-            BuildWeightPlaceholder(dimHost, new Vector2(24f, -TopMargin - 182f));
+            // Ключей тоже нет (PRD v10-3): счётчик удалён, ряд слотов поднят на его место.
+            BuildLoadoutSlotsRow(dimHost, new Vector2(24f, -TopMargin - 62f));
+            BuildWeightPlaceholder(dimHost, new Vector2(24f, -TopMargin - 138f));
         }
 
         // issue: "здесь стоп — в коде нет понятия «активная сборка на забег», собери визуальный ряд, данные не подставляй".

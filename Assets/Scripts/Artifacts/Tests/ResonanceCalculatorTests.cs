@@ -39,16 +39,6 @@ namespace Burmalda.Artifacts.Tests
         }
 
         [Test]
-        public void Compute_TwoKeysArtifacts_ActivatesKeyBond()
-        {
-            var acquired = new List<IReadOnlyList<ArtifactTag>> { Tags(ArtifactTag.Keys), Tags(ArtifactTag.Keys) };
-
-            var result = ResonanceCalculator.Compute(acquired, unityConditionMet: false);
-
-            CollectionAssert.Contains(result, ResonanceType.KeyBond);
-        }
-
-        [Test]
         public void Compute_TwoDefenseArtifacts_ActivatesWard()
         {
             var acquired = new List<IReadOnlyList<ArtifactTag>> { Tags(ArtifactTag.Defense), Tags(ArtifactTag.Defense) };
@@ -89,10 +79,10 @@ namespace Burmalda.Artifacts.Tests
         [Test]
         public void Compute_NeverReturnsMoreThanTwo()
         {
-            // Keys(idx1)=KeyBond, Mana x3(idx2-4)=Vein, Defense(idx5-6)=Ward — все три условия выполняются.
+            // Greed+Movement(idx1)=StingyMove, Mana x3(idx2-4)=Vein, Defense(idx5-6)=Ward — все три условия выполняются.
             var acquired = new List<IReadOnlyList<ArtifactTag>>
             {
-                Tags(ArtifactTag.Keys), Tags(ArtifactTag.Keys),
+                Tags(ArtifactTag.Greed), Tags(ArtifactTag.Movement),
                 Tags(ArtifactTag.Mana), Tags(ArtifactTag.Mana), Tags(ArtifactTag.Mana),
                 Tags(ArtifactTag.Defense), Tags(ArtifactTag.Defense),
             };
@@ -105,18 +95,18 @@ namespace Burmalda.Artifacts.Tests
         [Test]
         public void Compute_PrioritizesEarlierSatisfiedConditions()
         {
-            // KeyBond выполняется на индексе 1, Vein — на индексе 4, Ward — на индексе 6.
-            // Приоритет по порядку получения — KeyBond и Vein должны победить Ward.
+            // StingyMove выполняется на индексе 1, Vein — на индексе 4, Ward — на индексе 6.
+            // Приоритет по порядку получения — StingyMove и Vein должны победить Ward.
             var acquired = new List<IReadOnlyList<ArtifactTag>>
             {
-                Tags(ArtifactTag.Keys), Tags(ArtifactTag.Keys),
+                Tags(ArtifactTag.Greed), Tags(ArtifactTag.Movement),
                 Tags(ArtifactTag.Mana), Tags(ArtifactTag.Mana), Tags(ArtifactTag.Mana),
                 Tags(ArtifactTag.Defense), Tags(ArtifactTag.Defense),
             };
 
             var result = ResonanceCalculator.Compute(acquired, unityConditionMet: false);
 
-            CollectionAssert.AreEqual(new[] { ResonanceType.KeyBond, ResonanceType.Vein }, result);
+            CollectionAssert.AreEqual(new[] { ResonanceType.StingyMove, ResonanceType.Vein }, result);
         }
     }
 }

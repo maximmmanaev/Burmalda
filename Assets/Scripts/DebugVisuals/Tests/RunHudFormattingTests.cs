@@ -38,12 +38,12 @@ namespace Burmalda.DebugVisuals.Tests
             var acquired = new List<Artifact>
             {
                 new Talisman("talisman-double-mana", "A", "desc", new[] { ArtifactTag.Mana }),
-                new Talisman("talisman-double-keys", "B", "desc", new[] { ArtifactTag.Keys }),
+                new Talisman("talisman-test-b", "B", "desc", new[] { ArtifactTag.Greed }),
             };
 
             var result = RunHudFormatting.FormatArtifactIds(acquired, ArtifactCategory.Talisman);
 
-            Assert.AreEqual("talisman-double-mana, talisman-double-keys", result);
+            Assert.AreEqual("talisman-double-mana, talisman-test-b", result);
         }
 
         [Test]

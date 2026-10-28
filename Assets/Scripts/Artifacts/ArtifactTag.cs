@@ -10,8 +10,6 @@ namespace Burmalda.Artifacts
         /// <summary>Всё, что связано с Кристаллами Маны.</summary>
         Mana,
 
-        /// <summary>Добыча и трата Ключей.</summary>
-        Keys,
 
         /// <summary>Монеты, множитель, длина маршрута.</summary>
         Greed,

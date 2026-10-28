@@ -44,7 +44,7 @@ namespace Burmalda.Currencies.Tests
         public void Advanced_UsesProvidedPredicate_IgnoresOtherSourceTypes()
         {
             var (grid, trail) = CreateTrail();
-            grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkKeySource(); // не Mana
+            grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkGateVault(); // не Mana
             var accumulator = new RunCurrencyAccumulator();
             using var system = new TrailTileCurrencySystem(grid, trail, t => t.IsManaSource, 3, accumulator);
 
@@ -116,29 +116,29 @@ namespace Burmalda.Currencies.Tests
         }
 
         // Перегрузка Func<Tile,int> (задача «размер награды за Воротами»,
-        // владелец, 2026-09-04) — сумма считается ПО ПЛИТЕ, не единая.
+        // владелец, 2026-09-04; тайник больше не несёт сумму, v10-3) — сумма считается ПО ПЛИТЕ, не единая.
         [Test]
         public void Advanced_AmountForTileOverload_UsesPerTileAmount()
         {
             var (grid, trail) = CreateTrail();
-            grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkKeySource(120); // тайник — своя сумма
-            grid.GetOrCreateTile(new GridCoordinate(2, 2)).MarkKeySource(); // обычный источник — сумма по умолчанию
+            grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkManaSource();
+            grid.GetOrCreateTile(new GridCoordinate(2, 2)).MarkManaSource();
             var accumulator = new RunCurrencyAccumulator();
-            using var system = new TrailTileCurrencySystem(grid, trail, t => t.IsKeySource, t => t.KeySourceAmount ?? 15, accumulator);
+            using var system = new TrailTileCurrencySystem(grid, trail, t => t.IsManaSource, t => t.Coordinate.Row * 60, accumulator);
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
             trail.TryAdvanceTo(new GridCoordinate(2, 2));
 
-            Assert.AreEqual(120 + 15, accumulator.Total);
+            Assert.AreEqual(60 + 120, accumulator.Total);
         }
 
         [Test]
         public void Advanced_AmountForTileOverload_WithRewardMultiplier_ScalesPerTileAmount()
         {
             var (grid, trail) = CreateTrail();
-            grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkKeySource(80);
+            grid.GetOrCreateTile(new GridCoordinate(1, 2)).MarkManaSource();
             var accumulator = new RunCurrencyAccumulator();
-            using var system = new TrailTileCurrencySystem(grid, trail, t => t.IsKeySource, t => t.KeySourceAmount ?? 15, accumulator, rewardMultiplier: 2f);
+            using var system = new TrailTileCurrencySystem(grid, trail, t => t.IsManaSource, t => 80, accumulator, rewardMultiplier: 2f);
 
             trail.TryAdvanceTo(new GridCoordinate(1, 2));
 

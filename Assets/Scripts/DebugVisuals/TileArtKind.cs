@@ -96,8 +96,8 @@ namespace Burmalda.DebugVisuals
         /// <summary>Задача «тёплый набор плит»: источник Кристаллов Маны — раньше только цвет (<see cref="TileDebugColor.ManaSourceColor"/>), теперь <c>tile-mana-source.png</c>.</summary>
         ManaSource,
 
-        /// <summary>Задача «тёплый набор плит»: источник Ключей — раньше только цвет, теперь <c>tile-key-source.png</c>.</summary>
-        KeySource,
+        /// <summary>Тайник за Воротами (v10-3: бывший источник Ключей) — текстура <c>tile-key-source.png</c>, пока нет отдельной.</summary>
+        GateVault,
 
         /// <summary>Задача «тёплый набор плит»: рычаг — раньше только цвет, теперь <c>tile-lever.png</c>.</summary>
         Lever,

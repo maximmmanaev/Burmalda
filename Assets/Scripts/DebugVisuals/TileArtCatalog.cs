@@ -119,7 +119,7 @@ namespace Burmalda.DebugVisuals
                 case TileArtKind.BombHole: return _destroyed;
                 case TileArtKind.CurrentPosition: return _currentPosition;
                 case TileArtKind.ManaSource: return _manaSource;
-                case TileArtKind.KeySource: return _keySource;
+                case TileArtKind.GateVault: return _keySource; // поле названо по-старому, чтобы не потерять привязку текстуры в ассете
                 case TileArtKind.Lever: return _lever;
                 case TileArtKind.GateClosed: return _gateClosed;
                 case TileArtKind.GateOpen: return _gateOpen;

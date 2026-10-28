@@ -101,48 +101,22 @@ namespace Burmalda.Generation.Tests
             using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1, rowsPerTier: 1000000);
 
             Assert.IsTrue(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsManaSource);
-            Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsKeySource);
+            Assert.IsFalse(grid.GetOrCreateTile(new GridCoordinate(2, 2)).IsGateVault);
         }
 
         [Test]
-        public void ApplyTemplate_KeySource_MarksTile()
+        public void ApplyTemplate_GateVault_MarksTileAsGateVault()
         {
             var (grid, trail) = CreateTrail();
             var tiles = OpenRows(5);
-            tiles[1, 2] = SegmentTileType.KeySource;
+            tiles[1, 2] = SegmentTileType.GateVault;
 
-            var template = new SegmentTemplate("with-key", 1, SegmentRewardTag.Keys, tiles);
+            var template = new SegmentTemplate("with-vault", 1, SegmentRewardTag.Mana, tiles);
             using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1, rowsPerTier: 1000000);
 
             var tile = grid.GetOrCreateTile(new GridCoordinate(2, 2));
-            Assert.IsTrue(tile.IsKeySource);
+            Assert.IsTrue(tile.IsGateVault);
             Assert.IsFalse(tile.IsManaSource);
-            Assert.IsFalse(tile.KeySourceAmount.HasValue, "обычный KeySource не должен нести явную сумму — решает CurrencyController.KeysPerSource");
-        }
-
-        // issue «размер награды за Воротами» (владелец, 2026-09-04).
-        [Test]
-        public void ApplyTemplate_GateVaultKeySource_MarksTileWithComputedAmount()
-        {
-            var (grid, trail) = CreateTrail();
-            var tiles = OpenRows(5);
-            tiles[1, 2] = SegmentTileType.GateVaultKeySource;
-            var originalKeysPerPurchase = GateVaultPricing.KeysPerVaultPurchase;
-
-            try
-            {
-                GateVaultPricing.KeysPerVaultPurchase = 80;
-                var template = new SegmentTemplate("with-vault", 1, SegmentRewardTag.Keys, tiles, gateVaultPurchases: 1.5);
-                using var provider = new SegmentRowProvider(grid, trail, SingleTemplateSelector(template), _ => 1, rowsPerTier: 1000000);
-
-                var tile = grid.GetOrCreateTile(new GridCoordinate(2, 2));
-                Assert.IsTrue(tile.IsKeySource);
-                Assert.AreEqual(120, tile.KeySourceAmount);
-            }
-            finally
-            {
-                GateVaultPricing.KeysPerVaultPurchase = originalKeysPerPurchase;
-            }
         }
 
         [Test]

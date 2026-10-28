@@ -16,7 +16,7 @@ namespace Burmalda.DebugVisuals
     /// события сбора, добавлять его — отдельная, более рискованная задача,
     /// затрагивающая уже протестированный производственный код) — вместо
     /// этого независимо слушает то же <see cref="GridTraceTrail.Advanced"/>
-    /// и сам проверяет <see cref="Tile.IsManaSource"/>/<see cref="Tile.IsKeySource"/>,
+    /// и сам проверяет <see cref="Tile.IsManaSource"/>/<see cref="Tile.IsGateVault"/>,
     /// тот же паттерн, что <see cref="TileDebugColor"/> у обычных плит.
     /// Монеты (обычные плиты, PRD раздел 5) сознательно не покрыты —
     /// начисляются на КАЖДОЙ новой плите (основной цикл ходьбы), партикл на
@@ -33,7 +33,7 @@ namespace Burmalda.DebugVisuals
         // но подобраны в том же духе: насыщенный, не пересекается с
         // остальными тревожными/декоративными цветами.
         private static readonly Color ManaParticleColor = new Color(80f / 255f, 200f / 255f, 255f / 255f); // голубой — Кристаллы Маны
-        private static readonly Color KeyParticleColor = new Color(255f / 255f, 210f / 255f, 60f / 255f); // золотой — Ключи
+        private static readonly Color GateVaultParticleColor = new Color(255f / 255f, 210f / 255f, 60f / 255f); // золотой — тайник за Воротами
 
         private const float BurstLifetimeSeconds = 0.6f;
 
@@ -87,7 +87,7 @@ namespace Burmalda.DebugVisuals
             if (_input.Grid == null || !_input.Grid.TryGetTile(coordinate, out var tile)) return;
 
             if (tile.IsManaSource) SpawnBurst(coordinate, ManaParticleColor);
-            else if (tile.IsKeySource) SpawnBurst(coordinate, KeyParticleColor);
+            else if (tile.IsGateVault) SpawnBurst(coordinate, GateVaultParticleColor);
         }
 
         private void SpawnBurst(GridCoordinate coordinate, Color color)

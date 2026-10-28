@@ -1,14 +1,13 @@
 using System;
 using Burmalda.Artifacts;
-using Burmalda.Currencies;
+using Burmalda.Core;
 using Burmalda.Movement;
 using UnityEngine;
 
 namespace Burmalda.Altar
 {
     /// <summary>
-    /// Интеграция Алтаря/Ритуала с забегом (PRD раздел 7, issues #19–21,
-    /// #81). <see cref="AltarTriggerSystem"/> пересобирается на каждый
+    /// Интеграция Алтаря с забегом (PRD v10 §13: выбор Реликвии, issues #19–21). <see cref="AltarTriggerSystem"/> пересобирается на каждый
     /// забег (нужен свежий <see cref="GridTraceInputController.Trail"/>), а
     /// <see cref="Pool"/>/<see cref="Collection"/> — постоянные, создаются
     /// один раз в <see cref="Awake"/>, как кошельки <see cref="CurrencyController"/>.
@@ -24,7 +23,6 @@ namespace Burmalda.Altar
     public sealed class AltarController : MonoBehaviour
     {
         [SerializeField] private GridTraceInputController _input;
-        [SerializeField] private CurrencyController _currency;
 
         private AltarTriggerSystem _altarTrigger;
 
@@ -34,16 +32,12 @@ namespace Burmalda.Altar
         /// <summary>История использованных артефактов — постоянно.</summary>
         public ArtifactCollection Collection { get; private set; }
 
-        /// <summary>Текущий открытый Ритуал (последний, полученный по <see cref="RitualOpened"/>) — null вне Алтаря.</summary>
-        public Ritual ActiveRitual { get; private set; }
-
-        /// <summary>Срабатывает, когда трейл достигает Алтаря и Ритуал открывается (см. <see cref="AltarTriggerSystem"/>).</summary>
-        public event Action<Ritual> RitualOpened;
+        /// <summary>Срабатывает, когда трейл впервые достигает Алтаря (см. <see cref="AltarTriggerSystem"/>).</summary>
+        public event Action<GridCoordinate> AltarReached;
 
         private void Awake()
         {
             if (_input == null) _input = GetComponent<GridTraceInputController>();
-            if (_currency == null) _currency = GetComponent<CurrencyController>();
             Pool = new ArtifactPool();
             Collection = new ArtifactCollection();
         }
@@ -64,7 +58,6 @@ namespace Burmalda.Altar
             if (_altarTrigger == null)
             {
                 if (_input == null || _input.Grid == null || _input.Trail == null) return;
-                if (_currency == null || _currency.RunKeys == null) return;
                 RebuildTrigger();
             }
         }
@@ -75,23 +68,17 @@ namespace Burmalda.Altar
         {
             DisposeTrigger();
             if (_input == null || _input.Grid == null || _input.Trail == null) return;
-            if (_currency == null || _currency.RunKeys == null) return;
 
-            ActiveRitual = null;
-            _altarTrigger = new AltarTriggerSystem(_input.Grid, _input.Trail, _currency.RunKeys, Pool, () => UnityEngine.Random.value);
-            _altarTrigger.RitualOpened += OnRitualOpened;
+            _altarTrigger = new AltarTriggerSystem(_input.Grid, _input.Trail);
+            _altarTrigger.AltarReached += OnAltarReached;
         }
 
-        private void OnRitualOpened(Ritual ritual)
-        {
-            ActiveRitual = ritual;
-            RitualOpened?.Invoke(ritual);
-        }
+        private void OnAltarReached(GridCoordinate coordinate) => AltarReached?.Invoke(coordinate);
 
         private void DisposeTrigger()
         {
             if (_altarTrigger == null) return;
-            _altarTrigger.RitualOpened -= OnRitualOpened;
+            _altarTrigger.AltarReached -= OnAltarReached;
             _altarTrigger.Dispose();
             _altarTrigger = null;
         }

@@ -23,7 +23,6 @@ namespace Burmalda.Artifacts
     public static class ResonanceCalculator
     {
         public const int VeinRequiredCount = 3;
-        public const int KeyBondRequiredCount = 2;
         public const int WardRequiredCount = 2;
         public const int MaxActiveResonances = 2;
 
@@ -35,9 +34,6 @@ namespace Burmalda.Artifacts
 
             var veinIndex = IndexWhenCountReaches(acquiredArtifactTags, ArtifactTag.Mana, VeinRequiredCount);
             if (veinIndex.HasValue) candidates.Add((ResonanceType.Vein, veinIndex.Value));
-
-            var keyBondIndex = IndexWhenCountReaches(acquiredArtifactTags, ArtifactTag.Keys, KeyBondRequiredCount);
-            if (keyBondIndex.HasValue) candidates.Add((ResonanceType.KeyBond, keyBondIndex.Value));
 
             var wardIndex = IndexWhenCountReaches(acquiredArtifactTags, ArtifactTag.Defense, WardRequiredCount);
             if (wardIndex.HasValue) candidates.Add((ResonanceType.Ward, wardIndex.Value));

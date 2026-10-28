@@ -32,7 +32,7 @@ namespace Burmalda.DebugVisuals
             omenId switch
             {
                 OmenId.FragileVault => new Card("Хрупкий Свод", "порог распада плит −25%", "Кристаллы Маны ×1.5"),
-                OmenId.HuntingPath => new Card("Ловчая Тропа", "ловушек ×2", "Ключи ×2"),
+                OmenId.HuntingPath => new Card("Ловчая Тропа", "ловушек ×2", "—"),
                 OmenId.StingyAltar => new Card("Скупой Алтарь", "1 Алтарь перед Боссом вместо 2", "Реликвия гарантированно даёт Идола"),
                 OmenId.HungryBoss => new Card("Голодный Босс", "требуемая энергия Босса +30%", "Монеты ×2 при возврате в Лагерь"),
                 OmenId.BlindDescent => new Card("Слепой Спуск", "подвижные ловушки не подсвечиваются заранее", "+1 бесплатный реролл на каждом Алтаре"),

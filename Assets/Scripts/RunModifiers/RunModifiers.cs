@@ -62,9 +62,6 @@ namespace Burmalda.RunModifiers
         /// <summary>Ловчая Тропа: ловушек ×2 (не подключено — нужна правка Generation).</summary>
         public float TrapDensityMultiplier => ActiveOmen == OmenId.HuntingPath ? 2f : 1f;
 
-        /// <summary>Ловчая Тропа: Ключи ×2.</summary>
-        public float KeyRewardMultiplier => ActiveOmen == OmenId.HuntingPath ? 2f : 1f;
-
         /// <summary>Скупой Алтарь: 1 Алтарь перед Боссом вместо 2 (не подключено — базовая механика "2 Алтаря" ещё не реализована).</summary>
         public int AltarsBeforeBossCount => ActiveOmen == OmenId.StingyAltar ? 1 : 2;
 

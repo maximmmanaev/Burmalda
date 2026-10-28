@@ -23,7 +23,6 @@ namespace Burmalda.Generation.Tests
                 {
                     '.' => SegmentTileType.Open,
                     'm' => SegmentTileType.ManaSource,
-                    'k' => SegmentTileType.KeySource,
                     'w' => SegmentTileType.ArrowWaveTrigger,
                     'x' => SegmentTileType.BombTrigger,
                     't' => SegmentTileType.BladeTactTrigger,
@@ -76,9 +75,9 @@ namespace Burmalda.Generation.Tests
             // BladeTactTrapSystem — симметричные кольца от краёв к центру
             // (ComputeRingColumns) — покрывают весь ряд целиком для любой
             // ширины сетки.
-            var template = new SegmentTemplate("t", 1, SegmentRewardTag.Keys, Grid(
+            var template = new SegmentTemplate("t", 1, SegmentRewardTag.Mana, Grid(
                 ".....",
-                "t...k",
+                "t...m",
                 ".....",
                 ".....",
                 "....."));

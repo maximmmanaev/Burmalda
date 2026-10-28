@@ -26,13 +26,13 @@ namespace Burmalda.DebugVisuals.Tests
         [Test]
         public void Stake_WithoutSarcophagi_OmitsThem()
         {
-            Assert.AreEqual("На кону: Мана 120, Ключи 3", FateRollScreenText.Stake(120, 3, 0));
+            Assert.AreEqual("На кону: Мана 120", FateRollScreenText.Stake(120, 0));
         }
 
         [Test]
         public void Stake_WithSarcophagi_ListsThem()
         {
-            StringAssert.Contains("Саркофагов 2", FateRollScreenText.Stake(120, 3, 2));
+            StringAssert.Contains("Саркофагов 2", FateRollScreenText.Stake(120, 2));
         }
     }
 }

@@ -38,7 +38,7 @@ namespace Burmalda.DebugVisuals.Tests
 
             StringAssert.Contains("Ловчая Тропа", message);
             StringAssert.Contains("ловушек ×2", message);
-            StringAssert.Contains("Ключи ×2", message);
+            StringAssert.DoesNotContain("Ключи", message); // Ключей больше нет (v10-3)
         }
 
         [Test]

@@ -118,7 +118,7 @@ namespace Burmalda.DebugVisuals
             // тайлы пола) — задача «тёплый набор плит» добавила
             // tile-mana-source.png/tile-key-source.png.
             if (state.IsManaSource) return TileArtKind.ManaSource;
-            if (state.IsKeySource) return TileArtKind.KeySource;
+            if (state.IsGateVault) return TileArtKind.GateVault;
 
             return ResolveDecayGradient(state.DecayProgress01);
         }

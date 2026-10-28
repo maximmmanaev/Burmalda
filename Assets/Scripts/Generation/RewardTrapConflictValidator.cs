@@ -5,7 +5,7 @@ namespace Burmalda.Generation
 {
     /// <summary>
     /// Задача «награда никогда не лежит на ловушке» (владелец, Спринт «Стены
-    /// вместо ловушек», задача 2): "Плита-источник Маны или Ключей не может
+    /// вместо ловушек», задача 2): "Плита-источник Маны или тайник не может
     /// одновременно нести ловушку или её триггер. Награда — приманка к риску
     /// маршрута, а не капкан: игрок должен рисковать длиной пути и распадом,
     /// а не получать смерть за то, что подобрал то, ради чего свернул."
@@ -185,8 +185,7 @@ namespace Burmalda.Generation
         private static bool IsRewardType(SegmentTileType type) => type switch
         {
             SegmentTileType.ManaSource => true,
-            SegmentTileType.KeySource => true,
-            SegmentTileType.GateVaultKeySource => true,
+            SegmentTileType.GateVault => true,
             // Награды Святилища (PRD v10 §14.2): не лежат в зонах удара.
             SegmentTileType.SanctuaryVein => true,
             SegmentTileType.SanctuaryResonance => true,

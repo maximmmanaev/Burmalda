@@ -15,7 +15,7 @@ namespace Burmalda.Core
     /// такую же связку для подвижной ловушки с таймингом (PRD v5 4.2, issue
     /// #45) — здесь опасность ещё и временная, включается/выключается по
     /// реальному времени, а не постоянна с момента активации.
-    /// Также хранит признак плиты-источника Кристаллов Маны/Ключей (PRD
+    /// Также хранит признак плиты-источника Кристаллов Маны и тайника за Воротами (PRD
     /// раздел 5, issue #12) — постоянное состояние, аналогично препятствиям.
     /// Остальной тип плиты (артефакт) добавится сюда же по мере Traps.
     /// </summary>
@@ -178,7 +178,7 @@ namespace Burmalda.Core
             if (IsBlocked) { IsBlocked = false; return; }
             if (LethalTrap.HasValue) { LethalTrap = null; return; }
             if (IsManaSource) { IsManaSource = false; return; }
-            if (IsKeySource) { IsKeySource = false; KeySourceAmount = null; return; }
+            if (IsGateVault) { IsGateVault = false; return; }
             if (IsAltar) { IsAltar = false; return; }
             if (IsSanctuaryEntry) { IsSanctuaryEntry = false; return; }
             if (IsLever) { IsLever = false; LeverGateTargets = null; return; }
@@ -269,7 +269,7 @@ namespace Burmalda.Core
         /// <see cref="LastRoleConflictKeptRole"/> отвечает на вопрос
         /// "теряется ли авторский контент": если здесь систематически
         /// оказываются роли <c>Generation.SegmentRowProvider</c>
-        /// (ManaSource/KeySource/Altar/Boss/триггеры шаблонов) — авторский
+        /// (ManaSource/GateVault/Altar/Boss/триггеры шаблонов) — авторский
         /// контент теряется, разрешение конфликта сломано. Null, пока
         /// конфликтов не было.
         /// </summary>
@@ -293,7 +293,7 @@ namespace Burmalda.Core
             if (IsBlocked) return nameof(IsBlocked);
             if (LethalTrap.HasValue) return $"{nameof(LethalTrap)}={LethalTrap.Value}";
             if (IsManaSource) return nameof(IsManaSource);
-            if (IsKeySource) return nameof(IsKeySource);
+            if (IsGateVault) return nameof(IsGateVault);
             if (IsAltar) return nameof(IsAltar);
             if (IsSanctuaryEntry) return nameof(IsSanctuaryEntry);
             if (IsLever) return nameof(IsLever);
@@ -383,7 +383,7 @@ namespace Burmalda.Core
         /// времени, не авторская ошибка. Явный пример из задачи: шаблоны
         /// «выкуп»/«последний-рывок» (<c>Generation.SegmentTemplateCatalog</c>)
         /// намеренно ставят взрывной триггер над <see cref="IsManaSource"/>/
-        /// <see cref="IsKeySource"/> — "триггер уничтожает собственную
+        /// <see cref="IsGateVault"/> — "триггер уничтожает собственную
         /// награду" — срабатывание обязано превратить плиту в смертельную,
         /// не бросить исключение.
         ///
@@ -443,7 +443,7 @@ namespace Burmalda.Core
         /// направлению. Повторные вызовы сохраняют первые значения. Строгий
         /// страж — см. <see cref="GuardAgainstConflictingRole"/> (задача
         /// «награда никогда не лежит на ловушке»): плита-источник Маны/
-        /// Ключей не может одновременно стать триггером.
+        /// Тайника не может одновременно стать триггером.
         /// </summary>
         public void MarkArrowWaveTrigger(int targetRow, RowWaveDirection direction)
         {
@@ -723,36 +723,17 @@ namespace Burmalda.Core
         }
 
         /// <summary>
-        /// Плита — источник Ключей (PRD раздел 5, issue #12): "отдельные
-        /// плитки-источники ключей на пути".
+        /// Плита — тайник за Воротами (PRD v10 §10): подбор даёт один дополнительный вариант на следующем
+        /// Алтаре (выбор 1 из 3). Раньше эта роль была источником Ключей (Ключи удалены, v10-3).
         /// </summary>
-        public bool IsKeySource { get; private set; }
+        public bool IsGateVault { get; private set; }
 
-        /// <summary>
-        /// Явно заданное число Ключей ЭТОЙ конкретной плиты-источника, если
-        /// задано (задача «видимые рычаги, инвариант лавы, размер награды
-        /// за Воротами», владелец, 2026-09-04) — тайник за Воротами получает
-        /// свою сумму, вычисленную из <c>Generation.GateVaultPricing</c> по
-        /// числу покупок конкретного шаблона, а не общий
-        /// <c>Currencies.CurrencyController.KeysPerSource</c>. Null — плита
-        /// обычный источник на пути, сумму решает вызывающая сторона
-        /// (<c>Currencies.TrailTileCurrencySystem</c>) по умолчанию.
-        /// </summary>
-        public int? KeySourceAmount { get; private set; }
-
-        /// <summary>
-        /// Помечает плиту как источник Ключей. Повторные вызовы сохраняют
-        /// первую сумму — тихий не-op, как и у прочих <c>Mark*</c>.
-        /// <paramref name="amount"/> — явная сумма ЭТОЙ плиты (см.
-        /// <see cref="KeySourceAmount"/>); null (по умолчанию) — обычный
-        /// источник на пути, сумму решает вызывающая сторона.
-        /// </summary>
-        public void MarkKeySource(int? amount = null)
+        /// <summary>Помечает плиту как тайник за Воротами. Повторные вызовы — не-op.</summary>
+        public void MarkGateVault()
         {
-            if (IsKeySource) return;
-            if (!GuardAgainstConflictingRole(false, nameof(IsKeySource))) return;
-            IsKeySource = true;
-            KeySourceAmount = amount;
+            if (IsGateVault) return;
+            if (!GuardAgainstConflictingRole(false, nameof(IsGateVault))) return;
+            IsGateVault = true;
         }
 
         /// <summary>

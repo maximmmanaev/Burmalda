@@ -19,8 +19,8 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
 | `Decay/` | Обрушение плит позади игрока | `Decay/TrailDecaySystem.cs:40`, `Decay/TrailDecayController.cs:57` |
 | `RunLifecycle/` | Жизнь/смерть забега, предложение Броска Судьбы | `RunLifecycle/RunController.cs:83`, `RunLifecycle/RunState.cs:126` |
 | `FateRoll/` | Бросок Судьбы 2D6: таблица, шансы, оплата-заглушка | `FateRoll/FateRollRules.cs`, `FateRoll/FateRollResult.cs` |
-| `Currencies/` | Мана/ключи забега, постоянные монеты | `Currencies/CurrencyController.cs:122`, `Currencies/RunCurrencyAccumulator.cs:20`, `Currencies/PersistentWallet.cs:14` |
-| `Altar/` | Алтарь, Ритуал, сундуки | `Altar/AltarController.cs:72`, `Altar/AltarTriggerSystem.cs:19` |
+| `Currencies/` | Мана забега, постоянные монеты | `Currencies/CurrencyController.cs:122`, `Currencies/RunCurrencyAccumulator.cs:20`, `Currencies/PersistentWallet.cs:14` |
+| `Altar/` | Алтарь (событие достижения), тайник за Воротами | `Altar/AltarController.cs:72`, `Altar/AltarTriggerSystem.cs:19` |
 | `Sanctuary/` | Святилище бога: обрушение рядами в Лаву, множитель, Саркофаг; владеет Ярусом забега | `Sanctuary/SanctuaryRunSystem.cs`, `Sanctuary/Sanctuary.cs`, `Sanctuary/SanctuaryController.cs` |
 | `Camp/` | Лагерь, вывод добычи, возврат | `Camp/CampController.cs:79`, `Camp/EvacuationSystem.cs` |
 | `Artifacts/` | Каталог артефактов, лоадаут, Тотем | `Artifacts/RunArtifactLoadout.cs`, `Artifacts/ArtifactPool.cs:23` |
@@ -76,7 +76,7 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
 | `RunState.Died` (`:52`) | `RunController.cs:93`, `CampController.cs:105`, `DeathNotificationOverlay.cs:85` |
 | `RunState.FateRollOffered` / `FateRolled` | `DebugVisuals/FateRollOverlay.cs`, `RunFeedbackDebugUI.cs` |
 | `RunDepthTier.Advanced` | `SanctuaryController` (`DepthRecord.ReportTier`) |
-| `AltarTriggerSystem.RitualOpened` → `AltarController.RitualOpened` | `AltarController.cs:82`; внешних подписчиков в рантайме нет |
+| `AltarTriggerSystem.AltarReached` → `AltarController.AltarReached` | `AltarController.cs:82`; внешних подписчиков в рантайме нет |
 | `EvacuationSystem.Returned` | `DebugVisuals/ReturnConversionHudBridge.cs:59` |
 | `Sanctuary.EchoCollected` | `DebugVisuals/RunHudOverlay.cs:103` |
 | `Tile.RoleConflictRejected` (static, `:289`) | `RunBootstrap.cs:247` (лог-предупреждение) |
@@ -105,7 +105,7 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
   `SanctuaryRunSystem`: вход по `Tile.IsSanctuaryEntry`, обрушение рядов в Лаву (`CollapseFront`, ускоряется
   взятым Саркофагом), плиты множителя, зачисление Маны на выходе; прохождение продвигает `RunDepthTier`.
 - **Валюты.** `CurrencyController.RebuildRunSystems` (`Currencies/CurrencyController.cs:129-140`):
-  мана и ключи забега (`RunCurrencyAccumulator`), множитель `TrailMultiplierSystem`
+  мана забега (`RunCurrencyAccumulator`), множитель `TrailMultiplierSystem`
   (`MultiplierCurve`, максимум ×20, `Core/MultiplierCurve.cs:15`), доход маны за плиту
   `TrailManaIncomeSystem` (`BaseManaPerTile = 10`, `:50`), источники на плитах `TrailTileCurrencySystem`.
   Постоянные монеты — `PersistentWallet` (`CurrencyController.cs:99`).

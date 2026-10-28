@@ -373,7 +373,7 @@ namespace Burmalda.DebugVisuals
                     isSanctuaryEntry: tile.IsSanctuaryEntry,
                     // Задача «тёплый набор плит» (владелец): «плитка с ключом
                     // и маной после сбора должна становиться обычной, ключ и
-                    // кристалл маны пропадать». Tile.IsManaSource/IsKeySource
+                    // кристалл маны пропадать». Tile.IsManaSource/IsGateVault
                     // сознательно НЕ сбрасываются в Core — сбор валюты
                     // (Currencies.TrailTileCurrencySystem) и партиклы
                     // (PickupFeedback) независимо читают эти флаги на том же
@@ -385,7 +385,7 @@ namespace Burmalda.DebugVisuals
                     // только плита пройдена трейлом (HasVisited) — тот же
                     // момент, что и начисление валюты, без мутации Tile.
                     isManaSource: tile.IsManaSource && !_trail.HasVisited(coordinate),
-                    isKeySource: tile.IsKeySource && !_trail.HasVisited(coordinate),
+                    isGateVault: tile.IsGateVault && !_trail.HasVisited(coordinate),
                     isLever: tile.IsLever,
                     isGated: tile.IsGated,
                     isLeverGateOpen: tile.IsLeverGateOpen,

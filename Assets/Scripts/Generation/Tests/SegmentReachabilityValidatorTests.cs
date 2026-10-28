@@ -176,10 +176,10 @@ namespace Burmalda.Generation.Tests
             }
             tiles[2, 0] = SegmentTileType.Blocked;
             tiles[2, 1] = SegmentTileType.LeverGate;
-            tiles[2, 2] = SegmentTileType.KeySource; // "тайник" — недостижим даже при открытых воротах
+            tiles[2, 2] = SegmentTileType.GateVault; // "тайник" — недостижим даже при открытых воротах
             tiles[0, 0] = SegmentTileType.Lever;
 
-            var template = new SegmentTemplate("sealed-vault", 1, SegmentRewardTag.Keys, tiles);
+            var template = new SegmentTemplate("sealed-vault", 1, SegmentRewardTag.Mana, tiles);
             Assert.IsFalse(SegmentReachabilityValidator.LeverVaultIsReachable(template));
         }
 
@@ -219,10 +219,10 @@ namespace Burmalda.Generation.Tests
             }
             tiles[2, 0] = SegmentTileType.Blocked;
             tiles[2, 1] = SegmentTileType.LeverGate;
-            tiles[2, 2] = SegmentTileType.KeySource;
+            tiles[2, 2] = SegmentTileType.GateVault;
             tiles[0, 0] = SegmentTileType.Lever;
 
-            var template = new SegmentTemplate("sealed-vault", 1, SegmentRewardTag.Keys, tiles);
+            var template = new SegmentTemplate("sealed-vault", 1, SegmentRewardTag.Mana, tiles);
             Assert.IsFalse(SegmentReachabilityValidator.ReturnRouteToExitExists(template));
         }
     }
