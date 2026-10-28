@@ -1,3 +1,4 @@
+using Burmalda.Camp;
 using Burmalda.Currencies;
 using Burmalda.FateRoll;
 using Burmalda.RunLifecycle;
@@ -33,6 +34,7 @@ namespace Burmalda.DebugVisuals
 
         private RunController _runController;
         private CurrencyController _currency;
+        private CampController _camp;
         private RunState _wired;
         private GameObject _panel;
         private Text _title, _stake, _dice, _result, _deathLabel, _altarLabel, _inPlaceLabel;
@@ -50,6 +52,7 @@ namespace Burmalda.DebugVisuals
         {
             if (_runController == null) _runController = FindFirstObjectByType<RunController>();
             if (_currency == null) _currency = FindFirstObjectByType<CurrencyController>();
+            if (_camp == null) _camp = FindFirstObjectByType<CampController>();
             SyncRunState(_runController != null ? _runController.RunState : null);
 
             if (_hideAt > 0f && Time.unscaledTime >= _hideAt)
@@ -92,7 +95,7 @@ namespace Burmalda.DebugVisuals
 
             var mana = _currency != null && _currency.RunManaCrystals != null ? _currency.RunManaCrystals.Total : 0;
             var keys = _currency != null && _currency.RunKeys != null ? _currency.RunKeys.Total : 0;
-            _stake.text = FateRollScreenText.Stake(mana, keys, 0);
+            _stake.text = FateRollScreenText.Stake(mana, keys, _camp != null ? _camp.Carried.Count : 0);
             _dice.text = "?   ?";
             _result.text = "";
             _rollButton.interactable = _declineButton.interactable = true;

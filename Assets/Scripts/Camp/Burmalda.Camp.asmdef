@@ -7,7 +7,9 @@
         "Burmalda.Currencies",
         "Burmalda.Artifacts",
         "Burmalda.Altar",
-        "Burmalda.RunLifecycle"
+        "Burmalda.RunLifecycle",
+        "Burmalda.Sanctuary",
+        "Burmalda.Decay"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Burmalda.Artifacts;
 using Burmalda.Currencies;
 
@@ -24,6 +26,7 @@ namespace Burmalda.Camp
     {
         private readonly PersistentWallet _coins;
         private readonly ArtifactPool _pool;
+        private readonly List<Sarcophagus> _unopened = new List<Sarcophagus>();
 
         public Camp(PersistentWallet coins, ArtifactPool pool)
         {
@@ -67,6 +70,39 @@ namespace Burmalda.Camp
             if (grantedIdolOrTotem == null) throw new ArgumentNullException(nameof(grantedIdolOrTotem));
 
             _pool.Unlock(grantedIdolOrTotem.Id);
+        }
+
+        /// <summary>Привезённые, но ещё не открытые Саркофаги — от менее ярких к более ярким (PRD v10 §22.3).</summary>
+        public IReadOnlyList<Sarcophagus> UnopenedSarcophagi => _unopened;
+
+        /// <summary>Очередь неоткрытых изменилась (привезли или открыли) — для сохранения.</summary>
+        public event Action UnopenedChanged;
+
+        /// <summary>Открыт очередной Саркофаг (Монеты уже зачислены).</summary>
+        public event Action<SarcophagusContents> SarcophagusOpened;
+
+        /// <summary>Привезённые Саркофаги встают в очередь; порядок — по рангу (стабильно).</summary>
+        public void AddUnopened(IEnumerable<Sarcophagus> sarcophagi)
+        {
+            if (sarcophagi == null) throw new ArgumentNullException(nameof(sarcophagi));
+            _unopened.AddRange(sarcophagi);
+            var ordered = _unopened.OrderBy(s => (int)s.Rank).ToList(); // OrderBy стабилен
+            _unopened.Clear();
+            _unopened.AddRange(ordered);
+            UnopenedChanged?.Invoke();
+        }
+
+        /// <summary>Открывает следующий Саркофаг: Монеты зачисляются. Null, если открывать нечего.</summary>
+        public SarcophagusContents? OpenNext()
+        {
+            if (_unopened.Count == 0) return null;
+            var next = _unopened[0];
+            _unopened.RemoveAt(0);
+            var contents = next.Open();
+            _coins.Deposit(contents.Coins);
+            UnopenedChanged?.Invoke();
+            SarcophagusOpened?.Invoke(contents);
+            return contents;
         }
     }
 }

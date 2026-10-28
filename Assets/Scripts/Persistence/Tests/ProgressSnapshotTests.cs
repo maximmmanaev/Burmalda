@@ -1,7 +1,9 @@
 using Burmalda.Artifacts;
+using Burmalda.Camp;
 using Burmalda.Currencies;
 using Burmalda.Progression;
 using NUnit.Framework;
+using CampModel = Burmalda.Camp.Camp;
 
 namespace Burmalda.Persistence.Tests
 {
@@ -13,10 +15,13 @@ namespace Burmalda.Persistence.Tests
             public ArtifactCollection Collection = new ArtifactCollection();
             public ArtifactPool Pool = new ArtifactPool();
             public DepthRecord DepthRecord = new DepthRecord();
+            public CampModel Camp;
 
-            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Collection, Pool, DepthRecord);
+            public Fixture() => Camp = new CampModel(Coins, Pool);
 
-            public void Apply(SaveData data) => ProgressSnapshot.Apply(data, Coins, Collection, Pool, DepthRecord);
+            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Collection, Pool, DepthRecord, Camp);
+
+            public void Apply(SaveData data) => ProgressSnapshot.Apply(data, Coins, Collection, Pool, DepthRecord, Camp);
         }
 
         [Test]
@@ -102,6 +107,42 @@ namespace Burmalda.Persistence.Tests
             Assert.IsTrue(target.Collection.Contains("x2"));
             Assert.IsTrue(target.Pool.IsUnlocked("x1"));
             Assert.AreEqual(3, target.DepthRecord.BestTier);
+        }
+
+        [Test]
+        public void Capture_UnopenedSarcophagi_AreStoredByRank()
+        {
+            var f = new Fixture();
+            f.Camp.AddUnopened(new[] { new Sarcophagus(SarcophagusRank.Senior), new Sarcophagus(SarcophagusRank.Junior) });
+
+            var data = f.Capture();
+
+            CollectionAssert.AreEqual(new[] { (int)SarcophagusRank.Junior, (int)SarcophagusRank.Senior }, data.unopenedSarcophagiRanks);
+        }
+
+        [Test]
+        public void Apply_RestoresUnopenedSarcophagi_SoNothingIsLostOnReload()
+        {
+            var f = new Fixture();
+            var data = new SaveData();
+            data.unopenedSarcophagiRanks.Add((int)SarcophagusRank.Middle);
+            data.unopenedSarcophagiRanks.Add((int)SarcophagusRank.Junior);
+
+            f.Apply(data);
+
+            Assert.AreEqual(2, f.Camp.UnopenedSarcophagi.Count);
+            Assert.AreEqual(SarcophagusRank.Junior, f.Camp.UnopenedSarcophagi[0].Rank);
+        }
+
+        [Test]
+        public void Apply_OldSaveWithoutSarcophagi_IsFine()
+        {
+            var f = new Fixture();
+
+            f.Apply(new SaveData { coinsBalance = 5 });
+
+            Assert.AreEqual(0, f.Camp.UnopenedSarcophagi.Count);
+            Assert.AreEqual(5, f.Coins.Balance);
         }
     }
 }

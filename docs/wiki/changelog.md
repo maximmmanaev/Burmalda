@@ -1787,3 +1787,10 @@ workflow не менялись, код игры не менялся.
 - Модуль `BossRoom` переименован в `Sanctuary`: `Sanctuary` (вместо `BossRoom`), `CollapseFront` (вместо `BossWave`), `SanctuaryMultiplier` (вместо `RoomMultiplier`), `SanctuaryRunSystem`, `SanctuaryController` (владеет Ярусом: прохождение Святилища продвигает `RunDepthTier`). `BossRoomTileKind` → `SanctuaryTileKind`, `Tile.IsBoss` → `IsSanctuaryEntry`.
 - Святилище Лешего — авторская раскладка `SegmentTemplateCatalog.SanctuaryLeshyTemplate` (15 рядов: вход на всю ширину, 13 рядов раскладки, Алтарь на выходе); `SegmentRowProvider` выкладывает её последним landmark Яруса. Раскладка — черновая геймдизайнера; правка: Стрелы из рядов 7 и 9 перенесены в ряды 4 и 11 (Стрела бьёт по своему ряду и накрывала Резонанс/Эхо). Тесты: награды вне зон удара, проходимость до Саркофага и выхода.
 - Обрушение рядами в Лаву (`Sanctuary.DefaultCollapseRowsPerSecond = 0.45` — **черновое**, [CONFIG]); Саркофаг ускоряет в 1.6 раза (`SarcophagusCollapseMultiplier` — **черновое**); обрушение под игроком — обычная опасность (`RunState.ReportSanctuaryCollapse` → Бросок Судьбы). Плиты Жила/Резонанс/Эхо/Разлом, множитель ×1 → гаснет на выходе, Мана зачисляется на выходе. `Tile.HasSarcophagus` + золотая плита.
+
+## 2026-10-28 — Спринт v10-1, задача 5: Саркофаг в простейшем виде (#336)
+
+- Модель: `Camp.Sarcophagus` (ранг бога; `Open()` — единственное место, где рождается содержимое; сейчас только Монеты: `JuniorCoins = 80`, `MiddleCoins = 140`, `SeniorCoins = 220` — **черновые**, [CONFIG]), `SarcophagusContents`, `RunSarcophagi` (несомые в забеге), очередь неоткрытых в `Camp.UnopenedSarcophagi` (от менее ярких к более ярким).
+- Взятие Саркофага в Святилище → несомый (иконка ◆ ×N в HUD, ускорение распада через `TrailDecaySystem.CarriedSarcophagi`). Эвакуация переносит их в Лагерь, окончательная смерть теряет (`EvacuationSystem`).
+- Экран `SarcophagusOpeningScreen`: открытие по одному, без рекламы, затем «Новая экспедиция»; логика — `SarcophagusOpeningFlow`.
+- Сохранения: `SaveData.unopenedSarcophagiRanks` — неоткрытые Саркофаги переживают перезапуск. Редкость, части, Реликвии, защита от невезения — не в этом спринте.

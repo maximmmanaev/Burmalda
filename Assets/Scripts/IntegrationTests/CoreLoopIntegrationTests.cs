@@ -157,12 +157,14 @@ namespace Burmalda.IntegrationTests
             var altar = new GridCoordinate(4, 2);
             var sanctuaryEntry = new GridCoordinate(5, 2);
             var veinInSanctuary = new GridCoordinate(6, 2);
+            var sarcophagusTile = new GridCoordinate(7, 2);
             _input.Grid.GetOrCreateTile(manaSource).MarkManaSource();
             _input.Grid.GetOrCreateTile(keySource).MarkKeySource();
             _input.Grid.GetOrCreateTile(trap).TransitionToLethalTrap(LethalTrapType.ArrowWave);
             _input.Grid.GetOrCreateTile(altar).MarkAltar();
             _input.Grid.GetOrCreateTile(sanctuaryEntry).MarkSanctuaryEntry();
             _input.Grid.GetOrCreateTile(veinInSanctuary).MarkSanctuaryTile(SanctuaryTileKind.Vein);
+            _input.Grid.GetOrCreateTile(sarcophagusTile).MarkSarcophagus();
 
             Ritual ritualOpened = null;
             _bootstrap.Altar.RitualOpened += r => ritualOpened = r;
@@ -224,7 +226,9 @@ namespace Burmalda.IntegrationTests
             var exitRow = _bootstrap.Sanctuary.ActiveSanctuary.ExitRow;
             var exitAltar = new GridCoordinate(exitRow, 2);
             _input.Grid.GetOrCreateTile(exitAltar).MarkAltar();
-            for (var row = veinInSanctuary.Row + 1; row <= exitRow; row++) Assert.IsTrue(trail.TryAdvanceTo(new GridCoordinate(row, 2)));
+            Assert.IsTrue(trail.TryAdvanceTo(sarcophagusTile));
+            Assert.AreEqual(1, _bootstrap.Camp.Carried.Count, "Взятый Саркофаг должен стать несомым (PRD v10 §15.1).");
+            for (var row = sarcophagusTile.Row + 1; row <= exitRow; row++) Assert.IsTrue(trail.TryAdvanceTo(new GridCoordinate(row, 2)));
             Assert.Greater(runMana.Total, manaBeforeSanctuary, "На выходе Мана Святилища должна была зачислиться.");
             Assert.AreEqual(1, _bootstrap.DepthTier.CurrentTier, "Прохождение Святилища должно продвинуть Ярус Глубины забега — тот самый, что читает RunBootstrap.");
             Assert.AreEqual(1, _bootstrap.Sanctuary.DepthRecord.BestTier, "Постоянный рекорд глубины должен обновиться вслед за Ярусом.");
@@ -234,6 +238,8 @@ namespace Burmalda.IntegrationTests
             ReturnConversionResult? returnResult = null;
             evacuation.Returned += r => returnResult = r;
             Assert.IsTrue(evacuation.Evacuate());
+            Assert.AreEqual(0, _bootstrap.Camp.Carried.Count, "Эвакуация уносит Саркофаги из забега…");
+            Assert.AreEqual(1, _bootstrap.Camp.Camp.UnopenedSarcophagi.Count, "…в Лагерь, где они ждут открытия (§22.3).");
 
             Assert.IsNotNull(returnResult, "Эвакуация с Алтаря должна была сконвертировать Ману/Ключи в Монеты.");
             Assert.AreEqual(returnResult.Value.TotalCoins, _bootstrap.Currency.Coins.Balance);

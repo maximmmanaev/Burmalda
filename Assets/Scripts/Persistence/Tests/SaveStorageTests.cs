@@ -429,8 +429,10 @@ namespace Burmalda.Persistence.Tests
             public ArtifactCollection Collection = new ArtifactCollection();
             public ArtifactPool Pool = new ArtifactPool();
             public DepthRecord Depth = new DepthRecord();
-            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Collection, Pool, Depth);
-            public void Apply(SaveData d) => ProgressSnapshot.Apply(d, Coins, Collection, Pool, Depth);
+            public Burmalda.Camp.Camp Camp;
+            public Parts() => Camp = new Burmalda.Camp.Camp(Coins, Pool);
+            public SaveData Capture() => ProgressSnapshot.Capture(Coins, Collection, Pool, Depth, Camp);
+            public void Apply(SaveData d) => ProgressSnapshot.Apply(d, Coins, Collection, Pool, Depth, Camp);
         }
     }
 }
