@@ -1,4 +1,5 @@
 using System;
+using Burmalda.Core;
 using Burmalda.Movement;
 using UnityEngine;
 
@@ -41,11 +42,8 @@ namespace Burmalda.Generation
     [DisallowMultipleComponent]
     public sealed class SegmentGenerationController : MonoBehaviour
     {
-        // Черновая кривая сложности по рядам — заглушка "Яруса Глубины"
-        // (Спринт 8), которого в проекте ещё нет: сложность растёт на 1
-        // каждые RowsPerDifficultyStep рядов, до MaxDifficultyTier. Предмет
-        // плейтеста баланса (Спринт 10, docs/rules/forbidden-actions.md).
-        public const int RowsPerDifficultyStep = 40;
+        // Спринт v10-2: длина Яруса и полоса сложности — явные значения по номеру Яруса
+        // (Core.YarusProgression), а не row / 40 как раньше.
 
         [SerializeField] private GridTraceInputController _input;
 
@@ -100,14 +98,17 @@ namespace Burmalda.Generation
 
             var seed = new RunSeed(new System.Random().Next()); // явно System.Random — не UnityEngine.Random, см. doc-комментарий класса
             var selector = new SegmentSelector(SegmentTemplateCatalog.All, seed);
-            _provider = new SegmentRowProvider(_input.Grid, _input.Trail, selector, MaxDifficultyForRow, RowsPerDifficultyStep);
+            _provider = new SegmentRowProvider(_input.Grid, _input.Trail, selector, _ => 1, YarusProgression.TunnelRows(1), YarusProgression.TunnelRows);
         }
 
-        private static int MaxDifficultyForRow(int row)
-        {
-            var tier = 1 + row / RowsPerDifficultyStep;
-            return tier > SegmentTemplate.MaxDifficultyTier ? SegmentTemplate.MaxDifficultyTier : tier;
-        }
+        /// <summary>Ярус под игроком (с 1); 1, пока провайдер не собран.</summary>
+        public int CurrentYarus => _provider != null ? _provider.CurrentYarus : 1;
+
+        /// <summary>Полоса сложности текущего Яруса (1..4).</summary>
+        public int DifficultyBand => YarusProgression.DifficultyBand(CurrentYarus);
+
+        /// <summary>Прогресс по текущему Ярусу, 0..1.</summary>
+        public double YarusProgress => _provider != null ? _provider.YarusProgress : 0.0;
 
         private void DisposeProvider()
         {

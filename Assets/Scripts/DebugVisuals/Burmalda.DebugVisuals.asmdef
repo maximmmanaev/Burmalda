@@ -5,6 +5,7 @@
         "Burmalda.Core",
         "Burmalda.Movement",
         "Burmalda.Generation",
+        "Burmalda.Decay",
         "Burmalda.FateRoll",
         "Burmalda.Sanctuary",
         "Burmalda.Artifacts",

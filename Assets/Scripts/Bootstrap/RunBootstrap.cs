@@ -301,6 +301,7 @@ namespace Burmalda.Bootstrap
             if (Decay == null) Decay = GetOrAddComponent<TrailDecayController>(host);
             if (Run == null) Run = GetOrAddComponent<RunController>(host);
             if (Segments == null) Segments = GetOrAddComponent<SegmentGenerationController>(host);
+            GetOrAddComponent<YarusDecayLink>(host);
             // Задача «двойные флаги на плитах»: форсируем первую сборку
             // Generation.SegmentRowProvider СИНХРОННО здесь — до того, как
             // SyncLegacyObstacleGenerator ниже даст уже размещённому на

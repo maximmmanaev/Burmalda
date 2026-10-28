@@ -39,6 +39,10 @@ namespace Burmalda.Generation
         private readonly IReadOnlyList<SegmentTemplate> _catalog;
         private readonly RunSeed _seed;
         private SegmentTemplate _lastSelected;
+        private readonly Queue<bool> _recentTempting = new Queue<bool>();
+
+        /// <summary>Сколько последних шаблонов смотрим для правила «без соблазна — не больше 1 из 4 подряд».</summary>
+        public const int TemptationWindow = 3;
 
         public SegmentSelector(IReadOnlyList<SegmentTemplate> catalog, RunSeed seed)
         {
@@ -76,5 +80,65 @@ namespace Burmalda.Generation
             _lastSelected = selected;
             return selected;
         }
+
+        /// <summary>
+        /// Выбор по правилам Яруса (спринт v10-2): допуск шаблона — <see cref="YarusTemplateRules.IsEligible"/>;
+        /// «пила» — сразу после Алтаря берём самые лёгкие из допустимых, дальше потолок сложности растёт с
+        /// прогрессом участка; не повторяем предыдущий шаблон; если последние
+        /// <see cref="TemptationWindow"/> шаблонов были без соблазна — предпочитаем шаблон с соблазном
+        /// (если такой есть). Пустой пул — исключение.
+        /// </summary>
+        public SegmentTemplate SelectNext(SegmentSelectionContext context)
+        {
+            var pool = _catalog.Where(t => YarusTemplateRules.IsEligible(t, context.Yarus, context.AllowTraining)).ToList();
+            if (pool.Count == 0)
+                throw new InvalidOperationException($"Нет допустимых шаблонов для Яруса {context.Yarus} в каталоге.");
+
+            var minTier = pool.Min(t => t.DifficultyTier);
+            var tierCeiling = context.Easy ? minTier : (context.SectionProgress < 0.5 ? minTier + 1 : SegmentTemplate.MaxDifficultyTier);
+            var byTier = pool.Where(t => t.DifficultyTier <= tierCeiling || YarusTemplateRules.IsTraining(t)).ToList();
+            if (byTier.Count > 0) pool = byTier;
+
+            var withoutRepeat = pool.Where(t => t != _lastSelected).ToList();
+            if (withoutRepeat.Count > 0) pool = withoutRepeat;
+
+            if (_recentTempting.Count >= TemptationWindow && !_recentTempting.Any(x => x))
+            {
+                var tempting = pool.Where(t => TemplateRouteMetrics.HasTemptation(t)).ToList();
+                if (tempting.Count > 0) pool = tempting;
+            }
+
+            var selected = pool[_seed.NextInt(0, pool.Count)];
+            _lastSelected = selected;
+            _recentTempting.Enqueue(TemplateRouteMetrics.HasTemptation(selected));
+            while (_recentTempting.Count > TemptationWindow) _recentTempting.Dequeue();
+            return selected;
+        }
+    }
+}
+
+namespace Burmalda.Generation
+{
+    /// <summary>Контекст выбора шаблона на Ярусе (спринт v10-2).</summary>
+    public readonly struct SegmentSelectionContext
+    {
+        public SegmentSelectionContext(int yarus, bool easy, double sectionProgress, bool allowTraining)
+        {
+            Yarus = yarus;
+            Easy = easy;
+            SectionProgress = sectionProgress;
+            AllowTraining = allowTraining;
+        }
+
+        public int Yarus { get; }
+
+        /// <summary>1–2 сегмента сразу после Алтаря / начала Яруса — полегче.</summary>
+        public bool Easy { get; }
+
+        /// <summary>0..1: доля пути от последнего Алтаря до следующего Алтаря/Святилища.</summary>
+        public double SectionProgress { get; }
+
+        /// <summary>Можно ли выбрать «пустой» обучающий шаблон (первая треть Яруса 1, ещё не было).</summary>
+        public bool AllowTraining { get; }
     }
 }

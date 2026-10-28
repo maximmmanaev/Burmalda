@@ -218,5 +218,43 @@ namespace Burmalda.Decay.Tests
             Assert.Greater(one, none);
             Assert.Greater(two, one);
         }
+
+        [Test]
+        public void YarusLifetimeMultiplier_ShortensTileLifetimeByBand()
+        {
+            var lifetimes = new float[4];
+            var yaruses = new[] { 1, 4, 7, 10 };
+            for (var i = 0; i < yaruses.Length; i++)
+            {
+                var (grid, trail, decay) = CreateSystem();
+                decay.YarusLifetimeMultiplier = YarusProgression.DecayLifetimeMultiplier(yaruses[i]);
+                trail.TryAdvanceTo(new GridCoordinate(1, 2));
+                lifetimes[i] = grid.GetOrCreateTile(new GridCoordinate(1, 2)).DecayThresholdSeconds.Value;
+            }
+
+            Assert.AreEqual((3f + 0.09f) * 0.8f, lifetimes[0], 1e-4f);
+            Assert.Greater(lifetimes[0], lifetimes[1]);
+            Assert.Greater(lifetimes[1], lifetimes[2]);
+            Assert.Greater(lifetimes[2], lifetimes[3]);
+        }
+
+        [Test]
+        public void YarusLifetimeMultiplier_NeverDropsBelowHonestWindow()
+        {
+            var (grid, trail, decay) = CreateSystem();
+            decay.YarusLifetimeMultiplier = 0.01f;
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+
+            Assert.AreEqual(YarusProgression.MinTileLifetimeSeconds, grid.GetOrCreateTile(new GridCoordinate(1, 2)).DecayThresholdSeconds.Value, 1e-5f);
+        }
+
+        [Test]
+        public void CarriedSarcophagusFactor_GrowsWithCount()
+        {
+            var (_, _, decay) = CreateSystem();
+            Assert.AreEqual(1f, decay.CarriedSarcophagusFactor, 1e-5f);
+            decay.CarriedSarcophagi = 2;
+            Assert.AreEqual(2f, decay.CarriedSarcophagusFactor, 1e-5f);
+        }
     }
 }

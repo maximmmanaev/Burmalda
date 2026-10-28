@@ -56,6 +56,17 @@ namespace Burmalda.Generation
         private readonly SegmentSelector _selector;
         private readonly Func<int, int> _maxDifficultyForRow;
         private readonly int _rowsPerTier;
+        // Режим Ярусов (спринт v10-2): длина тоннеля по полосам, номер Яруса — явное значение, выбор
+        // шаблонов по YarusTemplateRules. Null — прежнее поведение (равные Ярусы по rowsPerTier).
+        private readonly Func<int, int> _tunnelRowsForYarus;
+        private int _tierRows;
+        private int _yarus = 1;
+        private readonly List<int> _tierStartRows = new List<int>();
+        private int _sectionStartRow;
+        private bool _trainingUsed;
+
+        /// <summary>Сколько рядов после Алтаря/начала Яруса идут «полегче» (1–2 сегмента) [CONFIG, черновик].</summary>
+        public const int EasyRowsAfterAltar = 12;
         private int _appliedThroughRow;
         // Фиксированная периодическая сетка границ Яруса — начало ТЕКУЩЕГО
         // Яруса (не "докуда реально докатилось содержимое", оно может
@@ -85,7 +96,7 @@ namespace Burmalda.Generation
         /// <c>SegmentGenerationController.RowsPerDifficultyStep</c>, но
         /// провайдер не завязан на конкретного вызывающего).
         /// </param>
-        public SegmentRowProvider(TunnelGrid grid, GridTraceTrail trail, SegmentSelector selector, Func<int, int> maxDifficultyForRow, int rowsPerTier)
+        public SegmentRowProvider(TunnelGrid grid, GridTraceTrail trail, SegmentSelector selector, Func<int, int> maxDifficultyForRow, int rowsPerTier, Func<int, int> tunnelRowsForYarus = null)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
@@ -94,8 +105,10 @@ namespace Burmalda.Generation
             if (rowsPerTier <= 0)
                 throw new ArgumentOutOfRangeException(nameof(rowsPerTier), rowsPerTier, "Период границы Яруса должен быть положительным.");
             _rowsPerTier = rowsPerTier;
+            _tunnelRowsForYarus = tunnelRowsForYarus;
 
             _appliedThroughRow = trail.CurrentPosition.Row;
+            _tierStartRows.Add(_appliedThroughRow);
             BeginTier(_appliedThroughRow);
             EnsureCoveredThrough(_appliedThroughRow + RowsAheadOfPlayer);
             _trail.PositionChanged += OnPositionChanged;
@@ -120,10 +133,13 @@ namespace Burmalda.Generation
         private void BeginTier(int tierStartRow)
         {
             _tierStartRow = tierStartRow;
-            _nextCapstoneRow = _tierStartRow + _rowsPerTier;
+            _sectionStartRow = tierStartRow;
+            _trainingUsed = false;
+            _tierRows = _tunnelRowsForYarus != null ? _tunnelRowsForYarus(_yarus) : _rowsPerTier;
+            _nextCapstoneRow = _tierStartRow + _tierRows;
             _nextLandmark = Landmark.AltarOne;
             _nextLandmarkRow = Math.Max(
-                _tierStartRow + _rowsPerTier / 3,
+                _tierStartRow + _tierRows / 3,
                 _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
         }
 
@@ -205,8 +221,9 @@ namespace Burmalda.Generation
                             ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
                             _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
                             _nextLandmark = Landmark.AltarTwo;
+                            _sectionStartRow = _appliedThroughRow + 1;
                             _nextLandmarkRow = Math.Max(
-                                _tierStartRow + _rowsPerTier * 2 / 3,
+                                _tunnelRowsForYarus != null ? _appliedThroughRow + 1 + _tierRows / 3 : _tierStartRow + _tierRows * 2 / 3,
                                 _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
                             break;
 
@@ -214,8 +231,9 @@ namespace Burmalda.Generation
                             ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
                             _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
                             _nextLandmark = Landmark.Boss;
+                            _sectionStartRow = _appliedThroughRow + 1;
                             _nextLandmarkRow = Math.Max(
-                                _nextCapstoneRow,
+                                _tunnelRowsForYarus != null ? _appliedThroughRow + 1 + (_tierRows - 2 * (_tierRows / 3)) : _nextCapstoneRow,
                                 _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
                             break;
 
@@ -237,16 +255,66 @@ namespace Burmalda.Generation
                             // капстоун) слепил бы Комнату этого Яруса с
                             // Алтарём #1 следующего вплотную, той же болезнью
                             // с другой стороны границы.
-                            BeginTier(_nextCapstoneRow);
+                            _yarus++;
+                            var nextTierStart = _tunnelRowsForYarus != null ? _appliedThroughRow + 1 : _nextCapstoneRow;
+                            _tierStartRows.Add(nextTierStart);
+                            BeginTier(nextTierStart);
                             break;
                     }
 
                     continue;
                 }
 
-                var template = _selector.SelectNext(_maxDifficultyForRow(baseRow));
+                SegmentTemplate template;
+                if (_tunnelRowsForYarus != null)
+                {
+                    template = _selector.SelectNext(BuildSelectionContext(baseRow));
+                    if (YarusTemplateRules.IsTraining(template)) _trainingUsed = true;
+                }
+                else
+                {
+                    template = _selector.SelectNext(_maxDifficultyForRow(baseRow));
+                }
+
                 ApplyTemplate(template, baseRow);
                 _appliedThroughRow += template.RowCount;
+            }
+        }
+
+        private SegmentSelectionContext BuildSelectionContext(int baseRow)
+        {
+            var sectionLength = Math.Max(1, _nextLandmarkRow - _sectionStartRow);
+            var progress = Math.Min(1.0, Math.Max(0.0, (double)(baseRow - _sectionStartRow) / sectionLength));
+            var easy = baseRow < _sectionStartRow + EasyRowsAfterAltar;
+            var trainingWindow = _yarus == 1 && !_trainingUsed && baseRow - _tierStartRow < _tierRows / 3;
+            return new SegmentSelectionContext(_yarus, easy, progress, trainingWindow);
+        }
+
+        /// <summary>Номер Яруса (с 1), в котором лежит ряд <paramref name="row"/> — явные границы, не row/N.</summary>
+        public int YarusAtRow(int row)
+        {
+            var yarus = 1;
+            for (var i = 1; i < _tierStartRows.Count; i++)
+                if (_tierStartRows[i] <= row) yarus = i + 1;
+            return yarus;
+        }
+
+        /// <summary>Ярус под игроком.</summary>
+        public int CurrentYarus => YarusAtRow(_trail.CurrentPosition.Row);
+
+        /// <summary>Полоса сложности Яруса под игроком (<see cref="YarusProgression.DifficultyBand"/>).</summary>
+        public int DifficultyBand => YarusProgression.DifficultyBand(CurrentYarus);
+
+        /// <summary>Прогресс по Ярусу под игроком, 0..1: тоннель + два Алтаря + Святилище.</summary>
+        public double YarusProgress
+        {
+            get
+            {
+                var yarus = CurrentYarus;
+                var start = _tierStartRows[yarus - 1];
+                var tunnel = _tunnelRowsForYarus != null ? _tunnelRowsForYarus(yarus) : _rowsPerTier;
+                var total = tunnel + 2 * SegmentTemplateCatalog.AltarTemplate.RowCount + SegmentTemplateCatalog.SanctuaryLeshyTemplate.RowCount;
+                return Math.Min(1.0, Math.Max(0.0, (double)(_trail.CurrentPosition.Row - start) / total));
             }
         }
 
