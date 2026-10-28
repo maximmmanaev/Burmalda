@@ -183,5 +183,40 @@ namespace Burmalda.Decay.Tests
             decay.Tick(3f);
             Assert.IsFalse(decay.IsSuspended);
         }
+
+        [Test]
+        public void Tick_DestroyedTileBecomesLava()
+        {
+            var (grid, trail, decay) = CreateSystem();
+            var target = new GridCoordinate(1, 2);
+            trail.TryAdvanceTo(target);
+
+            decay.Tick(10f);
+
+            var tile = grid.GetOrCreateTile(target);
+            Assert.IsTrue(tile.IsDestroyed);
+            Assert.AreEqual(LethalTrapType.Lava, tile.LethalTrap);
+        }
+
+        [Test]
+        public void Tick_CarriedSarcophagi_AcceleratesDecayMoreWithEachOne()
+        {
+            float Elapsed(int carried)
+            {
+                var (grid, trail, decay) = CreateSystem();
+                var target = new GridCoordinate(1, 2);
+                trail.TryAdvanceTo(target);
+                decay.CarriedSarcophagi = carried;
+                decay.Tick(1f);
+                return grid.GetOrCreateTile(target).DecayElapsedSeconds;
+            }
+
+            var none = Elapsed(0);
+            var one = Elapsed(1);
+            var two = Elapsed(2);
+
+            Assert.Greater(one, none);
+            Assert.Greater(two, one);
+        }
     }
 }

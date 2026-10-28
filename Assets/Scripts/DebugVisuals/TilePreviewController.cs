@@ -65,7 +65,12 @@ namespace Burmalda.DebugVisuals
 
             if (_highlighter == null) _highlighter = new TilePreviewHighlighter(transform, HighlightColor);
 
-            if (_input.PreviewTarget.HasValue) _highlighter.Show(_input.PreviewTarget.Value, _input.Projection);
+            if (_input.PreviewTarget.HasValue)
+            {
+                var target = _input.PreviewTarget.Value;
+                _input.Grid.TryGetTile(target, out var previewTile);
+                _highlighter.Show(target, _input.Projection, TilePreviewHighlighter.IsLethalContour(previewTile));
+            }
             else _highlighter.Hide();
         }
 

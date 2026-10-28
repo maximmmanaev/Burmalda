@@ -1744,3 +1744,9 @@ workflow не менялись, код игры не менялся.
 (не чаще 3 с, срочно при сворачивании). `ISaveStorage`: облако SDK (`player.getData/setData`) + локальное (`PlayerPrefs`
 в WebGL, без `System.IO`). Формат с версией и временем, старый файл читается, повреждённые данные не роняют игру,
 сохранение новее игры не перезаписывается. В браузере не проверено — `docs/specs/yandex-games.md`.
+
+## 2026-10-28 — Спринт v10-1, задача 1: распад → Лава (#332)
+
+- `Tile.AdvanceDecay`: распавшаяся плита становится `LethalTrapType.Lava` (PRD v10 §7.5), а не непроходимой дырой; возврат на неё разрешён и смертелен (`GridTraceTrail.CanAdvanceTo`).
+- `TilePreviewHighlighter.IsLethalContour`: примеривание Лавы рисует красный контур (§7.4).
+- `TrailDecaySystem.CarriedSarcophagi` + `DecayAccelerationPerSarcophagus = 0.5` (**черновое**, [CONFIG]): ускорение распада под несущим Саркофаги; подключение к реальным Саркофагам — задача 5.
