@@ -27,37 +27,35 @@ namespace Burmalda.Generation
         };
 
         /// <summary>Кратчайший путь (в шагах) от любой плиты входа до любой плиты выхода, не касаясь ловушек; -1, если пути нет.</summary>
-        public static int SafePathSteps(SegmentTemplate template) => ShortestSteps(template, SafePassable, -1);
+        public static int SafePathSteps(SegmentTemplate template) => ShortestSteps(template, SafePassable);
 
         /// <summary>Кратчайший путь, если триггеры можно задеть (Лава по-прежнему непроходима) — «соблазн»; -1, если пути нет.</summary>
-        public static int FastPathSteps(SegmentTemplate template) => ShortestSteps(template, FastPassable, -1);
+        public static int FastPathSteps(SegmentTemplate template) => ShortestSteps(template, FastPassable);
 
-        /// <summary>
-        /// Средняя по плитам входа длина безопасного пути до выхода, в шагах (игрок входит в сегмент в
-        /// том столбце, где вышел из предыдущего, — любой из них равновероятен); плиты входа без
-        /// безопасного пути не учитываются; -1, если нет ни одной.
-        /// </summary>
-        public static double AverageSafePathSteps(SegmentTemplate template)
+        /// <summary>Минимальный крюк класса «напряжение» [CONFIG, черновик].</summary>
+        public const int TensionMinDetour = 3;
+
+        /// <summary>Минимальный соблазн класса «напряжение» [CONFIG, черновик].</summary>
+        public const int TensionMinTemptation = 2;
+
+        /// <summary>Крюк: длина кратчайшего пути без триггеров − (рядов − 1); 0, если безопасного пути нет.</summary>
+        public static int Detour(SegmentTemplate template)
         {
-            var total = 0;
-            var count = 0;
-            for (var c = 0; c < template.Width; c++)
-            {
-                var steps = ShortestSteps(template, SafePassable, c);
-                if (steps < 0) continue;
-                total += steps;
-                count++;
-            }
-
-            return count == 0 ? -1 : (double)total / count;
+            var safe = SafePathSteps(template);
+            return safe < 0 ? 0 : safe - (template.RowCount - 1);
         }
 
-        /// <summary>Коэффициент крюка: средняя длина безопасного пути / число рядов; 0, если безопасного пути нет.</summary>
-        public static double DetourRatio(SegmentTemplate template)
+        /// <summary>Соблазн: длина пути без триггеров − длина кратчайшего пути с триггерами; 0, если безопасного пути нет.</summary>
+        public static int Temptation(SegmentTemplate template)
         {
-            var average = AverageSafePathSteps(template);
-            return average < 0 ? 0 : average / template.RowCount;
+            var safe = SafePathSteps(template);
+            var fast = FastPathSteps(template);
+            return safe < 0 || fast < 0 ? 0 : safe - fast;
         }
+
+        /// <summary>«Напряжение»: крюк ≥ <see cref="TensionMinDetour"/> и соблазн ≥ <see cref="TensionMinTemptation"/>; всё остальное — «передышка».</summary>
+        public static bool IsTension(SegmentTemplate template) =>
+            Detour(template) >= TensionMinDetour && Temptation(template) >= TensionMinTemptation;
 
         /// <summary>Есть ли столбец, целиком состоящий из открытых плит без ловушек (прямая от входа до выхода).</summary>
         public static bool HasStraightColumn(SegmentTemplate template)
@@ -72,22 +70,6 @@ namespace Burmalda.Generation
                 }
 
                 if (straight) return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Есть соблазн: хотя бы для одной плиты входа путь через триггер короче безопасного не меньше чем на
-        /// <paramref name="minSavedSteps"/> шагов.
-        /// </summary>
-        public static bool HasTemptation(SegmentTemplate template, int minSavedSteps = 2)
-        {
-            for (var c = 0; c < template.Width; c++)
-            {
-                var safe = ShortestSteps(template, SafePassable, c);
-                var fast = ShortestSteps(template, FastPassable, c);
-                if (safe >= 0 && fast >= 0 && safe - fast >= minSavedSteps) return true;
             }
 
             return false;
@@ -110,8 +92,8 @@ namespace Burmalda.Generation
         private static bool IsOpen(SegmentTileType type) =>
             type != SegmentTileType.Blocked && type != SegmentTileType.LeverGate;
 
-        // entryColumn < 0 — со всех плит входа сразу (минимум), иначе только с указанной.
-        private static int ShortestSteps(SegmentTemplate template, Func<SegmentTemplate, int, int, bool> passable, int entryColumn)
+        // Со всех плит входа сразу (минимум).
+        private static int ShortestSteps(SegmentTemplate template, Func<SegmentTemplate, int, int, bool> passable)
         {
             var distance = new int[template.RowCount, template.Width];
             var queue = new Queue<(int row, int column)>();
@@ -120,7 +102,6 @@ namespace Burmalda.Generation
                     distance[r, c] = -1;
             for (var c = 0; c < template.Width; c++)
             {
-                if (entryColumn >= 0 && c != entryColumn) continue;
                 if (!passable(template, 0, c)) continue;
                 distance[0, c] = 0;
                 queue.Enqueue((0, c));

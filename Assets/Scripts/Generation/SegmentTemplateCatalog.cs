@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Burmalda.Generation
 {
@@ -118,7 +119,7 @@ namespace Burmalda.Generation
             "..A..",
         }), isLandmark: true);
 
-        public static IReadOnlyList<SegmentTemplate> All { get; } = new List<SegmentTemplate>
+        public static IReadOnlyList<SegmentTemplate> All { get; } = WithMirrors(new List<SegmentTemplate>
         {
             new SegmentTemplate("пустой-перегон", 1, SegmentRewardTag.Coins, ParseRows(new[]
             {
@@ -950,86 +951,85 @@ namespace Burmalda.Generation
                 ".....",
             })),
 
-            // Замысел: узкие ворота, сразу за ними триггер Стрел ровно по прямой; шагнуть из ворот
-            // по диагонали — чисто, прямо — стрела в следующем ряду.
-            new SegmentTemplate("горлышко-со-стрелой", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            // «Змейка с дверью-ловушкой» (геймдизайнер, правка v10-2 после проверки 8-соседства): ряды-стены
+            // с проходом у дальнего края — чистый путь змейкой; в стене дверь-ловушка, через которую можно
+            // срезать. У всех шести: крюк 4, соблазн 4.
+
+            // Замысел: двери-Камни и дверь-Стрела.
+            new SegmentTemplate("ступени", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "#...#",
-                "##.##",
-                "..w..",
+                "r###.",
                 ".....",
-                ".#.#.",
-                "k...m",
+                ".###w",
+                ".....",
+                "r###.",
+                "..m..",
                 ".....",
             })),
 
-            // Замысел: Мана по центру манит идти прямо — на центральном пути триггер Давилки.
-            // Безопасно — обойти краем, это дольше.
+            // Замысел: одна дверь-Камень посередине змейки.
+            new SegmentTemplate("змейка-с-дверью", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "####.",
+                ".....",
+                ".##r#",
+                ".....",
+                "####.",
+                "..m..",
+                ".....",
+            })),
+
+            // Замысел: все три двери — Стрелы.
+            new SegmentTemplate("стрельбище", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "###w.",
+                ".....",
+                ".w###",
+                ".....",
+                "###w.",
+                "..m..",
+                ".....",
+            })),
+
+            // Замысел: дверь — Давилка: срезал — следующий ряд смыкается за тобой.
             new SegmentTemplate("давильня", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                ".#.#.",
-                "..d..",
+                "####.",
                 ".....",
-                "#.m.#",
-                "#...#",
-                "##.##",
+                ".##d#",
                 ".....",
-            })),
-
-            // Замысел: развилка — левый рукав короче, но в нём триггер Стены справа; правый длиннее и
-            // чистый. Награды — в карманах, за ними надо вернуться.
-            new SegmentTemplate("правый-пресс", 3, SegmentRewardTag.Keys, ParseRows(new[]
-            {
-                ".....",
-                "..#..",
-                ".q#..",
-                ".....",
-                "#.#.#",
-                ".....",
-                "m#.#k",
+                "####.",
+                "...m.",
                 ".....",
             })),
 
-            // Замысел: два ряда со Стрелами — приходится выбирать проход под распадом.
-            new SegmentTemplate("перекрёсток-стрел", 3, SegmentRewardTag.Mana, ParseRows(new[]
+            // Замысел: дверь — Стена справа.
+            new SegmentTemplate("правый-пресс", 2, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                ".w.w.",
+                ".####",
                 ".....",
-                "##.##",
+                "##q#.",
                 ".....",
-                ".w.w.",
-                ".....",
-                "#.m.#",
-            })),
-
-            // Замысел: первый же шаг влево — триггер Стены слева, она закрывает весь следующий ряд:
-            // кто не проскочил — в тупике.
-            new SegmentTemplate("левый-пресс", 3, SegmentRewardTag.Keys, ParseRows(new[]
-            {
-                ".....",
-                "j...#",
-                ".....",
-                "#...#",
-                "#.#.#",
-                "..k..",
-                "##.##",
+                ".####",
+                "..m..",
                 ".....",
             })),
 
-            // Замысел: Мана в нише по центру, к ней ведут клетки между двумя Камнями. Взять — значит
-            // сделать петлю назад под распадом. Безопасный проход — краем.
-            new SegmentTemplate("петля-жадности", 3, SegmentRewardTag.Mana, ParseRows(new[]
+            // Замысел: дверь — Стена слева: закрывает ряд в сторону чистого прохода, гонит вперёд.
+            new SegmentTemplate("левый-пресс", 2, SegmentRewardTag.Keys, ParseRows(new[]
             {
                 ".....",
-                ".###.",
-                ".#m#.",
-                ".r.r.",
+                "####.",
                 ".....",
-                "###..",
-                "....r",
+                ".#j##",
+                ".....",
+                "####.",
+                ".k...",
                 ".....",
             })),
 
@@ -1087,7 +1087,18 @@ namespace Burmalda.Generation
                 ".....",
                 ".....",
             })),
-        };
+        });
+
+        // Зеркальные копии «напряжения» Ярусов 1–3 (без ловушек, открытых с Яруса 4): удваивают пул без ручной работы.
+        private static List<SegmentTemplate> WithMirrors(List<SegmentTemplate> templates)
+        {
+            var mirrors = templates
+                .Where(t => TemplateRouteMetrics.IsTension(t) && YarusTemplateRules.AllTrapsOpen(t, 1))
+                .Select(t => t.Mirror())
+                .ToList();
+            templates.AddRange(mirrors);
+            return templates;
+        }
 
         private static SegmentTileType[,] ParseRows(string[] rows)
         {

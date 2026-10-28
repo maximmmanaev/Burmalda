@@ -70,6 +70,27 @@ namespace Burmalda.Generation
         /// <summary>Тип плиты по локальным координатам внутри шаблона (0,0 — вход, RowCount-1 — выход).</summary>
         public SegmentTileType TileAt(int row, int column) => _tiles[row, column];
 
+        /// <summary>Суффикс имени зеркальной копии.</summary>
+        public const string MirrorSuffix = "-зеркало";
+
+        /// <summary>
+        /// Зеркальная копия по горизонтали (спринт v10-2): столбцы развёрнуты, Стена слева ↔ Стена справа,
+        /// остальные плиты как есть. Имя — <c>&lt;имя&gt;-зеркало</c>.
+        /// </summary>
+        public SegmentTemplate Mirror()
+        {
+            var mirrored = new SegmentTileType[RowCount, Width];
+            for (var r = 0; r < RowCount; r++)
+                for (var c = 0; c < Width; c++)
+                    mirrored[r, c] = _tiles[r, Width - 1 - c] switch
+                    {
+                        SegmentTileType.MovingWallLeftTrigger => SegmentTileType.MovingWallRightTrigger,
+                        SegmentTileType.MovingWallRightTrigger => SegmentTileType.MovingWallLeftTrigger,
+                        var other => other,
+                    };
+            return new SegmentTemplate(Name + MirrorSuffix, DifficultyTier, RewardTag, mirrored, GateVaultPurchases);
+        }
+
         /// <summary>
         /// Размер тайника за Воротами ЭТОГО шаблона, в покупках (владелец,
         /// 2026-09-04: «1 для короткого крюка, 1.5 для длинного» — не

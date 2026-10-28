@@ -63,10 +63,11 @@ namespace Burmalda.Generation
         private int _yarus = 1;
         private readonly List<int> _tierStartRows = new List<int>();
         private int _sectionStartRow;
+        private int _segmentsInSection;
         private bool _trainingUsed;
 
-        /// <summary>Сколько рядов после Алтаря/начала Яруса идут «полегче» (1–2 сегмента) [CONFIG, черновик].</summary>
-        public const int EasyRowsAfterAltar = 12;
+        /// <summary>За сколько рядов до Алтаря/Святилища (≈ 2 сегмента) выбираем только «напряжение» [CONFIG, черновик].</summary>
+        public const int TensionOnlyRowsBeforeLandmark = 12;
         private int _appliedThroughRow;
         // Фиксированная периодическая сетка границ Яруса — начало ТЕКУЩЕГО
         // Яруса (не "докуда реально докатилось содержимое", оно может
@@ -134,6 +135,7 @@ namespace Burmalda.Generation
         {
             _tierStartRow = tierStartRow;
             _sectionStartRow = tierStartRow;
+            _segmentsInSection = 0;
             _trainingUsed = false;
             _tierRows = _tunnelRowsForYarus != null ? _tunnelRowsForYarus(_yarus) : _rowsPerTier;
             _nextCapstoneRow = _tierStartRow + _tierRows;
@@ -222,6 +224,7 @@ namespace Burmalda.Generation
                             _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
                             _nextLandmark = Landmark.AltarTwo;
                             _sectionStartRow = _appliedThroughRow + 1;
+                            _segmentsInSection = 0;
                             _nextLandmarkRow = Math.Max(
                                 _tunnelRowsForYarus != null ? _appliedThroughRow + 1 + _tierRows / 3 : _tierStartRow + _tierRows * 2 / 3,
                                 _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
@@ -232,6 +235,7 @@ namespace Burmalda.Generation
                             _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
                             _nextLandmark = Landmark.Boss;
                             _sectionStartRow = _appliedThroughRow + 1;
+                            _segmentsInSection = 0;
                             _nextLandmarkRow = Math.Max(
                                 _tunnelRowsForYarus != null ? _appliedThroughRow + 1 + (_tierRows - 2 * (_tierRows / 3)) : _nextCapstoneRow,
                                 _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
@@ -270,6 +274,7 @@ namespace Burmalda.Generation
                 {
                     template = _selector.SelectNext(BuildSelectionContext(baseRow));
                     if (YarusTemplateRules.IsTraining(template)) _trainingUsed = true;
+                    _segmentsInSection++;
                 }
                 else
                 {
@@ -285,9 +290,10 @@ namespace Burmalda.Generation
         {
             var sectionLength = Math.Max(1, _nextLandmarkRow - _sectionStartRow);
             var progress = Math.Min(1.0, Math.Max(0.0, (double)(baseRow - _sectionStartRow) / sectionLength));
-            var easy = baseRow < _sectionStartRow + EasyRowsAfterAltar;
+            var easy = _segmentsInSection == 0;
+            var tensionOnly = _nextLandmarkRow - baseRow <= TensionOnlyRowsBeforeLandmark;
             var trainingWindow = _yarus == 1 && !_trainingUsed && baseRow - _tierStartRow < _tierRows / 3;
-            return new SegmentSelectionContext(_yarus, easy, progress, trainingWindow);
+            return new SegmentSelectionContext(_yarus, easy && !tensionOnly, progress, trainingWindow, tensionOnly);
         }
 
         /// <summary>Номер Яруса (с 1), в котором лежит ряд <paramref name="row"/> — явные границы, не row/N.</summary>
