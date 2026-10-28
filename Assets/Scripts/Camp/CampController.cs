@@ -7,20 +7,15 @@ using UnityEngine;
 namespace Burmalda.Camp
 {
     /// <summary>
-    /// Интеграция Лагеря/Возврата/Кэш-аута с забегом (PRD v9 разделы 10/11,
-    /// issues #25–27). <see cref="Camp"/> — постоянный (Awake), переиспользует
-    /// <see cref="CurrencyController.Coins"/> и <see cref="AltarController.Pool"/>
-    /// вместо своих инстансов (тот же принцип, что у <c>Boss.BossController</c>).
-    /// <see cref="CashOutSystem"/>/<see cref="ReturnJourneySystem"/> —
-    /// пересобираются на каждый забег.
-    ///
-    /// Подписка <see cref="ReturnJourneySystem.HandleDeathDuringReturn"/> на
-    /// <see cref="RunState.Died"/> сверяется каждый кадр
-    /// (<see cref="SyncRunStateSubscription"/>), а не подписывается один раз
-    /// при пересборке — <see cref="RunController"/> пересобирает свой
-    /// RunState по тому же <see cref="GridTraceInputController.RunStarted"/>,
-    /// и порядок между разными MonoBehaviour не гарантирован (тот же риск,
-    /// что уже решался колбэком в <c>Boss.BossEncounterSystem</c>).
+    /// Интеграция Лагеря/Эвакуации с забегом (PRD v10 §15). <see cref="Camp"/> —
+    /// постоянный (Awake), переиспользует <see cref="CurrencyController.Coins"/> и
+    /// <see cref="AltarController.Pool"/>. <see cref="EvacuationSystem"/> —
+    /// пересобирается на каждый забег. Окончательная смерть
+    /// (<see cref="RunState.Died"/>) теряет всё несомое; подписка сверяется каждый
+    /// кадр (<see cref="SyncRunStateSubscription"/>), потому что
+    /// <see cref="RunController"/> пересобирает свой RunState по тому же
+    /// <see cref="GridTraceInputController.RunStarted"/>, а порядок между
+    /// MonoBehaviour не гарантирован.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class CampController : MonoBehaviour
@@ -31,15 +26,14 @@ namespace Burmalda.Camp
         [SerializeField] private RunController _runController;
 
         private Camp _camp;
-        private CashOutSystem _cashOut;
-        private ReturnJourneySystem _journey;
+        private EvacuationSystem _evacuation;
         private RunState _subscribedRunState;
 
         /// <summary>Постоянный Лагерь — переживает рестарт забега.</summary>
         public Camp Camp => _camp;
 
-        /// <summary>Система возврата текущего забега — для будущей кнопки "Вернуться в лагерь".</summary>
-        public ReturnJourneySystem Journey => _journey;
+        /// <summary>Система эвакуации текущего забега — для выбора «Вернуться в Лагерь» на Алтаре.</summary>
+        public EvacuationSystem Evacuation => _evacuation;
 
         private void Awake()
         {
@@ -64,7 +58,7 @@ namespace Burmalda.Camp
         private void Update()
         {
             if (_camp == null && CampIsReady()) _camp = new Camp(_currency.Coins, _altar.Pool);
-            if (_cashOut == null && RunSystemsReady()) RebuildRunSystems();
+            if (_evacuation == null && RunSystemsReady()) RebuildRunSystems();
             SyncRunStateSubscription();
         }
 
@@ -83,16 +77,14 @@ namespace Burmalda.Camp
             DisposeRunSystems();
             if (!RunSystemsReady()) return;
 
-            _cashOut = new CashOutSystem(_input.Grid, _input.Trail, _currency.RunManaCrystals, _currency.RunKeys);
-            _journey = new ReturnJourneySystem(_input.Trail, _currency.RunManaCrystals, _currency.RunKeys, _currency.Coins);
+            _evacuation = new EvacuationSystem(_input.Grid, _input.Trail, _currency.RunManaCrystals, _currency.RunKeys, _currency.Coins);
+            _evacuation.Returned += OnEvacuated;
         }
 
         private void DisposeRunSystems()
         {
-            _cashOut?.Dispose();
-            _cashOut = null;
-            _journey?.Dispose();
-            _journey = null;
+            if (_evacuation != null) _evacuation.Returned -= OnEvacuated;
+            _evacuation = null;
         }
 
         private void SyncRunStateSubscription()
@@ -112,6 +104,9 @@ namespace Burmalda.Camp
             _subscribedRunState = null;
         }
 
-        private void OnDied(string reason) => _journey?.HandleDeathDuringReturn();
+        private void OnDied(string reason) => _evacuation?.LoseAll();
+
+        // Забег закончен: ввод блокируется до «Новая экспедиция» (Restart).
+        private void OnEvacuated(ReturnConversionResult result) => _input.MarkDead();
     }
 }

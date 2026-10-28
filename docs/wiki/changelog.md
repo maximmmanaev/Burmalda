@@ -1744,3 +1744,10 @@ workflow не менялись, код игры не менялся.
 (не чаще 3 с, срочно при сворачивании). `ISaveStorage`: облако SDK (`player.getData/setData`) + локальное (`PlayerPrefs`
 в WebGL, без `System.IO`). Формат с версией и временем, старый файл читается, повреждённые данные не роняют игру,
 сохранение новее игры не перезаписывается. В браузере не проверено — `docs/specs/yandex-games.md`.
+
+## 2026-10-28 — Спринт v10-1, задача 2: эвакуация с Алтаря и окончательная смерть (#333)
+
+- `Camp.EvacuationSystem` (вместо `ReturnJourneySystem`): мгновенная эвакуация с любого Алтаря (`Evacuate`), Мана и Ключи → Монеты по текущему линейному курсу (`ManaToCoinsRate = 20`, `KeysToCoinsRate = 1` — черновые, [CONFIG]); `LoseAll` при окончательной смерти. Пеший возврат до ряда 0 удалён.
+- Удалены `CashOutSystem` (чекпоинт Маны на Алтаре) и `RunCurrencyAccumulator.Checkpoint/RevertToCheckpoint`; добавлен `Clear`. Алтарь Ману не фиксирует (PRD v10 §11).
+- `CampController.Evacuation`; на Алтаре появляется выбор «Дальше» / «Домой» (`ReturnToCampDebugButton`).
+- Саркофаги в эвакуации/смерти подключаются в задаче 5 (#336).
