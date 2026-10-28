@@ -1752,3 +1752,10 @@ workflow не менялись, код игры не менялся.
 - Экран `FateRollOverlay`: два кубика, три сектора шансов с процентами, «на кону» (Мана/Ключи), «Бросить»/«Отказаться». Ввод блокируется на время решения (`GridTraceInputController.ResumeAfterFate`).
 - Оплата — заглушка `FateRollRules.FateRollPaymentStub = true` (бесплатно); реклама и Монеты — #35.
 - Удалены `D20Trial`, `D20Outcome`, `RunController.RollD20Override` (→ `RollDieOverride`). «Переброс» и «Печать Судьбы» в коде не обнаружены — были только в старых PRD.
+
+## 2026-10-28 — Спринт v10-1, задача 2: эвакуация с Алтаря и окончательная смерть (#333)
+
+- `Camp.EvacuationSystem` (вместо `ReturnJourneySystem`): мгновенная эвакуация с любого Алтаря (`Evacuate`), Мана и Ключи → Монеты по текущему линейному курсу (`ManaToCoinsRate = 20`, `KeysToCoinsRate = 1` — черновые, [CONFIG]); `LoseAll` при окончательной смерти. Пеший возврат до ряда 0 удалён.
+- Удалены `CashOutSystem` (чекпоинт Маны на Алтаре) и `RunCurrencyAccumulator.Checkpoint/RevertToCheckpoint`; добавлен `Clear`. Алтарь Ману не фиксирует (PRD v10 §11).
+- `CampController.Evacuation`; на Алтаре появляется выбор «Дальше» / «Домой» (`ReturnToCampDebugButton`).
+- Саркофаги в эвакуации/смерти подключаются в задаче 5 (#336).
