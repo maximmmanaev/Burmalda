@@ -28,14 +28,20 @@ namespace Burmalda.Movement
         // в геометрию плиты и не z-fighting'овать.
         private const float YOffset = 0.09f;
 
+        // PRD v10 §7.4: контур Лавы однозначно смертельный, отличим от обычного.
+        private static readonly Color LethalColor = new Color(1f, 0.1f, 0.1f);
+
         private readonly Transform _parent;
         private readonly Material _material;
         private readonly List<GameObject> _bars = new List<GameObject>(4);
         private GridCoordinate? _current;
+        private readonly Color _baseColor;
+        private bool _lethal;
 
         public TilePreviewHighlighter(Transform parent, Color color)
         {
             _parent = parent;
+            _baseColor = color;
 
             // Тот же порядок перебора шейдеров и та же защита от
             // build-time стриппинга/Shader.Find==null на устройстве, что и
@@ -58,10 +64,13 @@ namespace Burmalda.Movement
         public bool IsEnabled => _material != null;
 
         /// <summary>Показывает контур на <paramref name="coordinate"/>. Не-op (без пересоздания геометрии), если это уже текущая подсвеченная плита.</summary>
-        public void Show(GridCoordinate coordinate, WorldGridProjection projection)
+        public void Show(GridCoordinate coordinate, WorldGridProjection projection, bool lethal = false)
         {
             if (!IsEnabled) return;
-            if (_current.HasValue && _current.Value == coordinate) return;
+            if (_current.HasValue && _current.Value == coordinate && _lethal == lethal) return;
+
+            _lethal = lethal;
+            SetColor(lethal ? LethalColor : _baseColor);
 
             Hide();
             _current = coordinate;
@@ -73,6 +82,15 @@ namespace Burmalda.Movement
             CreateBar(center + new Vector3(0f, YOffset, -half), new Vector3(projection.TileSize, FrameHeight, FrameThickness));
             CreateBar(center + new Vector3(half, YOffset, 0f), new Vector3(FrameThickness, FrameHeight, projection.TileSize));
             CreateBar(center + new Vector3(-half, YOffset, 0f), new Vector3(FrameThickness, FrameHeight, projection.TileSize));
+        }
+
+        /// <summary>Лава (в том числе распавшаяся плита) — контур рисуется смертельным (PRD v10 §7.4).</summary>
+        public static bool IsLethalContour(Tile tile) => tile != null && tile.LethalTrap == LethalTrapType.Lava;
+
+        private void SetColor(Color color)
+        {
+            _material.color = color;
+            if (_material.HasProperty("_EmissionColor")) _material.SetColor("_EmissionColor", color);
         }
 
         /// <summary>Убирает контур, если он показан. Безопасно вызывать, даже если ничего не показано.</summary>

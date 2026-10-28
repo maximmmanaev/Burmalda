@@ -87,21 +87,22 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void CanAdvanceTo_AlreadyVisitedDestroyedTile_ReturnsFalse()
+        public void CanAdvanceTo_AlreadyVisitedDestroyedTile_ReturnsTrueBecauseItIsLava()
         {
-            // #61: блокируется только реально разрушенная распадом плита.
+            // PRD v10 §7.5: распавшаяся плита — Лава, проходимая, шаг на неё смертелен.
             var grid = new TunnelGrid(5);
             var start = new GridCoordinate(0, 2);
             var trail = new GridTraceTrail(grid, start);
             var previous = new GridCoordinate(1, 2);
             trail.TryAdvanceTo(previous);
+            trail.TryAdvanceTo(new GridCoordinate(2, 2)); // previous больше не текущая — соседняя
 
             var previousTile = grid.GetOrCreateTile(previous);
             previousTile.BeginDecay(1f);
             previousTile.AdvanceDecay(2f); // порог 1с превышен — плита разрушена
             Assert.IsTrue(previousTile.IsDestroyed, "тест некорректен, если плита не разрушилась");
 
-            Assert.IsFalse(trail.CanAdvanceTo(previous));
+            Assert.IsTrue(trail.CanAdvanceTo(previous));
         }
 
         [Test]
@@ -477,7 +478,7 @@ namespace Burmalda.Movement.Tests
         }
 
         [Test]
-        public void TryAdvanceTo_RevisitDestroyedTile_ReturnsFalseAndDoesNotMoveCurrentPosition()
+        public void TryAdvanceTo_RevisitDestroyedTile_MovesOntoLavaAndRaisesLethalTrap()
         {
             var grid = new TunnelGrid(5);
             var start = new GridCoordinate(0, 2);
@@ -490,10 +491,14 @@ namespace Burmalda.Movement.Tests
             previousTile.BeginDecay(1f);
             previousTile.AdvanceDecay(2f);
 
+            LethalTrapType? raised = null;
+            trail.LethalTrapTriggered += (_, type) => raised = type;
+
             var revisited = trail.TryAdvanceTo(previous);
 
-            Assert.IsFalse(revisited);
-            Assert.AreEqual(new GridCoordinate(2, 2), trail.CurrentPosition);
+            Assert.IsTrue(revisited);
+            Assert.AreEqual(previous, trail.CurrentPosition);
+            Assert.AreEqual(LethalTrapType.Lava, raised);
         }
 
         [Test]
