@@ -229,19 +229,14 @@ namespace Burmalda.IntegrationTests
             Assert.IsTrue(_bootstrap.Boss.Tracker.HasWonBefore);
             Assert.IsTrue(_bootstrap.Altar.Pool.IsUnlocked(ArtifactCatalog.Talismans[0].Id), "Первая победа над Боссом должна разблокировать Талисманы/Амулеты каталога в общем Пуле.");
 
-            // === Возврат и кэш-аут (PRD раздел 10) ===
-            var journey = _bootstrap.Camp.Journey;
-            journey.BeginReturn();
+            // === Эвакуация (PRD v10 §15.2): мгновенно, с любого Алтаря ===
+            var evacuation = _bootstrap.Camp.Evacuation;
             ReturnConversionResult? returnResult = null;
-            journey.Returned += r => returnResult = r;
-            // Путь назад — тем же безопасным маршрутом, в обход ловушки.
-            Assert.IsTrue(trail.TryAdvanceTo(altar));
-            Assert.IsTrue(trail.TryAdvanceTo(safeDetour));
-            Assert.IsTrue(trail.TryAdvanceTo(keySource));
-            Assert.IsTrue(trail.TryAdvanceTo(manaSource));
-            Assert.IsTrue(trail.TryAdvanceTo(new GridCoordinate(0, 2)));
+            evacuation.Returned += r => returnResult = r;
+            Assert.IsTrue(trail.TryAdvanceTo(altar)); // назад на Алтарь
+            Assert.IsTrue(evacuation.Evacuate());
 
-            Assert.IsNotNull(returnResult, "Достижение стартового ряда во время возврата должно было сконвертировать Ману/Ключи в Монеты.");
+            Assert.IsNotNull(returnResult, "Эвакуация с Алтаря должна была сконвертировать Ману/Ключи в Монеты.");
             Assert.AreEqual(returnResult.Value.TotalCoins, _bootstrap.Currency.Coins.Balance);
             Assert.Greater(_bootstrap.Currency.Coins.Balance, 0, "Конвертация Маны/Ключей должна была дать хотя бы 1 Монету при таких запасах.");
 

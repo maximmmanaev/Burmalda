@@ -49,7 +49,7 @@ namespace Burmalda.DebugVisuals
         /// как доход забега"). В отличие от <see cref="ActiveBossRoom"/>/
         /// <see cref="ActiveArtifactLoadout"/> — источник ЖИВОЙ:
         /// <c>Camp.CampController</c> уже создаёт и владеет
-        /// <c>Camp.ReturnJourneySystem</c> на каждый забег, только само
+        /// <c>Camp.EvacuationSystem</c> на каждый забег, только само
         /// событие <c>Returned</c> раньше никто не слушал. Присваивается
         /// <see cref="ReturnConversionHudBridge"/> при каждом успешном
         /// возврате; null до первого возврата за сессию (не за забег —

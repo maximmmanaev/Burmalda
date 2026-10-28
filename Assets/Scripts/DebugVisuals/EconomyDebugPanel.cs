@@ -12,8 +12,8 @@ namespace Burmalda.DebugVisuals
     /// экономике "Мана как доход забега, Монеты только в Лагере") —
     /// <see cref="TrailManaIncomeSystem.BaseManaPerTile"/>,
     /// <see cref="CurrencyController.ManaPerSource"/>,
-    /// <see cref="ReturnJourneySystem.ManaToCoinsRate"/>,
-    /// <see cref="ReturnJourneySystem.KeysToCoinsRate"/> — все четыре
+    /// <see cref="EvacuationSystem.ManaToCoinsRate"/>,
+    /// <see cref="EvacuationSystem.KeysToCoinsRate"/> — все четыре
     /// помечены в объявлении "стартовое значение, уточняется на плейтесте" и
     /// намеренно НЕ <c>const</c>, а изменяемые статические поля именно ради
     /// этой панели.
@@ -29,7 +29,7 @@ namespace Burmalda.DebugVisuals
     /// стороной только при пересборке run-систем (<c>CurrencyController.RebuildRunSystems</c>)
     /// — правка применяется со СЛЕДУЮЩЕГО забега, не посреди уже идущего.
     /// Курсы конвертации читаются прямо в момент возврата
-    /// (<c>ReturnJourneySystem.OnPositionChanged</c>) — применяются
+    /// (<c>EvacuationSystem.OnPositionChanged</c>) — применяются
     /// мгновенно, даже посреди уже начатого возврата.
     ///
     /// Позиция — ВЕРХНИЙ ПРАВЫЙ угол, ПОД кнопкой <see cref="RestartButton"/>
@@ -152,13 +152,13 @@ namespace Burmalda.DebugVisuals
                 v => Mathf.RoundToInt(v).ToString());
 
             BuildRow(_panelRoot.transform, 2,
-                "Курс Мана→Монеты", 5f, 50f, ReturnJourneySystem.ManaToCoinsRate,
-                v => ReturnJourneySystem.ManaToCoinsRate = v,
+                "Курс Мана→Монеты", 5f, 50f, EvacuationSystem.ManaToCoinsRate,
+                v => EvacuationSystem.ManaToCoinsRate = v,
                 v => v.ToString("0") + ":1");
 
             BuildRow(_panelRoot.transform, 3,
-                "Курс Ключи→Монеты", 0.2f, 5f, ReturnJourneySystem.KeysToCoinsRate,
-                v => ReturnJourneySystem.KeysToCoinsRate = v,
+                "Курс Ключи→Монеты", 0.2f, 5f, EvacuationSystem.KeysToCoinsRate,
+                v => EvacuationSystem.KeysToCoinsRate = v,
                 v => v.ToString("0.0") + ":1");
         }
 
