@@ -1,8 +1,8 @@
 {
-    "name": "Burmalda.D20.Tests",
-    "rootNamespace": "Burmalda.D20.Tests",
+    "name": "Burmalda.FateRoll.Tests",
+    "rootNamespace": "Burmalda.FateRoll.Tests",
     "references": [
-        "Burmalda.D20",
+        "Burmalda.FateRoll",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

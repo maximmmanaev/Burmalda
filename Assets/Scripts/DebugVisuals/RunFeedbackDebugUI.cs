@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Burmalda.Artifacts;
 using Burmalda.Boss;
-using Burmalda.D20;
+using Burmalda.FateRoll;
 using Burmalda.RunLifecycle;
 using Burmalda.RunModifiers;
 using UnityEngine;
@@ -24,7 +24,7 @@ namespace Burmalda.DebugVisuals
     /// - Победа/поражение Босса — подписка на <see cref="BossController.EncounterResolved"/>
     ///   (тот же паттерн, что читает Ярус из <see cref="BossController.DepthTier"/>),
     ///   если <see cref="_bossController"/> задан в инспекторе.
-    /// - d20-бросок — подписка на <see cref="RunState.D20Resolved"/> через
+    /// - Бросок Судьбы — подписка на <see cref="RunState.FateRolled"/> через
     ///   <see cref="RunController"/>, если задан.
     ///
     /// Намеренно НЕ подключено ни к одной .unity-сцене — привязка к
@@ -63,16 +63,16 @@ namespace Burmalda.DebugVisuals
             var currentRunState = _runController != null ? _runController.RunState : null;
             if (currentRunState != _wiredRunState)
             {
-                if (_wiredRunState != null) _wiredRunState.D20Resolved -= HandleD20Resolved;
+                if (_wiredRunState != null) _wiredRunState.FateRolled -= HandleFateRolled;
                 _wiredRunState = currentRunState;
-                if (_wiredRunState != null) _wiredRunState.D20Resolved += HandleD20Resolved;
+                if (_wiredRunState != null) _wiredRunState.FateRolled += HandleFateRolled;
             }
         }
 
         private void OnDisable()
         {
             if (_wiredBossController != null) _wiredBossController.EncounterResolved -= HandleBossEncounterResolved;
-            if (_wiredRunState != null) _wiredRunState.D20Resolved -= HandleD20Resolved;
+            if (_wiredRunState != null) _wiredRunState.FateRolled -= HandleFateRolled;
             _wiredBossController = null;
             _wiredRunState = null;
         }
@@ -90,11 +90,11 @@ namespace Burmalda.DebugVisuals
             var tier = _bossController != null && _bossController.DepthTier != null ? _bossController.DepthTier.CurrentTier : 0;
             SetMessage(
                 BossVictoryDebugText.BuildMessage(outcome, relic, tier),
-                outcome != null && outcome.IsVictory ? Color.white : D20OutcomeDebugText.DeathColor);
+                outcome != null && outcome.IsVictory ? Color.white : FateRollOutcomeText.DeathColor);
         }
 
-        private void HandleD20Resolved(D20Outcome outcome) =>
-            SetMessage(D20OutcomeDebugText.BuildMessage(outcome), D20OutcomeDebugText.ResolveColor(outcome));
+        private void HandleFateRolled(FateRollResult result) =>
+            SetMessage(FateRollOutcomeText.BuildMessage(result), FateRollOutcomeText.ResolveColor(result.Outcome));
 
         private void SetMessage(string message, Color color)
         {

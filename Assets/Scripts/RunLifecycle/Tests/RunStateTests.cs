@@ -1,5 +1,5 @@
 using Burmalda.Core;
-using Burmalda.D20;
+using Burmalda.FateRoll;
 using Burmalda.Decay;
 using Burmalda.Movement;
 using NUnit.Framework;
@@ -10,17 +10,18 @@ namespace Burmalda.RunLifecycle.Tests
     {
         private const int Width = 5;
 
-        // d20Roll по умолчанию — 5, в диапазоне Death (1-9): все СУЩЕСТВУЮЩИЕ
-        // тесты (написанные до issue #24) ожидают мгновенную смерть от
-        // ловушки/обвала и не должны меняться при появлении d20 — только
-        // новые тесты Fortune/Knockback переопределяют этот параметр.
-        private static (TunnelGrid grid, GridTraceTrail trail, TrailDecaySystem decay, RunState runState) CreateRun(int d20Roll = 5)
+        // По умолчанию все три Броска Судьбы уже потрачены (PRD v10 §16.1: после
+        // третьего следующая смерть окончательна) — опасность убивает сразу, как в
+        // тестах, написанных до Броска Судьбы. Тесты самого броска передают
+        // fateRollsUsed < 3 и последовательность кубиков.
+        private static (TunnelGrid grid, GridTraceTrail trail, TrailDecaySystem decay, RunState runState) CreateRun(
+            int fateRollsUsed = FateRollRules.MaxRolls, params int[] dice)
         {
             var grid = new TunnelGrid(Width);
             var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
             var decay = new TrailDecaySystem(grid, trail);
-            var d20 = new D20Trial(() => d20Roll);
-            var runState = new RunState(grid, trail, decay, d20);
+            var next = 0;
+            var runState = new RunState(grid, trail, decay, () => dice[next++ % dice.Length], fateRollsUsed);
             return (grid, trail, decay, runState);
         }
 
@@ -53,9 +54,9 @@ namespace Burmalda.RunLifecycle.Tests
             // issue #258: «Лава должна быть проходимой, но летальной, а не
             // физической стеной» — в отличие от четырёх рантайм-типов
             // ловушек, шаг на Лаву больше не отклоняется TryAdvanceTo;
-            // проигрыш наступает через тот же ResolveHazard/d20, что и для
-            // прочих ловушек (здесь — roll=5, Death), не в обход него.
-            var (grid, trail, _, runState) = CreateRun(); // d20Roll=5 — Death
+            // проигрыш наступает через тот же ResolveHazard, что и для
+            // прочих ловушек (здесь — броски исчерпаны), не в обход него.
+            var (grid, trail, _, runState) = CreateRun(); // броски исчерпаны — смерть сразу
             var lava = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
 
@@ -63,7 +64,7 @@ namespace Burmalda.RunLifecycle.Tests
 
             Assert.IsTrue(advanced, "Шаг на Лаву должен физически засчитываться, а не отклоняться как раньше.");
             Assert.AreEqual(lava, trail.CurrentPosition, "Игрок должен фактически оказаться на плите Лавы, а не остаться перед ней.");
-            Assert.IsFalse(runState.IsAlive, "Разрешение опасности (d20) всё равно должно сработать после шага.");
+            Assert.IsFalse(runState.IsAlive, "Разрешение опасности всё равно должно сработать после шага.");
         }
 
         [Test]
@@ -208,102 +209,225 @@ namespace Burmalda.RunLifecycle.Tests
             Assert.IsTrue(runState.IsAlive, "после Dispose RunState не должен реагировать на события трейла");
         }
 
-        [Test]
-        public void LethalTrapTriggered_D20Fortune_StaysAliveAndDoesNotFireDied()
+        private static GridCoordinate AddLava(TunnelGrid grid, int row = 1)
         {
-            var (grid, trail, _, runState) = CreateRun(d20Roll: 20);
-            var lava = new GridCoordinate(1, 2);
+            var lava = new GridCoordinate(row, 2);
             grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
-            var fired = false;
-            runState.Died += _ => fired = true;
-
-            trail.TryAdvanceTo(lava);
-
-            Assert.IsTrue(runState.IsAlive);
-            Assert.IsFalse(fired);
+            return lava;
         }
 
         [Test]
-        public void LethalTrapTriggered_D20Knockback_TeleportsToStartWhenNoAltarVisited()
+        public void Hazard_WithRollsLeft_OffersFateRollAndStaysAliveUntilDecision()
         {
-            var (grid, trail, _, runState) = CreateRun(d20Roll: 12);
-            var start = trail.CurrentPosition;
-            var lava = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+            var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 0, 3, 3);
+            int? offeredIndex = null;
+            var died = false;
+            runState.FateRollOffered += i => offeredIndex = i;
+            runState.Died += _ => died = true;
 
-            trail.TryAdvanceTo(lava);
+            trail.TryAdvanceTo(AddLava(grid));
 
+            Assert.IsTrue(runState.IsAwaitingFate);
+            Assert.AreEqual(1, offeredIndex);
             Assert.IsTrue(runState.IsAlive);
-            Assert.AreEqual(start, trail.CurrentPosition);
+            Assert.IsFalse(died);
         }
 
         [Test]
-        public void LethalTrapTriggered_D20Knockback_TeleportsToLastVisitedAltar()
+        public void DeclineFate_AfterOffer_IsFinalDeathWithReason()
         {
-            var (grid, trail, _, runState) = CreateRun(d20Roll: 12);
+            var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 0, 3, 3);
+            string reason = null;
+            runState.Died += r => reason = r;
+            trail.TryAdvanceTo(AddLava(grid));
+
+            runState.DeclineFate();
+
+            Assert.IsFalse(runState.IsAlive);
+            Assert.IsFalse(runState.IsAwaitingFate);
+            Assert.AreEqual("Сгорел в лаве", reason);
+        }
+
+        [Test]
+        public void RollFate_InPlace_ResumesRunOnSameTile()
+        {
+            var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 0, 6, 6);
+            var lava = AddLava(grid);
+            trail.TryAdvanceTo(lava);
+            FateRollResult? result = null;
+            runState.FateRolled += r => result = r;
+
+            var ok = runState.RollFate();
+
+            Assert.IsTrue(ok);
+            Assert.AreEqual(FateOutcome.InPlace, result.Value.Outcome);
+            Assert.IsTrue(runState.IsAlive);
+            Assert.IsFalse(runState.IsAwaitingFate);
+            Assert.AreEqual(lava, trail.CurrentPosition);
+            Assert.AreEqual(1, runState.FateRollsUsed);
+        }
+
+        [Test]
+        public void RollFate_ToAltar_TeleportsToLastVisitedAltarAndDoesNotRestoreRoute()
+        {
+            var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 0, 4, 4); // 8 — к Алтарю на броске I
             var altar = new GridCoordinate(1, 2);
             grid.GetOrCreateTile(altar).MarkAltar();
             trail.TryAdvanceTo(altar);
-            var lava = new GridCoordinate(2, 2);
-            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
+            var passed = new GridCoordinate(2, 2);
+            trail.TryAdvanceTo(passed);
+            grid.GetOrCreateTile(passed).AdvanceDecay(1000f); // пройденная плита (распад начат при шаге) обрушена в Лаву
+            trail.TryAdvanceTo(AddLava(grid, 3));
 
-            trail.TryAdvanceTo(lava);
+            runState.RollFate();
 
             Assert.IsTrue(runState.IsAlive);
             Assert.AreEqual(altar, trail.CurrentPosition);
+            Assert.IsTrue(grid.GetOrCreateTile(passed).IsDestroyed, "разрушенный маршрут не восстанавливается");
         }
 
         [Test]
-        public void D20Resolved_FiresWithRolledOutcome()
+        public void RollFate_ToAltar_WithoutAltarVisited_TeleportsToStart()
         {
-            var (grid, trail, _, runState) = CreateRun(d20Roll: 20);
-            var lava = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
-            D20Outcome? seen = null;
-            runState.D20Resolved += outcome => seen = outcome;
+            var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 0, 4, 4);
+            var start = trail.CurrentPosition;
+            trail.TryAdvanceTo(AddLava(grid));
 
-            trail.TryAdvanceTo(lava);
+            runState.RollFate();
 
-            Assert.AreEqual(D20Outcome.Fortune, seen);
-        }
-
-        [Test]
-        public void TileDestroyed_D20Fortune_StaysAlive()
-        {
-            var (grid, trail, decay, runState) = CreateRun(d20Roll: 15);
-            var target = new GridCoordinate(1, 2);
-            trail.TryAdvanceTo(target);
-
-            decay.Tick(1000f);
-
-            Assert.IsTrue(grid.GetOrCreateTile(target).IsDestroyed, "тест некорректен, если плита не разрушилась");
+            Assert.AreEqual(start, trail.CurrentPosition);
             Assert.IsTrue(runState.IsAlive);
         }
 
         [Test]
-        public void ReportBossDefeat_SetsIsAliveFalseAndFiresDiedWithGivenReason_NoD20Rolled()
+        public void RollFate_Death_IsFinalDeath()
         {
-            // #82: d20 НЕ применяется к поражению от Босса — детерминировано.
-            var (_, _, _, runState) = CreateRun(d20Roll: 20); // Fortune, если бы d20 всё-таки бросился — тест поймал бы регресс
+            var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 0, 2, 3); // 5 — смерть
+            string reason = null;
+            runState.Died += r => reason = r;
+            trail.TryAdvanceTo(AddLava(grid));
+
+            runState.RollFate();
+
+            Assert.IsFalse(runState.IsAlive);
+            Assert.IsNotNull(reason);
+        }
+
+        [Test]
+        public void ThreeRolls_ThenNextHazardIsFinalWithoutOffer()
+        {
+            var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 0, 6, 6); // всегда «на месте»
+            var offers = 0;
+            runState.FateRollOffered += _ => offers++;
+            var lava = AddLava(grid);
+            trail.TryAdvanceTo(lava);
+            runState.RollFate(); // 1
+            trail.TryAdvanceTo(new GridCoordinate(1, 3));
+            Assert.IsFalse(runState.IsAwaitingFate);
+            for (var i = 2; i <= 3; i++)
+            {
+                trail.TeleportTo(new GridCoordinate(0, 2));
+                trail.TryAdvanceTo(lava);
+                Assert.IsTrue(runState.IsAwaitingFate, $"бросок {i} должен быть предложен");
+                runState.RollFate();
+            }
+            Assert.AreEqual(3, runState.FateRollsUsed);
+
+            trail.TeleportTo(new GridCoordinate(0, 2));
+            trail.TryAdvanceTo(lava);
+
+            Assert.IsFalse(runState.IsAlive, "после третьего броска следующая смерть окончательна");
+            Assert.AreEqual(3, offers);
+        }
+
+        [Test]
+        public void RollFate_UsesRollIndexForTable()
+        {
+            // 4+4=8: на броске I — к Алтарю, на броске II — смерть (≤ 8).
+            var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 1, 4, 4);
+            trail.TryAdvanceTo(AddLava(grid));
+
+            runState.RollFate();
+
+            Assert.IsFalse(runState.IsAlive);
+        }
+
+        [Test]
+        public void RollFate_WithoutPendingOffer_DoesNothing()
+        {
+            var (_, _, _, runState) = CreateRun(fateRollsUsed: 0, 6, 6);
+
+            Assert.IsFalse(runState.RollFate());
+            Assert.AreEqual(0, runState.FateRollsUsed);
+        }
+
+        [Test]
+        public void RollFate_ModifierShiftsSum()
+        {
+            var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 0, 5, 5); // 10: к Алтарю без модификатора
+            runState.FateModifier = 2; // 12 — на месте
+            var lava = AddLava(grid);
+            trail.TryAdvanceTo(lava);
+
+            runState.RollFate();
+
+            Assert.AreEqual(lava, trail.CurrentPosition);
+            Assert.IsTrue(runState.IsAlive);
+        }
+
+        [Test]
+        public void RollFate_PaymentStubDisabled_DoesNotRoll()
+        {
+            var old = FateRollRules.FateRollPaymentStub;
+            try
+            {
+                FateRollRules.FateRollPaymentStub = false;
+                var (grid, trail, _, runState) = CreateRun(fateRollsUsed: 0, 6, 6);
+                trail.TryAdvanceTo(AddLava(grid));
+
+                Assert.IsFalse(runState.RollFate());
+                Assert.AreEqual(0, runState.FateRollsUsed);
+                Assert.IsTrue(runState.IsAwaitingFate);
+            }
+            finally
+            {
+                FateRollRules.FateRollPaymentStub = old;
+            }
+        }
+
+        [Test]
+        public void TileDestroyedUnderPlayer_WithRollsLeft_OffersFateRoll()
+        {
+            var (grid, trail, decay, runState) = CreateRun(fateRollsUsed: 0, 6, 6);
+            trail.TryAdvanceTo(new GridCoordinate(1, 2));
+
+            decay.Tick(1000f);
+
+            Assert.IsTrue(runState.IsAwaitingFate);
+        }
+
+        [Test]
+        public void ReportBossDefeat_SetsIsAliveFalseAndFiresDiedWithGivenReason_NoFateOffered()
+        {
+            // #82: Бросок Судьбы НЕ применяется к поражению от Босса — детерминировано.
+            var (_, _, _, runState) = CreateRun(fateRollsUsed: 0, 6, 6);
             string firedReason = null;
             runState.Died += reason => firedReason = reason;
-            var d20Fired = false;
-            runState.D20Resolved += _ => d20Fired = true;
+            var offered = false;
+            runState.FateRollOffered += _ => offered = true;
 
             runState.ReportBossDefeat("Не хватило энергии до Босса");
 
             Assert.IsFalse(runState.IsAlive);
             Assert.AreEqual("Не хватило энергии до Босса", firedReason);
-            Assert.IsFalse(d20Fired, "поражение от Босса детерминировано, d20 бросаться не должен");
+            Assert.IsFalse(offered);
         }
 
         [Test]
         public void ReportBossDefeat_CalledAfterAlreadyDead_DoesNotFireDiedAgain()
         {
-            var (grid, trail, _, runState) = CreateRun(d20Roll: 5); // Death
-            var lava = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
-            trail.TryAdvanceTo(lava); // уже мёртв
+            var (grid, trail, _, runState) = CreateRun();
+            trail.TryAdvanceTo(AddLava(grid)); // уже мёртв
             var firedCount = 0;
             runState.Died += _ => firedCount++;
 
@@ -312,46 +436,34 @@ namespace Burmalda.RunLifecycle.Tests
             Assert.AreEqual(0, firedCount);
         }
 
-        // Задача «падающий камень: новая спецификация» (issue #217, Спринт
-        // «Стены вместо ловушек») — RunState.ReportFallingRockCrush
-        // подключает Movement.FallingRockTrapSystem.PlayerCrushed, который
-        // раньше не имел ни одного подписчика.
         [Test]
-        public void ReportFallingRockCrush_DeathRoll_SetsIsAliveFalseAndFiresDiedWithOwnReason()
+        public void ReportFallingRockCrush_WithRollsLeft_OffersFateRoll()
         {
-            // В отличие от ReportBossDefeat, эта опасность идёт через
-            // СТАНДАРТНОЕ разрешение (d20) — владелец не просил исключения
-            // для неё, как явно сделано для Боссов (#82).
-            var (_, _, _, runState) = CreateRun(d20Roll: 5); // Death
+            var (_, _, _, runState) = CreateRun(fateRollsUsed: 0, 6, 6);
+
+            runState.ReportFallingRockCrush();
+
+            Assert.IsTrue(runState.IsAwaitingFate);
+        }
+
+        [Test]
+        public void ReportFallingRockCrush_RollsExhausted_DiesWithOwnReason()
+        {
+            var (_, _, _, runState) = CreateRun();
             string firedReason = null;
             runState.Died += reason => firedReason = reason;
-            var d20Fired = false;
-            runState.D20Resolved += _ => d20Fired = true;
 
             runState.ReportFallingRockCrush();
 
             Assert.IsFalse(runState.IsAlive);
             Assert.AreEqual("Раздавлен камнем", firedReason);
-            Assert.IsTrue(d20Fired, "падающий камень — обычная опасность, разрешается через d20, как обвал плиты/ловушки");
-        }
-
-        [Test]
-        public void ReportFallingRockCrush_FortuneRoll_PlayerSurvives()
-        {
-            var (_, _, _, runState) = CreateRun(d20Roll: 20); // Fortune
-
-            runState.ReportFallingRockCrush();
-
-            Assert.IsTrue(runState.IsAlive);
         }
 
         [Test]
         public void ReportFallingRockCrush_CalledAfterAlreadyDead_DoesNotFireDiedAgain()
         {
-            var (grid, trail, _, runState) = CreateRun(d20Roll: 5); // Death
-            var lava = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(lava).MarkLethalTrap(LethalTrapType.Lava);
-            trail.TryAdvanceTo(lava); // уже мёртв
+            var (grid, trail, _, runState) = CreateRun();
+            trail.TryAdvanceTo(AddLava(grid)); // уже мёртв
             var firedCount = 0;
             runState.Died += _ => firedCount++;
 
