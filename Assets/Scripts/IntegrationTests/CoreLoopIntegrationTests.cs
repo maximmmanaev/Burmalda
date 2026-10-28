@@ -201,6 +201,15 @@ namespace Burmalda.IntegrationTests
             Assert.IsTrue(trail.TryAdvanceTo(altar));
             Assert.IsTrue(altarReached, "Достижение Алтаря должно было поднять AltarReached — без каких-либо валют на руках.");
 
+            // Тайник за Воротами подобран по пути (плита vault) — на этом Алтаре выбор 1 из 3, не 1 из 2 (PRD v10 §10, §13.2).
+            var session = _bootstrap.Altar.ActiveSession;
+            Assert.IsNotNull(session, "Алтарь должен был открыть выбор Реликвии.");
+            Assert.AreEqual(3, session.Options.Count, "Тайник даёт третий вариант.");
+            Assert.AreEqual(0, _bootstrap.Altar.PendingVaultOptions, "Бонус тайника потрачен на этом Алтаре.");
+            Assert.IsTrue(session.Pick(session.Options[0].Id));
+            Assert.AreEqual(1, _bootstrap.Altar.Build.Items.Count, "Взята ровно одна Реликвия.");
+            Assert.IsNull(_bootstrap.Altar.ActiveSession);
+
             // === Святилище (PRD v10 §14): вход, Жила, выход к Алтарю в конце ===
             var manaBeforeSanctuary = runMana.Total;
             Assert.IsTrue(trail.TryAdvanceTo(sanctuaryEntry));

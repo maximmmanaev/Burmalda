@@ -400,6 +400,22 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
+        public void AltarSpots_AreRegistered_OneAndTwoBeforeSanctuary_ThreeAtSanctuaryEnd()
+        {
+            var (grid, provider) = BuildProvider();
+            using (provider)
+            {
+                provider.EnsureCoveredThrough(400);
+                var altarRows = RowsWhere(grid, 400, t => t.IsAltar);
+                var spots = altarRows.Select(r => provider.TryGetAltarSpot(r, out var y, out var o) ? (y, o) : (0, 0)).ToList();
+
+                Assert.IsTrue(spots.All(s => s.Item2 >= 1), "каждый Алтарь тоннеля известен провайдеру");
+                CollectionAssert.AreEqual(new[] { (1, 1), (1, 2), (1, 3), (2, 1) }, spots.Take(4).ToList());
+                Assert.IsFalse(provider.TryGetAltarSpot(1, out _, out _), "обычный ряд — не Алтарь");
+            }
+        }
+
+        [Test]
         public void Yaruses_FollowBandLengths_AndBandChangesOn4_7_10()
         {
             var (grid, provider) = BuildProvider();

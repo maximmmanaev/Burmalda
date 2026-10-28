@@ -310,6 +310,7 @@ namespace Burmalda.Bootstrap
             Segments.EnsureBuilt();
             if (Currency == null) Currency = GetOrAddComponent<CurrencyController>(host);
             if (Altar == null) Altar = GetOrAddComponent<AltarController>(host);
+            if (Altar.Context == null) Altar.Context = new AltarContextAdapter(Segments);
             if (Camp == null) Camp = GetOrAddComponent<CampController>(host);
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
             if (Traps == null) Traps = GetOrAddComponent<TrapSystemsController>(host);
