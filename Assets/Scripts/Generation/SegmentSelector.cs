@@ -80,22 +80,32 @@ namespace Burmalda.Generation
         /// <summary>Шаблон выбран по правилам Яруса (контекст, шаблон) — для симуляций и отладки.</summary>
         public event Action<SegmentSelectionContext, SegmentTemplate> Selected;
 
-        /// <summary>Окно ритма: «не больше 1 передышки на 3 сегмента» — смотрим два последних.</summary>
-        public const int RhythmWindow = 2;
+        /// <summary>Окно передышек: свободная передышка возможна, только если среди двух последних сегментов её не было.</summary>
+        public const int ReliefWindow = 2;
 
-        /// <summary>Шанс передышки, когда она разрешена и сегмент не «лёгкий» и не перед ориентиром, 1 из N [CONFIG, черновик].</summary>
-        public const int FreeBreatherOneIn = 3;
+        /// <summary>Шанс свободной передышки (не после Алтаря и не перед ориентиром), 1 из N [CONFIG, черновик].</summary>
+        public const int FreeReliefOneIn = 4;
+
+        /// <summary>Максимальная доля snake-door среди сегментов Яруса [CONFIG, черновик].</summary>
+        public const double MaxSnakeDoorShare = 0.35;
+
+        /// <summary>Сколько разных семейств (без передышки) должно встретиться на Ярусе [CONFIG, черновик].</summary>
+        public const int MinFamiliesPerYarus = 3;
 
         private const string MirrorSuffix = SegmentTemplate.MirrorSuffix;
-        private readonly Queue<bool> _recentBreather = new Queue<bool>();
+        private readonly Queue<bool> _recentRelief = new Queue<bool>();
+        private int _yarus;
+        private int _yarusSegments;
+        private int _yarusSnakeDoors;
+        private readonly HashSet<SegmentFamily> _yarusFamilies = new HashSet<SegmentFamily>();
 
         /// <summary>
-        /// Выбор по правилам Яруса (спринт v10-2): допуск шаблона — <see cref="YarusTemplateRules.IsEligible"/>;
-        /// ритм «передышка / напряжение» (<see cref="TemplateRouteMetrics.IsTension"/>): после Алтаря — передышка,
-        /// дальше не больше 1 передышки на 3 сегмента, последние сегменты перед Алтарём/Святилищем — только
-        /// напряжение (<see cref="SegmentSelectionContext.TensionOnly"/>). Если напряжения в полосе нет —
-        /// лучший по крюку из допустимых. Два одинаковых шаблона подряд (зеркало считается тем же) нельзя,
-        /// пока есть другие. Пустой пул — исключение.
+        /// Выбор по правилам Яруса (спринт v10-2b): допуск — <see cref="YarusTemplateRules.IsEligible"/>; сначала
+        /// семейство, потом шаблон внутри него. Одно семейство дважды подряд нельзя (зеркало — тот же шаблон);
+        /// после Алтаря — передышка (<see cref="SegmentSelectionContext.Easy"/>), перед Алтарём/Святилищем — не
+        /// передышка (<see cref="SegmentSelectionContext.NoRelief"/>); snake-door не больше
+        /// <see cref="MaxSnakeDoorShare"/> Яруса, пока в пуле есть другие семейства; пока на Ярусе меньше
+        /// <see cref="MinFamiliesPerYarus"/> семейств — предпочитаем ещё не встречавшиеся. Пустой пул — исключение.
         /// </summary>
         public SegmentTemplate SelectNext(SegmentSelectionContext context)
         {
@@ -103,27 +113,16 @@ namespace Burmalda.Generation
             if (pool.Count == 0)
                 throw new InvalidOperationException($"Нет допустимых шаблонов для Яруса {context.Yarus} в каталоге.");
 
-            var recentBreather = _recentBreather.Any(x => x);
-            bool wantBreather;
-            if (context.TensionOnly) wantBreather = false;
-            else if (context.Easy) wantBreather = true;
-            else wantBreather = !recentBreather && _seed.NextInt(0, FreeBreatherOneIn) == 0;
+            if (context.Yarus != _yarus)
+            {
+                _yarus = context.Yarus;
+                _yarusSegments = 0;
+                _yarusSnakeDoors = 0;
+                _yarusFamilies.Clear();
+            }
 
-            List<SegmentTemplate> classPool;
-            if (wantBreather)
-            {
-                classPool = pool.Where(t => !TemplateRouteMetrics.IsTension(t)).ToList();
-                if (classPool.Count == 0) classPool = pool;
-            }
-            else
-            {
-                classPool = pool.Where(TemplateRouteMetrics.IsTension).ToList();
-                if (classPool.Count == 0)
-                {
-                    var best = pool.Max(TemplateRouteMetrics.Detour);
-                    classPool = pool.Where(t => TemplateRouteMetrics.Detour(t) == best).ToList();
-                }
-            }
+            var family = ChooseFamily(context, pool);
+            var classPool = pool.Where(t => t.Family == family).ToList();
 
             var minTier = classPool.Min(t => t.DifficultyTier);
             var tierCeiling = context.Easy ? minTier : (context.SectionProgress < 0.5 ? minTier + 1 : SegmentTemplate.MaxDifficultyTier);
@@ -136,10 +135,44 @@ namespace Burmalda.Generation
 
             var selected = classPool[_seed.NextInt(0, classPool.Count)];
             _lastSelected = selected;
-            _recentBreather.Enqueue(!TemplateRouteMetrics.IsTension(selected));
-            while (_recentBreather.Count > RhythmWindow) _recentBreather.Dequeue();
+            _recentRelief.Enqueue(selected.Family == SegmentFamily.Relief);
+            while (_recentRelief.Count > ReliefWindow) _recentRelief.Dequeue();
+            _yarusSegments++;
+            if (selected.Family == SegmentFamily.SnakeDoor) _yarusSnakeDoors++;
+            if (selected.Family != SegmentFamily.Relief) _yarusFamilies.Add(selected.Family);
             Selected?.Invoke(context, selected);
             return selected;
+        }
+
+        private SegmentFamily ChooseFamily(SegmentSelectionContext context, List<SegmentTemplate> pool)
+        {
+            var candidates = pool.Select(t => t.Family).Distinct().ToList();
+            if (_lastSelected != null)
+            {
+                var other = candidates.Where(f => f != _lastSelected.Family).ToList();
+                if (other.Count > 0) candidates = other;
+            }
+
+            bool wantRelief;
+            if (context.NoRelief) wantRelief = false;
+            else if (context.Easy) wantRelief = true;
+            else wantRelief = !_recentRelief.Any(x => x) && _seed.NextInt(0, FreeReliefOneIn) == 0;
+            if (wantRelief && candidates.Contains(SegmentFamily.Relief)) return SegmentFamily.Relief;
+
+            var nonRelief = candidates.Where(f => f != SegmentFamily.Relief).ToList();
+            if (nonRelief.Count == 0) return candidates[_seed.NextInt(0, candidates.Count)];
+
+            if (nonRelief.Count > 1 && nonRelief.Contains(SegmentFamily.SnakeDoor)
+                && (_yarusSnakeDoors + 1) > MaxSnakeDoorShare * (_yarusSegments + 1))
+                nonRelief.Remove(SegmentFamily.SnakeDoor);
+
+            if (_yarusFamilies.Count < MinFamiliesPerYarus)
+            {
+                var unseen = nonRelief.Where(f => !_yarusFamilies.Contains(f)).ToList();
+                if (unseen.Count > 0) nonRelief = unseen;
+            }
+
+            return nonRelief[_seed.NextInt(0, nonRelief.Count)];
         }
 
         private static string BaseName(string name) =>
@@ -152,13 +185,13 @@ namespace Burmalda.Generation
     /// <summary>Контекст выбора шаблона на Ярусе (спринт v10-2).</summary>
     public readonly struct SegmentSelectionContext
     {
-        public SegmentSelectionContext(int yarus, bool easy, double sectionProgress, bool allowTraining, bool tensionOnly = false)
+        public SegmentSelectionContext(int yarus, bool easy, double sectionProgress, bool allowTraining, bool noRelief = false)
         {
             Yarus = yarus;
             Easy = easy;
             SectionProgress = sectionProgress;
             AllowTraining = allowTraining;
-            TensionOnly = tensionOnly;
+            NoRelief = noRelief;
         }
 
         public int Yarus { get; }
@@ -172,7 +205,7 @@ namespace Burmalda.Generation
         /// <summary>Можно ли выбрать «пустой» обучающий шаблон (первая треть Яруса 1, ещё не было).</summary>
         public bool AllowTraining { get; }
 
-        /// <summary>Последние сегменты перед Алтарём/Святилищем — только «напряжение».</summary>
-        public bool TensionOnly { get; }
+        /// <summary>Последние сегменты перед Алтарём/Святилищем — не передышка.</summary>
+        public bool NoRelief { get; }
     }
 }

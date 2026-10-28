@@ -26,7 +26,7 @@ namespace Burmalda.Generation
         /// <see cref="SegmentTileType.GateVaultKeySource"/>, иначе должен
         /// быть null — см. <see cref="ValidateGateVault"/>.
         /// </param>
-        public SegmentTemplate(string name, int difficultyTier, SegmentRewardTag rewardTag, SegmentTileType[,] tiles, double? gateVaultPurchases = null, bool isLandmark = false)
+        public SegmentTemplate(string name, int difficultyTier, SegmentRewardTag rewardTag, SegmentTileType[,] tiles, double? gateVaultPurchases = null, bool isLandmark = false, SegmentFamily family = SegmentFamily.Relief)
         {
             if (tiles == null) throw new ArgumentNullException(nameof(tiles));
             if (difficultyTier < MinDifficultyTier || difficultyTier > MaxDifficultyTier)
@@ -46,6 +46,7 @@ namespace Burmalda.Generation
             Width = tiles.GetLength(1);
             _tiles = tiles;
             GateVaultPurchases = gateVaultPurchases;
+            Family = family;
 
             ValidateLeverGates();
             ValidateGateVault();
@@ -63,6 +64,9 @@ namespace Burmalda.Generation
 
         /// <summary>Число рядов шаблона, 5..8.</summary>
         public int RowCount { get; }
+
+        /// <summary>Семейство шаблона (спринт v10-2b); по умолчанию — передышка.</summary>
+        public SegmentFamily Family { get; }
 
         /// <summary>Ширина шаблона в плитах — должна совпадать с шириной тоннеля при применении (см. <see cref="SegmentRowProvider"/>).</summary>
         public int Width { get; }
@@ -88,7 +92,7 @@ namespace Burmalda.Generation
                         SegmentTileType.MovingWallRightTrigger => SegmentTileType.MovingWallLeftTrigger,
                         var other => other,
                     };
-            return new SegmentTemplate(Name + MirrorSuffix, DifficultyTier, RewardTag, mirrored, GateVaultPurchases);
+            return new SegmentTemplate(Name + MirrorSuffix, DifficultyTier, RewardTag, mirrored, GateVaultPurchases, family: Family);
         }
 
         /// <summary>

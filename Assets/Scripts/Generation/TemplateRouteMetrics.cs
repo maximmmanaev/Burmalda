@@ -32,12 +32,6 @@ namespace Burmalda.Generation
         /// <summary>Кратчайший путь, если триггеры можно задеть (Лава по-прежнему непроходима) — «соблазн»; -1, если пути нет.</summary>
         public static int FastPathSteps(SegmentTemplate template) => ShortestSteps(template, FastPassable);
 
-        /// <summary>Минимальный крюк класса «напряжение» [CONFIG, черновик].</summary>
-        public const int TensionMinDetour = 3;
-
-        /// <summary>Минимальный соблазн класса «напряжение» [CONFIG, черновик].</summary>
-        public const int TensionMinTemptation = 2;
-
         /// <summary>Крюк: длина кратчайшего пути без триггеров − (рядов − 1); 0, если безопасного пути нет.</summary>
         public static int Detour(SegmentTemplate template)
         {
@@ -53,9 +47,101 @@ namespace Burmalda.Generation
             return safe < 0 || fast < 0 ? 0 : safe - fast;
         }
 
-        /// <summary>«Напряжение»: крюк ≥ <see cref="TensionMinDetour"/> и соблазн ≥ <see cref="TensionMinTemptation"/>; всё остальное — «передышка».</summary>
-        public static bool IsTension(SegmentTemplate template) =>
-            Detour(template) >= TensionMinDetour && Temptation(template) >= TensionMinTemptation;
+        /// <summary>
+        /// «Ряд-полоса» для плотности ловушек: внутренний ряд (не вход и не выход), в котором не меньше 3 открытых плит
+        /// и нет награды — ряды колонн/ворот и ряд награды в счёт не идут.
+        /// </summary>
+        private static bool IsLaneRow(SegmentTemplate t, int row)
+        {
+            if (row <= 0 || row >= t.RowCount - 1) return false;
+            var open = 0;
+            for (var c = 0; c < t.Width; c++)
+            {
+                var type = t.TileAt(row, c);
+                if (type == SegmentTileType.ManaSource || type == SegmentTileType.KeySource || type == SegmentTileType.GateVaultKeySource) return false;
+                if (IsOpen(type)) open++;
+            }
+
+            return open >= 3;
+        }
+
+        /// <summary>Доля ловушек среди открытых плит рядов-полос (<c>IsLaneRow</c>); 0, если таких рядов нет.</summary>
+        public static double LaneTriggerDensity(SegmentTemplate t)
+        {
+            var open = 0;
+            var traps = 0;
+            for (var r = 0; r < t.RowCount; r++)
+            {
+                if (!IsLaneRow(t, r)) continue;
+                for (var c = 0; c < t.Width; c++)
+                {
+                    if (!IsOpen(t.TileAt(r, c))) continue;
+                    open++;
+                    if (IsTrap(t.TileAt(r, c))) traps++;
+                }
+            }
+
+            return open == 0 ? 0 : (double)traps / open;
+        }
+
+        /// <summary>В каждом ряду-полосе есть хотя бы одна ловушка; false, если таких рядов нет.</summary>
+        public static bool EveryLaneRowHasTrigger(SegmentTemplate t)
+        {
+            var lanes = 0;
+            for (var r = 0; r < t.RowCount; r++)
+            {
+                if (!IsLaneRow(t, r)) continue;
+                lanes++;
+                var any = false;
+                for (var c = 0; c < t.Width; c++) any |= IsTrap(t.TileAt(r, c));
+                if (!any) return false;
+            }
+
+            return lanes > 0;
+        }
+
+        /// <summary>
+        /// Падающий камень запечатывает проход (спринт v10-2b, «честность»): для триггера Камня в ряду r целевая клетка
+        /// (r+1, тот же столбец) становится непроходимой, и от самого триггера до выходного ряда не остаётся пути
+        /// (Лава непроходима, триггеры проходимы, 8-соседство). Триггер в последнем ряду пропускается (цель в следующем
+        /// шаблоне). Движущиеся стены (<c>d/j/q</c>) вне правила: они временные.
+        /// </summary>
+        public static bool FallingRockSealsPassage(SegmentTemplate t)
+        {
+            for (var r = 0; r < t.RowCount - 1; r++)
+                for (var c = 0; c < t.Width; c++)
+                {
+                    if (t.TileAt(r, c) != SegmentTileType.FallingRockTrigger) continue;
+                    if (!ReachesExitWithBlockedCell(t, r, c, r + 1, c)) return true;
+                }
+
+            return false;
+        }
+
+        private static bool ReachesExitWithBlockedCell(SegmentTemplate t, int startRow, int startColumn, int blockedRow, int blockedColumn)
+        {
+            var seen = new bool[t.RowCount, t.Width];
+            var queue = new Queue<(int row, int column)>();
+            seen[startRow, startColumn] = true;
+            queue.Enqueue((startRow, startColumn));
+            while (queue.Count > 0)
+            {
+                var (row, column) = queue.Dequeue();
+                if (row == t.RowCount - 1) return true;
+                for (var dr = -1; dr <= 1; dr++)
+                for (var dc = -1; dc <= 1; dc++)
+                {
+                    var nr = row + dr;
+                    var nc = column + dc;
+                    if ((dr == 0 && dc == 0) || nr < 0 || nr >= t.RowCount || nc < 0 || nc >= t.Width) continue;
+                    if (seen[nr, nc] || (nr == blockedRow && nc == blockedColumn) || !FastPassable(t, nr, nc)) continue;
+                    seen[nr, nc] = true;
+                    queue.Enqueue((nr, nc));
+                }
+            }
+
+            return false;
+        }
 
         /// <summary>Есть ли столбец, целиком состоящий из открытых плит без ловушек (прямая от входа до выхода).</summary>
         public static bool HasStraightColumn(SegmentTemplate template)
