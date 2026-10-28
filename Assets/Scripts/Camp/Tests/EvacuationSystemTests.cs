@@ -1,0 +1,160 @@
+using Burmalda.Core;
+using Burmalda.Currencies;
+using Burmalda.Movement;
+using NUnit.Framework;
+
+namespace Burmalda.Camp.Tests
+{
+    public class EvacuationSystemTests
+    {
+        private const int Width = 5;
+
+        private sealed class Fixture
+        {
+            public TunnelGrid Grid;
+            public GridTraceTrail Trail;
+            public RunCurrencyAccumulator Mana;
+            public RunCurrencyAccumulator Keys;
+            public PersistentWallet CoinWallet;
+            public EvacuationSystem System;
+        }
+
+        private static Fixture CreateFixture(bool standOnAltar = true, float multiplier = 1f)
+        {
+            var grid = new TunnelGrid(Width);
+            var trail = new GridCoordinate(0, 2);
+            var t = new GridTraceTrail(grid, trail);
+            var altar = new GridCoordinate(1, 2);
+            if (standOnAltar) grid.GetOrCreateTile(altar).MarkAltar();
+            t.TryAdvanceTo(altar);
+
+            var mana = new RunCurrencyAccumulator();
+            var keys = new RunCurrencyAccumulator();
+            var wallet = new PersistentWallet();
+            var system = new EvacuationSystem(grid, t, mana, keys, wallet, multiplier);
+            return new Fixture { Grid = grid, Trail = t, Mana = mana, Keys = keys, CoinWallet = wallet, System = system };
+        }
+
+        [Test]
+        public void Evacuate_OnAltar_ConvertsManaAndKeysAtLinearRatesAndFiresReturned()
+        {
+            // Курсы по умолчанию: Мана 20:1, Ключи 1:1 (линейно, нелинейность — позже).
+            var f = CreateFixture();
+            f.Mana.Add(400);
+            f.Keys.Add(20);
+            ReturnConversionResult? result = null;
+            f.System.Returned += r => result = r;
+
+            var ok = f.System.Evacuate();
+
+            Assert.IsTrue(ok);
+            Assert.IsTrue(f.System.HasEvacuated);
+            Assert.AreEqual(40, f.CoinWallet.Balance);
+            Assert.AreEqual(20, result.Value.ManaCoins);
+            Assert.AreEqual(20, result.Value.KeysCoins);
+        }
+
+        [Test]
+        public void Evacuate_OnAltar_ClearsCarriedManaAndKeys()
+        {
+            var f = CreateFixture();
+            f.Mana.Add(400);
+            f.Keys.Add(20);
+
+            f.System.Evacuate();
+
+            Assert.AreEqual(0, f.Mana.Total);
+            Assert.AreEqual(0, f.Keys.Total);
+        }
+
+        [Test]
+        public void Evacuate_NotOnAltar_DoesNothing()
+        {
+            var f = CreateFixture(standOnAltar: false);
+            f.Mana.Add(400);
+
+            var ok = f.System.Evacuate();
+
+            Assert.IsFalse(ok);
+            Assert.IsFalse(f.System.HasEvacuated);
+            Assert.AreEqual(0, f.CoinWallet.Balance);
+            Assert.AreEqual(400, f.Mana.Total);
+        }
+
+        [Test]
+        public void Evacuate_SecondCall_IsNoOp()
+        {
+            var f = CreateFixture();
+            f.Mana.Add(400);
+            f.System.Evacuate();
+            f.Mana.Add(400);
+
+            var ok = f.System.Evacuate();
+
+            Assert.IsFalse(ok);
+            Assert.AreEqual(20, f.CoinWallet.Balance);
+        }
+
+        [Test]
+        public void Evacuate_WithCoinsOnReturnMultiplier_ScalesCoins()
+        {
+            var f = CreateFixture(multiplier: 1.5f);
+            f.Mana.Add(400); // 20 * 1.5
+
+            f.System.Evacuate();
+
+            Assert.AreEqual(30, f.CoinWallet.Balance);
+        }
+
+        [Test]
+        public void Evacuate_WithCustomStaticRates_UsesCurrentRates()
+        {
+            var oldMana = EvacuationSystem.ManaToCoinsRate;
+            var oldKeys = EvacuationSystem.KeysToCoinsRate;
+            try
+            {
+                EvacuationSystem.ManaToCoinsRate = 10f;
+                EvacuationSystem.KeysToCoinsRate = 2f;
+                var f = CreateFixture();
+                f.Mana.Add(100); // 10
+                f.Keys.Add(10);  // 5
+
+                f.System.Evacuate();
+
+                Assert.AreEqual(15, f.CoinWallet.Balance);
+            }
+            finally
+            {
+                EvacuationSystem.ManaToCoinsRate = oldMana;
+                EvacuationSystem.KeysToCoinsRate = oldKeys;
+            }
+        }
+
+        [Test]
+        public void LoseAll_ClearsManaAndKeysAndPaysNoCoins()
+        {
+            var f = CreateFixture();
+            f.Mana.Add(400);
+            f.Keys.Add(20);
+
+            f.System.LoseAll();
+
+            Assert.AreEqual(0, f.Mana.Total);
+            Assert.AreEqual(0, f.Keys.Total);
+            Assert.AreEqual(0, f.CoinWallet.Balance);
+            Assert.IsFalse(f.System.HasEvacuated);
+        }
+
+        [Test]
+        public void Reaching_Altar_DoesNotCheckpointMana_DeathStillLosesEverything()
+        {
+            // PRD v10 §11: Алтарь Ману не фиксирует — ставка похода всё, что несёшь.
+            var f = CreateFixture();
+            f.Mana.Add(400);
+
+            f.System.LoseAll();
+
+            Assert.AreEqual(0, f.Mana.Total);
+        }
+    }
+}
