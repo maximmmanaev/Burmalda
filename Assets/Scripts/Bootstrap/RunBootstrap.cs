@@ -3,6 +3,7 @@ using Burmalda.Artifacts;
 using Burmalda.Boss;
 using Burmalda.BossRoom;
 using Burmalda.Camp;
+using Burmalda.Core;
 using Burmalda.Currencies;
 using Burmalda.Decay;
 using Burmalda.Generation;
@@ -231,6 +232,20 @@ namespace Burmalda.Bootstrap
         private void Awake()
         {
             Instance = this;
+
+            // Хотфикс «страж ролей плиты роняет забег вместо диагностики»
+            // (владелец, 2026-09-16): см. doc-комментарий
+            // Core.Tile.GuardAgainstConflictingRole. Application.isEditor —
+            // сознательно НЕ Debug.isDebugBuild: последний true и на
+            // development-сборке, на которой владелец играет руками, а
+            // именно там страж обязан не падать (только отклонять и
+            // логировать). Единственный подписчик на RoleConflictRejected —
+            // этот компонент существует ровно в одном экземпляре (см.
+            // защиту от повторного создания в Bootstrap() ниже), поэтому
+            // подписка здесь, в Awake(), не задваивается.
+            Tile.ThrowOnRoleConflict = Application.isEditor;
+            Tile.RoleConflictRejected += LogRoleConflictRejected;
+
             // Задача «двойные флаги на плитах»: попытка синхронной сборки
             // прямо здесь, а не только в ленивом Update() ниже — этот
             // GameObject создаётся через RuntimeInitializeLoadType.AfterSceneLoad
@@ -243,8 +258,14 @@ namespace Burmalda.Bootstrap
             TrySync();
         }
 
+        // Core не ссылается на UnityEngine (noEngineReferences) — не может
+        // залогировать отклонённый конфликт роли сам, см. doc-комментарий
+        // Core.Tile.GuardAgainstConflictingRole/RoleConflictRejected.
+        private static void LogRoleConflictRejected(string message) => Debug.LogWarning(message);
+
         private void OnDestroy()
         {
+            Tile.RoleConflictRejected -= LogRoleConflictRejected;
             if (_input != null) _input.RunStarted -= HandleRunStarted;
             if (Instance == this) Instance = null;
         }
@@ -310,6 +331,18 @@ namespace Burmalda.Bootstrap
             // (см. её doc-комментарий — null, пока Boss не пересобрал
             // run-системы, и это ожидаемо трактуется как Ярус 0).
             Traps.CurrentTierProvider = () => DepthTier?.CurrentTier ?? 0;
+            // Задача «падающий камень: новая спецификация» — Movement не
+            // ссылается на RunLifecycle (см. asmdef), поэтому
+            // FallingRockTrapSystem.PlayerCrushed репортится через
+            // стабильное реле TrapSystemsController.FallingRockPlayerCrushed
+            // (см. её doc-комментарий), подключается здесь ОДИН раз (метод
+            // идемпотентен, _controllersWired выше). Run.RunState читается
+            // ЛЕНИВО внутри обработчика (не захватывается сейчас, Run уже
+            // добавлен на этот host первым делом выше, но RunState на нём
+            // ещё не обязательно собран) — к моменту, когда камень реально
+            // упадёт (через FallingRockTrapSystem.DelaySeconds после
+            // срабатывания триггера), текущий RunState уже точно собран.
+            Traps.FallingRockPlayerCrushed += _ => Run.RunState?.ReportFallingRockCrush();
             // Зависит только от Currency (уже создана строкой выше) и
             // RunLifecycle.RunController (уже добавлен на этот host первым
             // делом выше) — см. doc-комментарий BossRoom.
@@ -335,7 +368,7 @@ namespace Burmalda.Bootstrap
         /// раньше, чем <c>Generation.SegmentRowProvider</c> успевал их
         /// заявить (<c>Core.TunnelGrid.ClaimRow</c>) — см.
         /// <c>Generation.Tests.SegmentGenerationCoexistenceTests.
-        /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerStacksOnTop</c>.
+        /// RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerWins</c>.
         /// Теперь <c>TunnelObstacleController</c> сам на RunStarted не
         /// подписан — этот метод единственный, кто его (пере)собирает,
         /// СТРОГО после того, как <see cref="Segments"/> уже заявил свои

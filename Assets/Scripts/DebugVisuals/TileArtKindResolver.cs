@@ -37,9 +37,11 @@ namespace Burmalda.DebugVisuals
             // doc-комментарий TileVisualState.IsBombCollapsed).
             if (state.IsBombCollapsed) return TileArtKind.BombHole;
             if (state.IsBlocked) return TileArtKind.Blocked;
-            // Issue #262: волна Лавы (Movement.LavaWaveTrapSystem) ставит тот
-            // же LethalTrapType.Lava, что статичная Лава с генерации — эта
-            // ветка ловит и её, отдельной ветки под волну больше нет.
+            // Раньше сюда же (issue #262) попадала и волна Лавы
+            // (Movement.LavaWaveTrapSystem, ставила тот же LethalTrapType.Lava,
+            // что статичная Лава с генерации) — убрана из игры целиком
+            // (переработка логики ловушек, владелец), эта ветка теперь ловит
+            // только статичный источник.
             if (state.LethalTrap == LethalTrapType.Lava) return TileArtKind.Lava;
             // Issue #260 («Бомба взрывается мгновенно и показывает текстуру
             // Стрелы»): Бомба больше не входит в эту ветку — своя пара
@@ -47,6 +49,12 @@ namespace Burmalda.DebugVisuals
             // (мигание — более специфичное и более срочное состояние, чем
             // "просто активна").
             if (state.IsBombWarningActive) return TileArtKind.BombWarning;
+            // Задача «падающий камень: новая спецификация» — та же
+            // приоритетная логика, что Бомба выше. Переиспользует
+            // TileArtKind.BombWarning, не заводит отдельный вид — новая
+            // текстура не в скоупе агента, тот же визуальный язык
+            // "что-то вот-вот случится на этой плите" подходит обеим ловушкам.
+            if (state.IsFallingRockWarningActive) return TileArtKind.BombWarning;
             // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
             // смертельной навсегда») — см. подробный doc-комментарий той же
             // ветки в TileDebugColor.Resolve: настоящая причина — у
@@ -54,8 +62,16 @@ namespace Burmalda.DebugVisuals
             // было ветки здесь вовсе, армированная плита выглядела обычным
             // полом. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА, без гейта
             // примеривания.
-            if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
-                state.LethalTrap == LethalTrapType.BladeTact)
+            //
+            // Задача «симуляция стрелы» (владелец, 2026-10-01, живой
+            // плейтест): «убери изменение текстуры плиты при срабатывании
+            // ловушки стрелы» — ArrowWave убран из этой ветки. Теперь
+            // единственный визуальный сигнал волны — летящий 3D-объект
+            // (DebugVisuals.ArrowProjectileVisual), столбец под ним
+            // визуально остаётся обычным полом (падает сквозь эту ветку до
+            // градиента распада в конце). Bomb/BladeTact не трогаются —
+            // владелец просил только про стрелу.
+            if (state.LethalTrap == LethalTrapType.BombBlast || state.LethalTrap == LethalTrapType.BladeTact)
                 return TileArtKind.TimedTrapActive;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2):
             // триггер одной из пяти ловушек не отличим от обычного пола,

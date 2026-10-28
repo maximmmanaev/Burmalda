@@ -49,6 +49,7 @@ namespace Burmalda.Generation
 
             ValidateLeverGates();
             ValidateGateVault();
+            ValidateMovingWallExclusiveRow();
         }
 
         /// <summary>Имя шаблона (для авторинга/отладки — не показывается игроку напрямую).</summary>
@@ -128,16 +129,70 @@ namespace Burmalda.Generation
                 throw new ArgumentException("GateVaultPurchases задан, но GateVaultKeySource в шаблоне нет — параметр не был бы использован.", nameof(GateVaultPurchases));
         }
 
+        // Critical Generation Rule (BURMALDA Trap System Spec v0.1, владелец):
+        // на ряду, который закрывает Давилка/Стена слева/Стена справа
+        // (Tile.MovingWallTargetRow, всегда триггер.Row + 1 — см.
+        // SegmentRowProvider.ApplyTileType), запрещён ЛЮБОЙ другой триггер
+        // ловушки. Причина игровая, не техническая: MovingWallTrap уже
+        // насильно сокращает варианты перемещения по этому ряду, вторая
+        // неизвестная угроза на нём может создать ситуацию без корректного
+        // решения (Fairness Rules спецификации, п.6). Проверяется здесь, на
+        // этапе авторинга — SegmentRowProvider/MovingWallTrap сами по себе
+        // ничего не проверяют, доверяют уже провалидированному контенту (см.
+        // doc-комментарий Movement.MovingWallTrap).
+        //
+        // Статичная Lava (SegmentTileType.Lava) намеренно НЕ входит в
+        // проверку — это не триггер ловушки (нет фазы Detected/скрытой
+        // угрозы, опасность видна игроку сразу), правило владельца говорит
+        // именно про "другие триггеры ловушек".
+        private void ValidateMovingWallExclusiveRow()
+        {
+            for (var row = 0; row < RowCount; row++)
+                for (var column = 0; column < Width; column++)
+                {
+                    if (!IsMovingWallTriggerType(_tiles[row, column])) continue;
+
+                    var targetRow = row + 1;
+                    if (targetRow >= RowCount) continue; // цель за пределами шаблона — тот же случай, что у FallingRockTrigger на последнем ряду
+
+                    for (var targetColumn = 0; targetColumn < Width; targetColumn++)
+                    {
+                        if (!IsAnyTrapTriggerType(_tiles[targetRow, targetColumn])) continue;
+                        throw new ArgumentException(
+                            $"Ряд {targetRow} шаблона содержит другой триггер ловушки ({_tiles[targetRow, targetColumn]}) " +
+                            $"— он же целевой ряд MovingWallTrap-триггера ({_tiles[row, column]}) в ряду {row}, колонке {column}. " +
+                            "Critical Generation Rule (BURMALDA Trap System Spec v0.1) запрещает это сочетание.",
+                            nameof(_tiles));
+                    }
+                }
+        }
+
+        private static bool IsMovingWallTriggerType(SegmentTileType type) =>
+            type == SegmentTileType.MovingWallBothTrigger
+            || type == SegmentTileType.MovingWallLeftTrigger
+            || type == SegmentTileType.MovingWallRightTrigger;
+
+        private static bool IsAnyTrapTriggerType(SegmentTileType type) =>
+            type == SegmentTileType.ArrowWaveTrigger
+            || type == SegmentTileType.BombTrigger
+            || type == SegmentTileType.BladeTactTrigger
+            || type == SegmentTileType.FallingRockTrigger
+            || IsMovingWallTriggerType(type);
+
         // Владелец, 2026-09-05 «оставить только пять новых ловушек»: раньше
         // здесь была ValidateTriggerTargetsDoNotConflict/IsExclusiveRole —
         // проверка целилась специфично в ExplosiveTrigger (единственный
         // старый тип, чья цель — "следующий ряд, тот же столбец", а не сама
-        // плита-триггер). Ни у одного из пяти оставшихся типов ловушек нет
-        // отдельной "целевой" плиты вне себя самой (ArrowWaveTrigger/
+        // плита-триггер). Ни у одного из тогдашних пяти типов ловушек не
+        // было отдельной "целевой" плиты вне себя самой (ArrowWaveTrigger/
         // BladeTactTrigger целятся в СВОЙ ЖЕ ряд через coordinate.Row, см.
-        // SegmentRowProvider.ApplyTileType, Bomb/FallingRock/LavaWave — в
-        // саму плиту-триггер) — конфликт "триггер целится в структурную
-        // роль" физически не воспроизводим, проверка удалена как мёртвая
-        // вместе с ExplosiveTrigger.
+        // SegmentRowProvider.ApplyTileType, Bomb/LavaWave — в саму
+        // плиту-триггер) — конфликт "триггер целится в структурную роль"
+        // физически не воспроизводим, проверка удалена как мёртвая вместе с
+        // ExplosiveTrigger. С тех пор FallingRock переехал на отдельную цель
+        // впереди (задача «падающий камень: новая спецификация»), а
+        // LavaWave убран из игры целиком (переработка логики ловушек) — этот
+        // абзац остаётся историческим объяснением, почему проверки вообще
+        // нет, не описанием текущего состояния всех типов.
     }
 }

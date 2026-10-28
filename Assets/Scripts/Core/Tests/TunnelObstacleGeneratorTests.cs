@@ -159,6 +159,22 @@ namespace Burmalda.Core.Tests
             Assert.IsFalse(target.IsBlocked);
         }
 
+        // Задача «падающий камень: новая спецификация» — FallingRockTrigger
+        // присоединился к ArrowWave/BladeTact в резервации цели впереди
+        // (раньше камень падал на саму плиту-триггер, цели не было вовсе).
+        [Test]
+        public void TileMaterialized_TargetOfFallingRockTrigger_IsNotIndependentlyRolled()
+        {
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BlockedThreshold, 0f));
+
+            grid.GetOrCreateTile(new GridCoordinate(1, 0)); // становится триггером Падающего камня на (2,0), резервирует цель
+            var target = grid.GetOrCreateTile(new GridCoordinate(2, 0));
+
+            Assert.IsFalse(target.IsBlocked);
+            Assert.IsFalse(target.LethalTrap.HasValue);
+        }
+
         [Test]
         public void TileMaterialized_TargetOfArrowWaveTrigger_ResolvedOnceThenRollsNormallyAgain()
         {
@@ -301,9 +317,11 @@ namespace Burmalda.Core.Tests
         // генерацией и получил от неё ManaSource/KeySource. Резервация
         // (_reservedTrapTargets) защищает только от собственного ролла
         // ЭТОГО генератора — не от содержимого, которое положит туда
-        // сегмент. Два теста ниже — по одному на тип триггера с целью
-        // впереди (Падающий камень/Бомба сами себе цель, см. CanReserveTarget
-        // в генераторе).
+        // сегмент. Тесты ниже — по одному на тип триггера с целью впереди
+        // (Бомба сама себе цель, см. CanReserveTarget в генераторе —
+        // Падающий камень присоединился к ArrowWave/BladeTact задачей
+        // «падающий камень: новая спецификация», раньше был третьим
+        // "сам себе цель").
         [Test]
         public void TileMaterialized_ArrowWaveTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
         {
@@ -348,6 +366,33 @@ namespace Burmalda.Core.Tests
             var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
 
             Assert.AreEqual(2, trigger.ArrowWaveTargetRow);
+        }
+
+        [Test]
+        public void TileMaterialized_FallingRockTrigger_TargetRowAlreadyClaimed_DoesNotPlaceTriggerOrReserve()
+        {
+            var grid = new TunnelGrid(5);
+            grid.ClaimRow(2); // ряд цели уже заявлен сегментной генерацией — как в баге на устройстве (issue аналогичен ArrowWave/BladeTact выше)
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BlockedThreshold, 0f));
+
+            var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+            Assert.IsFalse(trigger.FallingRockTargetCoordinate.HasValue, "Триггер не должен был поставиться — цель на уже заявленном ряду.");
+            Assert.IsFalse(trigger.IsFallingRockTrigger);
+
+            var otherTile = grid.GetOrCreateTile(new GridCoordinate(3, 0));
+            Assert.IsTrue(otherTile.IsBlocked);
+        }
+
+        [Test]
+        public void TileMaterialized_FallingRockTrigger_TargetRowNotClaimed_StillPlacesTriggerNormally()
+        {
+            var grid = new TunnelGrid(5);
+            using var generator = new TunnelObstacleGenerator(grid, Sequence(TunnelObstacleGenerator.BlockedThreshold));
+
+            var trigger = grid.GetOrCreateTile(new GridCoordinate(1, 0));
+
+            Assert.IsTrue(trigger.IsFallingRockTrigger);
+            Assert.AreEqual(new GridCoordinate(2, 0), trigger.FallingRockTargetCoordinate);
         }
 
         [Test]

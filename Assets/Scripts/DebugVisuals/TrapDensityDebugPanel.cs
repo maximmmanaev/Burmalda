@@ -68,14 +68,16 @@ namespace Burmalda.DebugVisuals
     /// систем ловушек, перешедших с тактов ходов на реальное время
     /// (<see cref="Movement.ArrowWaveTrapSystem.StepSeconds"/>/
     /// <see cref="Movement.BladeTactTrapSystem.TactSeconds"/>/
-    /// <see cref="Movement.LavaWaveTrapSystem.RowStepSeconds"/>/
+    /// Movement.LavaWaveTrapSystem.RowStepSeconds (система убрана из игры
+    /// целиком, переработка логики ловушек, владелец)/
     /// Movement.BombTrapSystem.DelaySeconds (заменено кривой issue #260, см.
     /// ниже)/<see cref="Movement.FallingRockTrapSystem.DelaySeconds"/>) —
     /// прямое требование задачи: "скорость волны — параметр, настраиваемый в
     /// дебаг-панели, без пересборки". Второй раунд задачи (владелец: «никаких
     /// ловушек в такт быть не должно, только тайминги») распространил это на
     /// все пять типов, не только на три волновых — Бомба/Падающий камень
-    /// добавлены сюда же тем же приёмом.
+    /// добавлены сюда же тем же приёмом. Один из пяти ползунков (волна Лавы)
+    /// с тех пор убран вместе с самой ловушкой.
     ///
     /// <b>Issue #260 (2026-09-14, «Бомба взрывается мгновенно, кривая по
     /// Ярусу»):</b> ползунок задержки Бомбы заменён тремя —
@@ -84,6 +86,14 @@ namespace Burmalda.DebugVisuals
     /// <see cref="Movement.BombTrapSystem.MinDelaySeconds"/> — задержка
     /// теперь кривая от номера Яруса, не одно фиксированное число, владелец
     /// прямо просил не решать баланс кривой самостоятельно.
+    ///
+    /// <b>Хотфикс «страж ролей плиты роняет забег вместо диагностики»
+    /// (владелец, 2026-09-16):</b> ещё один readout, тот же приём, что ряд
+    /// 11 (счётчик встреч с ловушками) — <see cref="Core.Tile.RoleConflictRejectedCount"/>,
+    /// сколько раз за жизнь процесса страж ролей плиты (см.
+    /// <see cref="Core.Tile.GuardAgainstConflictingRole"/>) отклонил
+    /// конфликтующую запись вместо падения забега. Прямое требование
+    /// задачи: "превращает «гонка теоретически возможна» в число".
     /// </summary>
     public sealed class TrapDensityDebugPanel : MonoBehaviour
     {
@@ -100,7 +110,18 @@ namespace Burmalda.DebugVisuals
         private const float MaxCollapseDurationSeconds = 1f; // задача «разрушение плиты» — щедрый запас над стартовыми 0.25–0.4с
         private const float MaxExtraTrapChance = 0.5f; // задача «параметр плотности» — до половины Open-плит, щедрый запас для стресс-теста на устройстве
         private const float MaxWaveSpeedSeconds = 2f; // issue #254 — щедрый запас над стартовыми 0.3с, от почти-мгновенной до медленной волны
-        private const int RowCount = 18; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 5 таймингов ловушек (см. BuildPanel)
+        // Найдено при сборке билда (Спринт «Стены вместо ловушек», задача
+        // 5, не тема самой задачи — блокирующий компиляцию хвост issue
+        // #260/PR #261): ряд "Задержка Бомбы: база/снижение/минимум" был
+        // добавлен той задачей с этими двумя константами, но они не были
+        // объявлены — компиляция Android-билда падала. Значения — щедрый
+        // запас над дефолтами BombTrapSystem (BaseDelaySeconds=3с,
+        // DelayReductionPerTier=0.3с), тот же принцип, что у остальных
+        // Max*-констант этого файла — не баланс, диапазон для ручного
+        // подбора на дебаг-панели.
+        private const float MaxBombDelaySeconds = 10f;
+        private const float MaxBombDelayReductionPerTier = 2f;
+        private const int RowCount = 21; // 6 долей генератора + 2 окна тиров + 2 параметра раскрытия + 1 параметр обвала (вибро распада убрана, issue #264) + 1 readout счётчика встреч + 1 множитель доп. плотности + 6 таймингов ловушек (2 скорости волн + задержка камня + 3 параметра кривой Бомбы — скорость волны Лавы убрана вместе с LavaWaveTrapSystem, переработка логики ловушек) + 1 readout счётчика отклонённых конфликтов стража ролей (хотфикс «страж ролей плиты роняет забег вместо диагностики», см. BuildPanel) + 1 скорость MovingWallTrap (Давилка/Стена слева/Стена справа, TR-05/06/07, BURMALDA Trap System Spec v0.1)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -113,6 +134,7 @@ namespace Burmalda.DebugVisuals
         private GameObject _panelRoot;
         private bool _expanded;
         private Text _trapCounterValueText;
+        private Text _roleConflictCounterValueText;
 
         private void Start()
         {
@@ -128,6 +150,18 @@ namespace Burmalda.DebugVisuals
             // отдельную проверку _expanded ради одной строки.
             if (_trapCounterValueText != null)
                 _trapCounterValueText.text = FormatTrapCounter(TrapEncounterStats.TrapsTriggered, TrapEncounterStats.RowsTraversed);
+            // Хотфикс «страж ролей плиты роняет забег вместо диагностики»
+            // (владелец, 2026-09-16): "это превращает «гонка теоретически
+            // возможна» в число" — накопительный счётчик за жизнь процесса
+            // (Tile.RoleConflictRejectedCount), не сбрасывается между
+            // забегами, см. doc-комментарий Core.Tile.RoleConflictRejectedCount.
+            // Доработка «разрешение конфликта выбрано неверно», п. 2:
+            // одного числа недостаточно — "по числу нельзя понять, теряется
+            // ли авторский контент" — ряд показывает ещё и пару последнего
+            // конфликта (какая роль отклонена, какая осталась).
+            if (_roleConflictCounterValueText != null)
+                _roleConflictCounterValueText.text = FormatRoleConflictCounter(
+                    Tile.RoleConflictRejectedCount, Tile.LastRoleConflictRejectedRole, Tile.LastRoleConflictKeptRole);
         }
 
         private static string FormatTrapCounter(int trapsTriggered, int rowsTraversed)
@@ -137,6 +171,20 @@ namespace Burmalda.DebugVisuals
             return trapsTriggered == 0
                 ? $"{trapsTriggered} / {rowsTraversed} рядов"
                 : $"{trapsTriggered} / {rowsTraversed} рядов (1 на {perRow:0.#})";
+        }
+
+        // Доработка хотфикса «разрешение конфликта выбрано неверно», п. 2
+        // (владелец, 2026-09-16): одного числа мало — не видно, теряется ли
+        // авторский контент. Показывает и накопительный счёт, и пару
+        // последнего конфликта (что отклонено, что осталось) — если
+        // отклонённая роль систематически оказывается авторской
+        // (ManaSource/KeySource/Altar/Boss/триггеры шаблонов), разрешение
+        // конфликта сломано, видно прямо на панели.
+        private static string FormatRoleConflictCounter(int count, string lastRejectedRole, string lastKeptRole)
+        {
+            return count == 0
+                ? "0"
+                : $"{count} (последний: «{lastRejectedRole}» отклонена, «{lastKeptRole}» осталась)";
         }
 
         private static void EnsureEventSystemExists()
@@ -248,7 +296,8 @@ namespace Burmalda.DebugVisuals
 
             // Задача «измерить, а не оценить»: readout, не слайдер — только
             // читается, нечего крутить (см. TrapEncounterTracker/Stats).
-            BuildReadoutRow(_panelRoot.transform, 11, "Ловушек сработало / рядов");
+            _trapCounterValueText = BuildReadoutRow(_panelRoot.transform, 11, "Ловушек сработало / рядов",
+                FormatTrapCounter(TrapEncounterStats.TrapsTriggered, TrapEncounterStats.RowsTraversed));
 
             // Задача «параметр плотности» (владелец, 2026-09-08): "чтобы
             // владелец мог подкрутить на устройстве, не пересобирая" —
@@ -265,29 +314,52 @@ namespace Burmalda.DebugVisuals
                 v => ArrowWaveTrapSystem.StepSeconds = v, FormatSeconds);
             BuildRow(_panelRoot.transform, 14, "Скорость: такт Лезвий", 0.01f, MaxWaveSpeedSeconds, BladeTactTrapSystem.TactSeconds,
                 v => BladeTactTrapSystem.TactSeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 15, "Скорость: волна Лавы", 0.01f, MaxWaveSpeedSeconds, LavaWaveTrapSystem.RowStepSeconds,
-                v => LavaWaveTrapSystem.RowStepSeconds = v, FormatSeconds);
+            // Ряд "Скорость: волна Лавы" (LavaWaveTrapSystem.RowStepSeconds)
+            // стоял здесь — убран вместе с самой системой (переработка
+            // логики ловушек, владелец), ряды ниже сдвинуты на один номер.
 
             // Второй раунд той же задачи (владелец: "никаких ловушек в
-            // такт быть не должно, только тайминги") — Бомба/Падающий
-            // камень тоже перешли на реальное время, тот же приём.
-            BuildRow(_panelRoot.transform, 16, "Задержка: взрыв Бомбы", 0.01f, MaxWaveSpeedSeconds, BombTrapSystem.DelaySeconds,
-                v => BombTrapSystem.DelaySeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 17, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
+            // такт быть не должно, только тайминги") — Падающий камень тоже
+            // перешёл на реальное время, тот же приём. Бомба получила
+            // отдельный ряд ниже (issue #260, три параметра кривой вместо
+            // одного фиксированного числа) — своего единственного
+            // "Задержка: взрыв Бомбы" (BombTrapSystem.DelaySeconds) больше
+            // нет, поле удалено при переходе на кривую, этот ряд был
+            // оставлен по инерции и не компилировался — убран.
+            BuildRow(_panelRoot.transform, 15, "Задержка: падение камня", 0.01f, MaxWaveSpeedSeconds, FallingRockTrapSystem.DelaySeconds,
                 v => FallingRockTrapSystem.DelaySeconds = v, FormatSeconds);
 
             // Issue #260 («Бомба взрывается мгновенно... задержка должна
             // уменьшаться с Ярусом») — три параметра кривой вместо одного
             // фиксированного числа, см. BombTrapSystem.ComputeDelaySeconds.
-            BuildRow(_panelRoot.transform, 18, "Задержка Бомбы: база (Ярус 0)", 0.1f, MaxBombDelaySeconds, BombTrapSystem.BaseDelaySeconds,
+            BuildRow(_panelRoot.transform, 16, "Задержка Бомбы: база (Ярус 0)", 0.1f, MaxBombDelaySeconds, BombTrapSystem.BaseDelaySeconds,
                 v => BombTrapSystem.BaseDelaySeconds = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 19, "Задержка Бомбы: снижение/Ярус", 0f, MaxBombDelayReductionPerTier, BombTrapSystem.DelayReductionPerTier,
+            BuildRow(_panelRoot.transform, 17, "Задержка Бомбы: снижение/Ярус", 0f, MaxBombDelayReductionPerTier, BombTrapSystem.DelayReductionPerTier,
                 v => BombTrapSystem.DelayReductionPerTier = v, FormatSeconds);
-            BuildRow(_panelRoot.transform, 20, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
+            BuildRow(_panelRoot.transform, 18, "Задержка Бомбы: минимум", 0.1f, MaxBombDelaySeconds, BombTrapSystem.MinDelaySeconds,
                 v => BombTrapSystem.MinDelaySeconds = v, FormatSeconds);
+
+            // Хотфикс «страж ролей плиты роняет забег вместо диагностики»
+            // (владелец, 2026-09-16): "счётчик конфликтов ... превращает
+            // «гонка теоретически возможна» в число. Если после нескольких
+            // забегов там ноль — легаси-генератор можно выводить из игры
+            // раньше" — тот же readout-приём, что и ряд 11 выше.
+            _roleConflictCounterValueText = BuildReadoutRow(_panelRoot.transform, 19, "Страж ролей: конфликтов отклонено",
+                FormatRoleConflictCounter(Tile.RoleConflictRejectedCount, Tile.LastRoleConflictRejectedRole, Tile.LastRoleConflictKeptRole));
+
+            // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — пятая система
+            // ловушек, тот же приём, что ряды 13–16 выше: "меняется только
+            // скорость... ранний Ярус — стены идут медленно, поздний —
+            // быстро откусывают клетки" (владелец). Добавлен ПОСЛЕДНИМ
+            // рядом (20), не встроен между существующими — вставка в
+            // середину сдвинула бы все rowIndex ниже неё, ручная
+            // перенумерация лишний риск опечатки без пользы.
+            BuildRow(_panelRoot.transform, 20, "Скорость: Давилка/Стена", 0.01f, MaxWaveSpeedSeconds, MovingWallTrap.StepSeconds,
+                v => MovingWallTrap.StepSeconds = v, FormatSeconds);
         }
 
-        private void BuildReadoutRow(Transform parent, int rowIndex, string label)
+        /// <summary>Строка "подпись + значение" без слайдера — только читается, нечего крутить. Возвращает Text значения, вызывающая сторона сама решает, куда его сохранить и как обновлять в Update().</summary>
+        private Text BuildReadoutRow(Transform parent, int rowIndex, string label, string initialValue)
         {
             var rowHost = new GameObject($"Row_{rowIndex}");
             rowHost.transform.SetParent(parent, worldPositionStays: false);
@@ -305,12 +377,13 @@ namespace Burmalda.DebugVisuals
             labelRect.offsetMin = Vector2.zero;
             labelRect.offsetMax = Vector2.zero;
 
-            _trapCounterValueText = AddLabel(rowHost.transform, FormatTrapCounter(TrapEncounterStats.TrapsTriggered, TrapEncounterStats.RowsTraversed), 20, TextAnchor.UpperRight);
-            var valueRect = _trapCounterValueText.GetComponent<RectTransform>();
+            var valueText = AddLabel(rowHost.transform, initialValue, 20, TextAnchor.UpperRight);
+            var valueRect = valueText.GetComponent<RectTransform>();
             valueRect.anchorMin = new Vector2(0.5f, 0.5f);
             valueRect.anchorMax = new Vector2(1f, 1f);
             valueRect.offsetMin = Vector2.zero;
             valueRect.offsetMax = Vector2.zero;
+            return valueText;
         }
 
         private static string FormatPercent(float v) => (v * 100f).ToString("0.0") + "%";

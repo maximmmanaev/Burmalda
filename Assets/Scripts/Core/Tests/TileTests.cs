@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 
 namespace Burmalda.Core.Tests
@@ -505,6 +506,16 @@ namespace Burmalda.Core.Tests
         // Разграничение по рядам (Bootstrap.RunBootstrap) закрывает причину;
         // эти тесты проверяют следствие — сам инвариант на Tile, вторая
         // линия обороны, если причина всё же повторится.
+        // Пять триггеров ловушек Спринта 13a (ArrowWave/Bomb/BladeTact/
+        // FallingRock/LavaWave) были добавлены в эту матрицу задачей
+        // «награда никогда не лежит на ловушке» — раньше их Mark*-методы не
+        // вызывали GuardAgainstConflictingRole вовсе (см. их doc-комментарии
+        // в Tile.cs). Явная цель: плита-источник Маны/Ключей не может
+        // одновременно стать ни одним из них, и наоборот — матрица ниже
+        // строит это автоматически, полным перекрёстным произведением со
+        // всеми остальными ролями, не только с наградами. LavaTrigger убран
+        // из списка вместе с Movement.LavaWaveTrapSystem (переработка логики
+        // ловушек, владелец) — остаются четыре триггера.
         private static readonly (string Name, Action<Tile> Mark)[] ExclusiveRoleMarkers =
         {
             ("Blocked", t => t.MarkBlocked()),
@@ -515,6 +526,14 @@ namespace Burmalda.Core.Tests
             ("Boss", t => t.MarkBoss()),
             ("Lever", t => t.MarkLever(Array.Empty<GridCoordinate>())),
             ("Gated", t => t.MarkGated()),
+            ("ArrowWaveTrigger", t => t.MarkArrowWaveTrigger(0, RowWaveDirection.LeftToRight)),
+            ("BombTrigger", t => t.MarkBombTrigger()),
+            ("BladeTactTrigger", t => t.MarkBladeTactTrigger(0)),
+            ("FallingRockTrigger", t => t.MarkFallingRockTrigger(new GridCoordinate(0, 0))),
+            // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — шестая ловушка,
+            // тот же приём, что у остальных Mark*Trigger выше: MarkMovingWallTrigger
+            // тоже проходит через GuardAgainstConflictingRole (см. Tile.cs).
+            ("MovingWallTrigger", t => t.MarkMovingWallTrigger(0, MovingWallMode.Both)),
         };
 
         private static IEnumerable<TestCaseData> ExclusiveRoleConflictPairs()
@@ -579,6 +598,198 @@ namespace Burmalda.Core.Tests
             marker.Mark(tile);
 
             Assert.DoesNotThrow(() => marker.Mark(tile), $"повторная пометка той же роли ({marker.Name}) должна остаться тихим не-op");
+        }
+
+        // Доработка PR #290, п.2 (владелец, 2026-09-16): ActiveExclusiveRoleName
+        // и ClearActiveExclusiveRole — два переключателя по одному и тому же
+        // набору ролей, синхронизируемые вручную. Расхождение между ними не
+        // поймал бы ни один тест конфликта выше (он просто никогда не создал
+        // бы такую комбинацию) — а последствие ровно то, против чего страж
+        // писался: висячий двойной флаг после "победившего" замещения. Тест
+        // бьёт по ExclusiveRoleMarkers — той же канонической таблице, что и
+        // вся матрица конфликтов выше, не по отдельному новому списку: новая
+        // роль без строки в ClearActiveExclusiveRole уронит тест сразу, как
+        // только появится в этой таблице (а появиться в ней обязана — без
+        // маркера её не проверить вообще ничем).
+        [TestCaseSource(nameof(ExclusiveRoleMarkers))]
+        public void ClearActiveExclusiveRole_MirrorsActiveExclusiveRoleName_ForEveryMarkedRole((string Name, Action<Tile> Mark) marker)
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            marker.Mark(tile);
+
+            var activeRoleNameMethod = typeof(Tile).GetMethod("ActiveExclusiveRoleName", BindingFlags.NonPublic | BindingFlags.Instance);
+            var clearMethod = typeof(Tile).GetMethod("ClearActiveExclusiveRole", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.IsNotNull(activeRoleNameMethod, "ActiveExclusiveRoleName не найден рефлексией — переименован?");
+            Assert.IsNotNull(clearMethod, "ClearActiveExclusiveRole не найден рефлексией — переименован?");
+
+            var activeBeforeClear = (string)activeRoleNameMethod.Invoke(tile, null);
+            Assert.IsNotNull(activeBeforeClear,
+                $"{marker.Name}: ActiveExclusiveRoleName не увидел только что помеченную роль — маркер и переключатель разошлись.");
+
+            clearMethod.Invoke(tile, null);
+
+            var activeAfterClear = (string)activeRoleNameMethod.Invoke(tile, null);
+            Assert.IsNull(activeAfterClear,
+                $"{marker.Name}: ClearActiveExclusiveRole не снял роль, которую видит ActiveExclusiveRoleName — списки разошлись, висячий двойной флаг воспроизводим.");
+        }
+
+        // Хотфикс «страж ролей плиты роняет забег вместо диагностики»
+        // (владелец, 2026-09-16, см. doc-комментарий
+        // GuardAgainstConflictingRole/ThrowOnRoleConflict): все тесты выше
+        // проверяют СТРОГИЙ режим (ThrowOnRoleConflict == true, включён этим
+        // тестовым assembly — см. TileGuardStrictModeSetUp). Этот тест —
+        // единственный на РАНТАЙМ-ветку (ThrowOnRoleConflict == false,
+        // поведение built-игры): конфликт не бросает, первая роль остаётся,
+        // вторая отклоняется, счётчик растёт, событие срабатывает.
+        [Test]
+        public void MarkingExclusiveRole_ThrowOnRoleConflictDisabled_RejectsSecondWriteAndKeepsFirst()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            var countBefore = Tile.RoleConflictRejectedCount;
+            string capturedMessage = null;
+            void OnRejected(string message) => capturedMessage = message;
+            Tile.RoleConflictRejected += OnRejected;
+            try
+            {
+                Tile.ThrowOnRoleConflict = false;
+                var tile = new Tile(new GridCoordinate(1, 1));
+                tile.MarkBlocked();
+
+                Assert.DoesNotThrow(() => tile.MarkAltar());
+
+                Assert.IsTrue(tile.IsBlocked, "первая роль (Blocked) должна остаться");
+                Assert.IsFalse(tile.IsAltar, "вторая, конфликтующая роль (Altar) должна быть отклонена, не наложена поверх");
+                Assert.AreEqual(countBefore + 1, Tile.RoleConflictRejectedCount,
+                    "счётчик отклонённых конфликтов должен вырасти ровно на 1");
+                Assert.IsNotNull(capturedMessage, "RoleConflictRejected должен сработать с сообщением о конфликте");
+                StringAssert.Contains("IsAltar", capturedMessage);
+                StringAssert.Contains("IsBlocked", capturedMessage);
+            }
+            finally
+            {
+                Tile.RoleConflictRejected -= OnRejected;
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
+        // Доработка хотфикса «разрешение конфликта выбрано неверно»
+        // (владелец, 2026-09-16): «первая побеждает» систематически
+        // отклоняла авторский контент, потому что Core.TunnelObstacleGenerator
+        // роллит на TileMaterialized ПЕРВЫМ, раньше, чем
+        // Generation.SegmentRowProvider.ApplyTemplate успевает записать тот
+        // же GetOrCreateTile. Разрешение — явный источник
+        // (Tile.RoleWriteSource), Authored побеждает Generated НЕЗАВИСИМО
+        // от порядка. Два теста ниже проверяют оба порядка (Authored
+        // вторым — реальный производственный случай; Authored первым — для
+        // полноты) — ОБА с ThrowOnRoleConflict = true (доработка PR #290,
+        // п.1): Authored-vs-Generated обязан разрешаться молча даже в
+        // строгом режиме, иначе Editor Play mode падал бы на первом же
+        // сегменте. Каждый тест сам выставляет флаг локально и
+        // восстанавливает в finally, тот же приём, что тест выше.
+        [Test]
+        public void MarkingExclusiveRole_AuthoredArrivesSecond_OverridesGeneratedAndClearsItsFields()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            var countBefore = Tile.RoleConflictRejectedCount;
+            try
+            {
+                Tile.ThrowOnRoleConflict = true;
+                var tile = new Tile(new GridCoordinate(1, 1));
+
+                // Generated (по умолчанию, без scope) — как TunnelObstacleGenerator.
+                tile.MarkLethalTrap(LethalTrapType.Lava);
+
+                // Authored (внутри RoleWriteScope) — как SegmentRowProvider.ApplyTemplate.
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                    Assert.DoesNotThrow(() => tile.MarkArrowWaveTrigger(3, RowWaveDirection.LeftToRight));
+
+                Assert.IsFalse(tile.LethalTrap.HasValue, "проигравшая (Generated) роль должна быть очищена, не просто отклонена молча рядом");
+                Assert.IsTrue(tile.ArrowWaveTargetRow.HasValue, "победившая (Authored) роль должна быть записана");
+                Assert.AreEqual(countBefore + 1, Tile.RoleConflictRejectedCount);
+                StringAssert.Contains("LethalTrap", Tile.LastRoleConflictRejectedRole);
+                Assert.AreEqual(nameof(Tile.ArrowWaveTargetRow), Tile.LastRoleConflictKeptRole);
+            }
+            finally
+            {
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
+        [Test]
+        public void MarkingExclusiveRole_GeneratedArrivesAfterAuthored_RejectsGeneratedAndKeepsAuthored()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            var countBefore = Tile.RoleConflictRejectedCount;
+            try
+            {
+                Tile.ThrowOnRoleConflict = true;
+                var tile = new Tile(new GridCoordinate(1, 1));
+
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                    tile.MarkArrowWaveTrigger(3, RowWaveDirection.LeftToRight);
+
+                // Generated (по умолчанию, вне scope) — как TunnelObstacleGenerator.
+                Assert.DoesNotThrow(() => tile.MarkLethalTrap(LethalTrapType.Lava));
+
+                Assert.IsTrue(tile.ArrowWaveTargetRow.HasValue, "авторская роль должна остаться нетронутой");
+                Assert.IsFalse(tile.LethalTrap.HasValue, "генерируемая роль должна быть отклонена, не наложена поверх авторской");
+                Assert.AreEqual(countBefore + 1, Tile.RoleConflictRejectedCount);
+                Assert.AreEqual(nameof(Tile.ArrowWaveTargetRow), Tile.LastRoleConflictKeptRole);
+                StringAssert.Contains("LethalTrap", Tile.LastRoleConflictRejectedRole);
+            }
+            finally
+            {
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
+        // Симметрично двум тестам выше: ОДИНАКОВЫЙ источник (обе записи
+        // Authored) приоритетом не разрешается — порядок снова единственный
+        // критерий, и строгий режим по-прежнему обязан бросать (доработка
+        // PR #290, п.1 — "бросать только там, где приоритет источника НЕ
+        // разрешает конфликт"). Generated-vs-Generated уже покрыт всей
+        // матрицей MarkingExclusiveRole_AfterDifferentRoleAlreadySet_ThrowsInvalidOperationException
+        // выше (она никогда не использует RoleWriteScope).
+        [Test]
+        public void MarkingExclusiveRole_BothAuthored_StillThrowsInStrictMode()
+        {
+            var savedThrow = Tile.ThrowOnRoleConflict;
+            try
+            {
+                Tile.ThrowOnRoleConflict = true;
+                var tile = new Tile(new GridCoordinate(1, 1));
+
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                {
+                    tile.MarkLethalTrap(LethalTrapType.Lava);
+                    Assert.Throws<InvalidOperationException>(() => tile.MarkArrowWaveTrigger(3, RowWaveDirection.LeftToRight));
+                }
+            }
+            finally
+            {
+                Tile.ThrowOnRoleConflict = savedThrow;
+            }
+        }
+
+        [Test]
+        public void RoleWriteScope_Dispose_RestoresPreviousSourceEvenOnException()
+        {
+            Assert.AreEqual(Tile.RoleWriteSource.Generated, Tile.CurrentWriteSource, "источник по умолчанию — Generated");
+            try
+            {
+                using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored))
+                {
+                    Assert.AreEqual(Tile.RoleWriteSource.Authored, Tile.CurrentWriteSource);
+                    throw new InvalidOperationException("тестовое исключение внутри scope");
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // ожидаемо — проверяем именно что using всё равно восстановил источник.
+            }
+
+            Assert.AreEqual(Tile.RoleWriteSource.Generated, Tile.CurrentWriteSource,
+                "Dispose обязан восстановить прежний источник, даже если внутри scope было исключение");
         }
 
         // issue #213 — ловушка «Стрела» (docs/wiki/traps.md).
@@ -792,9 +1003,21 @@ namespace Burmalda.Core.Tests
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkFallingRockTrigger();
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
 
             Assert.IsTrue(tile.IsFallingRockTrigger);
+        }
+
+        // Задача «падающий камень: новая спецификация» — камень падает на
+        // плиту ВПЕРЕДИ, не на саму плиту-триггер.
+        [Test]
+        public void MarkFallingRockTrigger_SetsTargetCoordinate()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
+
+            Assert.AreEqual(new GridCoordinate(2, 1), tile.FallingRockTargetCoordinate);
         }
 
         [Test]
@@ -802,10 +1025,53 @@ namespace Burmalda.Core.Tests
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkFallingRockTrigger();
-            tile.MarkFallingRockTrigger();
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
 
             Assert.IsTrue(tile.IsFallingRockTrigger);
+        }
+
+        [Test]
+        public void MarkFallingRockTrigger_CalledTwice_KeepsFirstTargetCoordinate()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.MarkFallingRockTrigger(new GridCoordinate(2, 1));
+            tile.MarkFallingRockTrigger(new GridCoordinate(9, 9));
+
+            Assert.AreEqual(new GridCoordinate(2, 1), tile.FallingRockTargetCoordinate);
+        }
+
+        // Задача «падающий камень: новая спецификация» — целевая плита
+        // подсвечивается заранее, "однозначно видно, куда упадёт" (тот же
+        // приём, что уже применяет Бомба — IsBombWarningActive).
+        [Test]
+        public void NewTile_FallingRockWarningIsNotActive()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            Assert.IsFalse(tile.IsFallingRockWarningActive);
+        }
+
+        [Test]
+        public void BeginFallingRockWarning_SetsWarningActiveTrue()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+
+            tile.BeginFallingRockWarning();
+
+            Assert.IsTrue(tile.IsFallingRockWarningActive);
+        }
+
+        [Test]
+        public void EndFallingRockWarning_SetsWarningActiveFalse()
+        {
+            var tile = new Tile(new GridCoordinate(1, 1));
+            tile.BeginFallingRockWarning();
+
+            tile.EndFallingRockWarning();
+
+            Assert.IsFalse(tile.IsFallingRockWarningActive);
         }
 
         [Test]
@@ -847,34 +1113,45 @@ namespace Burmalda.Core.Tests
             Assert.Throws<InvalidOperationException>(() => tile.MarkBlocked());
         }
 
-        // issue #216 — ловушка «Лава» (docs/wiki/traps.md).
+        // issue #216 — ловушка «Лава» (docs/wiki/traps.md) — волновой
+        // триггер (IsLavaTrigger/MarkLavaTrigger) убран из игры целиком
+        // (переработка логики ловушек, владелец); три теста этого метода
+        // здесь стояли, удалены вместе с ним.
+
+        // слева»/«Стена справа», единый reusable-класс Movement.MovingWallTrap,
+        // режим выбирается параметром MovingWallMode на плите-триггере (тот
+        // же принцип пары полей "цель + параметр", что у ArrowWaveTargetRow/
+        // ArrowWaveDirection).
         [Test]
-        public void NewTile_IsNotLavaTrigger()
+        public void NewTile_HasNoMovingWallTargetRow()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            Assert.IsFalse(tile.IsLavaTrigger);
+            Assert.IsFalse(tile.MovingWallTargetRow.HasValue);
+            Assert.IsFalse(tile.MovingWallTriggerMode.HasValue);
         }
 
         [Test]
-        public void MarkLavaTrigger_SetsIsLavaTrigger()
+        public void MarkMovingWallTrigger_SetsTargetRowAndMode()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkLavaTrigger();
+            tile.MarkMovingWallTrigger(targetRow: 4, MovingWallMode.FromLeft);
 
-            Assert.IsTrue(tile.IsLavaTrigger);
+            Assert.AreEqual(4, tile.MovingWallTargetRow);
+            Assert.AreEqual(MovingWallMode.FromLeft, tile.MovingWallTriggerMode);
         }
 
         [Test]
-        public void MarkLavaTrigger_CalledTwice_StaysTrue()
+        public void MarkMovingWallTrigger_CalledTwice_KeepsFirstValues()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkLavaTrigger();
-            tile.MarkLavaTrigger();
+            tile.MarkMovingWallTrigger(4, MovingWallMode.FromLeft);
+            tile.MarkMovingWallTrigger(9, MovingWallMode.FromRight);
 
-            Assert.IsTrue(tile.IsLavaTrigger);
+            Assert.AreEqual(4, tile.MovingWallTargetRow);
+            Assert.AreEqual(MovingWallMode.FromLeft, tile.MovingWallTriggerMode);
         }
     }
 }

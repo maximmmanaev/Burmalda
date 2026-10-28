@@ -36,13 +36,36 @@ namespace Burmalda.Generation
         // Тот же смысл и тот же запас, что TunnelGridReveal.RowsAheadOfPlayer.
         public const int RowsAheadOfPlayer = 8;
 
+        // Задача «Алтари на 1/3 и 2/3 Яруса» (владелец, Спринт «Стены вместо
+        // ловушек», задача 5): гарантированный минимум реального наполнения
+        // между любыми двумя фиксированными landmark-сегментами (Алтарь→
+        // Алтарь, Алтарь→Комната) — наименьший возможный сегмент-заполнитель
+        // (SegmentTemplate.MinRowCount) ровно один раз. Не 0 (было бы снова
+        // тем самым багом — слипание) и не искусственно большое число (не
+        // авторский баланс, просто "не ноль"). Используется только как
+        // fallback для коротких Ярусов, где 1/3/2/3 сами по себе оказались
+        // бы слишком близко — см. doc-комментарий EnsureCoveredThrough.
+        private const int MinRowsBetweenLandmarks = SegmentTemplate.MinRowCount;
+
+        // Порядок фиксированных landmark-сегментов внутри одного Яруса —
+        // см. doc-комментарий EnsureCoveredThrough.
+        private enum Landmark { AltarOne, AltarTwo, Boss }
+
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private readonly SegmentSelector _selector;
         private readonly Func<int, int> _maxDifficultyForRow;
         private readonly int _rowsPerTier;
         private int _appliedThroughRow;
+        // Фиксированная периодическая сетка границ Яруса — начало ТЕКУЩЕГО
+        // Яруса (не "докуда реально докатилось содержимое", оно может
+        // немного перехлёстывать из-за квантования сегментов по 5-8 рядов;
+        // именно так уже вела себя старая _nextCapstoneRow — тот же принцип
+        // сохранён, не перепридуман).
+        private int _tierStartRow;
         private int _nextCapstoneRow;
+        private Landmark _nextLandmark;
+        private int _nextLandmarkRow;
         private bool _disposed;
 
         /// <param name="maxDifficultyForRow">
@@ -73,9 +96,35 @@ namespace Burmalda.Generation
             _rowsPerTier = rowsPerTier;
 
             _appliedThroughRow = trail.CurrentPosition.Row;
-            _nextCapstoneRow = _appliedThroughRow + _rowsPerTier;
+            BeginTier(_appliedThroughRow);
             EnsureCoveredThrough(_appliedThroughRow + RowsAheadOfPlayer);
             _trail.PositionChanged += OnPositionChanged;
+        }
+
+        // Задача «Алтари на 1/3 и 2/3 Яруса»: (пере)выставляет фиксированную
+        // сетку границ текущего Яруса и цель первого landmark'а (Алтарь #1
+        // на 1/3 Яруса) — дистанция от начала Яруса до первого Алтаря
+        // прямым текстом НЕ менялась этой задачей (владелец: "она корректна
+        // и не завязана на этот баг") — в обычном случае это по-прежнему
+        // просто rowsPerTier/3 заполнителей от того же tierStartRow, что и
+        // раньше определял капстоун целиком. Math.Max с "не раньше уже
+        // применённого содержимого + минимальный зазор" — тот же fallback
+        // для коротких/вырожденных Ярусов, что и у переходов Алтарь→Алтарь/
+        // Алтарь→Комната ниже (см. doc-комментарий EnsureCoveredThrough):
+        // без него короткий предыдущий Ярус мог бы дотянуть содержимое
+        // (после собственного fallback'а на границе Алтарь #2→Комната) до
+        // точки ПОЗЖЕ номинального начала следующего Яруса — тогда первый
+        // Алтарь следующего Яруса слип бы с Комнатой предыдущего вплотную.
+        // В обычном (не вырожденном) случае этот Math.Max — не-op: контент
+        // никогда не обгоняет фиксированную сетку границ настолько.
+        private void BeginTier(int tierStartRow)
+        {
+            _tierStartRow = tierStartRow;
+            _nextCapstoneRow = _tierStartRow + _rowsPerTier;
+            _nextLandmark = Landmark.AltarOne;
+            _nextLandmarkRow = Math.Max(
+                _tierStartRow + _rowsPerTier / 3,
+                _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
         }
 
         /// <summary>Отписывается от трейла. Вызывать при завершении забега/уничтожении системы.</summary>
@@ -93,14 +142,54 @@ namespace Burmalda.Generation
         /// покрыты применённым сегментом — расширяет вперёд целыми
         /// сегментами (см. класс-докстроку).
         ///
-        /// <b>Правка по итогам ручной проверки владельца (2026-09-04):</b> по
-        /// достижении границы Яруса (<see cref="_nextCapstoneRow"/>) вместо
-        /// случайного выбора применяется ФИКСИРОВАННАЯ связка
+        /// <b>Правка по итогам ручной проверки владельца (2026-09-04):</b>
+        /// внутри Яруса детерминированно (не лотереей <see cref="SegmentSelector"/>
+        /// — PRD v9 требует ровно два Алтаря перед каждой Комнатой Босса
+        /// структурой маршрута, не случайным отбором) ставятся три
+        /// фиксированных landmark-сегмента —
         /// <see cref="SegmentTemplateCatalog.AltarTemplate"/> ×2 →
-        /// <see cref="SegmentTemplateCatalog.BossTemplate"/> — PRD v9 требует
-        /// ровно два Алтаря перед каждой Комнатой Босса детерминированным
-        /// потоком, не лотереей <see cref="SegmentSelector"/> (тот же
-        /// селектор по-прежнему отвечает за наполнение МЕЖДУ границами).
+        /// <see cref="SegmentTemplateCatalog.BossTemplate"/>. Между ними
+        /// по-прежнему <see cref="SegmentSelector"/>.
+        ///
+        /// <b>Задача «Алтари на 1/3 и 2/3 Яруса» (владелец, Спринт «Стены
+        /// вместо ловушек», задача 5):</b> раньше все три landmark'а
+        /// ставились ПОДРЯД, вплотную друг к другу, ровно в конце Яруса
+        /// (владелец увидел на устройстве: 5–6 плит между вторым Алтарём и
+        /// Комнатой — ровно длина одного `AltarTemplate`, то есть НОЛЬ
+        /// заполнителя между ними). Теперь: Алтарь #1 на 1/3 Яруса
+        /// (<c>_tierStartRow + _rowsPerTier / 3</c>), Алтарь #2 на 2/3
+        /// (<c>_tierStartRow + _rowsPerTier * 2 / 3</c>), Комната — в конце
+        /// (<c>_nextCapstoneRow</c>, как и раньше). Дистанция от начала
+        /// Яруса до Алтаря #1 не менялась — это тот же
+        /// <c>_rowsPerTier</c>-заполнитель через <see cref="SegmentSelector"/>,
+        /// что раньше вёл к капстоуну целиком, просто короче в 3 раза, не
+        /// новая механика.
+        ///
+        /// <b>Короткие Ярусы — landmark'ы не должны слипаться.</b> Если
+        /// <c>_rowsPerTier</c> достаточно мал, что 1/3 и 2/3 попадают в один
+        /// и тот же уже применённый сегмент (Алтарь #1 своими 5 рядами сам
+        /// перекрывает номинальную отметку 2/3), НИ второй Алтарь, НИ
+        /// Комната не пропускаются (PRD v9 требует ровно два Алтаря и вход
+        /// в Комнату каждый Ярус безусловно) и не сдвигаются на границу
+        /// СЛЕДУЮЩЕГО Яруса (тогда Ярусы начали бы съезжать друг на друга).
+        /// Вместо этого следующий landmark сдвигается вперёд относительно
+        /// своей номинальной отметки — ровно настолько, чтобы между
+        /// предыдущим landmark'ом и им гарантированно поместился хотя бы
+        /// один сегмент-заполнитель через <see cref="SegmentSelector"/>
+        /// (<see cref="MinRowsBetweenLandmarks"/> — наименьший возможный
+        /// размер сегмента, не авторское число баланса). Тот же приём для
+        /// пары Алтарь #2 → Комната, и — симметрично, через
+        /// <see cref="BeginTier"/> — для перехода Комната этого Яруса →
+        /// Алтарь #1 следующего: без него короткий Ярус, чьё содержимое
+        /// fallback'ом растянулся ЗА номинальный капстоун, слепил бы свою
+        /// Комнату с Алтарём #1 следующего Яруса той же болезнью с другой
+        /// стороны границы. Побочный эффект — Ярус в этом вырожденном
+        /// случае становится немного ДЛИННЕЕ номинального
+        /// <c>_rowsPerTier</c> (сетка НОМИНАЛЬНЫХ границ следующего Яруса не
+        /// сжимается вслед за этим, см. <see cref="BeginTier"/> — растягивается
+        /// только фактическое содержимое), это уже приемлемо и раньше:
+        /// квантование сегментов по 5-8 рядов и без того не даёт капстоуну
+        /// приходиться РОВНО на <c>_rowsPerTier</c>.
         /// </summary>
         public void EnsureCoveredThrough(int row)
         {
@@ -108,20 +197,50 @@ namespace Burmalda.Generation
             {
                 var baseRow = _appliedThroughRow + 1;
 
-                if (baseRow >= _nextCapstoneRow)
+                if (baseRow >= _nextLandmarkRow)
                 {
-                    ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
-                    _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
-                    baseRow = _appliedThroughRow + 1;
+                    switch (_nextLandmark)
+                    {
+                        case Landmark.AltarOne:
+                            ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
+                            _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
+                            _nextLandmark = Landmark.AltarTwo;
+                            _nextLandmarkRow = Math.Max(
+                                _tierStartRow + _rowsPerTier * 2 / 3,
+                                _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
+                            break;
 
-                    ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
-                    _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
-                    baseRow = _appliedThroughRow + 1;
+                        case Landmark.AltarTwo:
+                            ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
+                            _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
+                            _nextLandmark = Landmark.Boss;
+                            _nextLandmarkRow = Math.Max(
+                                _nextCapstoneRow,
+                                _appliedThroughRow + 1 + MinRowsBetweenLandmarks);
+                            break;
 
-                    ApplyTemplate(SegmentTemplateCatalog.BossTemplate, baseRow);
-                    _appliedThroughRow += SegmentTemplateCatalog.BossTemplate.RowCount;
+                        case Landmark.Boss:
+                        default:
+                            ApplyTemplate(SegmentTemplateCatalog.BossTemplate, baseRow);
+                            _appliedThroughRow += SegmentTemplateCatalog.BossTemplate.RowCount;
+                            // Следующий Ярус НОМИНАЛЬНО начинается на
+                            // фиксированной сетке границ (_nextCapstoneRow до
+                            // сброса), тот же принцип, что был у старой
+                            // _nextCapstoneRow += _rowsPerTier — сетка сама
+                            // не сжимается и не растягивается вслед за
+                            // фактическим переразбегом контента. Но
+                            // BeginTier всё равно клэмпит фактический старт
+                            // Алтаря #1 следующего Яруса тем же Math.Max, что
+                            // и остальные переходы ниже — без него короткий
+                            // вырожденный Ярус (собственный fallback уже
+                            // растянул его содержимое ЗА номинальный
+                            // капстоун) слепил бы Комнату этого Яруса с
+                            // Алтарём #1 следующего вплотную, той же болезнью
+                            // с другой стороны границы.
+                            BeginTier(_nextCapstoneRow);
+                            break;
+                    }
 
-                    _nextCapstoneRow += _rowsPerTier;
                     continue;
                 }
 
@@ -148,6 +267,21 @@ namespace Burmalda.Generation
             for (var localRow = 0; localRow < template.RowCount; localRow++)
                 _grid.ClaimRow(baseRow + localRow);
 
+            // Доработка хотфикса «разрешение конфликта выбрано неверно»
+            // (владелец, 2026-09-16): ClaimRow выше — best-effort, не
+            // гарантия (TunnelGridReveal может материализовать ряды ДО
+            // того, как этот SegmentRowProvider вообще создан, см.
+            // Generation.Tests.SegmentGenerationCoexistenceTests.
+            // RevealedBeforeClaimed_ObstacleGeneratorWins_TemplateTriggerWins).
+            // Явный источник — вторая, независимая от порядка линия обороны:
+            // этот метод пишет авторский контент шаблона, Tile.GuardAgainstConflictingRole
+            // обязан отдать ему приоритет над Core.TunnelObstacleGenerator
+            // независимо от того, кто из двух дописался до плиты первым.
+            // Исключение — ApplyExtraTrapDensity ниже: случайный ролл, не
+            // авторский контент, сам сужает область до Generated (доработка
+            // PR #290, п.3, см. её вызов).
+            using var _ = new Tile.RoleWriteScope(Tile.RoleWriteSource.Authored);
+
             // Первый проход — собрать координату рычага и все координаты его
             // ворот (в абсолютных координатах сетки): Tile.MarkLever нужен
             // весь список целей сразу, а расположение Lever/LeverGate в
@@ -167,11 +301,11 @@ namespace Burmalda.Generation
             {
                 var coordinate = new GridCoordinate(baseRow + localRow, column);
                 var tile = _grid.GetOrCreateTile(coordinate);
-                ApplyTileType(tile, coordinate, template.TileAt(localRow, column), gateTargets, leverCoordinate, template.GateVaultPurchases);
+                ApplyTileType(tile, coordinate, template.TileAt(localRow, column), gateTargets, leverCoordinate, template.GateVaultPurchases, template, localRow, column);
             }
         }
 
-        private static void ApplyTileType(Tile tile, GridCoordinate coordinate, SegmentTileType type, List<GridCoordinate> leverGateTargets, GridCoordinate? leverCoordinate, double? gateVaultPurchases)
+        private static void ApplyTileType(Tile tile, GridCoordinate coordinate, SegmentTileType type, List<GridCoordinate> leverGateTargets, GridCoordinate? leverCoordinate, double? gateVaultPurchases, SegmentTemplate template, int localRow, int column)
         {
             switch (type)
             {
@@ -222,13 +356,36 @@ namespace Burmalda.Generation
                     tile.MarkBladeTactTrigger(coordinate.Row);
                     break;
                 case SegmentTileType.FallingRockTrigger:
-                    tile.MarkFallingRockTrigger();
+                    // Задача «падающий камень: новая спецификация» —
+                    // камень падает на плиту ВПЕРЕДИ, дефолт "ряд+1, тот же
+                    // столбец" (тот же приём, что Core.TunnelObstacleGenerator.NextRowTarget
+                    // уже использовал для ArrowWave/BladeTact).
+                    tile.MarkFallingRockTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
                     break;
-                case SegmentTileType.LavaWaveTrigger:
-                    tile.MarkLavaTrigger();
+                case SegmentTileType.MovingWallBothTrigger:
+                    // TR-05 «Давилка» — тот же дефолт цели, что у
+                    // FallingRockTrigger (ряд+1, T стоит ПЕРЕД закрывающимся
+                    // рядом).
+                    tile.MarkMovingWallTrigger(coordinate.Row + 1, MovingWallMode.Both);
+                    break;
+                case SegmentTileType.MovingWallLeftTrigger:
+                    tile.MarkMovingWallTrigger(coordinate.Row + 1, MovingWallMode.FromLeft);
+                    break;
+                case SegmentTileType.MovingWallRightTrigger:
+                    tile.MarkMovingWallTrigger(coordinate.Row + 1, MovingWallMode.FromRight);
                     break;
                 case SegmentTileType.Open:
-                    ApplyExtraTrapDensity(tile, coordinate);
+                    // Доработка PR #290, п.3 (владелец, 2026-09-16): случайный
+                    // ролл ExtraTrapDensity — не авторский контент шаблона,
+                    // хоть и живёт в этом же провайдере. Тот же источник, что
+                    // у Core.TunnelObstacleGenerator (Generated), а не
+                    // Authored ApplyTemplate вокруг — иначе метка вводила бы
+                    // в заблуждение (при будущем конфликте эта случайная
+                    // плита ошибочно "побеждала" бы настоящий авторский
+                    // контент). Сейчас вреда нет — ставится только на
+                    // клетки, которые шаблон сам оставил Open.
+                    using (new Tile.RoleWriteScope(Tile.RoleWriteSource.Generated))
+                        ApplyExtraTrapDensity(tile, coordinate, template, localRow, column);
                     break;
                 default:
                     break;
@@ -242,32 +399,62 @@ namespace Burmalda.Generation
         // EditMode-тесты каталога (SegmentRowProviderTests и другие,
         // ExtraTrapDensity.Chance никогда не трогают) остаются полностью
         // детерминированными.
-        private static void ApplyExtraTrapDensity(Tile tile, GridCoordinate coordinate)
+        //
+        // Задача «награда никогда не лежит на ловушке»: ExtraTrapDensity
+        // роняет триггер СЛУЧАЙНО на любую Open-плиту шаблона — без проверки
+        // он мог бы попасть в область поражения (весь ряд/квадрат Бомбы/
+        // ряды назад Лавы, см. RewardTrapConflictValidator) уже существующей
+        // в этом же шаблоне награды, даже если сам авторский шаблон целиком
+        // безопасен. Прогон по каталогу (2026-09-15, ПОСЛЕ починки всех 22
+        // статических конфликтов из 8 шаблонов) нашёл 967 таких потенциально
+        // опасных комбинаций (Open-плита × тип триггера) из 988 Open-плит
+        // каталога — на два порядка больше уже починенных статических
+        // конфликтов, то есть основной риск инварианта был именно
+        // рантайм-плотностью, не авторингом. Fallback при обнаруженной
+        // угрозе — тихо НЕ ставить триггер (плита остаётся обычной Open) —
+        // тот же приём, что уже применяет Core.TunnelObstacleGenerator.
+        // CanReserveTarget для похожего риска.
+        private static void ApplyExtraTrapDensity(Tile tile, GridCoordinate coordinate, SegmentTemplate template, int localRow, int column)
         {
             var chance = ExtraTrapDensity.Chance;
             if (chance <= 0f) return;
             if (UnityEngine.Random.value >= chance) return;
 
-            // Равновероятный выбор среди всех пяти — дебаг-стресс-тест
+            // Равновероятный выбор среди всех четырёх — дебаг-стресс-тест
             // плотности, не авторский подбор конкретного типа под конкретную
             // плиту (это и есть отличие от авторских шаблонов, которые этот
-            // рычаг намеренно дополняет, а не заменяет).
-            switch (UnityEngine.Random.Range(0, 5))
+            // рычаг намеренно дополняет, а не заменяет). Волна «Лава» была
+            // пятым вариантом — убрана из игры (переработка логики ловушек,
+            // (TR-05/06/07) сюда НЕ входит и не должен — Critical Generation
+            // Rule («на affected row запрещены любые другие триггеры
+            // ловушек», см. SegmentTemplate.ValidateMovingWallExclusiveRow)
+            // требует знания о соседних плитах ряда, а этот рычаг решает по
+            // одной Open-плите независимо — случайно расставленная Давилка
+            // могла бы молча нарушить собственное же правило.
+            var candidateType = UnityEngine.Random.Range(0, 4) switch
             {
-                case 0:
+                0 => SegmentTileType.ArrowWaveTrigger,
+                1 => SegmentTileType.BombTrigger,
+                2 => SegmentTileType.BladeTactTrigger,
+                _ => SegmentTileType.FallingRockTrigger,
+            };
+
+            if (RewardTrapConflictValidator.WouldEndangerAnyReward(template, localRow, column, candidateType))
+                return; // угроза существующей награде шаблона — плита остаётся обычной, не молчаливая перезапись роли
+
+            switch (candidateType)
+            {
+                case SegmentTileType.ArrowWaveTrigger:
                     tile.MarkArrowWaveTrigger(coordinate.Row, RowWaveDirection.LeftToRight);
                     break;
-                case 1:
+                case SegmentTileType.BombTrigger:
                     tile.MarkBombTrigger();
                     break;
-                case 2:
+                case SegmentTileType.BladeTactTrigger:
                     tile.MarkBladeTactTrigger(coordinate.Row);
                     break;
-                case 3:
-                    tile.MarkFallingRockTrigger();
-                    break;
-                case 4:
-                    tile.MarkLavaTrigger();
+                case SegmentTileType.FallingRockTrigger:
+                    tile.MarkFallingRockTrigger(new GridCoordinate(coordinate.Row + 1, coordinate.Column));
                     break;
             }
         }

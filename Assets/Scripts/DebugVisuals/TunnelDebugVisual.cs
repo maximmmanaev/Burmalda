@@ -73,10 +73,30 @@ namespace Burmalda.DebugVisuals
         /// </summary>
         public static readonly Color BombWarningPulseTint = new Color(1f, 80f / 255f, 20f / 255f);
 
+        /// <summary>
+        /// Задача «Алтари на 1/3 и 2/3 Яруса» (правка из отчёта по Задаче
+        /// 4, владелец): Бомба и Падающий камень делят одну текстуру
+        /// (<see cref="TileArtKind.BombWarning"/> — новая текстура не в
+        /// скоупе агента), но требуют РАЗНОЙ реакции игрока — от Бомбы надо
+        /// уйти далеко (вся площадь 3×3 опасна), от камня — просто не
+        /// стоять на этой конкретной плите (опасна только она). Одинаковая
+        /// пульсация учила бы игрока неверной реакции. Разведены ЦВЕТОМ —
+        /// это код, не арт: холодный жёлто-янтарный (в отличие от тёплого
+        /// красно-оранжевого <see cref="BombWarningPulseTint"/>) — общепринятое
+        /// "локальная осторожность" вместо "тревога, площадь". Различие
+        /// применяется в <see cref="ApplyVisual"/> по <c>TileVisualState.
+        /// IsFallingRockWarningActive</c>, не по <see cref="TileArtKind"/> —
+        /// оба состояния резолвятся в один и тот же <c>TileArtKind.BombWarning</c>
+        /// (см. <see cref="TileArtKindResolver.Resolve"/>), различать тинт
+        /// приходится уже здесь, на уровне state, не kind.
+        /// </summary>
+        public static readonly Color FallingRockWarningPulseTint = new Color(1f, 210f / 255f, 40f / 255f);
+
         // Частота мигания — чисто анимационная "ощущалка", не баланс (в
         // отличие от BombTrapSystem.BaseDelaySeconds и т.п.) — не вынесена в
         // дебаг-панель, тот же статус, что у CollapseTiltMinDegrees и
-        // подобных чисто визуальных констант этого класса.
+        // подобных чисто визуальных констант этого класса. Общая для обоих
+        // предупреждений — различается только пиковый цвет, не темп.
         private const float BombWarningPulseHz = 4f;
 
         private readonly TunnelGrid _grid;
@@ -348,7 +368,8 @@ namespace Burmalda.DebugVisuals
                     // isExplosiveTrapTrigger/isTimedTrapTrigger/activeTimedTrap —
                     // тот же набор триггеров, что в Movement.TrapRevealSystem.HasHiddenDanger.
                     isTrapTrigger: tile.ArrowWaveTargetRow.HasValue || tile.IsBombTrigger ||
-                        tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger || tile.IsLavaTrigger,
+                        tile.BladeTactTargetRow.HasValue || tile.IsFallingRockTrigger ||
+                        tile.MovingWallTargetRow.HasValue,
                     isBoss: tile.IsBoss,
                     // Задача «тёплый набор плит» (владелец): «плитка с ключом
                     // и маной после сбора должна становиться обычной, ключ и
@@ -372,7 +393,8 @@ namespace Burmalda.DebugVisuals
                     isDangerSignatureRevealed: tile.IsDangerSignatureRevealed,
                     bossRoomTile: tile.BossRoomTile,
                     isBombWarningActive: tile.IsBombWarningActive,
-                    isBombCollapsed: tile.IsBombCollapsed);
+                    isBombCollapsed: tile.IsBombCollapsed,
+                    isFallingRockWarningActive: tile.IsFallingRockWarningActive);
 
                 // Issue #260: дыра от Бомбы — тот же провальный пол/анимация
                 // обвала, что и распад (см. doc-комментарий TileArtKind.BombHole) —
@@ -803,8 +825,15 @@ namespace Burmalda.DebugVisuals
                 // Босс переиспользует текстуру Алтаря, но не её белый тон —
                 // см. doc-комментарий BossArtTint. Единственное исключение
                 // из "текстура показывается как есть" в этом методе.
+                // Задача 5 (правка из отчёта Задачи 4): Бомба и Падающий
+                // камень делят TileArtKind.BombWarning, но не тинт — см.
+                // doc-комментарий FallingRockWarningPulseTint. Приоритет
+                // Бомбы, если оба состояния почему-то истинны одновременно —
+                // тот же порядок, что уже действует в TileArtKindResolver.Resolve
+                // (IsBombWarningActive проверяется раньше IsFallingRockWarningActive).
                 var textureTint = kind == TileArtKind.Boss ? BossArtTint
-                    : kind == TileArtKind.BombWarning ? ComputeBombWarningPulseTint()
+                    : kind == TileArtKind.BombWarning && state.IsBombWarningActive ? ComputeBombWarningPulseTint()
+                    : kind == TileArtKind.BombWarning && state.IsFallingRockWarningActive ? ComputeFallingRockWarningPulseTint()
                     : Color.white;
                 _propertyBlock.SetTexture(BaseMapId, texture);
                 _propertyBlock.SetTexture(MainTexId, texture);
@@ -831,6 +860,13 @@ namespace Burmalda.DebugVisuals
         {
             var phase01 = Mathf.Sin(_elapsedSeconds * BombWarningPulseHz * Mathf.PI * 2f) * 0.5f + 0.5f;
             return Color.Lerp(Color.white, BombWarningPulseTint, phase01);
+        }
+
+        /// <summary>Задача 5 — см. <see cref="FallingRockWarningPulseTint"/>. Та же фаза/частота, что у Бомбы, другой пиковый цвет — темп предупреждения одинаков, читаемый отличительный признак только цвет.</summary>
+        private Color ComputeFallingRockWarningPulseTint()
+        {
+            var phase01 = Mathf.Sin(_elapsedSeconds * BombWarningPulseHz * Mathf.PI * 2f) * 0.5f + 0.5f;
+            return Color.Lerp(Color.white, FallingRockWarningPulseTint, phase01);
         }
 
         /// <summary>

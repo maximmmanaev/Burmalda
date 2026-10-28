@@ -200,5 +200,74 @@ namespace Burmalda.Generation.Tests
                 new SegmentTemplate("t", 1, SegmentRewardTag.Artifact, tiles));
             StringAssert.Contains("Lever", ex.Message);
         }
+
+        // BURMALDA Trap System Spec v0.1 (TR-05/06/07) — Critical Generation
+        // Rule: ряд, который закрывает MovingWallTrap (targetRow =
+        // строка-триггер + 1, см. SegmentRowProvider.ApplyTileType), не
+        // может содержать ни один другой триггер ловушки.
+        [Test]
+        public void Constructor_MovingWallTargetRowHasAnotherTrapTrigger_Throws()
+        {
+            var tiles = OpenRows(5);
+            tiles[1, 0] = SegmentTileType.MovingWallBothTrigger;
+            tiles[2, 2] = SegmentTileType.BombTrigger; // ряд 2 — целевой ряд Давилки из ряда 1
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+            StringAssert.Contains("Critical Generation Rule", ex.Message);
+        }
+
+        // Два триггера MovingWallTrap, целящихся в один и тот же ряд —
+        // тоже запрещённое сочетание (правило "любой другой триггер", не
+        // список исключений для самой MovingWallTrap).
+        [Test]
+        public void Constructor_MovingWallTriggerTargetRowHasAnotherMovingWallTrigger_Throws()
+        {
+            // Правило "любой другой триггер" включает и другой MovingWall-
+            // триггер — не только чужие типы (см. тест выше с BombTrigger).
+            // Триггер на ряду 0 целится в ряд 1 (targetRow = triggerRow+1);
+            // второй триггер физически стоит НА этом ряду 1 — конфликт,
+            // независимо от того, куда целится сам второй триггер.
+            var tiles = OpenRows(5);
+            tiles[0, 0] = SegmentTileType.MovingWallLeftTrigger;
+            tiles[1, 2] = SegmentTileType.MovingWallRightTrigger;
+
+            Assert.Throws<ArgumentException>(() =>
+                new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+        }
+
+        // Статичная Lava — не триггер (нет фазы Detected/скрытой угрозы),
+        // намеренно исключена из правила (см. doc-комментарий
+        // SegmentTemplate.ValidateMovingWallExclusiveRow).
+        [Test]
+        public void Constructor_MovingWallTargetRowHasStaticLava_DoesNotThrow()
+        {
+            var tiles = OpenRows(5);
+            tiles[1, 0] = SegmentTileType.MovingWallBothTrigger;
+            tiles[2, 2] = SegmentTileType.Lava;
+
+            Assert.DoesNotThrow(() => new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+        }
+
+        [Test]
+        public void Constructor_MovingWallTargetRowIsAllOpen_DoesNotThrow()
+        {
+            var tiles = OpenRows(5);
+            tiles[1, 0] = SegmentTileType.MovingWallBothTrigger;
+
+            Assert.DoesNotThrow(() => new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+        }
+
+        // Триггер на последнем ряду шаблона — целевой ряд (+1) за пределами
+        // шаблона, тот же случай, что уже допускает FallingRockTrigger.
+        // Нечего проверять — не должно падать.
+        [Test]
+        public void Constructor_MovingWallTriggerOnLastRow_TargetRowOutOfBounds_DoesNotThrow()
+        {
+            var tiles = OpenRows(5);
+            tiles[4, 0] = SegmentTileType.MovingWallBothTrigger;
+
+            Assert.DoesNotThrow(() => new SegmentTemplate("t", 1, SegmentRewardTag.Coins, tiles));
+        }
     }
 }

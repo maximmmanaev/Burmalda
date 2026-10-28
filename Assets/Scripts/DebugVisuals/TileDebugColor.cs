@@ -84,6 +84,18 @@ namespace Burmalda.DebugVisuals
         public static readonly Color BombWarningColor = TriggerSignatureColor;
 
         /// <summary>
+        /// Задача 5 (правка из отчёта Задачи 4, владелец): Бомба и Падающий
+        /// камень требуют разной реакции (уйти далеко / не стоять на этой
+        /// плите) — фолбэк-цвет (без текстуры, Editor/тесты без арт-пака)
+        /// разведён отдельно от <see cref="BombWarningColor"/>, тот же
+        /// янтарно-жёлтый тон, что пиковый цвет пульсации текстурного слоя
+        /// (<c>TunnelDebugVisual.FallingRockWarningPulseTint</c>) — здесь
+        /// статичен, пульсацию добавляет только текстурный рендер, как и у
+        /// <see cref="BombWarningColor"/>.
+        /// </summary>
+        public static readonly Color FallingRockWarningColor = new Color(1f, 210f / 255f, 40f / 255f);
+
+        /// <summary>
         /// Задача «сделать тоннель играбельным», часть 1: источник Кристаллов
         /// Маны (<c>Core.Tile.IsManaSource</c>) — видим ВСЕГДА, это награда, не
         /// опасность (см. doc-комментарий <see cref="TileVisualState.IsManaSource"/>).
@@ -198,13 +210,20 @@ namespace Burmalda.DebugVisuals
             if (state.IsBlocked) return BlockedColor;
             // Issue #163: лава остаётся видимой как раньше (PRD v8 §4.2)
             // — единственный статичный LethalTrapType, для которого Resolve()
-            // возвращает его собственный цвет напрямую. Issue #262: волна
-            // Лавы (Movement.LavaWaveTrapSystem) ставит тот же идентификатор
-            // — эта ветка ловит и её, отдельной ветки под волну больше нет.
+            // возвращает его собственный цвет напрямую. Раньше сюда же (issue
+            // #262) попадала и волна Лавы (Movement.LavaWaveTrapSystem,
+            // ставила тот же идентификатор) — убрана из игры целиком
+            // (переработка логики ловушек, владелец), эта ветка теперь ловит
+            // только статичный источник.
             if (state.LethalTrap == LethalTrapType.Lava) return LavaColor;
             // Issue #260: мигание Бомбы — до общей ветки TimedTrapActive
             // ниже, тот же порядок, что в TileArtKindResolver.Resolve.
             if (state.IsBombWarningActive) return BombWarningColor;
+            // Задача «падающий камень: новая спецификация» — та же
+            // приоритетная логика, что Бомба выше, но задачей 5 разведён
+            // отдельным цветом (см. doc-комментарий FallingRockWarningColor)
+            // — Бомба и камень требуют разной реакции игрока.
+            if (state.IsFallingRockWarningActive) return FallingRockWarningColor;
             // Баг с устройства (владелец, 2026-09-05, «стрела остаётся
             // смертельной навсегда... выглядит как непроходимая стена»):
             // проверка показала, что ArrowWaveTrapSystem/BladeTactTrapSystem
@@ -217,8 +236,13 @@ namespace Burmalda.DebugVisuals
             // (CanAdvanceTo видит LethalTrap), а глазами — ничего не видно,
             // что бы это объясняло. Угроза ПРЯМО СЕЙЧАС — видна ВСЕГДА, без
             // гейта примеривания.
-            if (state.LethalTrap == LethalTrapType.ArrowWave || state.LethalTrap == LethalTrapType.BombBlast ||
-                state.LethalTrap == LethalTrapType.BladeTact)
+            //
+            // Задача «симуляция стрелы» (владелец, 2026-10-01, живой
+            // плейтест): «убери изменение текстуры плиты при срабатывании
+            // ловушки стрелы» — ArrowWave убран из этой ветки, тот же приём,
+            // что в TileArtKindResolver.Resolve (см. её doc-комментарий).
+            // Bomb/BladeTact не трогаются — владелец просил только про стрелу.
+            if (state.LethalTrap == LethalTrapType.BombBlast || state.LethalTrap == LethalTrapType.BladeTact)
                 return TimedTrapActiveColor;
             // Задача «раскрытие опасности при примеривании» (PRD v9 §4.2):
             // триггер одной из пяти ловушек не отличим от обычного пола,

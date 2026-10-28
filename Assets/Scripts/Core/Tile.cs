@@ -41,14 +41,9 @@ namespace Burmalda.Core
         /// <c>Bootstrap.RunBootstrap</c>) закрывает ПРИЧИНУ — этот метод
         /// закрывает СЛЕДСТВИЕ на случай, если причина всё же случится
         /// снова (регрессия, новый генератор, ручной тест): плита не может
-        /// одновременно нести две из перечисленных ниже ролей — попытка
-        /// зовёт <see cref="InvalidOperationException"/>, а не молча
-        /// перезаписывает. Core не ссылается на UnityEngine
-        /// (<c>noEngineReferences</c> в Burmalda.Core.asmdef) — необработанное
-        /// исключение Unity сам громко логирует в консоль в Editor/dev-сборке,
-        /// отдельный Debug.LogError не нужен и был бы недоступен отсюда.
-        /// Повторная пометка ТОЙ ЖЕ роли (что и раньше) остаётся тихим
-        /// не-op — конфликт только между РАЗНЫМИ ролями.
+        /// одновременно нести две из перечисленных ниже ролей. Повторная
+        /// пометка ТОЙ ЖЕ роли (что и раньше) остаётся тихим не-op —
+        /// конфликт только между РАЗНЫМИ ролями.
         ///
         /// <b>Разделение фаз (владелец, 2026-09-01 — предыдущая формулировка
         /// без разделения фаз была дефектом постановки, не шаблонов
@@ -64,17 +59,234 @@ namespace Burmalda.Core
         /// метод. Список рантайм-переходов растёт вместе с игрой — не
         /// перечислением исключений здесь, а новым явным методом на каждый
         /// случай, как уже сделано для этих пяти.
+        ///
+        /// <b>Хотфикс «страж роняет забег вместо диагностики» (владелец,
+        /// 2026-09-16):</b> раньше страж бросал <see cref="InvalidOperationException"/>
+        /// БЕЗУСЛОВНО, в любой сборке. После расширения на пять триггеров
+        /// ловушек (задача «награда никогда не лежит на ловушке») известная,
+        /// задокументированная как переходное состояние гонка
+        /// <c>Movement.TunnelObstacleController</c> vs
+        /// <c>Generation.SegmentRowProvider</c> (см. <c>Generation.Tests.
+        /// SegmentGenerationCoexistenceTests</c>) перестала быть тихой
+        /// порчей одной плиты и стала падением забега прямо на
+        /// development-сборке владельца. Поведение теперь разведено по
+        /// <see cref="ThrowOnRoleConflict"/>: строго (бросает) — только в
+        /// Editor Play mode и в EditMode-тестах, где эта гонка сигнализирует
+        /// об ошибке генерации, ради чего страж и заводился. В собранной
+        /// игре (включая development-сборку) — не бросает: разрешает
+        /// конфликт (см. следующий абзац), логирует через
+        /// <see cref="RoleConflictRejected"/> (Core не ссылается на
+        /// UnityEngine, <c>noEngineReferences</c> в Burmalda.Core.asmdef —
+        /// Debug.LogWarning отсюда недоступен, тот же приём, что уже
+        /// <see cref="TunnelGrid.TileMaterialized"/>). Сама гонка
+        /// генераторов этим не чинится — трекается отдельным issue.
+        ///
+        /// <b>Доработка «разрешение конфликта выбрано неверно» (владелец,
+        /// 2026-09-16):</b> первая версия хотфикса разрешала конфликт
+        /// правилом "первая запись побеждает" — но
+        /// <c>Core.TunnelObstacleGenerator</c> подписан на
+        /// <see cref="TunnelGrid.TileMaterialized"/> и роллит в момент
+        /// ПЕРВОЙ материализации плиты, а <c>Generation.SegmentRowProvider.
+        /// ApplyTemplate</c> вызывает <see cref="TunnelGrid.GetOrCreateTile"/>
+        /// сам — легаси-ролл систематически происходит ПЕРВЫМ, авторская
+        /// запись шаблона — ВТОРОЙ. "Первая побеждает" систематически
+        /// отклоняла именно авторский контент, который случайный обстакл
+        /// затирал молча. Разрешение теперь — явный источник записи
+        /// (<see cref="RoleWriteSource"/>/<see cref="CurrentWriteSource"/>),
+        /// не эвристика по порядку вызова: <see cref="RoleWriteSource.Authored"/>
+        /// побеждает <see cref="RoleWriteSource.Generated"/> НЕЗАВИСИМО от
+        /// того, кто писал первым — если авторская запись приходит ВТОРОЙ
+        /// (обычный случай), она замещает уже стоящую генерируемую роль
+        /// (см. <see cref="ClearActiveExclusiveRole"/>), а не отклоняется.
+        /// Конфликт между двумя авторскими или двумя генерируемыми записями
+        /// (оба редки/не должны происходить по конструкции — не пойман
+        /// приоритетом источника, так как источники СОВПАДАЮТ) по-прежнему
+        /// разрешается в пользу первой — для одинаковых источников порядок
+        /// снова единственный доступный критерий.
+        ///
+        /// <b>Доработка PR #290, п.1 (владелец, 2026-09-16):</b> Authored-vs-
+        /// Generated — теперь ШТАТНЫЙ, ожидаемый на каждом сегменте случай
+        /// (легаси роллит первым, шаблон пишет следом), а не признак
+        /// поломки генерации — разрешается молча и ОДИНАКОВО во всех
+        /// режимах, включая строгий: <see cref="ThrowOnRoleConflict"/>
+        /// бросает ТОЛЬКО когда источник конфликта совпадает (Generated-vs-
+        /// Generated или Authored-vs-Authored) — там приоритет источника не
+        /// различает победителя, и конфликт снова означает ошибку генерации
+        /// (регрессия, новый генератор, ручной тест), ради которой страж и
+        /// заводился. Иначе в Editor Play mode падало бы исключение на
+        /// первом же сегменте — режим стал бы непригоден для проверки.
         /// </summary>
-        private void GuardAgainstConflictingRole(bool alreadyThisRole, string incomingRole)
+        /// <returns>
+        /// true — можно записывать роль (конфликта нет, это повтор той же
+        /// роли, или авторская запись только что вытеснила генерируемую);
+        /// false — конфликт отклонён В ПОЛЬЗУ УЖЕ СТОЯЩЕЙ роли (только
+        /// когда конфликт не бросил — см. doc-комментарий выше) — вызывающий
+        /// Mark*-метод обязан НЕ писать поле в этом случае.
+        /// </returns>
+        private bool GuardAgainstConflictingRole(bool alreadyThisRole, string incomingRole)
         {
-            if (alreadyThisRole) return;
+            if (alreadyThisRole) return true;
 
             var existing = ActiveExclusiveRoleName();
-            if (existing == null) return;
+            if (existing == null)
+            {
+                _activeRoleSource = CurrentWriteSource;
+                return true;
+            }
 
-            throw new InvalidOperationException(
-                $"Tile {Coordinate}: попытка пометить роль '{incomingRole}', но плита уже несёт взаимоисключающую роль '{existing}' — два генератора записали в одну плиту (см. docs/wiki/changelog.md, задача «двойные флаги на плитах»).");
+            var incomingSource = CurrentWriteSource;
+            var existingSource = _activeRoleSource;
+            // Разные источники — приоритет разрешает конфликт однозначно,
+            // независимо от порядка. Одинаковые источники — приоритет
+            // ничего не различает, порядок остаётся единственным критерием
+            // (и единственный случай, где строгий режим ещё бросает).
+            var resolvedByPriority = incomingSource != existingSource;
+            var incomingWins = resolvedByPriority && incomingSource == RoleWriteSource.Authored;
+            var winnerRole = incomingWins ? incomingRole : existing;
+            var loserRole = incomingWins ? existing : incomingRole;
+
+            var message =
+                $"Tile {Coordinate}: конфликт ролей — попытка пометить '{incomingRole}' ({incomingSource}), но плита уже несёт взаимоисключающую роль '{existing}' ({existingSource}). Победила '{winnerRole}', отклонена '{loserRole}' (два генератора записали в одну плиту, см. docs/wiki/changelog.md, задача «двойные флаги на плитах»).";
+
+            if (ThrowOnRoleConflict && !resolvedByPriority)
+                throw new InvalidOperationException(message);
+
+            RoleConflictRejectedCount++;
+            LastRoleConflictRejectedRole = loserRole;
+            LastRoleConflictKeptRole = winnerRole;
+            RoleConflictRejected?.Invoke(message);
+
+            if (!incomingWins) return false;
+
+            ClearActiveExclusiveRole();
+            _activeRoleSource = incomingSource;
+            return true;
         }
+
+        /// <summary>
+        /// Обнуляет поле(я) РОВНО той роли, что сейчас возвращает
+        /// <see cref="ActiveExclusiveRoleName"/> — зеркало её же переключателя.
+        /// Вызывается только из <see cref="GuardAgainstConflictingRole"/> в
+        /// момент, когда авторская запись вытесняет генерируемую (см. её
+        /// doc-комментарий, доработка «разрешение конфликта выбрано
+        /// неверно») — без этого поле проигравшей роли осталось бы
+        /// установленным рядом с полем победившей, тот самый "двойной
+        /// флаг", который весь этот страж должен предотвращать.
+        /// </summary>
+        private void ClearActiveExclusiveRole()
+        {
+            if (IsBlocked) { IsBlocked = false; return; }
+            if (LethalTrap.HasValue) { LethalTrap = null; return; }
+            if (IsManaSource) { IsManaSource = false; return; }
+            if (IsKeySource) { IsKeySource = false; KeySourceAmount = null; return; }
+            if (IsAltar) { IsAltar = false; return; }
+            if (IsBoss) { IsBoss = false; return; }
+            if (IsLever) { IsLever = false; LeverGateTargets = null; return; }
+            if (IsGated) { IsGated = false; LeverCoordinate = null; return; }
+            if (ArrowWaveTargetRow.HasValue) { ArrowWaveTargetRow = null; ArrowWaveDirection = null; return; }
+            if (IsBombTrigger) { IsBombTrigger = false; return; }
+            if (BladeTactTargetRow.HasValue) { BladeTactTargetRow = null; return; }
+            if (IsFallingRockTrigger) { IsFallingRockTrigger = false; FallingRockTargetCoordinate = null; return; }
+            if (MovingWallTargetRow.HasValue) { MovingWallTargetRow = null; MovingWallTriggerMode = null; }
+        }
+
+        /// <summary>Источник, записавший текущую активную эксклюзивную роль этой плиты — см. doc-комментарий <see cref="GuardAgainstConflictingRole"/> (доработка «разрешение конфликта выбрано неверно»). Бессмысленно, пока роль не установлена.</summary>
+        private RoleWriteSource _activeRoleSource;
+
+        /// <summary>
+        /// Строгий режим стража ролей — см. doc-комментарий
+        /// <see cref="GuardAgainstConflictingRole"/>. По умолчанию false.
+        /// Даже когда true, бросает НЕ на любом конфликте — только когда
+        /// источники совпадают (см. п.1 доработки PR #290 там же);
+        /// Authored-vs-Generated разрешается молча приоритетом источника в
+        /// любом режиме. Включается явно двумя местами:
+        /// <c>Bootstrap.RunBootstrap.Awake</c> — по <c>Application.isEditor</c>
+        /// (НЕ <c>Debug.isDebugBuild</c> — тот был бы true и на
+        /// development-сборке, где страж обязан не падать), и
+        /// <c>[SetUpFixture]</c> тестовых сборок (Core.Tests/Generation.Tests) —
+        /// EditMode-раннер не входит в Play mode, и
+        /// <c>RuntimeInitializeOnLoadMethod</c> там не срабатывает.
+        /// </summary>
+        public static bool ThrowOnRoleConflict;
+
+        /// <summary>
+        /// Источник записи роли — см. doc-комментарий
+        /// <see cref="GuardAgainstConflictingRole"/> (доработка «разрешение
+        /// конфликта выбрано неверно», владелец, 2026-09-16).
+        /// </summary>
+        public enum RoleWriteSource
+        {
+            /// <summary>Процедурный легаси-генератор (<c>Core.TunnelObstacleGenerator</c>) — значение по умолчанию, никто явно не оборачивает его вызовы в <see cref="RoleWriteScope"/>.</summary>
+            Generated,
+
+            /// <summary>Авторский контент, утверждённый владельцем (<c>Generation.SegmentRowProvider</c> — шаблоны и <c>ExtraTrapDensity</c>). Требует явного <see cref="RoleWriteScope"/> вокруг записывающих вызовов.</summary>
+            Authored,
+        }
+
+        /// <summary>
+        /// Текущий источник записи роли — см. <see cref="RoleWriteSource"/>.
+        /// Static, не per-instance: вся генерация тоннеля однопоточная и
+        /// синхронная, скоуп виден всем <see cref="Tile"/> одновременно, тот
+        /// же приём, что уже <see cref="ThrowOnRoleConflict"/>.
+        /// </summary>
+        public static RoleWriteSource CurrentWriteSource { get; private set; } = RoleWriteSource.Generated;
+
+        /// <summary>
+        /// IDisposable-скоуп, переключающий <see cref="CurrentWriteSource"/>
+        /// на время авторской записи — оборачивает ровно тот код, что
+        /// реально пишет авторский контент
+        /// (<c>Generation.SegmentRowProvider.ApplyTemplate</c>/
+        /// <c>ApplyExtraTrapDensity</c>), восстанавливает прежнее значение
+        /// на Dispose даже при исключении внутри (стандартный C# using).
+        /// </summary>
+        public readonly struct RoleWriteScope : IDisposable
+        {
+            private readonly RoleWriteSource _previous;
+
+            public RoleWriteScope(RoleWriteSource source)
+            {
+                _previous = CurrentWriteSource;
+                CurrentWriteSource = source;
+            }
+
+            public void Dispose() => CurrentWriteSource = _previous;
+        }
+
+        /// <summary>
+        /// Число разрешённых конфликтов роли (растёт при каждом конфликте,
+        /// когда <see cref="ThrowOnRoleConflict"/> == false — независимо от
+        /// того, чья роль победила) — накопительное за жизнь процесса, не
+        /// сбрасывается между забегами: дебаг-панель
+        /// (<c>DebugVisuals.TrapDensityDebugPanel</c>) показывает его как
+        /// диагностику "гонка теоретически возможна → сколько раз реально
+        /// произошла", не как счётчик текущего забега.
+        /// </summary>
+        public static int RoleConflictRejectedCount { get; private set; }
+
+        /// <summary>
+        /// Имя роли, отклонённой в САМОМ ПОСЛЕДНЕМ конфликте — см.
+        /// <see cref="RoleConflictRejectedCount"/>. Вместе с
+        /// <see cref="LastRoleConflictKeptRole"/> отвечает на вопрос
+        /// "теряется ли авторский контент": если здесь систематически
+        /// оказываются роли <c>Generation.SegmentRowProvider</c>
+        /// (ManaSource/KeySource/Altar/Boss/триггеры шаблонов) — авторский
+        /// контент теряется, разрешение конфликта сломано. Null, пока
+        /// конфликтов не было.
+        /// </summary>
+        public static string LastRoleConflictRejectedRole { get; private set; }
+
+        /// <summary>Имя роли, оставшейся победителем в САМОМ ПОСЛЕДНЕМ конфликте — см. <see cref="LastRoleConflictRejectedRole"/>.</summary>
+        public static string LastRoleConflictKeptRole { get; private set; }
+
+        /// <summary>
+        /// Сообщение о разрешённом конфликте роли, когда
+        /// <see cref="ThrowOnRoleConflict"/> == false — координата плиты,
+        /// обе роли, оба источника, кто победил (доработка «разрешение
+        /// конфликта выбрано неверно», п. 3). См. doc-комментарий
+        /// <see cref="GuardAgainstConflictingRole"/> про то, почему Core не
+        /// логирует это напрямую.
+        /// </summary>
+        public static event Action<string> RoleConflictRejected;
 
         private string ActiveExclusiveRoleName()
         {
@@ -86,6 +298,21 @@ namespace Burmalda.Core
             if (IsBoss) return nameof(IsBoss);
             if (IsLever) return nameof(IsLever);
             if (IsGated) return nameof(IsGated);
+            // Задача «награда никогда не лежит на ловушке» (владелец): пять
+            // триггеров ловушек Спринта 13a раньше НЕ входили в этот список —
+            // их Mark*-методы не вызывали GuardAgainstConflictingRole вовсе
+            // (см. их doc-комментарии до этой задачи). Ни один существующий
+            // генератор фактически не мог создать такой конфликт (переключатель
+            // SegmentRowProvider.ApplyTileType/ExtraTrapDensity ставит ровно
+            // одну роль на плиту за проход), поэтому страж здесь раньше не
+            // требовался технически — но был дырой на случай будущего
+            // изменения генератора, симметричной уже закрытой (LethalTrap
+            // выше). Добавлено тем же порядком, что и остальные роли.
+            if (ArrowWaveTargetRow.HasValue) return nameof(ArrowWaveTargetRow);
+            if (IsBombTrigger) return nameof(IsBombTrigger);
+            if (BladeTactTargetRow.HasValue) return nameof(BladeTactTargetRow);
+            if (IsFallingRockTrigger) return nameof(IsFallingRockTrigger);
+            if (MovingWallTargetRow.HasValue) return nameof(MovingWallTargetRow);
             return null;
         }
 
@@ -103,7 +330,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как непроходимое статичное препятствие. Повторные вызовы — не-op.</summary>
         public void MarkBlocked()
         {
-            GuardAgainstConflictingRole(IsBlocked, nameof(IsBlocked));
+            if (!GuardAgainstConflictingRole(IsBlocked, nameof(IsBlocked))) return;
             IsBlocked = true;
         }
 
@@ -140,7 +367,7 @@ namespace Burmalda.Core
         public void MarkLethalTrap(LethalTrapType trapType)
         {
             if (LethalTrap.HasValue) return;
-            GuardAgainstConflictingRole(false, nameof(LethalTrap));
+            if (!GuardAgainstConflictingRole(false, nameof(LethalTrap))) return;
             LethalTrap = trapType;
         }
 
@@ -160,11 +387,11 @@ namespace Burmalda.Core
         /// награду" — срабатывание обязано превратить плиту в смертельную,
         /// не бросить исключение.
         ///
-        /// Используется всеми пятью ловушками Спринта 13a (docs/wiki/traps.md,
+        /// Используется остальными ловушками Спринта 13a (docs/wiki/traps.md,
         /// <c>Movement.ArrowWaveTrapSystem</c>/<c>BombTrapSystem</c>/
-        /// <c>BladeTactTrapSystem</c>/<c>LavaWaveTrapSystem</c>) — список
-        /// рантайм-переходов растёт РАЗДЕЛЕНИЕМ ФАЗ (генерация/рантайм), а не
-        /// перечислением исключений в страже, см. его doc-комментарий.
+        /// <c>BladeTactTrapSystem</c>) — список рантайм-переходов растёт
+        /// РАЗДЕЛЕНИЕМ ФАЗ (генерация/рантайм), а не перечислением исключений
+        /// в страже, см. его doc-комментарий.
         /// </summary>
         public void TransitionToLethalTrap(LethalTrapType trapType)
         {
@@ -178,8 +405,7 @@ namespace Burmalda.Core
         /// issue #213, <c>Movement.ArrowWaveTrapSystem</c>): «каждая плита
         /// опасна короткий момент, пока волна проходит, затем снова
         /// безопасна» — в отличие от <see cref="LethalTrapType.Lava"/>
-        /// (постоянна и с генерации, и с момента активации волны — issue
-        /// #262, оба источника делят один идентификатор), опасность волны
+        /// (постоянна, ставится только на генерации), опасность волны
         /// Стрелы временная НА КАЖДОЙ отдельной плите ряда.
         ///
         /// Вызывать ТОЛЬКО на плите, которую сама вызывающая система же и
@@ -212,10 +438,17 @@ namespace Burmalda.Core
         /// <summary>Направление волны — актуально только вместе с <see cref="ArrowWaveTargetRow"/>. Задаётся на генерации, не выбирается заново при активации (см. <see cref="RowWaveDirection"/>).</summary>
         public RowWaveDirection? ArrowWaveDirection { get; private set; }
 
-        /// <summary>Помечает плиту как триггер волны Стрелы по заданному ряду и направлению. Повторные вызовы сохраняют первые значения.</summary>
+        /// <summary>
+        /// Помечает плиту как триггер волны Стрелы по заданному ряду и
+        /// направлению. Повторные вызовы сохраняют первые значения. Строгий
+        /// страж — см. <see cref="GuardAgainstConflictingRole"/> (задача
+        /// «награда никогда не лежит на ловушке»): плита-источник Маны/
+        /// Ключей не может одновременно стать триггером.
+        /// </summary>
         public void MarkArrowWaveTrigger(int targetRow, RowWaveDirection direction)
         {
             if (ArrowWaveTargetRow.HasValue) return;
+            if (!GuardAgainstConflictingRole(false, nameof(ArrowWaveTargetRow))) return;
             ArrowWaveTargetRow = targetRow;
             ArrowWaveDirection = direction;
         }
@@ -265,9 +498,15 @@ namespace Burmalda.Core
         /// </summary>
         public bool IsBombTrigger { get; private set; }
 
-        /// <summary>Помечает плиту как триггер Бомбы. Повторные вызовы — не-op.</summary>
+        /// <summary>
+        /// Помечает плиту как триггер Бомбы. Повторные вызовы — не-op.
+        /// Строгий страж — см. <see cref="GuardAgainstConflictingRole"/>
+        /// (задача «награда никогда не лежит на ловушке»).
+        /// </summary>
         public void MarkBombTrigger()
         {
+            if (IsBombTrigger) return;
+            if (!GuardAgainstConflictingRole(false, nameof(IsBombTrigger))) return;
             IsBombTrigger = true;
         }
 
@@ -283,41 +522,105 @@ namespace Burmalda.Core
         /// </summary>
         public int? BladeTactTargetRow { get; private set; }
 
-        /// <summary>Помечает плиту как триггер такта Лезвий по заданному ряду. Повторные вызовы сохраняют первое значение.</summary>
+        /// <summary>
+        /// Помечает плиту как триггер такта Лезвий по заданному ряду.
+        /// Повторные вызовы сохраняют первое значение. Строгий страж — см.
+        /// <see cref="GuardAgainstConflictingRole"/> (задача «награда
+        /// никогда не лежит на ловушке»).
+        /// </summary>
         public void MarkBladeTactTrigger(int targetRow)
         {
             if (BladeTactTargetRow.HasValue) return;
+            if (!GuardAgainstConflictingRole(false, nameof(BladeTactTargetRow))) return;
             BladeTactTargetRow = targetRow;
         }
 
         /// <summary>
         /// Плита — триггер ловушки «Падающий камень» (docs/wiki/traps.md,
-        /// issue #217): в отличие от прочих триггеров не хранит отдельную
-        /// координату/ряд цели — камень падает на САМУ эту плиту (владелец:
-        /// «на плиту-триггер падает камень»), см. <c>Movement.FallingRockTrapSystem</c>.
+        /// issue #217).
+        ///
+        /// <b>Задача «падающий камень: новая спецификация» (владелец,
+        /// Спринт «Стены вместо ловушек»): раньше камень падал на САМУ эту
+        /// плиту («на плиту-триггер падает камень») — отменено.</b> Две
+        /// подтверждённые причины: (1) <c>Movement.FallingRockTrapSystem.
+        /// PlayerCrushed</c> не имел ни одного подписчика — событие никогда
+        /// никого не убивало; (2) камень падал на плиту, которую игрок уже
+        /// покинул (шаг ~0.3с, задержка ~1с) — плита позади и так распадается,
+        /// ловушка дублировала распад, не создавала риска. Теперь плита-
+        /// триггер безопасна сама по себе — цель падения камня хранит
+        /// <see cref="FallingRockTargetCoordinate"/>.
         /// </summary>
         public bool IsFallingRockTrigger { get; private set; }
 
-        /// <summary>Помечает плиту как триггер Падающего камня. Повторные вызовы — не-op.</summary>
-        public void MarkFallingRockTrigger()
+        /// <summary>
+        /// Задача «падающий камень: новая спецификация»: плита ВПЕРЕДИ
+        /// триггера, на которую упадёт камень — не сама плита-триггер (см.
+        /// doc-комментарий <see cref="IsFallingRockTrigger"/>). Тот же
+        /// приём, что <see cref="ArrowWaveTargetRow"/>/<see cref="BladeTactTargetRow"/>:
+        /// конкретное смещение решает вызывающая сторона на генерации
+        /// (<c>Generation.SegmentRowProvider</c>/<c>Core.TunnelObstacleGenerator</c>),
+        /// этот класс только хранит явно переданную координату. Null, пока
+        /// плита не помечена триггером.
+        /// </summary>
+        public GridCoordinate? FallingRockTargetCoordinate { get; private set; }
+
+        /// <summary>
+        /// Помечает плиту как триггер Падающего камня с целью падения камня
+        /// <paramref name="targetCoordinate"/>. Повторные вызовы сохраняют
+        /// первую цель. Строгий страж — см. <see cref="GuardAgainstConflictingRole"/>
+        /// (задача «награда никогда не лежит на ловушке»).
+        /// </summary>
+        public void MarkFallingRockTrigger(GridCoordinate targetCoordinate)
         {
+            if (IsFallingRockTrigger) return;
+            if (!GuardAgainstConflictingRole(false, nameof(IsFallingRockTrigger))) return;
             IsFallingRockTrigger = true;
+            FallingRockTargetCoordinate = targetCoordinate;
         }
 
         /// <summary>
-        /// Плита — триггер ловушки «Лава» (docs/wiki/traps.md, issue #216):
-        /// сама эта плита — начало волны, отдельной координаты/ряда цели не
-        /// хранит (владелец: «волна идёт от ряда триггера назад» — ряд
-        /// вычисляется из <see cref="Coordinate"/> самого триггера, не
-        /// задаётся отдельно, в отличие от <see cref="ArrowWaveTargetRow"/>/
-        /// <see cref="BladeTactTargetRow"/>), см. <c>Movement.LavaWaveTrapSystem</c>.
+        /// Задача «падающий камень: новая спецификация» (владелец): плита,
+        /// на которую упадёт камень (<see cref="FallingRockTargetCoordinate"/>
+        /// того или иного триггера), подсвечивается заранее — «однозначно
+        /// видно, куда упадёт», в отличие от старого дизайна, где опасной
+        /// внезапно становилась плита под ногами. Тот же приём, что уже
+        /// применяет Бомба (см. <see cref="IsBombWarningActive"/>) — чисто
+        /// визуальный флаг, не влияет на проходимость сам по себе. Снимается
+        /// через <see cref="EndFallingRockWarning"/> в момент падения камня.
         /// </summary>
-        public bool IsLavaTrigger { get; private set; }
+        public bool IsFallingRockWarningActive { get; private set; }
 
-        /// <summary>Помечает плиту как триггер волны Лавы. Повторные вызовы — не-op.</summary>
-        public void MarkLavaTrigger()
+        /// <summary>Начинает фазу предупреждения о падении камня — см. <see cref="IsFallingRockWarningActive"/>. Повторные вызовы — не-op.</summary>
+        public void BeginFallingRockWarning() => IsFallingRockWarningActive = true;
+
+        /// <summary>Завершает фазу предупреждения (камень упал) — см. <see cref="IsFallingRockWarningActive"/>. Повторные вызовы — не-op.</summary>
+        public void EndFallingRockWarning() => IsFallingRockWarningActive = false;
+
+        /// <summary>
+        /// Плита — триггер «Давилки»/«Стены слева»/«Стены справа» (BURMALDA
+        /// Trap System Spec v0.1, TR-05/06/07, <c>Movement.MovingWallTrap</c>):
+        /// плита ВПЕРЕДИ триггера, чей ряд начинает закрываться — не сама
+        /// плита-триггер, тот же приём, что <see cref="FallingRockTargetCoordinate"/>.
+        /// Null, пока плита не помечена триггером.
+        /// </summary>
+        public int? MovingWallTargetRow { get; private set; }
+
+        /// <summary>Режим закрытия — актуален только вместе с <see cref="MovingWallTargetRow"/>. Задаётся на генерации, не выбирается заново при активации (см. <see cref="Core.MovingWallMode"/>). Названо не так, как сам enum-тип (<c>MovingWallTriggerMode</c>, не <c>MovingWallMode</c>) — иначе имя свойства заслонило бы имя типа в пределах этого же класса/namespace.</summary>
+        public MovingWallMode? MovingWallTriggerMode { get; private set; }
+
+        /// <summary>
+        /// Помечает плиту как триггер закрывающейся стены с целевым рядом
+        /// <paramref name="targetRow"/> и режимом <paramref name="mode"/>.
+        /// Повторные вызовы сохраняют первые значения. Строгий страж — см.
+        /// <see cref="GuardAgainstConflictingRole"/> (задача «награда
+        /// никогда не лежит на ловушке»).
+        /// </summary>
+        public void MarkMovingWallTrigger(int targetRow, MovingWallMode mode)
         {
-            IsLavaTrigger = true;
+            if (MovingWallTargetRow.HasValue) return;
+            if (!GuardAgainstConflictingRole(false, nameof(MovingWallTargetRow))) return;
+            MovingWallTargetRow = targetRow;
+            MovingWallTriggerMode = mode;
         }
 
         /// <summary>
@@ -358,7 +661,7 @@ namespace Burmalda.Core
         public void MarkLever(IReadOnlyList<GridCoordinate> gateTargets)
         {
             if (IsLever) return;
-            GuardAgainstConflictingRole(false, nameof(IsLever));
+            if (!GuardAgainstConflictingRole(false, nameof(IsLever))) return;
             IsLever = true;
             LeverGateTargets = gateTargets;
         }
@@ -394,7 +697,7 @@ namespace Burmalda.Core
         /// </summary>
         public void MarkGated(GridCoordinate? leverCoordinate = null)
         {
-            GuardAgainstConflictingRole(IsGated, nameof(IsGated));
+            if (!GuardAgainstConflictingRole(IsGated, nameof(IsGated))) return;
             IsGated = true;
             LeverCoordinate = leverCoordinate;
         }
@@ -415,7 +718,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как источник Кристаллов Маны. Повторные вызовы — не-op.</summary>
         public void MarkManaSource()
         {
-            GuardAgainstConflictingRole(IsManaSource, nameof(IsManaSource));
+            if (!GuardAgainstConflictingRole(IsManaSource, nameof(IsManaSource))) return;
             IsManaSource = true;
         }
 
@@ -447,7 +750,7 @@ namespace Burmalda.Core
         public void MarkKeySource(int? amount = null)
         {
             if (IsKeySource) return;
-            GuardAgainstConflictingRole(false, nameof(IsKeySource));
+            if (!GuardAgainstConflictingRole(false, nameof(IsKeySource))) return;
             IsKeySource = true;
             KeySourceAmount = amount;
         }
@@ -461,7 +764,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как Алтарь. Повторные вызовы — не-op.</summary>
         public void MarkAltar()
         {
-            GuardAgainstConflictingRole(IsAltar, nameof(IsAltar));
+            if (!GuardAgainstConflictingRole(IsAltar, nameof(IsAltar))) return;
             IsAltar = true;
         }
 
@@ -475,7 +778,7 @@ namespace Burmalda.Core
         /// <summary>Помечает плиту как точку Босса. Повторные вызовы — не-op.</summary>
         public void MarkBoss()
         {
-            GuardAgainstConflictingRole(IsBoss, nameof(IsBoss));
+            if (!GuardAgainstConflictingRole(IsBoss, nameof(IsBoss))) return;
             IsBoss = true;
         }
 

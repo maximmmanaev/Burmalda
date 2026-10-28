@@ -1636,3 +1636,97 @@ Test-first: новый `DeathNotificationOverlayTests` — уведомлени�
 `Burmalda.DebugVisuals.Tests.asmdef` получил новую ссылку на
 `Burmalda.Decay` (нужна для `TrailDecayController` в тесте). Полный
 EditMode: **1218/1218**.
+
+## 2026-10-09 — AGENTS.md + @AGENTS.md в CLAUDE.md + CI-проверка (issue #303)
+
+Добавлен `AGENTS.md` (карта проекта: ссылки на docs/rules, PRD v9, wiki,
+жёсткие ограничения), `CLAUDE.md` теперь начинается с `@AGENTS.md`, дубли
+убраны. Новый workflow `agent-files.yml` на `pull_request`: есть строка
+`@AGENTS.md` в CLAUDE.md, пути в обратных кавычках из AGENTS.md существуют,
+AGENTS.md не длиннее 120 строк. Команда локального запуска тестов в
+репозитории не описана. Код игры не менялся, EditMode не запускался.
+
+## 2026-10-09 — AGENTS.md сокращён до карты запретов и указателей (issue #305)
+
+AGENTS.md было 83 строки и 4972 байта, стало 22 строки и 2517 байт: остались
+запреты (атрибуция, push/merge в main, .unity/.prefab, баланс, docs/raw),
+правило про целевые тесты и блок «Когда что читать». Причина — расход токенов
+на чтение при каждой сессии. Лимит в проверке (c) agent-files.yml: 30 строк.
+Код игры не менялся, EditMode не запускался.
+
+## 2026-10-09 — локальный гейт тестов scripts/check.sh (issue #307)
+
+Добавлен `scripts/check.sh`: `targeted <фильтр>` (EditMode с `-testFilter`) и
+`full` (playmode, затем editmode, как `testMode: all` в CI). Unity в
+batchmode, лог и XML в `~/.cache/burmalda-check/`, сводка до 40 строк, код 0
+только без упавших; при открытом редакторе — код 2 без запуска. В CI и
+локально playmode выполняет 0 тестов: все тестовые сборки Editor-only.
+Порядок запуска — в `docs/rules/ci.md`, указатель — в AGENTS.md. Код игры не
+менялся.
+
+## 2026-10-09 — хуки-защитники Claude Code (issue #309)
+
+`.claude/settings.json` подключает PreToolUse-хуки: `guard-bash.sh` (git add
+-A/./-u, commit -a, push в main и force, branch -D, reset --hard, атрибуция
+агента в коммите/PR) и `guard-files.sh` (Edit/Write/NotebookEdit для
+docs/raw/**, *.unity, *.prefab; путь нормализуется). Сбой разбора входа
+блокирует (код 2). Проверка: `scripts/test-hooks.sh` (69 тестов). Хуки не
+ловят запись через Bash (sed -i, tee, `>`) и команды вне Claude Code. Код игры
+не менялся.
+
+## 2026-10-09 — ещё запреты в хуке и проверка protected-paths (issue #311)
+
+`guard-bash.sh` теперь блокирует `git clean` (кроме `-n`/`--dry-run`), `git
+checkout .`, `git restore .`, `git stash drop/clear`, `git push --delete` и
+`git push origin :ветка`, `git add '*'` и `:/`; `scripts/test-hooks.sh` — 106
+тестов. Новый workflow `protected-paths.yml`: PR с изменениями в `docs/raw/**`,
+`*.unity`, `*.prefab` падает без метки `owner-approved` (метка создана). Код
+игры не менялся.
+
+## 2026-10-09 — CLAUDE.md: скилл karpathy-guidelines (issue #314)
+
+В CLAUDE.md после `@AGENTS.md` добавлена строка: для написания, правки и
+ревью кода применять скилл `andrej-karpathy-skills:karpathy-guidelines`.
+Строка `@AGENTS.md` осталась первой (проверка (a) agent-files). AGENTS.md и
+workflow не менялись, код игры не менялся.
+
+## 2026-10-09 — порог EditMode-тестов в check.sh и правило полного прогона (issue #316)
+
+`scripts/check.sh full` падает с кодом 1, если пройдено меньше
+`MIN_EDITMODE_TESTS` (1400) EditMode-тестов; в `targeted` порога нет;
+разовое переопределение — `CHECK_MIN_EDITMODE`. Правило в AGENTS.md и
+`implementation-workflow.md`: между красным и зелёным — `check.sh targeted`,
+перед каждым коммитом — `check.sh full`, коммит только при коде 0 (раньше
+полный прогон был один раз перед PR). Код игры не менялся.
+
+## 2026-10-09 — хук блокирует мерж и изменение защиты веток (issue #318)
+
+`guard-bash.sh` блокирует `gh pr merge` (любые флаги), `gh api` с `/merge` в
+пути или GraphQL-мутацией мержа, `gh api` с PUT/DELETE/PATCH/POST (в т.ч.
+неявным POST через -f/-F/--input) к `pulls`, `branches/.../protection`,
+`rulesets`. Сообщение: мерж и защиту веток делает только владелец.
+`scripts/test-hooks.sh` — 138 тестов. Код игры не менялся.
+
+## 2026-10-09 — порог MIN_EDITMODE_TESTS поднят до 1500 (issue #322)
+
+В `scripts/check.sh` `MIN_EDITMODE_TESTS` 1400 → 1500 (цель из #316). Полный
+прогон без открытого редактора: 1517 EditMode-тестов, код 0;
+`CHECK_MIN_EDITMODE=99999 scripts/check.sh full` — код 1. Запись про #316 выше
+осталась как была (порог 1400 на тот момент). Код игры не менялся.
+
+## 2026-10-22 — ARCHITECTURE.md: карта кода (issue #324)
+
+Новый `ARCHITECTURE.md` в корне (до 150 строк): модули и asmdef, поток забега
+от `RunBootstrap`, таблица событий (издатель/подписчики по grep), системы
+(правила плит, сегменты, ловушки, босс, валюты), хрупкие места со ссылками на
+#249, #251, #254, #256, #288. Сверен независимым субагентом (таблица
+«утверждение | вердикт» в описании PR). В `AGENTS.md` добавлен указатель.
+Код игры не менялся; полный прогон EditMode: 1517 пройдено, 0 упало.
+
+## 2026-10-22 — проверка платформы: сборка WebGL и требования Яндекс Игр (issue #326)
+
+`scripts/build-webgl.sh` + `Assets/Editor/WebGLBuild.cs`: сборка в `Builds/WebGL` без
+редактора, размер по типам файлов против лимита 100 МБ (код 1 при превышении).
+Собралось: 62,5 МБ распакованно (Brotli 15,9). Правка игрового кода одна:
+`Handheld.Vibrate()` под `#if !UNITY_WEBGL`. Чек-лист и блокеры MVP (нет SDK,
+сохранения, монетизация) — `docs/specs/yandex-games.md`. Полный EditMode: 1517 пройдено, 0 упало.

@@ -3,6 +3,13 @@ using NUnit.Framework;
 
 namespace Burmalda.Movement.Tests
 {
+    // Задача «падающий камень: новая спецификация» (владелец, Спринт «Стены
+    // вместо ловушек», задача 4) — переписан целиком, не дополнен: раньше
+    // камень падал на САМУ плиту-триггер, теперь — на плиту ВПЕРЕДИ
+    // (Tile.FallingRockTargetCoordinate, дефолт "ряд+1, тот же столбец" из
+    // SegmentRowProvider/TunnelObstacleGenerator, здесь передаётся явно).
+    // Плита-триггер сама по себе теперь ВСЕГДА безопасна — ни один тест
+    // этого файла не проверяет её на IsBlocked/PlayerCrushed.
     public class FallingRockTrapSystemTests
     {
         private const int Width = 5;
@@ -15,122 +22,186 @@ namespace Burmalda.Movement.Tests
             return (grid, trail, scheduler);
         }
 
+        // Переработка логики ловушек (владелец): глобальный жизненный цикл
+        // Hidden → Detected → WaitingForExit → Triggered — приход на триггер
+        // раскрывает сигнатуру опасности САМОГО триггера, не запускает
+        // предупреждение на целевой плите впереди (см. тесты ниже).
         [Test]
-        public void PositionChanged_TrailReachesTrigger_DoesNothingImmediately()
+        public void PositionChanged_TrailReachesTrigger_RevealsDangerSignature_DoesNotWarnTargetYet()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
 
             trail.TryAdvanceTo(trigger);
 
-            Assert.IsFalse(grid.GetOrCreateTile(trigger).IsBlocked);
+            Assert.IsTrue(grid.GetOrCreateTile(trigger).IsDangerSignatureRevealed, "\"Detected\" обязан раскрыть сигнатуру опасности триггера");
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsFallingRockWarningActive, "мигание целевой плиты — \"Triggered\", наступает только при уходе с триггера, не при приходе на него");
+        }
+
+        // "WaitingForExit" — пока игрок стоит на триггере, предупреждение на
+        // целевой плите не запускается, сколько бы тиков ни прошло.
+        [Test]
+        public void Tick_PlayerStaysOnTrigger_DoesNotWarnTargetUntilPlayerLeaves()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
+            using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger); // "Detected"
+
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds * 2);
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsFallingRockWarningActive, "пока игрок стоит на триггере, предупреждение не должно запускаться");
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsBlocked);
+
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — наконец уходит (не на target)
+            Assert.IsTrue(grid.GetOrCreateTile(target).IsFallingRockWarningActive, "уход с триггера обязан был запустить предупреждение");
         }
 
         [Test]
-        public void Tick_BeforeDelayElapses_NothingHappens()
+        public void PositionChanged_TrailReachesTrigger_TriggerTileItselfNeverWarns()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
+
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера, не на target
+
+            Assert.IsFalse(grid.GetOrCreateTile(trigger).IsFallingRockWarningActive, "предупреждение — на целевой плите впереди, не на самом триггере");
+        }
+
+        [Test]
+        public void Tick_BeforeDelayElapses_TargetStaysWarnedButNotResolved()
+        {
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
+            using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — уход с триггера, не на target
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds / 2); // половина задержки — рано
 
-            Assert.IsFalse(grid.GetOrCreateTile(trigger).IsBlocked);
+            Assert.IsTrue(grid.GetOrCreateTile(target).IsFallingRockWarningActive);
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsBlocked);
         }
 
         [Test]
-        public void Tick_DelayElapses_PlayerStillOnTile_RaisesPlayerCrushed_DoesNotBlock()
+        public void Tick_DelayElapses_PlayerOnTargetTile_RaisesPlayerCrushed_DoesNotBlock_EndsWarning()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
             GridCoordinate? crushedAt = null;
             fallingRock.PlayerCrushed += c => crushedAt = c;
-            trail.TryAdvanceTo(trigger); // игрок остаётся на триггере
+            trail.TryAdvanceTo(trigger); // активирует
+            trail.TryAdvanceTo(target); // игрок доходит до цели и стоит на ней
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
-            Assert.AreEqual(trigger, crushedAt);
-            Assert.IsFalse(grid.GetOrCreateTile(trigger).IsBlocked, "смертельный исход не должен дополнительно блокировать плиту");
+            Assert.AreEqual(target, crushedAt);
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsBlocked, "смертельный исход не должен дополнительно блокировать плиту");
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsFallingRockWarningActive, "предупреждение снимается в момент падения независимо от исхода");
         }
 
         [Test]
-        public void Tick_DelayElapses_PlayerLeft_BlocksTile_DoesNotRaisePlayerCrushed()
+        public void Tick_DelayElapses_PlayerNotOnTargetTile_BlocksTargetTile_DoesNotRaisePlayerCrushed_EndsWarning()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
             var crushed = false;
             fallingRock.PlayerCrushed += _ => crushed = true;
-            trail.TryAdvanceTo(trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // игрок ушёл с триггера
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — активирует, не на цель
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
             Assert.IsFalse(crushed);
-            Assert.IsTrue(grid.GetOrCreateTile(trigger).IsBlocked);
+            Assert.IsTrue(grid.GetOrCreateTile(target).IsBlocked);
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsFallingRockWarningActive);
         }
 
         [Test]
-        public void Tick_PlayerLeft_TileIsPermanentlyBlocked_CannotBeSteppedOnAgain()
+        public void Tick_PlayerNotOnTarget_TargetTileIsPermanentlyBlocked_CannotBeSteppedOnAgain()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 2));
-            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — активирует, не на цель
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds); // цель блокируется
 
-            var advanced = trail.TryAdvanceTo(trigger);
+            var advanced = trail.TryAdvanceTo(target);
 
             Assert.IsFalse(advanced, "заблокированная плита непроходима, как обычная стена");
         }
 
         [Test]
-        public void Tick_TilesOutsideTrigger_AreNeverAffected()
+        public void Tick_TriggerTileItself_IsNeverBlocked()
+        {
+            // Ключевое отличие новой спецификации: сама плита-триггер
+            // безопасна и остаётся проходимой независимо от исхода —
+            // опасность целиком на плите впереди.
+            var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
+            var trigger = new GridCoordinate(1, 2);
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
+            using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — активирует, не на цель
+
+            fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
+
+            Assert.IsFalse(grid.GetOrCreateTile(trigger).IsBlocked);
+        }
+
+        [Test]
+        public void Tick_TilesOutsideTargetAndTrigger_AreNeverAffected()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
-            var neighborTile = grid.GetOrCreateTile(new GridCoordinate(1, 1));
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
+            var neighborTile = grid.GetOrCreateTile(new GridCoordinate(2, 1));
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
-            trail.TryAdvanceTo(trigger);
-            trail.TryAdvanceTo(new GridCoordinate(0, 2));
+            trail.TryAdvanceTo(trigger); // "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(1, 1)); // "Triggered" — активирует, не на цель
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
             Assert.IsFalse(neighborTile.IsBlocked);
+            Assert.IsFalse(neighborTile.IsFallingRockWarningActive);
         }
 
         [Test]
         public void PositionChanged_RevisitingAlreadyFiredTrigger_DoesNotQueueSecondActivation()
         {
-            // Ревизит ДО тика первой активации (не после, как у прочих
-            // систем этого семейства) — эта ловушка, в отличие от
-            // Бомбы/Стрелы/Лезвий, необратимо блокирует плиту при исходе
-            // "игрок ушёл", так что после полного цикла повторный визит
-            // физически невозможен (стена). Если бы OnPositionChanged
-            // ошибочно поставил вторую независимую активацию (планировщик
-            // такое умеет, см. RealTimeThreatSchedulerTests), один Tick()
-            // вызвал бы PlayerCrushed дважды — TileDue сработал бы для
-            // обеих регистраций в одном и том же тике.
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
             var crushCount = 0;
             fallingRock.PlayerCrushed += _ => crushCount++;
 
-            trail.TryAdvanceTo(trigger); // первый визит — регистрирует активацию
-            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад
-            trail.TryAdvanceTo(trigger); // повторный визит — не должен зарегистрировать вторую
+            trail.TryAdvanceTo(trigger); // первый визит — "Detected"
+            trail.TryAdvanceTo(new GridCoordinate(0, 2)); // назад — "Triggered", уход с триггера регистрирует активацию
+            trail.TryAdvanceTo(trigger); // повторный визит — уже в _firedTriggers, "Detected" пропускается
+            trail.TryAdvanceTo(target); // игрок доходит до цели к моменту падения
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
@@ -142,34 +213,39 @@ namespace Burmalda.Movement.Tests
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
             fallingRock.Dispose();
 
             trail.TryAdvanceTo(trigger);
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
-            Assert.IsFalse(grid.GetOrCreateTile(trigger).IsBlocked);
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsBlocked);
+            Assert.IsFalse(grid.GetOrCreateTile(target).IsFallingRockWarningActive);
         }
 
         // issue #254, второй раунд (владелец: «ловушки в такт шагам это
         // ошибка, никаких ловушек в такт быть не должно, только тайминги»):
-        // игрок остаётся на плите-триггере и дальше СТОИТ на месте — камень
-        // обязан всё равно упасть по одному только реальному времени.
+        // игрок остаётся на целевой плите и дальше СТОИТ на месте — камень
+        // обязан всё равно упасть по одному только реальному времени, без
+        // дополнительных ходов после того, как игрок добрался до цели.
         [Test]
-        public void Tick_PlayerStandsStillOnTrigger_StillCrushedOnRealTimeAlone()
+        public void Tick_PlayerStandsStillOnTargetTile_StillCrushedOnRealTimeAlone()
         {
             var (grid, trail, scheduler) = CreateTrail(new GridCoordinate(0, 2));
             var trigger = new GridCoordinate(1, 2);
-            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger();
+            var target = new GridCoordinate(2, 2);
+            grid.GetOrCreateTile(trigger).MarkFallingRockTrigger(target);
             using var fallingRock = new FallingRockTrapSystem(grid, trail, scheduler);
             GridCoordinate? crushedAt = null;
             fallingRock.PlayerCrushed += c => crushedAt = c;
-            trail.TryAdvanceTo(trigger); // единственный ход за весь тест
+            trail.TryAdvanceTo(trigger);
+            trail.TryAdvanceTo(target); // последний ход — дальше игрок просто стоит
 
             fallingRock.Tick(FallingRockTrapSystem.DelaySeconds);
 
-            Assert.AreEqual(trigger, crushedAt, "камень обязан был упасть по накопленному реальному времени без единого дополнительного хода игрока");
+            Assert.AreEqual(target, crushedAt, "камень обязан был упасть по накопленному реальному времени без единого дополнительного хода игрока");
         }
     }
 }

@@ -1,9 +1,16 @@
 using System;
+using Burmalda.Core;
 using UnityEngine;
 
 namespace Burmalda.Movement
 {
     /// <summary>
+    /// <b>Переработка логики ловушек (владелец):</b> волновая Лава убрана из
+    /// игры целиком, добавлена MovingWallTrap (TR-05/06/07, Давилка/Стена
+    /// слева/Стена справа). Весь doc-комментарий ниже — исторический
+    /// (описывает момент, когда систем было пять, включая волновую Лаву);
+    /// сейчас тикает пять: Стрела/Бомба/Лезвия/Падающий камень/MovingWallTrap.
+    ///
     /// Тикает пять систем ловушек (issue #212, Стрела/Бомба/Лезвия/Падающий
     /// камень/Лава — issues #213–#217) на каждый забег. Баг с устройства
     /// (владелец, 2026-09-04, «новых ловушек в игре нет») — все пять были
@@ -71,12 +78,42 @@ namespace Burmalda.Movement
         /// </summary>
         public Func<int> CurrentTierProvider { get; set; }
 
+        /// <summary>
+        /// Задача «падающий камень: новая спецификация» — реле для
+        /// <see cref="FallingRockTrapSystem.PlayerCrushed"/>, подключается
+        /// к <c>RunLifecycle.RunState</c> СНАРУЖИ (<c>Movement</c> не
+        /// ссылается на <c>RunLifecycle</c>, см. asmdef — тот же принцип,
+        /// что уже у <see cref="CurrentTierProvider"/>). Стабильное событие
+        /// на самом Controller'е, не на <c>_fallingRock</c> напрямую: та
+        /// система пересобирается на каждый забег
+        /// (<see cref="Rebuild"/>) — подписка на сырое
+        /// <c>_fallingRock.PlayerCrushed</c> снаружи задачи сложила бы
+        /// подписку ОДИН раз на конкретный экземпляр, который переживёт
+        /// не дольше текущего забега. Это реле переживает рестарты — Bootstrap
+        /// подписывается один раз при инициализации сцены.
+        /// </summary>
+        public event Action<GridCoordinate> FallingRockPlayerCrushed;
+
+        /// <summary>
+        /// Задача «симуляция стрелы» (владелец) — реле для
+        /// <see cref="ArrowWaveTrapSystem.WaveStarted"/>, тот же приём, что
+        /// <see cref="FallingRockPlayerCrushed"/> выше: стабильное событие
+        /// на Controller'е, не на <c>_arrowWave</c> напрямую (та система
+        /// пересобирается на каждый забег, см. <see cref="Rebuild"/>).
+        /// Подписчик — <c>DebugVisuals.ArrowProjectileVisualController</c>
+        /// (запускает пролёт 3D-объекта стрелы); <c>Movement</c> не
+        /// ссылается на <c>DebugVisuals</c> (см. asmdef), поэтому подписка
+        /// идёт СНАРУЖИ, этот класс только хранит и передаёт дальше — тот
+        /// же принцип, что у <see cref="CurrentTierProvider"/>.
+        /// </summary>
+        public event Action<int, RowWaveDirection> ArrowWaveStarted;
+
         private GridTraceTrail _trail;
         private ArrowWaveTrapSystem _arrowWave;
         private BombTrapSystem _bomb;
         private BladeTactTrapSystem _bladeTact;
         private FallingRockTrapSystem _fallingRock;
-        private LavaWaveTrapSystem _lavaWave;
+        private MovingWallTrap _movingWall;
 
         private void Awake()
         {
@@ -94,10 +131,10 @@ namespace Burmalda.Movement
             DisposeAll();
         }
 
-        // Тикает все пять систем реальным временем (issue #254) и заодно
+        // Тикает все четыре системы реальным временем (issue #254) и заодно
         // служит ленивой самопроверкой (issue #256, см. doc-комментарий
         // класса) — дёшево не-op на кадрах, где уже построено или ещё не
-        // готово.
+        // готово. Волновая Лава (пятая система) убрана из игры целиком.
         private void Update()
         {
             if (_arrowWave == null)
@@ -111,7 +148,7 @@ namespace Burmalda.Movement
             _bomb.Tick(deltaSeconds);
             _bladeTact.Tick(deltaSeconds);
             _fallingRock.Tick(deltaSeconds);
-            _lavaWave.Tick(deltaSeconds);
+            _movingWall.Tick(deltaSeconds);
         }
 
         private bool IsReady() => _input != null && _input.Grid != null && _input.Trail != null;
@@ -138,26 +175,38 @@ namespace Burmalda.Movement
             // doc-комментарии этого класса, больше не существует по
             // конструкции.
             _arrowWave = new ArrowWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
+            // Задача «симуляция стрелы» — ретранслирует на стабильное
+            // событие этого Controller'а, см. её doc-комментарий.
+            _arrowWave.WaveStarted += OnArrowWaveStarted;
             _bomb = new BombTrapSystem(grid, _trail, new RealTimeThreatScheduler(), CurrentTierProvider);
             _bladeTact = new BladeTactTrapSystem(grid, _trail, new RealTimeThreatScheduler());
             _fallingRock = new FallingRockTrapSystem(grid, _trail, new RealTimeThreatScheduler());
-            _lavaWave = new LavaWaveTrapSystem(grid, _trail, new RealTimeThreatScheduler());
+            // Задача «падающий камень: новая спецификация» — ретранслирует
+            // на стабильное событие этого Controller'а, см. её doc-комментарий.
+            _fallingRock.PlayerCrushed += OnFallingRockPlayerCrushed;
+            _movingWall = new MovingWallTrap(grid, _trail, new RealTimeThreatScheduler());
         }
+
+        private void OnFallingRockPlayerCrushed(GridCoordinate coordinate) => FallingRockPlayerCrushed?.Invoke(coordinate);
+
+        private void OnArrowWaveStarted(int row, RowWaveDirection direction) => ArrowWaveStarted?.Invoke(row, direction);
 
         private void DisposeAll()
         {
             _trail = null;
 
+            if (_arrowWave != null) _arrowWave.WaveStarted -= OnArrowWaveStarted;
             _arrowWave?.Dispose();
             _arrowWave = null;
             _bomb?.Dispose();
             _bomb = null;
             _bladeTact?.Dispose();
             _bladeTact = null;
+            if (_fallingRock != null) _fallingRock.PlayerCrushed -= OnFallingRockPlayerCrushed;
             _fallingRock?.Dispose();
             _fallingRock = null;
-            _lavaWave?.Dispose();
-            _lavaWave = null;
+            _movingWall?.Dispose();
+            _movingWall = null;
         }
     }
 }
