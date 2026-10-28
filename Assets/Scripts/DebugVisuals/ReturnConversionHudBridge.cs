@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Burmalda.DebugVisuals
 {
     /// <summary>
-    /// Мост между <see cref="ReturnJourneySystem.Returned"/> (живая система,
+    /// Мост между <see cref="EvacuationSystem.Returned"/> (живая система,
     /// уже создаётся и владеется <see cref="CampController"/> на каждый
     /// забег) и <see cref="RunHudDataSources.LastReturnResult"/> — задача по
     /// экономике "Мана как доход забега, Монеты только в Лагере" (PRD v9
@@ -23,8 +23,8 @@ namespace Burmalda.DebugVisuals
     /// него</b>: <see cref="CampController"/> — не-Debug класс, не должен
     /// зависеть от <see cref="DebugVisuals"/> и от статического HUD-состояния.
     ///
-    /// <see cref="CampController.Journey"/> пересобирается на каждый забег
-    /// (новый инстанс <see cref="ReturnJourneySystem"/>) — подписка
+    /// <see cref="CampController.Evacuation"/> пересобирается на каждый забег
+    /// (новый инстанс <see cref="EvacuationSystem"/>) — подписка
     /// сверяется каждый кадр по ссылке, тот же паттерн, что
     /// <c>CampController.SyncRunStateSubscription</c>.
     /// </summary>
@@ -39,24 +39,24 @@ namespace Burmalda.DebugVisuals
         }
 
         private CampController _camp;
-        private ReturnJourneySystem _subscribedJourney;
+        private EvacuationSystem _subscribedEvacuation;
 
         private void Update()
         {
             if (_camp == null) _camp = FindFirstObjectByType<CampController>();
             if (_camp == null) return;
 
-            SyncJourneySubscription();
+            SyncEvacuationSubscription();
         }
 
-        private void SyncJourneySubscription()
+        private void SyncEvacuationSubscription()
         {
-            var current = _camp.Journey;
-            if (ReferenceEquals(current, _subscribedJourney)) return;
+            var current = _camp.Evacuation;
+            if (ReferenceEquals(current, _subscribedEvacuation)) return;
 
-            if (_subscribedJourney != null) _subscribedJourney.Returned -= HandleReturned;
-            _subscribedJourney = current;
-            if (_subscribedJourney != null) _subscribedJourney.Returned += HandleReturned;
+            if (_subscribedEvacuation != null) _subscribedEvacuation.Returned -= HandleReturned;
+            _subscribedEvacuation = current;
+            if (_subscribedEvacuation != null) _subscribedEvacuation.Returned += HandleReturned;
         }
 
         private void HandleReturned(ReturnConversionResult result) => RunHudDataSources.LastReturnResult = result;

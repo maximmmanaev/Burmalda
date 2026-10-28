@@ -1731,7 +1731,7 @@ workflow не менялись, код игры не менялся.
 `Handheld.Vibrate()` под `#if !UNITY_WEBGL`. Чек-лист и блокеры MVP (нет SDK,
 сохранения, монетизация) — `docs/specs/yandex-games.md`. Полный EditMode: 1517 пройдено, 0 упало.
 
-## 2026-10-23 — платформенный слой Яндекс Игр (issue #328)
+## 2026-10-28
 
 `Assets/Scripts/Platform/`: интерфейс сервисов, пустая и Яндекс-реализации (фабрика по платформе),
 `.jslib`-обёртка SDK (init, `LoadingAPI.ready`, `GameplayAPI.start/stop`, пауза, язык), пауза звука и времени.

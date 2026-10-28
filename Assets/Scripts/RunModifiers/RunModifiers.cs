@@ -19,7 +19,7 @@ namespace Burmalda.RunModifiers
     /// параметр, а не прямую ссылку на этот класс — Decay.asmdef
     /// сознательно не получает зависимость от RunModifiers), аналогично
     /// <c>Currencies.TrailTileCurrencySystem</c>, <c>Altar.Ritual</c>
-    /// (свободные рероллы) и <c>Camp.ReturnJourneySystem</c> (Монеты при
+    /// (свободные рероллы) и <c>Camp.EvacuationSystem</c> (Монеты при
     /// возврате). Требуемая энергия Босса — читается вызывающей стороной
     /// (Boss.BossController) при построении уже существующего
     /// параметра-делегата <c>requiredEnergyForTier</c>, без изменений в

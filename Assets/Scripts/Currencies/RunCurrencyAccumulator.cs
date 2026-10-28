@@ -10,17 +10,12 @@ namespace Burmalda.Currencies
     /// Конкретная роль (Мана/Ключи/Монеты) задаётся тем, ЧТО именно
     /// прибавляет к нему <see cref="TrailCoinSystem"/>/<see cref="TrailTileCurrencySystem"/>,
     /// не самим классом. Траты — <see cref="Spend"/> (issue #19/#20/#21,
-    /// Спринт 6: Ключи в Ритуале на Алтаре). Кэш-аут (PRD раздел 10, issue
-    /// #25) — <see cref="Checkpoint"/>/<see cref="RevertToCheckpoint"/>:
-    /// "смерть по пути назад = потеря всего, накопленного с последнего
-    /// зафиксированного Алтаря/лагеря" — откат, а не обнуление, обычная
-    /// (не в пути назад) смерть теряет всё естественно — новый экземпляр
-    /// создаётся заново при следующем забеге, откат для нее не нужен.
+    /// Спринт 6: Ключи в Ритуале на Алтаре). Эвакуация и
+    /// окончательная смерть (PRD v10 §15) обнуляют накопитель — <see cref="Clear"/>;
+    /// чекпоинта на Алтаре нет.
     /// </summary>
     public sealed class RunCurrencyAccumulator
     {
-        private int _checkpoint;
-
         /// <summary>Накопленное за забег количество.</summary>
         public int Total { get; private set; }
 
@@ -46,17 +41,11 @@ namespace Burmalda.Currencies
             return true;
         }
 
-        /// <summary>Фиксирует текущий Total как чекпоинт (issue #25 — кэш-аут на Алтаре/в Лагере).</summary>
-        public void Checkpoint()
+        /// <summary>Обнуляет накопленное (эвакуация или окончательная смерть, PRD v10 §15).</summary>
+        public void Clear()
         {
-            _checkpoint = Total;
-        }
-
-        /// <summary>Откатывает Total к последнему зафиксированному чекпоинту (0, если <see cref="Checkpoint"/> ещё не вызывался в этом забеге).</summary>
-        public void RevertToCheckpoint()
-        {
-            if (Total == _checkpoint) return;
-            Total = _checkpoint;
+            if (Total == 0) return;
+            Total = 0;
             Changed?.Invoke(Total);
         }
     }
