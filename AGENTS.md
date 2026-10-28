@@ -17,7 +17,7 @@ Claude Code", ни "Co-Authored-By: Claude...", ни аналогов. См.
 - Начало задачи — `docs/rules/token-economy.md`; расход контекста — `docs/rules/agent-efficiency.md`.
 - Карта кода, поток забега, события, хрупкие места — `ARCHITECTURE.md`.
 - Правка кода, баг — `docs/rules/implementation-workflow.md`, `docs/rules/code-style.md`.
-- Термины, фичи — `docs/rules/terminology.md`, нужные разделы актуального PRD (самый свежий файл в docs/raw; какой версии — написано в `docs/wiki/roadmap.md`).
+- Термины, фичи — `docs/rules/terminology.md`, нужные разделы PRD. Продукт — **только** `docs/raw/BURMALDA_PRD_v10.md` (полный документ, единственный источник истины). При расхождении с wiki, глоссарием или комментариями в коде прав PRD v10.
 - Баланс, валюты, артефакты, .unity/.prefab, названия и тексты — `docs/rules/forbidden-actions.md`.
 - Конец задачи, wiki, changelog, тесты и CI — `docs/rules/documentation.md`, `docs/rules/ci.md`.
 - Локальный прогон: scripts/check.sh, см. `docs/rules/ci.md`.
