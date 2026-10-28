@@ -9,7 +9,8 @@
         "Burmalda.Persistence",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Burmalda.Sanctuary"
+        "Burmalda.Sanctuary",
+        "Burmalda.Camp"
     ],
     "includePlatforms": [
         "Editor"

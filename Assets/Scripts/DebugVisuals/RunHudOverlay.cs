@@ -122,6 +122,21 @@ namespace Burmalda.DebugVisuals
             DrawLastReturnResultBlock();
             DrawArtifactLoadoutBlock();
             DrawSanctuaryBlock();
+            DrawSarcophagiBlock();
+        }
+
+        // Несомые Саркофаги (PRD v10 §15.1): знак и число, все одинаковые; золотой, как плита Саркофага.
+        // Пока Саркофагов нет — ничего не рисуем.
+        private void DrawSarcophagiBlock()
+        {
+            var carried = RunBootstrap.Instance?.Camp?.Carried;
+            if (carried == null || carried.Count == 0) return;
+
+            var previousColor = GUI.contentColor;
+            GUI.contentColor = TileDebugColor.SarcophagusColor;
+            var style = new GUIStyle(GUI.skin.box) { fontSize = 32, alignment = TextAnchor.MiddleLeft, fontStyle = FontStyle.Bold };
+            GUI.Box(new Rect(20f, 250f, 220f, 60f), $"◆ ×{carried.Count}", style);
+            GUI.contentColor = previousColor;
         }
 
         // Верхняя треть экрана слева — числа валют, всегда видны в забеге.
