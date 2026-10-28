@@ -27,7 +27,7 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
 | `Artifacts/` | Каталог артефактов, лоадаут, Тотем | `Artifacts/RunArtifactLoadout.cs`, `Artifacts/ArtifactPool.cs:23` |
 | `RunModifiers/` | Знамения | `RunModifiers/RunModifiers.cs:47`, `RunModifiers/OmenPool.cs:25` |
 | `Progression/` | Ярус забега, рекорд глубины | `Progression/RunDepthTier.cs:17`, `Progression/DepthRecord.cs:15` |
-| `Persistence/` | Снимок прогресса | `Persistence/SaveController.cs:25`, `Persistence/ProgressSnapshot.cs` |
+| `Persistence/` | Снимок прогресса, сохранение (облако + локально); `SaveController.Create` — по `RuntimeInitializeOnLoadMethod` | `Persistence/SaveController.cs`, `Persistence/SaveCoordinator.cs`, `Persistence/ProgressSnapshot.cs` |
 | `DebugVisuals/` | Весь текущий UI/визуал (примитивы в рантайме) | `DebugVisuals/RunHudOverlay.cs`, `DebugVisuals/TunnelDebugVisual.cs:308` |
 | `Achievements/` | Достижения (в рантайме не создаются, §4) | `Achievements/AchievementTracker.cs`, `Achievements/AchievementDefinition.cs` |
 | `Bootstrap/` | Композиционный корень | `Bootstrap/RunBootstrap.cs:120` |
@@ -115,7 +115,7 @@ Achievements), а `DebugVisuals` ссылается на `Bootstrap`, а не н
   Постоянные монеты — `PersistentWallet` (`CurrencyController.cs:99`).
 - **Не подключено в рантайме** (нет `new`/`AddComponent` вне тестов, по grep):
   `TotemChargeSystem`, `TotemAbilityActivationSystem`, `AchievementTracker`, `SecondWindCharge`,
-  `OmenSelectionSystem`, `TrapInsight`, `SaveController` (нет ни в коде, ни на сцене/префабах).
+  `OmenSelectionSystem`, `TrapInsight`.
 
 ## 5. Хрупкие места
 

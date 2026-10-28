@@ -1,88 +1,110 @@
 using System;
-using System.IO;
 using Burmalda.Altar;
 using Burmalda.Boss;
+using Burmalda.Bootstrap;
 using Burmalda.Currencies;
 using UnityEngine;
 
 namespace Burmalda.Persistence
 {
     /// <summary>
-    /// Сохранение/загрузка прогресса (PRD — сквозная инфраструктура, issue
-    /// #107, релиз-блокер): "сохраняется локально и переживает перезапуск
-    /// приложения". Файл в <see cref="Application.persistentDataPath"/> —
-    /// работает без сети (игра и так офлайн-работоспособна целиком: в
-    /// проекте нет ни одного сетевого вызова ни в одной системе).
-    ///
-    /// Загрузка — в <see cref="Start"/> (после того, как все остальные
-    /// Controller'ы уже отработали свой <c>Awake</c> и создали пустые
-    /// постоянные кошельки/пул/рекорд — <see cref="ProgressSnapshot.Apply"/>
-    /// аддитивно доливает в них сохранённые значения). Сохранение — на
-    /// <see cref="OnApplicationPause"/> (сворачивание — основной риск потери
-    /// прогресса на мобильном) и <see cref="OnApplicationQuit"/>.
+    /// Тонкая обвязка над <see cref="SaveCoordinator"/> (issue #107, #330). Создаётся из кода —
+    /// <see cref="Create"/> по <c>RuntimeInitializeOnLoadMethod</c>, сцену не правим. Ждёт, пока
+    /// <see cref="RunBootstrap"/> соберёт кошелёк, Алтарь и Босса, затем один раз загружает прогресс и
+    /// после этого сохраняет по событиям изменения (монеты, коллекция, пул, рекорд глубины, первая победа),
+    /// а при сворачивании, потере фокуса и выходе — срочно.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class SaveController : MonoBehaviour
     {
-        private const string SaveFileName = "burmalda_save.json";
+        /// <summary>Имя объекта: адресат <c>SendMessage</c> из .jslib.</summary>
+        public const string HostName = "SaveHost";
 
         [SerializeField] private CurrencyController _currency;
         [SerializeField] private AltarController _altar;
         [SerializeField] private BossController _boss;
 
-        private string SavePath => Path.Combine(Application.persistentDataPath, SaveFileName);
+        private SaveCoordinator _coordinator;
+        private bool _subscribed;
 
-        private void Awake()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void Create()
         {
-            if (_currency == null) _currency = GetComponent<CurrencyController>();
-            if (_altar == null) _altar = GetComponent<AltarController>();
-            if (_boss == null) _boss = GetComponent<BossController>();
+            if (FindAnyObjectByType<SaveController>() != null) return;
+
+            var host = new GameObject(HostName);
+            host.AddComponent<SaveController>();
+            DontDestroyOnLoad(host);
         }
 
-        private void Start() => Load();
-
-        private void OnApplicationPause(bool pauseStatus)
+        private void Update()
         {
-            if (pauseStatus) Save();
+            if (_coordinator == null) TryStart();
+            else _coordinator.Tick(Time.unscaledTime); // не Time.time: на паузе платформы timeScale = 0
         }
 
-        private void OnApplicationQuit() => Save();
-
-        public void Save()
+        private void TryStart()
         {
+            var bootstrap = RunBootstrap.Instance;
+            if (_currency == null && bootstrap != null) _currency = bootstrap.Currency;
+            if (_altar == null && bootstrap != null) _altar = bootstrap.Altar;
+            if (_boss == null && bootstrap != null) _boss = bootstrap.Boss;
             if (!IsReady()) return;
 
-            var data = ProgressSnapshot.Capture(_currency.Coins, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker);
-            try
-            {
-                File.WriteAllText(SavePath, JsonUtility.ToJson(data));
-            }
-            catch (IOException)
-            {
-                // Диск недоступен/переполнен — прогресс останется в памяти
-                // текущей сессии, следующая попытка Save() (пауза/выход)
-                // повторит запись. Не бросаем — сбой сохранения не должен
-                // ронять игру.
-            }
+            _coordinator = new SaveCoordinator(
+                SaveStorageFactory.Create(HostName),
+                () => ProgressSnapshot.Capture(_currency.Coins, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker),
+                data => ProgressSnapshot.Apply(data, _currency.Coins, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker),
+                () => DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            _coordinator.Load(Subscribe);
         }
 
-        public void Load()
+        // Подписка — после загрузки: Apply сам дёргает события, и это не повод писать обратно то же самое.
+        private void Subscribe()
         {
-            if (!IsReady()) return;
-            if (!File.Exists(SavePath)) return;
-
-            SaveData data;
-            try
-            {
-                data = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
-            }
-            catch (Exception ex) when (ex is IOException || ex is ArgumentException)
-            {
-                return; // повреждённый файл сохранения — не роняем игру, прогресс не восстановлен
-            }
-
-            ProgressSnapshot.Apply(data, _currency.Coins, _altar.Collection, _altar.Pool, _boss.DepthRecord, _boss.Tracker);
+            if (_subscribed) return;
+            _subscribed = true;
+            _currency.Coins.Changed += OnCoinsChanged;
+            _altar.Collection.Recorded += OnId;
+            _altar.Pool.Unlocked += OnId;
+            _boss.DepthRecord.RecordBroken += OnCoinsChanged;
+            _boss.Tracker.FirstVictory += OnChanged;
         }
+
+        private void OnDestroy()
+        {
+            if (!_subscribed) return;
+            _currency.Coins.Changed -= OnCoinsChanged;
+            _altar.Collection.Recorded -= OnId;
+            _altar.Pool.Unlocked -= OnId;
+            _boss.DepthRecord.RecordBroken -= OnCoinsChanged;
+            _boss.Tracker.FirstVictory -= OnChanged;
+        }
+
+        private void OnChanged() => _coordinator.MarkDirty();
+        private void OnCoinsChanged(int _) => _coordinator.MarkDirty();
+        private void OnId(string _) => _coordinator.MarkDirty();
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused) _coordinator?.Flush();
+        }
+
+        private void OnApplicationFocus(bool focused)
+        {
+            if (!focused) _coordinator?.Flush();
+        }
+
+        private void OnApplicationQuit() => _coordinator?.Flush();
+
+        // Ответы .jslib (SendMessage, аргумент всегда строка).
+        private void OnCloudLoaded(string text) => YandexCloudSaveStorage.Current?.OnLoaded(text);
+        private void OnCloudLoadFailed(string error)
+        {
+            Debug.LogWarning($"[Save] облако недоступно, читаем локальную копию: {error}");
+            YandexCloudSaveStorage.Current?.OnLoaded(null);
+        }
+        private void OnCloudWritten(string ok) => YandexCloudSaveStorage.Current?.OnWritten(ok == "1");
 
         private bool IsReady() =>
             _currency != null && _currency.Coins != null &&

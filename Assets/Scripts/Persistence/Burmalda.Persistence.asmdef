@@ -6,7 +6,8 @@
         "Burmalda.Artifacts",
         "Burmalda.Progression",
         "Burmalda.Boss",
-        "Burmalda.Altar"
+        "Burmalda.Altar",
+        "Burmalda.Bootstrap"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
