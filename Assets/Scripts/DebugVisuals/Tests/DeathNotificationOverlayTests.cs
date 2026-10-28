@@ -33,7 +33,7 @@ namespace Burmalda.DebugVisuals.Tests
             if (_overlayObject != null) Object.DestroyImmediate(_overlayObject);
         }
 
-        private void SetUp(int d20Roll = 5) // 5 — в диапазоне Death (1-9), тот же приём, что RunStateTests
+        private void SetUp(int dieValue = 6) // оба кубика равны — 6+6 «на месте», 2+2 смерть и т.д.
         {
             _inputObject = new GameObject("DeathNotif_Input");
             _input = _inputObject.AddComponent<GridTraceInputController>();
@@ -44,7 +44,7 @@ namespace Burmalda.DebugVisuals.Tests
             InvokePrivate(decay, "Update");
 
             _runController = _inputObject.AddComponent<RunController>();
-            _runController.RollD20Override = () => d20Roll; // issue #225 — не блиндовый глобальный RNG в тесте
+            _runController.RollDieOverride = () => dieValue; // issue #225 — не блиндовый глобальный RNG в тесте
             InvokePrivate(_runController, "Awake");
             InvokePrivate(_runController, "OnEnable"); // подписка на RunStarted — вне Play Mode AddComponent её не вызывает сама, нужна для рестарта (см. Update_AfterRestart_HidesNotification)
             InvokePrivate(_runController, "Update"); // строит RunState
@@ -58,8 +58,15 @@ namespace Burmalda.DebugVisuals.Tests
         {
             var lethalTile = new GridCoordinate(1, _input.Grid.Width / 2);
             _input.Grid.GetOrCreateTile(lethalTile).TransitionToLethalTrap(LethalTrapType.ArrowWave);
-            Assert.IsFalse(_input.Trail.TryAdvanceTo(lethalTile), "тест некорректен, если шаг на летальную ловушку не отклонён — исход d20 должен быть Death (roll=5)");
+            Assert.IsFalse(_input.Trail.TryAdvanceTo(lethalTile), "тест некорректен, если шаг на летальную ловушку не отклонён");
             return lethalTile;
+        }
+
+        // Смерть = опасность + отказ от Броска Судьбы (PRD v10 §16): без отказа игрок ждёт решения.
+        private void KillAndDecline()
+        {
+            KillPlayer();
+            _runController.RunState.DeclineFate();
         }
 
         [Test]
@@ -75,7 +82,7 @@ namespace Burmalda.DebugVisuals.Tests
         {
             SetUp();
 
-            KillPlayer();
+            KillAndDecline();
 
             Assert.IsTrue(_overlay.IsShowingDeathNotification, "issue #266: смерть обязана включать заметное уведомление");
         }
@@ -85,21 +92,22 @@ namespace Burmalda.DebugVisuals.Tests
         {
             SetUp();
 
-            KillPlayer();
+            KillAndDecline();
 
             Assert.IsFalse(_runController.RunState.IsAlive);
             Assert.IsTrue(_overlay.IsShowingDeathNotification);
         }
 
         [Test]
-        public void Died_Fortune_DoesNotShowNotification()
+        public void Died_FateRollInPlace_DoesNotShowNotification()
         {
-            // d20=20 — Fortune, игрок не умирает — уведомление не должно появляться.
-            SetUp(d20Roll: 20);
+            // Кубики 6+6 — «на месте»: игрок не умирает — уведомление не должно появляться.
+            SetUp(dieValue: 6);
 
             KillPlayer();
+            _runController.RunState.RollFate();
 
-            Assert.IsTrue(_runController.RunState.IsAlive, "тест некорректен, если Fortune не защитила от смерти");
+            Assert.IsTrue(_runController.RunState.IsAlive, "тест некорректен, если бросок не спас от смерти");
             Assert.IsFalse(_overlay.IsShowingDeathNotification);
         }
 
@@ -108,7 +116,7 @@ namespace Burmalda.DebugVisuals.Tests
         {
             SetUp();
 
-            KillPlayer();
+            KillAndDecline();
 
             var message = (string)GetPrivateField(_overlay, "_lastMessage");
             StringAssert.Contains(_runController.LastDeathReason, message,
@@ -123,7 +131,7 @@ namespace Burmalda.DebugVisuals.Tests
         public void HandlePlayAgainClicked_AfterDeath_RestartsRun()
         {
             SetUp();
-            KillPlayer();
+            KillAndDecline();
             Assert.IsFalse(_input.IsAlive, "тест некорректен, если игрок не умер");
 
             InvokePrivate(_overlay, "HandlePlayAgainClicked");
@@ -135,7 +143,7 @@ namespace Burmalda.DebugVisuals.Tests
         public void Update_AfterRestart_HidesNotification()
         {
             SetUp();
-            KillPlayer();
+            KillAndDecline();
             Assert.IsTrue(_overlay.IsShowingDeathNotification);
 
             InvokePrivate(_overlay, "HandlePlayAgainClicked");

@@ -1,7 +1,7 @@
 using System;
 using Burmalda.Core;
-using Burmalda.D20;
 using Burmalda.Decay;
+using Burmalda.FateRoll;
 using Burmalda.Movement;
 
 namespace Burmalda.RunLifecycle
@@ -25,16 +25,18 @@ namespace Burmalda.RunLifecycle
         private readonly TunnelGrid _grid;
         private readonly GridTraceTrail _trail;
         private readonly TrailDecaySystem _decay;
-        private readonly D20Trial _d20;
+        private readonly Func<int> _rollDie;
+        private string _pendingReason;
         private GridCoordinate _lastAltarCoordinate;
         private bool _disposed;
 
-        public RunState(TunnelGrid grid, GridTraceTrail trail, TrailDecaySystem decay, D20Trial d20)
+        public RunState(TunnelGrid grid, GridTraceTrail trail, TrailDecaySystem decay, Func<int> rollDie, int fateRollsUsed = 0)
         {
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             _trail = trail ?? throw new ArgumentNullException(nameof(trail));
             _decay = decay ?? throw new ArgumentNullException(nameof(decay));
-            _d20 = d20 ?? throw new ArgumentNullException(nameof(d20));
+            _rollDie = rollDie ?? throw new ArgumentNullException(nameof(rollDie));
+            FateRollsUsed = fateRollsUsed;
             IsAlive = true;
             // Запасной "чекпоинт" для Knockback (#24), пока игрок ещё не
             // прошёл ни одного Алтаря в этом забеге — откат к старту.
@@ -52,7 +54,24 @@ namespace Burmalda.RunLifecycle
         public event Action<string> Died;
 
         /// <summary>Срабатывает при каждом броске d20 (issue #24) — для будущей визуальной обратной связи (PRD §19).</summary>
-        public event Action<D20Outcome> D20Resolved;
+        /// <summary>
+        /// Опасность настигла игрока, а Броски Судьбы ещё есть (PRD v10 §16): ждём
+        /// решения «Бросить» (<see cref="RollFate"/>) или «Отказаться»
+        /// (<see cref="DeclineFate"/>). Аргумент — номер предлагаемого броска (1..3).
+        /// </summary>
+        public event Action<int> FateRollOffered;
+
+        /// <summary>Бросок брошен: кубики, сумма, исход.</summary>
+        public event Action<FateRollResult> FateRolled;
+
+        /// <summary>Сколько Бросков Судьбы потрачено в этой экспедиции (максимум <see cref="FateRollRules.MaxRolls"/>).</summary>
+        public int FateRollsUsed { get; private set; }
+
+        /// <summary>Ждёт решения игрока по Броску Судьбы.</summary>
+        public bool IsAwaitingFate { get; private set; }
+
+        /// <summary>Модификатор суммы 2D6 — единственная точка расширения под Тотем Мигизи (§16.1); пока 0.</summary>
+        public int FateModifier { get; set; }
 
         /// <summary>Отписывается от трейла и распада. Вызывать при завершении забега/пересборке на рестарте.</summary>
         public void Dispose()
@@ -117,37 +136,74 @@ namespace Burmalda.RunLifecycle
         }
 
         /// <summary>
-        /// Бросает d20 (PRD раздел 9) вместо мгновенной смерти от ловушки/
-        /// обвала. Fortune — ничего не меняется, игрок остаётся на месте.
-        /// Knockback — телепорт к последнему пройденному Алтарю (или к
-        /// старту, если Алтарей ещё не было), <paramref name="reason"/> не
-        /// используется (не умер). Death — обычная смерть с этой причиной.
+        /// Опасность (ловушка, Лава, обрушение): если Броски Судьбы ещё есть —
+        /// предлагает бросок и ждёт решения, иначе смерть окончательна (PRD v10 §16, §15.3).
         /// </summary>
         private void ResolveHazard(string reason)
         {
-            if (!IsAlive) return;
+            if (!IsAlive || IsAwaitingFate) return;
 
-            var outcome = _d20.Roll();
-            D20Resolved?.Invoke(outcome);
+            if (FateRollsUsed >= FateRollRules.MaxRolls)
+            {
+                Die(reason);
+                return;
+            }
+
+            IsAwaitingFate = true;
+            _pendingReason = reason;
+            FateRollOffered?.Invoke(FateRollsUsed + 1);
+        }
+
+        /// <summary>
+        /// «Бросить»: платит (заглушка — бесплатно), бросает 2D6 и применяет исход:
+        /// на месте — продолжает; к Алтарю — телепорт на последний пройденный Алтарь
+        /// (разрушенный маршрут не восстанавливается); смерть — окончательная.
+        /// False, если бросать нечего или платёж не прошёл.
+        /// </summary>
+        public bool RollFate()
+        {
+            if (!IsAlive || !IsAwaitingFate) return false;
+
+            var rollIndex = FateRollsUsed + 1;
+            if (!FateRollRules.TryPay(rollIndex)) return false;
+
+            FateRollsUsed = rollIndex;
+            var die1 = _rollDie();
+            var die2 = _rollDie();
+            var outcome = FateRollRules.Evaluate(rollIndex, die1, die2, FateModifier);
+            var reason = _pendingReason;
+            IsAwaitingFate = false;
+            _pendingReason = null;
+            FateRolled?.Invoke(new FateRollResult(rollIndex, die1, die2, FateModifier, outcome));
 
             switch (outcome)
             {
-                case D20Outcome.Knockback:
+                case FateOutcome.ToAltar:
                     _trail.TeleportTo(_lastAltarCoordinate);
                     break;
-                case D20Outcome.Death:
+                case FateOutcome.Death:
                     Die(reason);
                     break;
-                case D20Outcome.Fortune:
-                default:
-                    break;
             }
+
+            return true;
+        }
+
+        /// <summary>«Отказаться»: окончательная смерть без броска.</summary>
+        public void DeclineFate()
+        {
+            if (!IsAlive || !IsAwaitingFate) return;
+            var reason = _pendingReason;
+            IsAwaitingFate = false;
+            _pendingReason = null;
+            Die(reason);
         }
 
         private void Die(string reason)
         {
             if (!IsAlive) return;
             IsAlive = false;
+            IsAwaitingFate = false;
             Died?.Invoke(reason);
         }
     }

@@ -1,6 +1,6 @@
 using System;
-using Burmalda.D20;
 using Burmalda.Decay;
+using Burmalda.FateRoll;
 using Burmalda.Movement;
 using UnityEngine;
 
@@ -10,15 +10,11 @@ namespace Burmalda.RunLifecycle
     /// Тонкий driver <see cref="RunState"/> (по паттерну TrailDecayController/
     /// TunnelCameraController/TunnelDebugVisualController): создаёт/пересобирает
     /// её по <see cref="GridTraceInputController.RunStarted"/>, при смерти
-    /// вызывает <see cref="GridTraceInputController.MarkDead"/> — сама решение
-    /// о смерти (в т.ч. бросок d20, issue #24) принимает RunState, этот
-    /// класс только применяет результат к вводу и собирает
-    /// <see cref="D20Trial"/> на реальном кубике (<c>UnityEngine.Random.Range</c>,
-    /// не завязан на воспроизводимость — в отличие от seeded-RNG сегментной
-    /// генерации, d20-бросок не требует детерминизма). UI экрана смерти/
-    /// кнопки рестарта в проекте ещё нет — <see cref="GridTraceInputController.Restart"/>
-    /// нужно вызывать вручную (например, из будущей кнопки), как и привязка
-    /// камеры к сцене в #8.
+    /// вызывает <see cref="GridTraceInputController.MarkDead"/>. Пока игрок решает
+    /// про Бросок Судьбы (PRD v10 §16) ввод заблокирован; решение и сам бросок
+    /// принимает RunState, а этот класс собирает его на реальных кубиках
+    /// (<c>UnityEngine.Random.Range</c>) и применяет результат к вводу.
+    /// UI экрана смерти/кнопки рестарта — отдельные debug-driver'ы.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class RunController : MonoBehaviour
@@ -29,23 +25,14 @@ namespace Burmalda.RunLifecycle
         private RunState _runState;
 
         /// <summary>
-        /// Переопределяет источник броска d20 (issue #225) — по умолчанию
-        /// null, реальный кубик <c>UnityEngine.Random.Range(1, 21)</c>, как и
-        /// раньше (в игре д20 намеренно не детерминирован, см. doc-комментарий
-        /// класса). Существует ТОЛЬКО ради тестов, которым нужен
-        /// гарантированный исход (например,
-        /// <c>IntegrationTests.CoreLoopIntegrationTests</c>: та же схема, что
-        /// уже применяется для <see cref="Burmalda.Core.TunnelObstacleGenerator"/>/
-        /// <see cref="Burmalda.Altar.AltarTriggerSystem"/> — внедрённый источник
-        /// случайности вместо процесс-wide <c>UnityEngine.Random</c>, которое
-        /// делает результат теста зависимым от того, сколько раз этот RNG
-        /// вызвали ДРУГИЕ тесты, отработавшие раньше в том же прогоне).
-        /// Устанавливать ДО первого <see cref="Update"/>/<see cref="HandleRunStarted"/>
-        /// (до того, как <see cref="RebuildRunState"/> создаст
-        /// <see cref="D20Trial"/>) — на уже собранный <see cref="RunState"/>
-        /// не влияет.
+        /// Переопределяет источник одного кубика d6 (1..6) — по умолчанию реальный
+        /// <c>UnityEngine.Random.Range(1, 7)</c>. Существует ТОЛЬКО ради тестов, которым
+        /// нужен гарантированный исход (внедрённый источник случайности вместо
+        /// процесс-wide <c>UnityEngine.Random</c>). Устанавливать ДО первого
+        /// <see cref="Update"/>/<see cref="HandleRunStarted"/> — на уже собранный
+        /// <see cref="RunState"/> не влияет.
         /// </summary>
-        public Func<int> RollD20Override { get; set; }
+        public Func<int> RollDieOverride { get; set; }
 
         /// <summary>Причина последней смерти — для будущего UI, пока никак не отображается.</summary>
         public string LastDeathReason { get; private set; }
@@ -90,10 +77,18 @@ namespace Burmalda.RunLifecycle
             if (_input == null || _decayController == null) return;
             if (_input.Grid == null || _input.Trail == null || _decayController.Decay == null) return;
 
-            var rollD20 = RollD20Override ?? (() => UnityEngine.Random.Range(1, 21)); // Range(1,21) — верхняя граница исключена, даёт 1..20
-            var d20 = new D20Trial(rollD20);
-            _runState = new RunState(_input.Grid, _input.Trail, _decayController.Decay, d20);
+            var rollDie = RollDieOverride ?? (() => UnityEngine.Random.Range(1, 7)); // верхняя граница исключена: 1..6
+            _runState = new RunState(_input.Grid, _input.Trail, _decayController.Decay, rollDie);
             _runState.Died += OnDied;
+            _runState.FateRollOffered += OnFateRollOffered;
+            _runState.FateRolled += OnFateRolled;
+        }
+
+        private void OnFateRollOffered(int rollIndex) => _input.MarkDead(); // ввод стоит, пока игрок решает
+
+        private void OnFateRolled(FateRollResult result)
+        {
+            if (result.Outcome != FateOutcome.Death) _input.ResumeAfterFate();
         }
 
         private void OnDied(string reason)
@@ -107,6 +102,8 @@ namespace Burmalda.RunLifecycle
         {
             if (_runState == null) return;
             _runState.Died -= OnDied;
+            _runState.FateRollOffered -= OnFateRollOffered;
+            _runState.FateRolled -= OnFateRolled;
             _runState.Dispose();
             _runState = null;
         }

@@ -7,7 +7,7 @@
         "Burmalda.Currencies",
         "Burmalda.Artifacts",
         "Burmalda.RunLifecycle",
-        "Burmalda.D20",
+        "Burmalda.FateRoll",
         "Burmalda.Decay",
         "Burmalda.Progression",
         "Burmalda.Boss",
