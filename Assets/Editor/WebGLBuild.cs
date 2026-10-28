@@ -23,6 +23,7 @@ namespace Burmalda.EditorTools
                 .ToArray();
 
             var originalCompression = PlayerSettings.WebGL.compressionFormat;
+            var originalVersion = BuildCommitStamp.Apply();
             BuildReport report;
             try
             {
@@ -38,6 +39,7 @@ namespace Burmalda.EditorTools
             finally
             {
                 PlayerSettings.WebGL.compressionFormat = originalCompression;
+                BuildCommitStamp.Restore(originalVersion);
             }
 
             Debug.Log($"[WebGLBuild] {report.summary.result}, ошибок {report.summary.totalErrors}, предупреждений {report.summary.totalWarnings}");

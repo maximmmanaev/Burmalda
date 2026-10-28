@@ -39,6 +39,7 @@ namespace Burmalda.EditorTools
             // adb logcat -s Unity: в non-development сборке Debug.Log почти
             // не долетает до logcat. Только BuildAndroid() (тестовая сборка
             // на подключённое устройство) — реальный релиз собирается отдельно.
+            var originalVersion = BuildCommitStamp.Apply();
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = scenes,
@@ -46,6 +47,7 @@ namespace Burmalda.EditorTools
                 target = BuildTarget.Android,
                 options = BuildOptions.Development
             });
+            BuildCommitStamp.Restore(originalVersion);
 
             if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
                 EditorApplication.Exit(1);
