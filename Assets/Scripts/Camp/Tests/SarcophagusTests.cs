@@ -9,19 +9,28 @@ namespace Burmalda.Camp.Tests
     public class SarcophagusTests
     {
         [Test]
-        public void Open_Junior_GivesCoinsByRank()
+        public void CoinsFor_GrowsWithRarity()
         {
-            var contents = new Sarcophagus(SarcophagusRank.Junior).Open();
-
-            Assert.AreEqual(Sarcophagus.CoinsForRank(SarcophagusRank.Junior), contents.Coins);
-            Assert.Greater(contents.Coins, 0);
+            Assert.Less(SarcophagusConfig.CoinsFor(RelicRarity.Rare), SarcophagusConfig.CoinsFor(RelicRarity.Epic));
+            Assert.Less(SarcophagusConfig.CoinsFor(RelicRarity.Epic), SarcophagusConfig.CoinsFor(RelicRarity.Legendary));
         }
 
         [Test]
-        public void CoinsForRank_GrowsWithRank()
+        public void Camp_AddUnopened_OrdersByRarityThenRank_LeastValuableFirst()
         {
-            Assert.Less(Sarcophagus.CoinsForRank(SarcophagusRank.Junior), Sarcophagus.CoinsForRank(SarcophagusRank.Middle));
-            Assert.Less(Sarcophagus.CoinsForRank(SarcophagusRank.Middle), Sarcophagus.CoinsForRank(SarcophagusRank.Senior));
+            var camp = CreateCamp(out _);
+
+            camp.AddUnopened(new[]
+            {
+                new Sarcophagus(SarcophagusRank.Junior, RelicRarity.Legendary),
+                new Sarcophagus(SarcophagusRank.Senior, RelicRarity.Rare),
+                new Sarcophagus(SarcophagusRank.Junior, RelicRarity.Epic),
+                new Sarcophagus(SarcophagusRank.Junior, RelicRarity.Rare),
+            });
+
+            CollectionAssert.AreEqual(
+                new[] { (RelicRarity.Rare, SarcophagusRank.Junior), (RelicRarity.Rare, SarcophagusRank.Senior), (RelicRarity.Epic, SarcophagusRank.Junior), (RelicRarity.Legendary, SarcophagusRank.Junior) },
+                camp.UnopenedSarcophagi.Select(x => (x.Rarity, x.Rank)));
         }
 
         [Test]
@@ -88,6 +97,7 @@ namespace Burmalda.Camp.Tests
 
             Assert.IsNotNull(first);
             Assert.AreEqual(1, camp.UnopenedSarcophagi.Count);
+            Assert.AreEqual(SarcophagusConfig.CoinsFor(RelicRarity.Rare), first.Value.Coins);
             Assert.AreEqual(first.Value.Coins, wallet.Balance);
             Assert.AreEqual(1, opened.Count);
 

@@ -1,8 +1,10 @@
+using System.Linq;
 using Burmalda.Artifacts;
 using Burmalda.Camp;
 using Burmalda.Currencies;
 using Burmalda.Progression;
 using NUnit.Framework;
+using UnityEngine;
 using CampModel = Burmalda.Camp.Camp;
 
 namespace Burmalda.Persistence.Tests
@@ -143,6 +145,76 @@ namespace Burmalda.Persistence.Tests
 
             Assert.AreEqual(0, f.Camp.UnopenedSarcophagi.Count);
             Assert.AreEqual(5, f.Coins.Balance);
+        }
+
+        // ---- v10-4: редкость/бог Саркофагов, части, защита от невезения, флаг первой части ----
+
+        [Test]
+        public void RoundTrip_SarcophagusRarityAndGod_Parts_Pity_FirstPartFlag()
+        {
+            var f = new Fixture();
+            f.Camp.AddUnopened(new[] { new Sarcophagus(SarcophagusRank.Senior, RelicRarity.Legendary, God.Enlil), new Sarcophagus(SarcophagusRank.Junior, RelicRarity.Epic, God.Leshy) });
+            f.Camp.Progress.SetParts("idol-shield", 3);
+            f.Camp.Progress.SetPartMisses(RelicRarity.Epic, 5);
+            f.Camp.Progress.SetRelicMisses(RelicRarity.Legendary, 9);
+            f.Camp.Progress.FirstPartGranted = true;
+
+            var restored = new Fixture();
+            restored.Apply(SaveFormat.Deserialize(SaveFormat.Serialize(f.Capture(), 1)).Data);
+
+            CollectionAssert.AreEqual(
+                new[] { (RelicRarity.Epic, God.Leshy), (RelicRarity.Legendary, God.Enlil) },
+                restored.Camp.UnopenedSarcophagi.Select(x => (x.Rarity, x.God)));
+            Assert.AreEqual(3, restored.Camp.Progress.PartsOf("idol-shield"));
+            Assert.AreEqual(5, restored.Camp.Progress.PartMisses(RelicRarity.Epic));
+            Assert.AreEqual(9, restored.Camp.Progress.RelicMisses(RelicRarity.Legendary));
+            Assert.IsTrue(restored.Camp.Progress.FirstPartGranted);
+        }
+
+        [Test]
+        public void OldSave_WithoutNewFields_LoadsWithDefaults_NothingLost()
+        {
+            var f = new Fixture();
+            var data = new SaveData { coinsBalance = 5 };
+            data.unopenedSarcophagiRanks.Add((int)SarcophagusRank.Middle);
+            data.unopenedSarcophagiRarities = null; // версии < 3 не знали этих полей
+            data.partItemIds = null;
+
+            f.Apply(data);
+
+            Assert.AreEqual(1, f.Camp.UnopenedSarcophagi.Count);
+            Assert.AreEqual(RelicRarity.Rare, f.Camp.UnopenedSarcophagi[0].Rarity);
+            Assert.AreEqual(God.Leshy, f.Camp.UnopenedSarcophagi[0].God);
+            Assert.IsFalse(f.Camp.Progress.FirstPartGranted);
+        }
+
+        [Test]
+        public void Version2Save_ParsesIntoCurrentFormat()
+        {
+            var payload = "{\"coinsBalance\":12,\"unopenedSarcophagiRanks\":[1]}";
+            var text = JsonUtility.ToJson(new SaveEnvelope { version = 2, savedAt = 3, payload = payload });
+
+            var r = SaveFormat.Deserialize(text);
+
+            Assert.AreEqual(SaveReadStatus.Ok, r.Status);
+            Assert.AreEqual(12, r.Data.coinsBalance);
+            Assert.IsNotNull(r.Data.partItemIds);
+            Assert.IsNotNull(r.Data.unopenedSarcophagiRarities);
+            Assert.AreEqual(3, SaveFormat.CurrentVersion);
+        }
+
+        [Test]
+        public void Apply_ClampsPartsToRequired_IgnoresUnknownItems()
+        {
+            var f = new Fixture();
+            var data = new SaveData();
+            data.partItemIds.AddRange(new[] { "idol-rush", "no-such-item" });
+            data.partItemCounts.AddRange(new[] { 99, 3 });
+
+            f.Apply(data);
+
+            Assert.AreEqual(4, f.Camp.Progress.PartsOf("idol-rush"), "Редкий — максимум 4 части");
+            Assert.AreEqual(0, f.Camp.Progress.PartsOf("no-such-item"));
         }
     }
 }

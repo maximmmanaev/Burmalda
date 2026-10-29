@@ -23,6 +23,8 @@ namespace Burmalda.Bootstrap
 
         public int RunSeed => _segments.RunSeedValue;
 
+        public int CurrentYarus => _segments.CurrentYarus;
+
         /// <summary>Типы угроз (§8.4) по ловушкам раскладки Святилища.</summary>
         public static IReadOnlyCollection<ThreatType> ThreatsOf(SegmentTemplate template)
         {

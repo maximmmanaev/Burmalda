@@ -24,6 +24,8 @@ namespace Burmalda.Altar.Tests
             public IReadOnlyCollection<ThreatType> AfishaThreats(int shrineYarus) => Threats;
 
             public int RunSeed => Seed;
+
+            public int CurrentYarus => 1;
         }
 
         private static ArtifactPool AllOpenPool()

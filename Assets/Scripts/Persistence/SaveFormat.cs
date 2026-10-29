@@ -39,10 +39,11 @@ namespace Burmalda.Persistence
     public static class SaveFormat
     {
         /// <summary>
+        /// 3 — v10-4: Саркофаги несут редкость и бога, добавлены части Идолов/Тотемов, счётчики защиты от невезения и флаг первой части (старые сохранения читаются: недостающее — значения по умолчанию).
         /// 2 — v10-3: Ключи удалены. Поля Ключей в сохранении не было (Ключи жили только в забеге), но Пул/Коллекция
         /// могли хранить id убранного Талисмана «Хватка Ключника» — при чтении версии &lt; 2 он выбрасывается.
         /// </summary>
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         /// <summary>Id Талисмана на Ключах, удалённого в v10-3.</summary>
         public const string RemovedKeysTalismanId = "talisman-double-keys";
@@ -111,6 +112,13 @@ namespace Burmalda.Persistence
             d.depthRecordBestTier = Math.Max(0, d.depthRecordBestTier);
             d.collectionRecordedIds = CleanIds(d.collectionRecordedIds);
             d.poolUnlockedIds = CleanIds(d.poolUnlockedIds);
+            d.unopenedSarcophagiRanks = d.unopenedSarcophagiRanks ?? new List<int>();
+            d.unopenedSarcophagiRarities = d.unopenedSarcophagiRarities ?? new List<int>();
+            d.unopenedSarcophagiGods = d.unopenedSarcophagiGods ?? new List<int>();
+            d.partItemIds = d.partItemIds ?? new List<string>();
+            d.partItemCounts = d.partItemCounts ?? new List<int>();
+            d.partMisses = d.partMisses ?? new List<int>();
+            d.relicMisses = d.relicMisses ?? new List<int>();
             return d;
         }
 

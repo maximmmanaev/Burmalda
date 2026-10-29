@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Burmalda.Altar;
+using Burmalda.Artifacts;
 using Burmalda.Currencies;
 using Burmalda.Decay;
 using Burmalda.Movement;
@@ -71,7 +72,7 @@ namespace Burmalda.Camp
 
         private void Update()
         {
-            if (_camp == null && CampIsReady()) _camp = new Camp(_currency.Coins, _altar.Pool);
+            if (_camp == null && CampIsReady()) _camp = new Camp(_currency.Coins, _altar.Pool, new CollectionProgress(), _rng);
             if (_evacuation == null && RunSystemsReady()) RebuildRunSystems();
             SyncRunStateSubscription();
             SyncSanctuarySubscription();
@@ -87,8 +88,14 @@ namespace Burmalda.Camp
             if (_subscribedSanctuary != null) _subscribedSanctuary.SarcophagusTaken += OnSarcophagusTaken;
         }
 
-        // Ранг бога: Святилище Лешего — младший бог (PRD v10 §5.2); с остальными богами ранг придёт из Святилища.
-        private void OnSarcophagusTaken() => _carried.Add(new Sarcophagus(SarcophagusRank.Junior));
+        // Бог и ранг — из таблицы Ярусов (PRD v10 §5.2), редкость выпадает при взятии (§21.1) и скрыта до открытия в Лагере.
+        private void OnSarcophagusTaken()
+        {
+            var yarus = _altar != null && _altar.Context != null ? _altar.Context.CurrentYarus : 1;
+            _carried.Add(SarcophagusRarityRoller.Take(yarus, _rng));
+        }
+
+        private readonly System.Random _rng = new System.Random();
 
         private bool CampIsReady() =>
             _currency != null && _currency.Coins != null &&

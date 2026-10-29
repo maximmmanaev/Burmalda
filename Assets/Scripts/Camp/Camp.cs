@@ -28,11 +28,24 @@ namespace Burmalda.Camp
         private readonly ArtifactPool _pool;
         private readonly List<Sarcophagus> _unopened = new List<Sarcophagus>();
 
-        public Camp(PersistentWallet coins, ArtifactPool pool)
+        private readonly Random _rng;
+
+        public Camp(PersistentWallet coins, ArtifactPool pool, CollectionProgress progress = null, Random rng = null)
         {
             _coins = coins ?? throw new ArgumentNullException(nameof(coins));
             _pool = pool ?? throw new ArgumentNullException(nameof(pool));
+            Progress = progress ?? new CollectionProgress();
+            _rng = rng ?? new Random();
         }
+
+        /// <summary>Постоянный прогресс сбора: части Идолов/Тотемов, защита от невезения, флаг первой части (§21, §29).</summary>
+        public CollectionProgress Progress { get; }
+
+        /// <summary>Игроку предложен выбор «чья часть» (§21.4) — пока он не выбрал, следующий Саркофаг не открывается.</summary>
+        public IReadOnlyList<CollectibleItem> PendingPartChoice { get; private set; }
+
+        /// <summary>Игрок выбрал, в какой предмет уходит часть.</summary>
+        public event Action<CollectibleItem> PartChosen;
 
         /// <summary>Апгрейдит первый пассив Идола за Монеты. False, если Монет не хватило.</summary>
         public bool TryUpgradeIdolPassiveA(Idol idol, int cost)
@@ -86,7 +99,8 @@ namespace Burmalda.Camp
         {
             if (sarcophagi == null) throw new ArgumentNullException(nameof(sarcophagi));
             _unopened.AddRange(sarcophagi);
-            var ordered = _unopened.OrderBy(s => (int)s.Rank).ToList(); // OrderBy стабилен
+            // От менее ярких к более ярким (§22.3): по редкости, затем по рангу бога. OrderBy стабилен.
+            var ordered = _unopened.OrderBy(s => (int)s.Rarity).ThenBy(s => (int)s.Rank).ToList();
             _unopened.Clear();
             _unopened.AddRange(ordered);
             UnopenedChanged?.Invoke();
@@ -95,14 +109,29 @@ namespace Burmalda.Camp
         /// <summary>Открывает следующий Саркофаг: Монеты зачисляются. Null, если открывать нечего.</summary>
         public SarcophagusContents? OpenNext()
         {
-            if (_unopened.Count == 0) return null;
+            if (_unopened.Count == 0 || PendingPartChoice != null) return null;
             var next = _unopened[0];
             _unopened.RemoveAt(0);
-            var contents = next.Open();
-            _coins.Deposit(contents.Coins);
+            var loot = SarcophagusLootRoller.Roll(next, Progress, _pool, _rng);
+            _coins.Deposit(loot.Coins);
+            if (loot.Kind == SarcophagusLootKind.Relic) _pool.Unlock(loot.Relic.Id); // открыта навсегда, попадает в предложения Алтарей
+            if (loot.NeedsPartChoice) PendingPartChoice = loot.PartChoices;
+            var contents = new SarcophagusContents(loot);
             UnopenedChanged?.Invoke();
             SarcophagusOpened?.Invoke(contents);
             return contents;
+        }
+
+        /// <summary>Выбор «чья часть» (§21.4): часть уходит в выбранный из предложенных предметов. False, если выбора нет или предмета нет среди предложенных.</summary>
+        public bool ChoosePart(string itemId)
+        {
+            if (PendingPartChoice == null) return false;
+            var item = PendingPartChoice.FirstOrDefault(i => i.Id == itemId);
+            if (item == null) return false;
+            PendingPartChoice = null;
+            Progress.AddPart(item.Id);
+            PartChosen?.Invoke(item);
+            return true;
         }
     }
 }
