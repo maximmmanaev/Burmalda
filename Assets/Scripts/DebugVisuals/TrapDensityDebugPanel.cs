@@ -178,7 +178,7 @@ namespace Burmalda.DebugVisuals
         // авторский контент. Показывает и накопительный счёт, и пару
         // последнего конфликта (что отклонено, что осталось) — если
         // отклонённая роль систематически оказывается авторской
-        // (ManaSource/KeySource/Altar/Boss/триггеры шаблонов), разрешение
+        // (ManaSource/GateVault/Altar/Boss/триггеры шаблонов), разрешение
         // конфликта сломано, видно прямо на панели.
         private static string FormatRoleConflictCounter(int count, string lastRejectedRole, string lastKeptRole)
         {

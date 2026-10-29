@@ -181,7 +181,7 @@ namespace Burmalda.Core.Tests
         }
 
         [TestCase(nameof(Tile.MarkManaSource))]
-        [TestCase(nameof(Tile.MarkKeySource))]
+        [TestCase(nameof(Tile.MarkGateVault))]
         [TestCase(nameof(Tile.MarkBlocked))]
         [TestCase(nameof(Tile.MarkAltar))]
         [TestCase(nameof(Tile.MarkSanctuaryEntry))]
@@ -191,7 +191,7 @@ namespace Burmalda.Core.Tests
             switch (markMethodName)
             {
                 case nameof(Tile.MarkManaSource): tile.MarkManaSource(); break;
-                case nameof(Tile.MarkKeySource): tile.MarkKeySource(); break;
+                case nameof(Tile.MarkGateVault): tile.MarkGateVault(); break;
                 case nameof(Tile.MarkBlocked): tile.MarkBlocked(); break;
                 case nameof(Tile.MarkAltar): tile.MarkAltar(); break;
                 case nameof(Tile.MarkSanctuaryEntry): tile.MarkSanctuaryEntry(); break;
@@ -346,12 +346,12 @@ namespace Burmalda.Core.Tests
         }
 
         [Test]
-        public void NewTile_IsNotManaSourceAndIsNotKeySource()
+        public void NewTile_IsNotManaSourceAndIsNotGateVault()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
             Assert.IsFalse(tile.IsManaSource);
-            Assert.IsFalse(tile.IsKeySource);
+            Assert.IsFalse(tile.IsGateVault);
         }
 
         [Test]
@@ -362,50 +362,18 @@ namespace Burmalda.Core.Tests
             tile.MarkManaSource();
 
             Assert.IsTrue(tile.IsManaSource);
-            Assert.IsFalse(tile.IsKeySource);
+            Assert.IsFalse(tile.IsGateVault);
         }
 
         [Test]
-        public void MarkKeySource_SetsIsKeySourceTrue()
+        public void MarkGateVault_SetsIsGateVaultTrue()
         {
             var tile = new Tile(new GridCoordinate(1, 1));
 
-            tile.MarkKeySource();
+            tile.MarkGateVault();
 
-            Assert.IsTrue(tile.IsKeySource);
+            Assert.IsTrue(tile.IsGateVault);
             Assert.IsFalse(tile.IsManaSource);
-        }
-
-        // issue «размер награды за Воротами» (владелец, 2026-09-04).
-        [Test]
-        public void MarkKeySource_NoAmount_KeySourceAmountIsNull()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-
-            tile.MarkKeySource();
-
-            Assert.IsFalse(tile.KeySourceAmount.HasValue);
-        }
-
-        [Test]
-        public void MarkKeySource_WithAmount_SetsKeySourceAmount()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-
-            tile.MarkKeySource(120);
-
-            Assert.AreEqual(120, tile.KeySourceAmount);
-        }
-
-        [Test]
-        public void MarkKeySource_CalledTwice_KeepsFirstAmount()
-        {
-            var tile = new Tile(new GridCoordinate(1, 1));
-
-            tile.MarkKeySource(120);
-            tile.MarkKeySource(999);
-
-            Assert.AreEqual(120, tile.KeySourceAmount);
         }
 
         [Test]
@@ -521,7 +489,7 @@ namespace Burmalda.Core.Tests
             ("Blocked", t => t.MarkBlocked()),
             ("LethalTrap", t => t.MarkLethalTrap(LethalTrapType.Lava)),
             ("ManaSource", t => t.MarkManaSource()),
-            ("KeySource", t => t.MarkKeySource()),
+            ("GateVault", t => t.MarkGateVault()),
             ("Altar", t => t.MarkAltar()),
             ("Boss", t => t.MarkSanctuaryEntry()),
             ("Lever", t => t.MarkLever(Array.Empty<GridCoordinate>())),
@@ -1086,7 +1054,7 @@ namespace Burmalda.Core.Tests
 
         // Тот же контрольный принцип, что MarkLethalTrap_StillGuardsAgainstConflictingRole_UnlikeTransitionToLethalTrap выше.
         [TestCase(nameof(Tile.MarkManaSource))]
-        [TestCase(nameof(Tile.MarkKeySource))]
+        [TestCase(nameof(Tile.MarkGateVault))]
         [TestCase(nameof(Tile.MarkAltar))]
         [TestCase(nameof(Tile.MarkSanctuaryEntry))]
         public void TransitionToBlocked_OverAnyOtherExclusiveRole_DoesNotThrow(string markMethodName)
@@ -1095,7 +1063,7 @@ namespace Burmalda.Core.Tests
             switch (markMethodName)
             {
                 case nameof(Tile.MarkManaSource): tile.MarkManaSource(); break;
-                case nameof(Tile.MarkKeySource): tile.MarkKeySource(); break;
+                case nameof(Tile.MarkGateVault): tile.MarkGateVault(); break;
                 case nameof(Tile.MarkAltar): tile.MarkAltar(); break;
                 case nameof(Tile.MarkSanctuaryEntry): tile.MarkSanctuaryEntry(); break;
             }

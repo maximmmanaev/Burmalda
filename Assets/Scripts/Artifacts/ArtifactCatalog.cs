@@ -11,7 +11,7 @@ namespace Burmalda.Artifacts
     /// (12–15 Амулетов/Талисманов, roadmap.md, «Скоуп релиза»), остальной
     /// объём — контент-задача по мере баланса (Спринт 10).
     ///
-    /// Числовые эффекты (иммунитет к 2 стрелам, 2d20, +10 Маны, ×2 Ключей/
+    /// Числовые эффекты (иммунитет к 2 стрелам, 2d20, +10 Маны, ×2
     /// Маны) не применяются автоматически — Алтарь как источник выдачи
     /// (Спринт 6) и часть зависимых систем (d20 — Спринт 7) ещё не
     /// реализованы; <see cref="Amulet.EffectDescription"/>/<see cref="Talisman.EffectDescription"/>
@@ -32,9 +32,6 @@ namespace Burmalda.Artifacts
         {
             new Talisman("talisman-mana-every-third-tile", "Жила щедрости",
                 "Каждая 3-я плитка приносит на 10 Кристаллов Маны больше", new[] { ArtifactTag.Mana }),
-
-            new Talisman("talisman-double-keys", "Хватка Ключника",
-                "Плитка с Ключом приносит в 2 раза больше Ключей", new[] { ArtifactTag.Keys }),
 
             new Talisman("talisman-double-mana", "Двойная Жила",
                 "Увеличивает получаемые Кристаллы Маны в 2 раза", new[] { ArtifactTag.Mana }),

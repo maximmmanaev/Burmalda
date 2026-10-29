@@ -37,21 +37,13 @@ namespace Burmalda.Generation
         /// <summary>Источник Кристаллов Маны (PRD раздел 5, issue #12) — проходима, не ловушка.</summary>
         ManaSource,
 
-        /// <summary>Источник Ключей (PRD раздел 5, issue #12) — проходима, не ловушка.</summary>
-        KeySource,
-
         /// <summary>
-        /// Тайник за Воротами (задача «видимые рычаги, инвариант лавы,
-        /// размер награды за Воротами», владелец, 2026-09-04): источник
-        /// Ключей, но сумма — из <see cref="SegmentTemplate.GateVaultPurchases"/>
-        /// этого шаблона через <see cref="GateVaultPricing.ComputeVaultKeys"/>,
-        /// не общий <c>Currencies.CurrencyController.KeysPerSource</c>. Не
-        /// более одного на шаблон (см. <see cref="SegmentTemplate"/>) — тот
-        /// же принцип, что у <see cref="Lever"/>.
+        /// Тайник за Воротами (PRD v10 §10): подбор даёт один дополнительный вариант на следующем Алтаре.
+        /// Не более одного на шаблон (см. <see cref="SegmentTemplate"/>) — тот же принцип, что у <see cref="Lever"/>.
         /// </summary>
-        GateVaultKeySource,
+        GateVault,
 
-        /// <summary>Клетка-Алтарь (PRD раздел 7, issue #19) — проходима, запускает Ритуал.</summary>
+        /// <summary>Клетка-Алтарь (PRD раздел 7, issue #19) — проходима, открывает выбор Реликвии.</summary>
         Altar,
 
         /// <summary>Точка встречи с Боссом (PRD раздел 8, issue #22) — проходима, встреча разрешается автоматически.</summary>

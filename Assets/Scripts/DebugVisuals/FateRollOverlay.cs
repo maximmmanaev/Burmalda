@@ -94,8 +94,7 @@ namespace Burmalda.DebugVisuals
             SetBar(_inPlaceBar, chances.DeathPercent + chances.AltarPercent, chances.InPlacePercent);
 
             var mana = _currency != null && _currency.RunManaCrystals != null ? _currency.RunManaCrystals.Total : 0;
-            var keys = _currency != null && _currency.RunKeys != null ? _currency.RunKeys.Total : 0;
-            _stake.text = FateRollScreenText.Stake(mana, keys, _camp != null ? _camp.Carried.Count : 0);
+            _stake.text = FateRollScreenText.Stake(mana, _camp != null ? _camp.Carried.Count : 0);
             _dice.text = "?   ?";
             _result.text = "";
             _rollButton.interactable = _declineButton.interactable = true;

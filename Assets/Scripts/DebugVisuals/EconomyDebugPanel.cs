@@ -8,12 +8,12 @@ using UnityEngine.UI;
 namespace Burmalda.DebugVisuals
 {
     /// <summary>
-    /// Четыре стартовых значения новой экономики (PRD v9 раздел 5, задача по
+    /// Три стартовых значения новой экономики (PRD v9 раздел 5, задача по
     /// экономике "Мана как доход забега, Монеты только в Лагере") —
     /// <see cref="TrailManaIncomeSystem.BaseManaPerTile"/>,
     /// <see cref="CurrencyController.ManaPerSource"/>,
     /// <see cref="EvacuationSystem.ManaToCoinsRate"/>,
-    /// <see cref="EvacuationSystem.KeysToCoinsRate"/> — все четыре
+    /// (Ключей нет, v10-3) — все три
     /// помечены в объявлении "стартовое значение, уточняется на плейтесте" и
     /// намеренно НЕ <c>const</c>, а изменяемые статические поля именно ради
     /// этой панели.
@@ -138,7 +138,7 @@ namespace Burmalda.DebugVisuals
             rect.anchorMin = new Vector2(1f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(1f, 1f);
-            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 4f + Margin * 2f);
+            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 3f + Margin * 2f);
             rect.anchoredPosition = new Vector2(-Margin, -(TopOffset + ToggleButtonSize + Margin));
 
             BuildRow(_panelRoot.transform, 0,
@@ -155,11 +155,6 @@ namespace Burmalda.DebugVisuals
                 "Курс Мана→Монеты", 5f, 50f, EvacuationSystem.ManaToCoinsRate,
                 v => EvacuationSystem.ManaToCoinsRate = v,
                 v => v.ToString("0") + ":1");
-
-            BuildRow(_panelRoot.transform, 3,
-                "Курс Ключи→Монеты", 0.2f, 5f, EvacuationSystem.KeysToCoinsRate,
-                v => EvacuationSystem.KeysToCoinsRate = v,
-                v => v.ToString("0.0") + ":1");
         }
 
         /// <summary>Строка "подпись + слайдер + текущее значение" — та же разметка, что CameraAnchorDebugPanel.BuildRow.</summary>

@@ -91,6 +91,30 @@ namespace Burmalda.Persistence.Tests
             Assert.IsNull(r.Data);
         }
 
+        // v10-3: Ключи удалены. Старое сохранение (версия 1) с лишним полем Ключей и id убранного Талисмана
+        // читается, Монеты и прочий прогресс сохраняются, id удалённого Талисмана выбрасывается.
+        [Test]
+        public void Version1Save_WithKeysFieldAndRemovedTalisman_LoadsAndDropsTalismanId()
+        {
+            var payload = "{\"coinsBalance\":77,\"keysBalance\":500,\"collectionRecordedIds\":[\"talisman-double-keys\",\"amulet-trap-immunity\"],"
+                + "\"poolUnlockedIds\":[\"talisman-double-keys\",\"talisman-double-mana\"],\"depthRecordBestTier\":3}";
+            var text = JsonUtility.ToJson(new SaveEnvelope { version = 1, savedAt = 9, payload = payload });
+
+            var r = SaveFormat.Deserialize(text);
+
+            Assert.AreEqual(SaveReadStatus.Ok, r.Status);
+            Assert.AreEqual(77, r.Data.coinsBalance);
+            Assert.AreEqual(3, r.Data.depthRecordBestTier);
+            CollectionAssert.AreEqual(new[] { "amulet-trap-immunity" }, r.Data.collectionRecordedIds);
+            CollectionAssert.AreEqual(new[] { "talisman-double-mana" }, r.Data.poolUnlockedIds);
+        }
+
+        [Test]
+        public void CurrentVersion_IsAtLeast2_AfterKeysRemoval()
+        {
+            Assert.GreaterOrEqual(SaveFormat.CurrentVersion, 2);
+        }
+
         [Test]
         public void LegacyUnversionedFile_IsAcceptedAsOk()
         {

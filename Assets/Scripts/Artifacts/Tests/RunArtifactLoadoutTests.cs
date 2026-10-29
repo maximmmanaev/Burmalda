@@ -51,12 +51,12 @@ namespace Burmalda.Artifacts.Tests
         public void ActiveResonances_DelegatesToResonanceCalculator()
         {
             var loadout = new RunArtifactLoadout(new ArtifactCollection());
-            loadout.Acquire(new Talisman("t1", "Т1", "э", new[] { ArtifactTag.Keys }));
-            loadout.Acquire(new Talisman("t2", "Т2", "э", new[] { ArtifactTag.Keys }));
+            loadout.Acquire(new Talisman("t1", "Т1", "э", new[] { ArtifactTag.Greed }));
+            loadout.Acquire(new Talisman("t2", "Т2", "э", new[] { ArtifactTag.Movement }));
 
             var resonances = loadout.ActiveResonances();
 
-            CollectionAssert.Contains(resonances, ResonanceType.KeyBond);
+            CollectionAssert.Contains(resonances, ResonanceType.StingyMove);
         }
 
         [Test]

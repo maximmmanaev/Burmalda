@@ -52,7 +52,7 @@ namespace Burmalda.IntegrationTests
     /// только в Лагере" (PRD v9)</b>: в забеге больше нет отдельного
     /// накопителя Монет (обычные плиты тоже начисляют Ману через
     /// <see cref="TrailManaIncomeSystem"/>) и нет постоянного кошелька
-    /// Кристаллов — точные числа Маны/Ключей ПОСЛЕ обхода ловушки намеренно
+    /// Кристаллов — точные числа Маны ПОСЛЕ обхода ловушки намеренно
     /// не проверяются равенством (зависят от множителя на каждом шаге,
     /// который сам по себе не предмет этого теста, к тому же теперь
     /// инкапсулирован внутри CurrencyController — не читается напрямую) —
@@ -141,12 +141,9 @@ namespace Burmalda.IntegrationTests
         public void FullCoreLoop_TunnelTrapsMultiplierAltarSanctuaryEvacuationCamp_AllSystemsIntegrate()
         {
             SetUp();
-            // Симулирует "уже разблокировано ранее" — иначе PrimaryChest Ритуала пуст (issue #19).
-            _bootstrap.Altar.Pool.Unlock(ArtifactCatalog.Amulets[0].Id);
-
-            // --- Разметка плит: источники валют, ловушка, Алтарь, Босс ---
+            // --- Разметка плит: источник Маны, ловушка, Алтарь, Босс ---
             var manaSource = new GridCoordinate(1, 2);
-            var keySource = new GridCoordinate(2, 2);
+            var vault = new GridCoordinate(2, 2);
             // issue #258: статичная Лава физически проходима теперь (шаг не
             // отклоняется) — для сценария "ловушка блокирует прямой путь,
             // трейл должен её обойти" нужен один из четырёх рантайм-типов,
@@ -159,15 +156,15 @@ namespace Burmalda.IntegrationTests
             var veinInSanctuary = new GridCoordinate(6, 2);
             var sarcophagusTile = new GridCoordinate(7, 2);
             _input.Grid.GetOrCreateTile(manaSource).MarkManaSource();
-            _input.Grid.GetOrCreateTile(keySource).MarkKeySource();
+            _input.Grid.GetOrCreateTile(vault).MarkGateVault();
             _input.Grid.GetOrCreateTile(trap).TransitionToLethalTrap(LethalTrapType.ArrowWave);
             _input.Grid.GetOrCreateTile(altar).MarkAltar();
             _input.Grid.GetOrCreateTile(sanctuaryEntry).MarkSanctuaryEntry();
             _input.Grid.GetOrCreateTile(veinInSanctuary).MarkSanctuaryTile(SanctuaryTileKind.Vein);
             _input.Grid.GetOrCreateTile(sarcophagusTile).MarkSarcophagus();
 
-            Ritual ritualOpened = null;
-            _bootstrap.Altar.RitualOpened += r => ritualOpened = r;
+            var altarReached = false;
+            _bootstrap.Altar.AltarReached += _ => altarReached = true;
 
             var trail = _input.Trail;
 
@@ -175,10 +172,10 @@ namespace Burmalda.IntegrationTests
             // Собираем валюты по пути к ловушке — сама trap=(3,2) на 3 ряда
             // впереди старта (0,2), не соседняя ему напрямую (IsAdjacentTo —
             // 8-направлено, максимум 1 клетка); шаг на неё нужно пробовать
-            // с соседней клетки (keySource=(2,2)), иначе TryAdvanceTo даже
+            // с соседней клетки (тайник=(2,2)), иначе TryAdvanceTo даже
             // не доходит до проверки LethalTrap.
             Assert.IsTrue(trail.TryAdvanceTo(manaSource));
-            Assert.IsTrue(trail.TryAdvanceTo(keySource));
+            Assert.IsTrue(trail.TryAdvanceTo(vault));
 
             // Прямой путь на ловушку — ход НЕ засчитывается, событие поднимается, но не убивает тест.
             LethalTrapType? triggeredTrap = null;
@@ -186,7 +183,7 @@ namespace Burmalda.IntegrationTests
             var steppedOnTrap = trail.TryAdvanceTo(trap);
             Assert.IsFalse(steppedOnTrap, "Шаг на смертельную ловушку не должен засчитываться.");
             Assert.AreEqual(LethalTrapType.ArrowWave, triggeredTrap);
-            Assert.AreEqual(keySource, trail.CurrentPosition, "Позиция не должна была измениться после отказа шагнуть на ловушку.");
+            Assert.AreEqual(vault, trail.CurrentPosition, "Позиция не должна была измениться после отказа шагнуть на ловушку.");
             _inputObject.GetComponent<RunController>().RunState.RollFate(); // Бросок Судьбы 6+6 — продолжаем с той же плиты
 
             // Обходим ловушку по диагонали.
@@ -198,25 +195,11 @@ namespace Burmalda.IntegrationTests
             // инкапсулированы внутри CurrencyController, не читаются
             // напрямую (не предмет этого теста).
             var runMana = _bootstrap.Currency.RunManaCrystals;
-            var runKeys = _bootstrap.Currency.RunKeys;
             Assert.Greater(runMana.Total, 0, "Мана должна была накопиться — и с обычных плит, и с плитки-источника.");
-            // CurrencyController.KeysPerSource, не жёсткая 1 — mutable
-            // static (задача «размер награды за Воротами», владелец,
-            // 2026-09-04), тест не должен ломаться при её перебалансировке.
-            Assert.AreEqual(CurrencyController.KeysPerSource, runKeys.Total, "Ключи с плитки-источника должны были собраться в размере KeysPerSource.");
 
-            // Топ-ап валют — тест проверяет проводку систем, а не баланс.
-            runKeys.Add(1000);
-
-            // === Алтарь / Ритуал (PRD раздел 7) ===
+            // === Алтарь (PRD v10 §13) ===
             Assert.IsTrue(trail.TryAdvanceTo(altar));
-            Assert.IsNotNull(ritualOpened, "Ритуал должен был открыться при достижении Алтаря с Ключами на руках.");
-            var keysBeforePurchase = runKeys.Total;
-            var purchased = ritualOpened.TryPurchasePrimary(runKeys, _bootstrap.Loadout);
-            Assert.IsTrue(purchased);
-            Assert.Less(runKeys.Total, keysBeforePurchase, "Покупка должна была потратить Ключи.");
-            Assert.AreEqual(1, _bootstrap.Loadout.Acquired.Count);
-            Assert.IsTrue(_bootstrap.Altar.Collection.Contains(_bootstrap.Loadout.Acquired[0].Id), "Покупка должна была зафиксировать артефакт в постоянной Коллекции (issue #18).");
+            Assert.IsTrue(altarReached, "Достижение Алтаря должно было поднять AltarReached — без каких-либо валют на руках.");
 
             // === Святилище (PRD v10 §14): вход, Жила, выход к Алтарю в конце ===
             var manaBeforeSanctuary = runMana.Total;
@@ -241,9 +224,9 @@ namespace Burmalda.IntegrationTests
             Assert.AreEqual(0, _bootstrap.Camp.Carried.Count, "Эвакуация уносит Саркофаги из забега…");
             Assert.AreEqual(1, _bootstrap.Camp.Camp.UnopenedSarcophagi.Count, "…в Лагерь, где они ждут открытия (§22.3).");
 
-            Assert.IsNotNull(returnResult, "Эвакуация с Алтаря должна была сконвертировать Ману/Ключи в Монеты.");
+            Assert.IsNotNull(returnResult, "Эвакуация с Алтаря должна была сконвертировать Ману в Монеты.");
             Assert.AreEqual(returnResult.Value.TotalCoins, _bootstrap.Currency.Coins.Balance);
-            Assert.Greater(_bootstrap.Currency.Coins.Balance, 0, "Конвертация Маны/Ключей должна была дать хотя бы 1 Монету при таких запасах.");
+            Assert.Greater(_bootstrap.Currency.Coins.Balance, 0, "Конвертация Маны должна была дать хотя бы 1 Монету при таких запасах.");
 
             // === Лагерь (PRD раздел 11) ===
             var camp = _bootstrap.Camp.Camp;
@@ -256,20 +239,19 @@ namespace Burmalda.IntegrationTests
         }
 
         [Test]
-        public void CoreLoop_AltarWithoutKeys_PassesThroughWithoutOpeningRitual()
+        public void CoreLoop_AltarIsPlainTile_StepIsCountedAndAltarReachedRaised()
         {
-            // "Если у игрока нет Ключей — проходит мимо без потерь" (issue #19).
             SetUp();
             var altar = new GridCoordinate(1, 2);
             _input.Grid.GetOrCreateTile(altar).MarkAltar();
 
-            var opened = false;
-            _bootstrap.Altar.RitualOpened += _ => opened = true;
+            var reached = false;
+            _bootstrap.Altar.AltarReached += _ => reached = true;
 
             var advanced = _input.Trail.TryAdvanceTo(altar);
 
             Assert.IsTrue(advanced, "Плита-Алтарь сама по себе не препятствие — ход должен засчитаться.");
-            Assert.IsFalse(opened);
+            Assert.IsTrue(reached);
         }
 
         private static void InvokePrivate(object target, string methodName, params object[] args)

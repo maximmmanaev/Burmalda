@@ -57,7 +57,7 @@ namespace Burmalda.DebugVisuals.Tests
             TileArtKind.TriggerSignature,
             TileArtKind.CurrentPosition,
             TileArtKind.ManaSource,
-            TileArtKind.KeySource,
+            TileArtKind.GateVault,
             TileArtKind.Lever,
             TileArtKind.GateClosed,
             TileArtKind.GateOpen,

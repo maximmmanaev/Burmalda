@@ -275,11 +275,11 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
-        public void Resolve_KeySource_NotStartNotCurrentNotDestroyed_ReturnsKeySourceColor()
+        public void Resolve_GateVault_NotStartNotCurrentNotDestroyed_ReturnsGateVaultColor()
         {
-            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isKeySource: true);
+            var state = new TileVisualState(isStart: false, isCurrentPosition: false, isDestroyed: false, isBlocked: false, lethalTrap: null, decayProgress01: 0f, isTrapTrigger: false, isGateVault: true);
 
-            Assert.AreEqual(TileDebugColor.KeySourceColor, TileDebugColor.Resolve(state));
+            Assert.AreEqual(TileDebugColor.GateVaultColor, TileDebugColor.Resolve(state));
         }
 
         [Test]
@@ -291,9 +291,9 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
-        public void Resolve_ManaSource_DiffersFromKeySourceColor()
+        public void Resolve_ManaSource_DiffersFromGateVaultColor()
         {
-            Assert.AreNotEqual(TileDebugColor.ManaSourceColor, TileDebugColor.KeySourceColor);
+            Assert.AreNotEqual(TileDebugColor.ManaSourceColor, TileDebugColor.GateVaultColor);
         }
 
         [Test]
@@ -303,9 +303,9 @@ namespace Burmalda.DebugVisuals.Tests
         }
 
         [Test]
-        public void Resolve_KeySource_DiffersFromTriggerSignatureColor()
+        public void Resolve_GateVault_DiffersFromTriggerSignatureColor()
         {
-            Assert.AreNotEqual(TileDebugColor.KeySourceColor, TileDebugColor.TriggerSignatureColor);
+            Assert.AreNotEqual(TileDebugColor.GateVaultColor, TileDebugColor.TriggerSignatureColor);
         }
 
         [Test]

@@ -163,7 +163,7 @@ namespace Burmalda.DebugVisuals
             // "триггер уничтожает собственную награду"). Сработавшая
             // ловушка — явная опасность, а не источник награды (владелец,
             // дословно): раз tile.LethalTrap выставлен, строка про Ману/Ключ
-            // не показывается вовсе — Tile.IsManaSource/IsKeySource
+            // не показывается вовсе — Tile.IsManaSource/IsGateVault
             // намеренно не сбрасываются (см. их doc-комментарий), но здесь,
             // в презентации, приоритет у опасности. Владелец, 2026-09-05
             // «оставить только пять новых ловушек»: прежний гейт Идолом
@@ -173,7 +173,7 @@ namespace Burmalda.DebugVisuals
             // мёртвый.
             var hasLethalDanger = tile.LethalTrap.HasValue;
             AppendValueLine(lines, tile.IsManaSource && !hasLethalDanger, "Источник Кристаллов Маны");
-            AppendValueLine(lines, tile.IsKeySource && !hasLethalDanger, "Источник Ключей");
+            AppendValueLine(lines, tile.IsGateVault && !hasLethalDanger, "Тайник");
 
             if (tile.IsAltar) lines.Add("Алтарь");
             if (tile.IsSanctuaryEntry) lines.Add("Точка Босса");

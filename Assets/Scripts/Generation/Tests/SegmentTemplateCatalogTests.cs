@@ -174,7 +174,7 @@ namespace Burmalda.Generation.Tests
         {
             var tags = SegmentTemplateCatalog.All.Select(t => t.RewardTag).Distinct().ToList();
             CollectionAssert.AreEquivalent(
-                new[] { SegmentRewardTag.Mana, SegmentRewardTag.Keys, SegmentRewardTag.Coins, SegmentRewardTag.Artifact },
+                new[] { SegmentRewardTag.Mana, SegmentRewardTag.Coins, SegmentRewardTag.Artifact },
                 tags);
         }
 
@@ -246,25 +246,27 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void KeyScatterTemplate_ActuallyContainsKeySourceTiles()
+        public void FormerKeyScatterTemplate_NowContainsManaSourceTiles()
         {
             var template = SegmentTemplateCatalog.All.Single(t => t.Name == "россыпь-ключей");
-            Assert.IsTrue(ContainsTileType(template, SegmentTileType.KeySource));
+            Assert.IsTrue(ContainsTileType(template, SegmentTileType.ManaSource));
         }
 
-        // Владелец, 2026-09-04 («размер награды за Воротами»): тайники за
-        // Воротами используют GateVaultKeySource (сумма из
-        // GateVaultPurchases), не общий KeySource — все три шаблона с
-        // Lever/LeverGate в каталоге переведены на новый тип.
-        [TestCase("двор-с-рычагом", 1.0)]
-        [TestCase("ворота-склада", 1.5)]
-        [TestCase("рычаг-в-глубине", 1.5)]
-        public void LeverTemplate_UsesGateVaultKeySource_WithExpectedPurchases(string name, double expectedPurchases)
+        // Тайники за Воротами (PRD v10 §10) — тип GateVault: все шаблоны с Lever/LeverGate используют его.
+        [TestCase("двор-с-рычагом")]
+        [TestCase("ворота-склада")]
+        [TestCase("рычаг-в-глубине")]
+        public void LeverTemplate_UsesGateVault(string name)
         {
             var template = SegmentTemplateCatalog.All.Single(t => t.Name == name);
 
-            Assert.IsTrue(ContainsTileType(template, SegmentTileType.GateVaultKeySource), $"Шаблон '{name}' должен использовать GateVaultKeySource, не обычный KeySource.");
-            Assert.AreEqual(expectedPurchases, template.GateVaultPurchases);
+            Assert.IsTrue(ContainsTileType(template, SegmentTileType.GateVault), $"Шаблон '{name}' должен содержать тайник GateVault.");
+        }
+
+        [Test]
+        public void NoTemplateRewardTag_IsKeys()
+        {
+            Assert.IsFalse(System.Enum.GetNames(typeof(SegmentRewardTag)).Contains("Keys"));
         }
 
         private static bool ContainsTileType(SegmentTemplate template, SegmentTileType type)

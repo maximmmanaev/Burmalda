@@ -117,7 +117,7 @@ namespace Burmalda.DebugVisuals
         {
             if (!RunHudToggles.ShowRunHud) return;
             if (_input == null || _currency == null) return;
-            if (_currency.RunManaCrystals == null || _currency.RunKeys == null) return; // ещё не пересобраны на этот забег
+            if (_currency.RunManaCrystals == null) return; // ещё не пересобраны на этот забег
 
             DrawCurrencyBlock();
             DrawLastReturnResultBlock();
@@ -161,7 +161,7 @@ namespace Burmalda.DebugVisuals
         }
 
         // Верхняя треть экрана слева — числа валют, всегда видны в забеге.
-        // Только Мана и Ключи (PRD v9 раздел 5, задача по экономике "Мана
+        // Только Мана (Ключей нет, PRD v10-3; PRD v9 раздел 5, задача по экономике "Мана
         // как доход забега, Монеты только в Лагере") — Монеты в забеге
         // больше не начисляются и не показываются вовсе, строка удалена без
         // замены. Fallback-текст вместо спрайта (issue допускает, см.
@@ -169,15 +169,12 @@ namespace Burmalda.DebugVisuals
         private void DrawCurrencyBlock()
         {
             var style = new GUIStyle(GUI.skin.box) { fontSize = 30, alignment = TextAnchor.MiddleLeft, wordWrap = false };
-            var text =
-                $"Кристаллы Маны: {_currency.RunManaCrystals.Total}\n" +
-                $"Ключи: {_currency.RunKeys.Total}";
-            GUI.Box(new Rect(20f, 130f, 420f, 110f), text, style);
+            var text = $"Кристаллы Маны: {_currency.RunManaCrystals.Total}";
+            GUI.Box(new Rect(20f, 130f, 420f, 60f), text, style);
         }
 
         // Разбивка конвертации последнего успешного возврата в Лагерь
-        // (PRD v9 раздел 5/10) — "Мана × курс = Монеты" отдельной строкой от
-        // "Ключи × курс = Монеты". Пусто, пока ни одного возврата за сессию
+        // (PRD v9 раздел 5/10) — "Мана × курс = Монеты". Пусто, пока ни одного возврата за сессию
         // не было (см. RunHudDataSources.LastReturnResult) — не за текущий
         // забег: значение намеренно переживает рестарт, чтобы результат
         // последнего похода оставался виден.
@@ -190,9 +187,8 @@ namespace Burmalda.DebugVisuals
             var text =
                 $"Возврат в Лагерь:\n" +
                 $"Мана → Монеты: {result.Value.ManaCoins}\n" +
-                $"Ключи → Монеты: {result.Value.KeysCoins}\n" +
                 $"Итого: {result.Value.TotalCoins}";
-            GUI.Box(new Rect(460f, 130f, 340f, 150f), text, style);
+            GUI.Box(new Rect(460f, 130f, 340f, 120f), text, style);
         }
 
         // Состав билда — читаем RunBootstrap.Loadout (задача "композиционный

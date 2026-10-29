@@ -145,21 +145,6 @@ namespace Burmalda.Bootstrap.Tests
             Assert.AreSame(_input, GetPrivateField(_bootstrap.Segments, "_input"));
         }
 
-        // Порядок AddComponent — не косметика (см. doc-комментарий класса):
-        // AltarController читает CurrencyController через GetComponent РОВНО
-        // ОДИН РАЗ в своём Awake(). Если бы порядок был обратным, это поле
-        // осталось бы null навсегда.
-        [Test]
-        public void Update_AltarController_SeesCurrencyControllerAlreadyWired()
-        {
-            SetUpMinimal();
-
-            WireAndAwakeControllers();
-
-            var altarCurrencyField = GetPrivateField(_bootstrap.Altar, "_currency");
-            Assert.AreSame(_bootstrap.Currency, altarCurrencyField, "AltarController должен был увидеть уже добавленный CurrencyController в своём Awake()");
-        }
-
         [Test]
         public void Update_SanctuaryController_SeesCurrencyAlreadyWired()
         {
@@ -244,7 +229,7 @@ namespace Burmalda.Bootstrap.Tests
         {
             SetUpWithRunController();
             WireAndAwakeControllers();
-            InvokePrivate(_bootstrap.Currency, "Update"); // материализует RunManaCrystals/RunKeys
+            InvokePrivate(_bootstrap.Currency, "Update"); // материализует RunManaCrystals
             InvokePrivate(_bootstrap.Altar, "Update");
             InvokePrivate(_bootstrap.Sanctuary, "Update"); // материализует SanctuaryRunSystem + RunDepthTier
 

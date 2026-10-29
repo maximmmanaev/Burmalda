@@ -375,11 +375,11 @@ namespace Burmalda.Generation
             {
                 var coordinate = new GridCoordinate(baseRow + localRow, column);
                 var tile = _grid.GetOrCreateTile(coordinate);
-                ApplyTileType(tile, coordinate, template.TileAt(localRow, column), gateTargets, leverCoordinate, template.GateVaultPurchases, template, localRow, column);
+                ApplyTileType(tile, coordinate, template.TileAt(localRow, column), gateTargets, leverCoordinate, template, localRow, column);
             }
         }
 
-        private static void ApplyTileType(Tile tile, GridCoordinate coordinate, SegmentTileType type, List<GridCoordinate> leverGateTargets, GridCoordinate? leverCoordinate, double? gateVaultPurchases, SegmentTemplate template, int localRow, int column)
+        private static void ApplyTileType(Tile tile, GridCoordinate coordinate, SegmentTileType type, List<GridCoordinate> leverGateTargets, GridCoordinate? leverCoordinate, SegmentTemplate template, int localRow, int column)
         {
             switch (type)
             {
@@ -403,14 +403,8 @@ namespace Burmalda.Generation
                 case SegmentTileType.ManaSource:
                     tile.MarkManaSource();
                     break;
-                case SegmentTileType.KeySource:
-                    tile.MarkKeySource();
-                    break;
-                case SegmentTileType.GateVaultKeySource:
-                    // SegmentTemplate.ValidateGateVault уже гарантирует, что
-                    // gateVaultPurchases не null, когда в шаблоне есть эта
-                    // роль — см. её doc-комментарий.
-                    tile.MarkKeySource(GateVaultPricing.ComputeVaultKeys(gateVaultPurchases.Value));
+                case SegmentTileType.GateVault:
+                    tile.MarkGateVault();
                     break;
                 case SegmentTileType.Altar:
                     tile.MarkAltar();

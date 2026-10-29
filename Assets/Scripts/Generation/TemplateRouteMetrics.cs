@@ -58,7 +58,7 @@ namespace Burmalda.Generation
             for (var c = 0; c < t.Width; c++)
             {
                 var type = t.TileAt(row, c);
-                if (type == SegmentTileType.ManaSource || type == SegmentTileType.KeySource || type == SegmentTileType.GateVaultKeySource) return false;
+                if (type == SegmentTileType.ManaSource || type == SegmentTileType.GateVault) return false;
                 if (IsOpen(type)) open++;
             }
 

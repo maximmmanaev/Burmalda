@@ -13,10 +13,10 @@ namespace Burmalda.DebugVisuals
 
         public static string InPlace(FateChances c) => $"На месте {Percent(c.InPlacePercent)}";
 
-        public static string Stake(int mana, int keys, int sarcophagi) =>
+        public static string Stake(int mana, int sarcophagi) =>
             sarcophagi > 0
-                ? $"На кону: Мана {mana}, Ключи {keys}, Саркофагов {sarcophagi}"
-                : $"На кону: Мана {mana}, Ключи {keys}";
+                ? $"На кону: Мана {mana}, Саркофагов {sarcophagi}"
+                : $"На кону: Мана {mana}";
 
         public static string Percent(double value) => $"{(int)System.Math.Round(value)}%";
 

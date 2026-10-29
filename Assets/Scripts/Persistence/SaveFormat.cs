@@ -38,7 +38,14 @@ namespace Burmalda.Persistence
     /// </summary>
     public static class SaveFormat
     {
-        public const int CurrentVersion = 1;
+        /// <summary>
+        /// 2 — v10-3: Ключи удалены. Поля Ключей в сохранении не было (Ключи жили только в забеге), но Пул/Коллекция
+        /// могли хранить id убранного Талисмана «Хватка Ключника» — при чтении версии &lt; 2 он выбрасывается.
+        /// </summary>
+        public const int CurrentVersion = 2;
+
+        /// <summary>Id Талисмана на Ключах, удалённого в v10-3.</summary>
+        public const string RemovedKeysTalismanId = "talisman-double-keys";
 
         public static string Serialize(SaveData data, long savedAtUnix) =>
             JsonUtility.ToJson(new SaveEnvelope
@@ -69,14 +76,14 @@ namespace Burmalda.Persistence
             {
                 // Версия 0: прежний файл без оболочки. Признак — известное поле, иначе «{}» сошёл бы за пустой прогресс.
                 if (!text.Contains("\"coinsBalance\"")) return new SaveReadResult(SaveReadStatus.Corrupt);
-                return Parse(text, 0);
+                return Parse(text, 0, 0);
             }
 
             if (env.version < 1 || string.IsNullOrEmpty(env.payload)) return new SaveReadResult(SaveReadStatus.Corrupt);
-            return Parse(env.payload, env.savedAt);
+            return Parse(env.payload, env.savedAt, env.version);
         }
 
-        private static SaveReadResult Parse(string json, long savedAt)
+        private static SaveReadResult Parse(string json, long savedAt, int fromVersion)
         {
             SaveData data;
             try
@@ -88,7 +95,14 @@ namespace Burmalda.Persistence
                 return new SaveReadResult(SaveReadStatus.Corrupt);
             }
             if (data == null) return new SaveReadResult(SaveReadStatus.Corrupt);
-            return new SaveReadResult(SaveReadStatus.Ok, Sanitize(data), savedAt);
+            var sanitized = Sanitize(data);
+            if (fromVersion < 2)
+            {
+                sanitized.collectionRecordedIds.Remove(RemovedKeysTalismanId);
+                sanitized.poolUnlockedIds.Remove(RemovedKeysTalismanId);
+            }
+
+            return new SaveReadResult(SaveReadStatus.Ok, sanitized, savedAt);
         }
 
         private static SaveData Sanitize(SaveData d)
