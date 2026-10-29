@@ -86,6 +86,18 @@ namespace Burmalda.Decay
         /// <summary>Число несомых Саркофагов (PRD v10 §7.5): каждый ускоряет распад под игроком.</summary>
         public int CarriedSarcophagi { get; set; }
 
+        /// <summary>
+        /// Множитель времени жизни плиты по полосе Яруса (<see cref="YarusProgression.DecayLifetimeMultiplier"/>,
+        /// спринт v10-2). Применяется к плитам, у которых распад начинается после установки; по умолчанию 1.
+        /// </summary>
+        public float YarusLifetimeMultiplier { get; set; } = 1f;
+
+        /// <summary>Время жизни плиты (сек) для следующего шага при текущей длине трейла — для дебаг-панели.</summary>
+        public float NextTileLifetimeSeconds => ComputeThreshold(_trail.Path.Count);
+
+        /// <summary>Множитель распада от несомых Саркофагов (1 + 0.5 × N) — для дебаг-панели.</summary>
+        public float CarriedSarcophagusFactor => 1f + DecayAccelerationPerSarcophagus * Math.Max(0, CarriedSarcophagi);
+
         /// <summary>Распад временно приостановлен (PRD раздел 12 — Тотем, Неуязвимость).</summary>
         public bool IsSuspended => _suspendedSecondsRemaining > 0f;
 
@@ -119,7 +131,7 @@ namespace Burmalda.Decay
 
             _decayAcceleration += deltaSeconds * DecayAccelerationPerSecond;
 
-            var carriedFactor = 1f + DecayAccelerationPerSarcophagus * Math.Max(0, CarriedSarcophagi);
+            var carriedFactor = CarriedSarcophagusFactor;
             var path = _trail.Path;
             for (var i = 1; i < path.Count; i++) // i=0 — стартовая плита, не распадается
             {
@@ -144,8 +156,15 @@ namespace Burmalda.Decay
             // стартовая плита (index 0) добавляется в конструкторе трейла и в
             // это событие никогда не попадает.
             var trailIndex = _trail.Path.Count - 1;
+            _grid.GetOrCreateTile(coordinate).BeginDecay(ComputeThreshold(trailIndex));
+        }
+
+        // «Честное окно»: полоса Яруса сокращает время жизни, но не ниже YarusProgression.MinTileLifetimeSeconds
+        // (и не выше исходного порога — пол никогда не удлиняет жизнь плиты).
+        private float ComputeThreshold(int trailIndex)
+        {
             var threshold = (BaseDecayThresholdSeconds + trailIndex * DecayThresholdSecondsPerTrailIndex) * _decayThresholdMultiplier;
-            _grid.GetOrCreateTile(coordinate).BeginDecay(threshold);
+            return Math.Max(threshold * YarusLifetimeMultiplier, Math.Min(threshold, YarusProgression.MinTileLifetimeSeconds));
         }
     }
 }

@@ -76,5 +76,103 @@ namespace Burmalda.Generation
             _lastSelected = selected;
             return selected;
         }
+
+        /// <summary>Шаблон выбран по правилам Яруса (контекст, шаблон) — для симуляций и отладки.</summary>
+        public event Action<SegmentSelectionContext, SegmentTemplate> Selected;
+
+        /// <summary>Окно ритма: «не больше 1 передышки на 3 сегмента» — смотрим два последних.</summary>
+        public const int RhythmWindow = 2;
+
+        /// <summary>Шанс передышки, когда она разрешена и сегмент не «лёгкий» и не перед ориентиром, 1 из N [CONFIG, черновик].</summary>
+        public const int FreeBreatherOneIn = 3;
+
+        private const string MirrorSuffix = SegmentTemplate.MirrorSuffix;
+        private readonly Queue<bool> _recentBreather = new Queue<bool>();
+
+        /// <summary>
+        /// Выбор по правилам Яруса (спринт v10-2): допуск шаблона — <see cref="YarusTemplateRules.IsEligible"/>;
+        /// ритм «передышка / напряжение» (<see cref="TemplateRouteMetrics.IsTension"/>): после Алтаря — передышка,
+        /// дальше не больше 1 передышки на 3 сегмента, последние сегменты перед Алтарём/Святилищем — только
+        /// напряжение (<see cref="SegmentSelectionContext.TensionOnly"/>). Если напряжения в полосе нет —
+        /// лучший по крюку из допустимых. Два одинаковых шаблона подряд (зеркало считается тем же) нельзя,
+        /// пока есть другие. Пустой пул — исключение.
+        /// </summary>
+        public SegmentTemplate SelectNext(SegmentSelectionContext context)
+        {
+            var pool = _catalog.Where(t => YarusTemplateRules.IsEligible(t, context.Yarus, context.AllowTraining)).ToList();
+            if (pool.Count == 0)
+                throw new InvalidOperationException($"Нет допустимых шаблонов для Яруса {context.Yarus} в каталоге.");
+
+            var recentBreather = _recentBreather.Any(x => x);
+            bool wantBreather;
+            if (context.TensionOnly) wantBreather = false;
+            else if (context.Easy) wantBreather = true;
+            else wantBreather = !recentBreather && _seed.NextInt(0, FreeBreatherOneIn) == 0;
+
+            List<SegmentTemplate> classPool;
+            if (wantBreather)
+            {
+                classPool = pool.Where(t => !TemplateRouteMetrics.IsTension(t)).ToList();
+                if (classPool.Count == 0) classPool = pool;
+            }
+            else
+            {
+                classPool = pool.Where(TemplateRouteMetrics.IsTension).ToList();
+                if (classPool.Count == 0)
+                {
+                    var best = pool.Max(TemplateRouteMetrics.Detour);
+                    classPool = pool.Where(t => TemplateRouteMetrics.Detour(t) == best).ToList();
+                }
+            }
+
+            var minTier = classPool.Min(t => t.DifficultyTier);
+            var tierCeiling = context.Easy ? minTier : (context.SectionProgress < 0.5 ? minTier + 1 : SegmentTemplate.MaxDifficultyTier);
+            var byTier = classPool.Where(t => t.DifficultyTier <= tierCeiling || YarusTemplateRules.IsTraining(t)).ToList();
+            if (byTier.Count > 0) classPool = byTier;
+
+            var lastBase = _lastSelected == null ? null : BaseName(_lastSelected.Name);
+            var withoutRepeat = classPool.Where(t => BaseName(t.Name) != lastBase).ToList();
+            if (withoutRepeat.Count > 0) classPool = withoutRepeat;
+
+            var selected = classPool[_seed.NextInt(0, classPool.Count)];
+            _lastSelected = selected;
+            _recentBreather.Enqueue(!TemplateRouteMetrics.IsTension(selected));
+            while (_recentBreather.Count > RhythmWindow) _recentBreather.Dequeue();
+            Selected?.Invoke(context, selected);
+            return selected;
+        }
+
+        private static string BaseName(string name) =>
+            name.EndsWith(MirrorSuffix, StringComparison.Ordinal) ? name.Substring(0, name.Length - MirrorSuffix.Length) : name;
+    }
+}
+
+namespace Burmalda.Generation
+{
+    /// <summary>Контекст выбора шаблона на Ярусе (спринт v10-2).</summary>
+    public readonly struct SegmentSelectionContext
+    {
+        public SegmentSelectionContext(int yarus, bool easy, double sectionProgress, bool allowTraining, bool tensionOnly = false)
+        {
+            Yarus = yarus;
+            Easy = easy;
+            SectionProgress = sectionProgress;
+            AllowTraining = allowTraining;
+            TensionOnly = tensionOnly;
+        }
+
+        public int Yarus { get; }
+
+        /// <summary>Первый сегмент сразу после Алтаря / начала Яруса — полегче.</summary>
+        public bool Easy { get; }
+
+        /// <summary>0..1: доля пути от последнего Алтаря до следующего Алтаря/Святилища.</summary>
+        public double SectionProgress { get; }
+
+        /// <summary>Можно ли выбрать «пустой» обучающий шаблон (первая треть Яруса 1, ещё не было).</summary>
+        public bool AllowTraining { get; }
+
+        /// <summary>Последние сегменты перед Алтарём/Святилищем — только «напряжение».</summary>
+        public bool TensionOnly { get; }
     }
 }

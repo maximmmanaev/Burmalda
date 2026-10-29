@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Burmalda.Generation
 {
@@ -118,7 +119,7 @@ namespace Burmalda.Generation
             "..A..",
         }), isLandmark: true);
 
-        public static IReadOnlyList<SegmentTemplate> All { get; } = new List<SegmentTemplate>
+        public static IReadOnlyList<SegmentTemplate> All { get; } = WithMirrors(new List<SegmentTemplate>
         {
             new SegmentTemplate("пустой-перегон", 1, SegmentRewardTag.Coins, ParseRows(new[]
             {
@@ -932,7 +933,172 @@ namespace Burmalda.Generation
                 ".m.m.",
                 ".....",
             })),
-        };
+
+            // ---- Партия 6 (спринт v10-2): шаблоны давления геометрией для Ярусов 1–3.
+            // Авторство — геймдизайнер (владелец утвердил направление); замысел сохранён рядом с каждым.
+
+            // Замысел: проход прыгает от края к краю — маршрут втрое длиннее прямой, распад догоняет.
+            // Камень стоит там, куда ведёт «естественный» шаг из прохода.
+            new SegmentTemplate("змеиный-ход", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "####.",
+                ".....",
+                ".####",
+                "..m..",
+                "####.",
+                "....r",
+                ".....",
+            })),
+
+            // «Змейка с дверью-ловушкой» (геймдизайнер, правка v10-2 после проверки 8-соседства): ряды-стены
+            // с проходом у дальнего края — чистый путь змейкой; в стене дверь-ловушка, через которую можно
+            // срезать. У всех шести: крюк 4, соблазн 4.
+
+            // Замысел: двери-Камни и дверь-Стрела.
+            new SegmentTemplate("ступени", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "r###.",
+                ".....",
+                ".###w",
+                ".....",
+                "r###.",
+                "..m..",
+                ".....",
+            })),
+
+            // Замысел: одна дверь-Камень посередине змейки.
+            new SegmentTemplate("змейка-с-дверью", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "####.",
+                ".....",
+                ".##r#",
+                ".....",
+                "####.",
+                "..m..",
+                ".....",
+            })),
+
+            // Замысел: все три двери — Стрелы.
+            new SegmentTemplate("стрельбище", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "###w.",
+                ".....",
+                ".w###",
+                ".....",
+                "###w.",
+                "..m..",
+                ".....",
+            })),
+
+            // Замысел: дверь — Давилка: срезал — следующий ряд смыкается за тобой.
+            new SegmentTemplate("давильня", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "####.",
+                ".....",
+                ".##d#",
+                ".....",
+                "####.",
+                "...m.",
+                ".....",
+            })),
+
+            // Замысел: дверь — Стена справа.
+            new SegmentTemplate("правый-пресс", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                ".####",
+                ".....",
+                "##q#.",
+                ".....",
+                ".####",
+                "..m..",
+                ".....",
+            })),
+
+            // Замысел: дверь — Стена слева: закрывает ряд в сторону чистого прохода, гонит вперёд.
+            new SegmentTemplate("левый-пресс", 2, SegmentRewardTag.Keys, ParseRows(new[]
+            {
+                ".....",
+                "####.",
+                ".....",
+                ".#j##",
+                ".....",
+                "####.",
+                ".k...",
+                ".....",
+            })),
+
+            // ---- Партия 7 (спринт v10-2, ЧЕРНОВИКИ агента для проверки правил геометрии и открытия
+            // ловушек по Ярусам; геймдизайнер перепишет): шаблоны с соблазном и с ловушками Ярусов 4+.
+
+            // Стрела стоит в ближнем проходе стены, чистый проход — на другом краю. Ярусы 1+.
+            new SegmentTemplate("стрела-в-проходе", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                ".....",
+                "w###.",
+                ".....",
+                ".....",
+                ".###w",
+                ".....",
+                ".m...",
+            })),
+
+            // Лезвие в ближнем проходе первой стены, вторая — наоборот. Ярусы 4+.
+            new SegmentTemplate("лезвие-у-стены", 3, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                ".....",
+                "t###.",
+                ".....",
+                "#.m.#",
+                ".....",
+                ".###t",
+                ".....",
+            })),
+
+            // Бомба на прямой через узкие ворота, обход — боковыми клетками. Ярусы 4+.
+            new SegmentTemplate("бомбовый-обход", 3, SegmentRewardTag.Keys, ParseRows(new[]
+            {
+                ".....",
+                "##.##",
+                ".....",
+                "..x..",
+                ".....",
+                "##.##",
+                "k....",
+                ".....",
+            })),
+
+            // Статичная Лава перекрывает ряды, оставляя проход попеременно с краёв. Ярусы 4+.
+            new SegmentTemplate("лавовая-змейка", 4, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "llll.",
+                ".....",
+                ".llll",
+                "..m..",
+                "llll.",
+                ".....",
+                ".....",
+            })),
+        });
+
+        // Зеркальные копии «напряжения» Ярусов 1–3 (без ловушек, открытых с Яруса 4): удваивают пул без ручной работы.
+        private static List<SegmentTemplate> WithMirrors(List<SegmentTemplate> templates)
+        {
+            var mirrors = templates
+                .Where(t => TemplateRouteMetrics.IsTension(t) && YarusTemplateRules.AllTrapsOpen(t, 1))
+                .Select(t => t.Mirror())
+                .ToList();
+            templates.AddRange(mirrors);
+            return templates;
+        }
 
         private static SegmentTileType[,] ParseRows(string[] rows)
         {

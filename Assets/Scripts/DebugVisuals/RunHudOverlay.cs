@@ -1,5 +1,6 @@
 using Burmalda.Artifacts;
 using Burmalda.Bootstrap;
+using Burmalda.Core;
 using Burmalda.Currencies;
 using Burmalda.Movement;
 using UnityEngine;
@@ -123,6 +124,26 @@ namespace Burmalda.DebugVisuals
             DrawArtifactLoadoutBlock();
             DrawSanctuaryBlock();
             DrawSarcophagiBlock();
+            DrawYarusBlock();
+        }
+
+        // Спринт v10-2: Ярус, полоса сложности, прогресс по Ярусу, время жизни плиты и множитель
+        // от Саркофагов — для настройки давления распадом на устройстве. Правый верхний угол.
+        private void DrawYarusBlock()
+        {
+            var segments = RunBootstrap.Instance?.Segments;
+            if (segments == null) return;
+
+            var decay = RunBootstrap.Instance?.Decay?.Decay;
+            var lifetime = decay != null ? $"{decay.NextTileLifetimeSeconds:0.0} с" : "—";
+            var carried = decay != null ? $"×{decay.CarriedSarcophagusFactor:0.0}" : "—";
+            var style = new GUIStyle(GUI.skin.box) { fontSize = 22, alignment = TextAnchor.UpperLeft, wordWrap = false };
+            var text =
+                $"Ярус {segments.CurrentYarus}/{YarusProgression.MaxYarus}  полоса {segments.DifficultyBand}\n" +
+                $"Прогресс {segments.YarusProgress * 100:0}%\n" +
+                $"Плита живёт {lifetime}\n" +
+                $"Саркофаги {carried}";
+            GUI.Box(new Rect(Screen.width - 360f, 130f, 340f, 130f), text, style);
         }
 
         // Несомые Саркофаги (PRD v10 §15.1): знак и число, все одинаковые; золотой, как плита Саркофага.
