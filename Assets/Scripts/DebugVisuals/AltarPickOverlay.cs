@@ -20,7 +20,6 @@ namespace Burmalda.DebugVisuals
     public sealed class AltarPickOverlay : MonoBehaviour
     {
         private static readonly Color PanelColor = new Color(0.07f, 0.06f, 0.05f, 0.96f);
-        private static readonly Color CardColor = new Color(0.16f, 0.14f, 0.12f, 1f);
         private const float CardWidth = 300f;
         private const float CardHeight = 440f;
         private const float CardSpacing = 30f;
@@ -137,8 +136,9 @@ namespace Burmalda.DebugVisuals
             var frameImage = frame.gameObject.AddComponent<Image>();
             frameImage.color = AltarPickText.RarityColor(relic.Rarity);
             var inner = NewRect("Inner", frame, new Vector2(CardWidth * scale, CardHeight * scale), Vector2.zero);
-            var innerImage = inner.gameObject.AddComponent<Image>();
-            innerImage.color = CardColor;
+            var innerImage = inner.gameObject.AddComponent<RawImage>();
+            innerImage.texture = BackgroundFor(relic.Rarity);
+            innerImage.raycastTarget = false;
 
             if (onClick != null)
             {
@@ -147,10 +147,29 @@ namespace Burmalda.DebugVisuals
                 button.onClick.AddListener(onClick);
             }
 
-            AddText(inner, AltarPickText.KindGlyph(relic.Category), Mathf.RoundToInt(120 * scale), new Vector2(0f, 110f * scale), CardWidth * scale, 150f * scale, AltarPickText.RarityColor(relic.Rarity));
+            AddIcon(inner, relic, new Vector2(0f, 105f * scale), 190f * scale);
             AddText(inner, AltarPickText.KindName(relic.Category), Mathf.RoundToInt(26 * scale), new Vector2(0f, 20f * scale), CardWidth * scale, 34f * scale, new Color(0.75f, 0.72f, 0.68f));
             AddText(inner, relic.Name, Mathf.RoundToInt(34 * scale), new Vector2(0f, -45f * scale), CardWidth * scale - 20f, 90f * scale, Color.white);
             AddText(inner, relic.Effect, Mathf.RoundToInt(22 * scale), new Vector2(0f, -150f * scale), CardWidth * scale - 24f, 150f * scale, new Color(0.85f, 0.82f, 0.78f), FontStyle.Normal);
+        }
+
+        private static readonly Dictionary<RelicRarity, Texture2D> Backgrounds = new Dictionary<RelicRarity, Texture2D>();
+
+        private static Texture2D BackgroundFor(RelicRarity rarity)
+        {
+            if (Backgrounds.TryGetValue(rarity, out var cached) && cached != null) return cached;
+            var texture = RelicIconPainter.ToTexture(RelicIconPainter.PaintCardBackground(AltarPickText.RarityColor(rarity)), 150, 220);
+            Backgrounds[rarity] = texture;
+            return texture;
+        }
+
+        // Иконка нарисована кодом (RelicIconPainter): форма — тип, символ — эффект, цвет — бог.
+        private static void AddIcon(Transform parent, RelicDefinition relic, Vector2 position, float size)
+        {
+            var rect = NewRect("Icon", parent, new Vector2(size, size), position);
+            var image = rect.gameObject.AddComponent<RawImage>();
+            image.texture = RelicIconPainter.IconFor(relic);
+            image.raycastTarget = false;
         }
 
         private void AddLabel(string text, int size, Vector2 position, float width, float height) =>
