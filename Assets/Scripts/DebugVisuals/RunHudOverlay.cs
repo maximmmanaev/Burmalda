@@ -191,20 +191,19 @@ namespace Burmalda.DebugVisuals
             GUI.Box(new Rect(460f, 130f, 340f, 120f), text, style);
         }
 
-        // Состав билда — читаем RunBootstrap.Loadout (задача "композиционный
-        // корень RunBootstrap"), пусто, пока он ещё не создан (лоадаут
-        // появляется только после того, как RunBootstrap пересобрал Алтарь).
+        // Состав билда Реликвий — читаем AltarController.Build (PRD v10 §13.4), пусто, пока Алтарь не создан.
         private void DrawArtifactLoadoutBlock()
         {
-            var loadout = RunBootstrap.Instance?.Loadout;
-            if (loadout == null) return;
+            var build = RunBootstrap.Instance?.Altar?.Build;
+            if (build == null) return;
 
-            var amulets = RunHudFormatting.FormatArtifactIds(loadout.Acquired, ArtifactCategory.Amulet);
-            var talismans = RunHudFormatting.FormatArtifactIds(loadout.Acquired, ArtifactCategory.Talisman);
+            var amulets = RunHudFormatting.FormatRelicNames(build.Items, ArtifactCategory.Amulet);
+            var talismans = RunHudFormatting.FormatRelicNames(build.Items, ArtifactCategory.Talisman);
+            var runes = RunHudFormatting.FormatRelicNames(build.Items, ArtifactCategory.Rune);
 
             var style = new GUIStyle(GUI.skin.box) { fontSize = 22, alignment = TextAnchor.UpperLeft, wordWrap = true };
-            var text = $"Амулеты: {amulets}\nТалисманы: {talismans}";
-            GUI.Box(new Rect(20f, 300f, 500f, 140f), text, style);
+            var text = $"Амулеты: {amulets}\nТалисманы: {talismans}\nРуны: {runes}";
+            GUI.Box(new Rect(20f, 300f, 500f, 170f), text, style);
         }
 
         // Владелец, 2026-09-05 («закрыть вертикальный срез — плита Эхо»):

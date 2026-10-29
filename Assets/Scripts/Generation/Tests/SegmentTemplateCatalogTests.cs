@@ -246,10 +246,12 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void FormerKeyScatterTemplate_NowContainsManaSourceTiles()
+        public void FormerKeyScatterTemplate_HasNoRewardTiles_AfterManaCleanup()
         {
+            // v10-4: бывшие плиты Ключей остались Маной только там, где были единственной наградой шаблона.
             var template = SegmentTemplateCatalog.All.Single(t => t.Name == "россыпь-ключей");
-            Assert.IsTrue(ContainsTileType(template, SegmentTileType.ManaSource));
+            Assert.IsFalse(ContainsTileType(template, SegmentTileType.ManaSource));
+            Assert.AreEqual(SegmentRewardTag.Coins, template.RewardTag);
         }
 
         // Тайники за Воротами (PRD v10 §10) — тип GateVault: все шаблоны с Lever/LeverGate используют его.

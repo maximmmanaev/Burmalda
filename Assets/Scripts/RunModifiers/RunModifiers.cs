@@ -46,9 +46,15 @@ namespace Burmalda.RunModifiers
         /// <summary>Нейтральный экземпляр — эквивалент «Чистого спуска» (PRD v7 §20).</summary>
         public static RunModifiers None { get; } = new RunModifiers(null);
 
+        /// <summary>
+        /// Флаг функции «Знамения» [CONFIG]: PRD v10 §4 переносит Знамения на «после релиза», в сборке для Яндекс Игр
+        /// флаг выключен — Знамения не предлагаются и их эффекты в забегах не действуют. Код не удалён.
+        /// </summary>
+        public static bool OmensEnabled = false;
+
         public RunModifiers(OmenId? activeOmen)
         {
-            ActiveOmen = activeOmen;
+            ActiveOmen = OmensEnabled ? activeOmen : null;
         }
 
         public OmenId? ActiveOmen { get; }
