@@ -19,6 +19,25 @@ namespace Burmalda.Altar
     }
 
     /// <summary>
+    /// Афиша Алтаря (PRD v10 §13.3): знак бога ближайшего Святилища и типы его ловушек — без текста. Типы считаются
+    /// по раскладке Святилища; раскладки Ярусов 2–10 пока заглушка (<see cref="YarusGod.HasOwnLayout"/>).
+    /// </summary>
+    public sealed class AltarAfisha
+    {
+        public AltarAfisha(YarusGod shrine, IReadOnlyCollection<ThreatType> threats)
+        {
+            Shrine = shrine;
+            Threats = threats;
+        }
+
+        /// <summary>Бог, ранг и мифология ближайшего Святилища.</summary>
+        public YarusGod Shrine { get; }
+
+        /// <summary>Типы ловушек Святилища.</summary>
+        public IReadOnlyCollection<ThreatType> Threats { get; }
+    }
+
+    /// <summary>
     /// Достижение Алтаря → сессия выбора «1 из 2» (PRD v10 §13): определяет Ярус и ближайшее Святилище впереди,
     /// собирает запрос для <see cref="AltarOfferGenerator"/>, учитывает бонус тайника и гарантию защитного Амулета.
     /// Последний Алтарь после Яруса 10 выбора не даёт (там единственный выбор «Вернуться в Лагерь», §6.3).
@@ -41,18 +60,31 @@ namespace Burmalda.Altar
             _context = context;
         }
 
-        /// <summary>Сессия выбора для этого Алтаря; null, если выбирать нечего (нет открытых Реликвий / финальный Алтарь).</summary>
-        public AltarPickSession OnAltarReached(GridCoordinate coordinate)
+        private void Resolve(GridCoordinate coordinate, out int yarus, out int ordinal, out int shrineYarus)
         {
-            var yarus = 1;
-            var ordinal = 1;
+            yarus = 1;
+            ordinal = 1;
             if (_context != null && _context.TryGetSpot(coordinate, out var y, out var o))
             {
                 yarus = y;
                 ordinal = o;
             }
 
-            var shrineYarus = ordinal == 3 ? yarus + 1 : yarus;
+            shrineYarus = ordinal == 3 ? yarus + 1 : yarus; // Алтарь в конце Святилища смотрит на Святилище следующего Яруса
+        }
+
+        /// <summary>Афиша этого Алтаря; null у последнего Алтаря после Яруса 10 (впереди Святилищ нет).</summary>
+        public AltarAfisha AfishaFor(GridCoordinate coordinate)
+        {
+            Resolve(coordinate, out _, out _, out var shrineYarus);
+            if (shrineYarus > LastYarus) return null;
+            return new AltarAfisha(GodTable.ForYarus(shrineYarus), _context?.AfishaThreats(shrineYarus) ?? Array.Empty<ThreatType>());
+        }
+
+        /// <summary>Сессия выбора для этого Алтаря; null, если выбирать нечего (нет открытых Реликвий / финальный Алтарь).</summary>
+        public AltarPickSession OnAltarReached(GridCoordinate coordinate)
+        {
+            Resolve(coordinate, out var yarus, out var ordinal, out var shrineYarus);
             if (shrineYarus > LastYarus) return null;
 
             var request = new AltarOfferRequest

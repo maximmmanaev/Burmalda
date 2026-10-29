@@ -38,6 +38,7 @@ namespace Burmalda.DebugVisuals
         private GameObject _panel;
         private RectTransform _content;
         private Text _vaultMarker;
+        private RectTransform _afishaRoot;
         private float _savedTimeScale = 1f;
         private bool _frozen;
 
@@ -52,7 +53,11 @@ namespace Burmalda.DebugVisuals
             if (_altar == null)
             {
                 _altar = FindFirstObjectByType<AltarController>();
-                if (_altar != null) _altar.PickOffered += HandlePickOffered;
+                if (_altar != null)
+                {
+                    _altar.PickOffered += HandlePickOffered;
+                    _altar.AfishaChanged += RenderAfisha;
+                }
             }
 
             if (_input == null) _input = FindFirstObjectByType<GridTraceInputController>();
@@ -61,7 +66,11 @@ namespace Burmalda.DebugVisuals
 
         private void OnDestroy()
         {
-            if (_altar != null) _altar.PickOffered -= HandlePickOffered;
+            if (_altar != null)
+            {
+                _altar.PickOffered -= HandlePickOffered;
+                _altar.AfishaChanged -= RenderAfisha;
+            }
             Unfreeze();
         }
 
@@ -72,6 +81,30 @@ namespace Burmalda.DebugVisuals
             Freeze();
             Render();
             _panel.SetActive(true);
+        }
+
+        // Афиша (PRD v10 §13.3): знак бога ближайшего Святилища + значки типов ловушек его раскладки. Без текста.
+        private void RenderAfisha(AltarAfisha afisha)
+        {
+            if (_afishaRoot == null) return;
+            foreach (Transform child in _afishaRoot) Destroy(child.gameObject);
+            _afishaRoot.gameObject.SetActive(afisha != null);
+            if (afisha == null) return;
+
+            var threats = new List<ThreatType>(afisha.Threats);
+            var width = 110f + threats.Count * 86f;
+            _afishaRoot.sizeDelta = new Vector2(width, 120f);
+            AddAfishaIcon(RelicIconPainter.GodSignTexture(afisha.Shrine), new Vector2(-width / 2f + 55f, 0f), 100f);
+            for (var i = 0; i < threats.Count; i++)
+                AddAfishaIcon(RelicIconPainter.ThreatTexture(threats[i]), new Vector2(-width / 2f + 110f + 43f + i * 86f, 0f), 76f);
+        }
+
+        private void AddAfishaIcon(Texture2D texture, Vector2 position, float size)
+        {
+            var rect = NewRect("AfishaIcon", _afishaRoot, new Vector2(size, size), position);
+            var image = rect.gameObject.AddComponent<RawImage>();
+            image.texture = texture;
+            image.raycastTarget = false;
         }
 
         private void Close()
@@ -221,6 +254,16 @@ namespace Burmalda.DebugVisuals
             _content = NewRect("Content", panelRect, Vector2.zero, Vector2.zero);
             _content.anchorMin = _content.anchorMax = new Vector2(0.5f, 0.5f);
             _panel.SetActive(false);
+
+            // Афиша — поверх всего, ниже маркера тайника по смыслу, по центру сверху; не принимает нажатий.
+            _afishaRoot = NewRect("Afisha", canvasHost.transform, new Vector2(400f, 120f), Vector2.zero);
+            _afishaRoot.anchorMin = _afishaRoot.anchorMax = new Vector2(0.5f, 1f);
+            _afishaRoot.pivot = new Vector2(0.5f, 1f);
+            _afishaRoot.anchoredPosition = new Vector2(0f, -150f);
+            var back = _afishaRoot.gameObject.AddComponent<Image>();
+            back.color = new Color(0.05f, 0.045f, 0.04f, 0.72f);
+            back.raycastTarget = false;
+            _afishaRoot.gameObject.SetActive(false);
         }
 
         private static RectTransform NewRect(string name, Transform parent, Vector2 size, Vector2 position)
