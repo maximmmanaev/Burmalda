@@ -41,6 +41,7 @@ namespace Burmalda.DebugVisuals
         private Text _title, _body, _buttonLabel, _idolLabel, _totemLabel, _goalLabel;
         private AudioSource _audio;
         private int _returnedCoins;
+        private int _returnedMana;
         private bool _startupChecked;
         private float _fxStart = -10f;
         private Color _fxColor = Color.white;
@@ -83,15 +84,22 @@ namespace Burmalda.DebugVisuals
             if (_wired != null) _wired.Returned += OnReturned;
         }
 
-        private void OnReturned(ReturnConversionResult result) => Show(result.TotalCoins);
+        private void OnReturned(ReturnConversionResult result)
+        {
+            _returnedMana = result.Mana;
+            _wasReturned = true;
+            Show(result.TotalCoins);
+        }
 
         private void Show(int returnedCoins)
         {
+            if (!_wasReturned) _returnedMana = 0;
             if (_flow == null || _panel == null) return;
             _returnedCoins = returnedCoins;
             _flow.Begin();
             Refresh();
             _panel.SetActive(true);
+            _wasReturned = false; // следующий показ без возврата (стартовая проверка) строку не наследует
         }
 
         private CollectionProgress Progress => _campController.Camp.Progress;
@@ -125,6 +133,11 @@ namespace Burmalda.DebugVisuals
             if (_input != null) _input.Restart();
         }
 
+        private bool _wasReturned;
+
+        // Одна строка конвертации: «Мана 3200 → 118 Монет» (PRD v10 §26.1). Нет возврата в этой сессии (неоткрытые с прошлой) — «Дома!».
+        private string ReturnLine() => _returnedMana > 0 ? $"Мана {_returnedMana} → {_returnedCoins} Монет" : (_returnedCoins > 0 ? $"+{_returnedCoins} Монет" : "Дома!");
+
         private void Refresh()
         {
             foreach (Transform child in _choices) Destroy(child.gameObject);
@@ -136,7 +149,7 @@ namespace Burmalda.DebugVisuals
             switch (_flow.Phase)
             {
                 case SarcophagusOpeningPhase.Closed:
-                    _title.text = _returnedCoins > 0 ? $"Дома! +{_returnedCoins} Монет" : "Дома!";
+                    _title.text = ReturnLine();
                     _body.text = $"Саркофагов: {_flow.Remaining}";
                     _stageImage.texture = CampArtPainter.SarcophagusTexture(new Color(0.5f, 0.45f, 0.4f, 0f));
                     _buttonLabel.text = "Открыть";
@@ -157,7 +170,7 @@ namespace Burmalda.DebugVisuals
                     break;
 
                 default: // Finished
-                    _title.text = _returnedCoins > 0 ? $"Дома! +{_returnedCoins} Монет" : "Дома!";
+                    _title.text = ReturnLine();
                     _body.text = "";
                     _stage.gameObject.SetActive(false);
                     ShowGoal();

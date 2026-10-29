@@ -7,7 +7,7 @@ namespace Burmalda.Camp
     public static class CampUpgrades
     {
         /// <summary>Цена перехода L1→L2 и L2→L3 для Редкого предмета, Монеты [CONFIG, черновик].</summary>
-        public static int[] RarePrices = { 600, 1800 };
+        public static int[] RarePrices = { 3500, 10500 };
 
         /// <summary>Множители цены для Эпических и Легендарных предметов [CONFIG, черновик].</summary>
         public static float EpicFactor = 1.5f;
