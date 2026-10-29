@@ -188,26 +188,14 @@ namespace Burmalda.Bootstrap.Tests
         }
 
         [Test]
-        public void Update_CreatesArtifactLoadout_FromAltarPersistentCollection()
+        public void Update_AltarHasEmptyRelicBuild()
         {
             SetUpMinimal();
 
             WireAndAwakeControllers();
 
-            Assert.IsNotNull(_bootstrap.Loadout, "Лоадаут должен был создаться, как только у Алтаря готова постоянная Коллекция");
-            Assert.AreEqual(0, _bootstrap.Loadout.Acquired.Count);
-        }
-
-        [Test]
-        public void RestartRun_RebuildsFreshArtifactLoadout_NotReusingOldInstance()
-        {
-            SetUpMinimal();
-            WireAndAwakeControllers();
-            var firstLoadout = _bootstrap.Loadout;
-
-            _input.Restart(); // поднимает RunStarted — RunBootstrap подписан на него в EnsureRunStartedSubscription
-
-            Assert.AreNotSame(firstLoadout, _bootstrap.Loadout, "RunArtifactLoadout — новый экземпляр на каждый забег (см. её doc-комментарий), не переиспользуется");
+            Assert.IsNotNull(_bootstrap.Altar.Build);
+            Assert.AreEqual(0, _bootstrap.Altar.Build.Items.Count);
         }
 
         [Test]

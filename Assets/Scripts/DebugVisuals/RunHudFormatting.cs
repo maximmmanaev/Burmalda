@@ -12,11 +12,11 @@ namespace Burmalda.DebugVisuals
     /// </summary>
     public static class RunHudFormatting
     {
-        /// <summary>Id артефактов заданной категории, в порядке получения, через ", ". "—", если ни одного нет.</summary>
-        public static string FormatArtifactIds(IReadOnlyList<Artifact> acquired, ArtifactCategory category)
+        /// <summary>Названия Реликвий заданного типа, в порядке получения, через ", ". "—", если ни одной нет.</summary>
+        public static string FormatRelicNames(IReadOnlyList<RelicDefinition> items, ArtifactCategory category)
         {
-            var ids = acquired.Where(a => a.Category == category).Select(a => a.Id).ToList();
-            return ids.Count > 0 ? string.Join(", ", ids) : "—";
+            var names = items.Where(a => a.Category == category).Select(a => a.Name).ToList();
+            return names.Count > 0 ? string.Join(", ", names) : "—";
         }
     }
 }

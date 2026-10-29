@@ -4,6 +4,18 @@ namespace Burmalda.RunModifiers.Tests
 {
     public class RunModifiersTests
     {
+        private bool _previousFlag;
+
+        [SetUp]
+        public void EnableOmens()
+        {
+            _previousFlag = RunModifiers.OmensEnabled;
+            RunModifiers.OmensEnabled = true; // тесты механики Знамений идут при включённой функции
+        }
+
+        [TearDown]
+        public void RestoreOmens() => RunModifiers.OmensEnabled = _previousFlag;
+
         [Test]
         public void None_HasNoActiveOmenAndAllNeutralValues()
         {
@@ -76,6 +88,24 @@ namespace Burmalda.RunModifiers.Tests
 
             Assert.AreEqual(1.5f, modifiers.BossRequiredEnergyMultiplier, 1e-5f);
             Assert.AreEqual(2f, modifiers.ManaSourceTileDensityMultiplier);
+        }
+
+        [Test]
+        public void OmensDisabled_ByDefaultFlag_NoOmenEffectsApply()
+        {
+            RunModifiers.OmensEnabled = false;
+            var modifiers = new RunModifiers(OmenId.FragileVault);
+
+            Assert.IsNull(modifiers.ActiveOmen);
+            Assert.AreEqual(1f, modifiers.DecayThresholdMultiplier);
+            Assert.AreEqual(1f, modifiers.ManaCrystalRewardMultiplier);
+        }
+
+        [Test]
+        public void OmensFlag_IsOffInYandexBuildDefault()
+        {
+            RunModifiers.OmensEnabled = _previousFlag;
+            Assert.IsFalse(_previousFlag, "в сборке для Яндекс Игр Знамения выключены (PRD v10 §4)");
         }
     }
 }

@@ -6,67 +6,30 @@ namespace Burmalda.DebugVisuals.Tests
 {
     public class RunHudFormattingTests
     {
+        private static RelicDefinition Of(string id) => RelicCatalog.Get(id);
+
         [Test]
-        public void FormatArtifactIds_NoMatches_ReturnsDash()
+        public void FormatRelicNames_NoMatches_ReturnsDash()
         {
-            var acquired = new List<Artifact>
-            {
-                new Amulet("amulet-a", "A", "desc", new[] { ArtifactTag.Defense }),
-            };
+            var items = new List<RelicDefinition> { Of("relic-leshy-amulet") };
 
-            var result = RunHudFormatting.FormatArtifactIds(acquired, ArtifactCategory.Talisman);
-
-            Assert.AreEqual("—", result);
+            Assert.AreEqual("—", RunHudFormatting.FormatRelicNames(items, ArtifactCategory.Talisman));
         }
 
         [Test]
-        public void FormatArtifactIds_SingleMatch_ReturnsItsId()
+        public void FormatRelicNames_SingleMatch_ReturnsName()
         {
-            var acquired = new List<Artifact>
-            {
-                new Amulet("amulet-trap-immunity", "Иммунитет", "desc", new[] { ArtifactTag.Defense }),
-            };
+            var items = new List<RelicDefinition> { Of("relic-leshy-amulet") };
 
-            var result = RunHudFormatting.FormatArtifactIds(acquired, ArtifactCategory.Amulet);
-
-            Assert.AreEqual("amulet-trap-immunity", result);
+            Assert.AreEqual("Берестяной оберег", RunHudFormatting.FormatRelicNames(items, ArtifactCategory.Amulet));
         }
 
         [Test]
-        public void FormatArtifactIds_MultipleMatches_JoinedInAcquisitionOrder()
+        public void FormatRelicNames_MultipleMatches_InAcquisitionOrder_FiltersByCategory()
         {
-            var acquired = new List<Artifact>
-            {
-                new Talisman("talisman-double-mana", "A", "desc", new[] { ArtifactTag.Mana }),
-                new Talisman("talisman-test-b", "B", "desc", new[] { ArtifactTag.Greed }),
-            };
+            var items = new List<RelicDefinition> { Of("relic-leshy-amulet"), Of("relic-mokosh-talisman"), Of("relic-perun-amulet") };
 
-            var result = RunHudFormatting.FormatArtifactIds(acquired, ArtifactCategory.Talisman);
-
-            Assert.AreEqual("talisman-double-mana, talisman-test-b", result);
-        }
-
-        [Test]
-        public void FormatArtifactIds_IgnoresOtherCategories()
-        {
-            var acquired = new List<Artifact>
-            {
-                new Amulet("amulet-a", "A", "desc", new[] { ArtifactTag.Defense }),
-                new Talisman("talisman-b", "B", "desc", new[] { ArtifactTag.Mana }),
-                new Amulet("amulet-c", "C", "desc", new[] { ArtifactTag.Defense }),
-            };
-
-            var result = RunHudFormatting.FormatArtifactIds(acquired, ArtifactCategory.Amulet);
-
-            Assert.AreEqual("amulet-a, amulet-c", result);
-        }
-
-        [Test]
-        public void FormatArtifactIds_EmptyList_ReturnsDash()
-        {
-            var result = RunHudFormatting.FormatArtifactIds(new List<Artifact>(), ArtifactCategory.Amulet);
-
-            Assert.AreEqual("—", result);
+            Assert.AreEqual("Берестяной оберег, Перунов знак", RunHudFormatting.FormatRelicNames(items, ArtifactCategory.Amulet));
         }
     }
 }

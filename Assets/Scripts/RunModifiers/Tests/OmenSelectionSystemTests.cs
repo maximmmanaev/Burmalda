@@ -6,6 +6,18 @@ namespace Burmalda.RunModifiers.Tests
 {
     public class OmenSelectionSystemTests
     {
+        private bool _previousFlag;
+
+        [SetUp]
+        public void EnableOmens()
+        {
+            _previousFlag = RunModifiers.OmensEnabled;
+            RunModifiers.OmensEnabled = true; // тесты механики Знамений идут при включённой функции
+        }
+
+        [TearDown]
+        public void RestoreOmens() => RunModifiers.OmensEnabled = _previousFlag;
+
         [Test]
         public void OfferOmens_EmptyPool_ReturnsEmpty()
         {
@@ -75,6 +87,17 @@ namespace Burmalda.RunModifiers.Tests
         {
             Assert.Throws<System.ArgumentNullException>(() => new OmenSelectionSystem(null, () => 0f));
             Assert.Throws<System.ArgumentNullException>(() => new OmenSelectionSystem(new OmenPool(), null));
+        }
+
+        [Test]
+        public void OmensDisabled_OffersNothing()
+        {
+            RunModifiers.OmensEnabled = false;
+            var pool = new OmenPool();
+            pool.Unlock(OmenId.FragileVault);
+            var system = new OmenSelectionSystem(pool, () => 0f);
+
+            Assert.IsEmpty(system.OfferOmens());
         }
     }
 }

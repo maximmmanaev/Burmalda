@@ -138,12 +138,12 @@ namespace Burmalda.Generation
                 ".....",
             })),
 
-            new SegmentTemplate("россыпь-ключей", 1, SegmentRewardTag.Mana, ParseRows(new[]
+            new SegmentTemplate("россыпь-ключей", 1, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "..m..",
-                ".m.m.",
-                "..m..",
+                ".....",
+                ".....",
+                ".....",
                 ".....",
             })),
 
@@ -275,12 +275,12 @@ namespace Burmalda.Generation
             })),
 
             // Тир 2. Ключи по краям, центр пуст — учит держаться стен.
-            new SegmentTemplate("предбанник", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            new SegmentTemplate("предбанник", 2, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                "m...m",
                 ".....",
-                "m...m",
+                ".....",
+                ".....",
                 ".....",
                 ".....",
             })),
@@ -309,12 +309,12 @@ namespace Burmalda.Generation
 
             // Тир 3. Плотная россыпь ключей, вход и выход только с правого
             // края — внутри развернуться негде.
-            new SegmentTemplate("богатый-карман", 3, SegmentRewardTag.Mana, ParseRows(new[]
+            new SegmentTemplate("богатый-карман", 3, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
                 ".###.",
-                ".#mm.",
-                ".#mm.",
+                ".#...",
+                ".#...",
                 ".###.",
                 ".....",
             })),
@@ -437,15 +437,15 @@ namespace Burmalda.Generation
             // целится только в столбцы 1/3, столбцы 0/4 свободны), верхняя
             // пара осталась в ряду 2 (сдвиг внутри ряда там уже безопасен).
             // Позиции r не менялись.
-            new SegmentTemplate("щедрый-риск", 5, SegmentRewardTag.Mana, ParseRows(new[]
+            new SegmentTemplate("щедрый-риск", 5, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
                 ".r.r.",
-                "m...m",
+                ".....",
                 "rrrrr",
                 ".....",
                 ".r.r.",
-                "m...m",
+                ".....",
             })),
 
             // Тир 5. Диагональная цепь Маны через всю ширину — чтобы собрать
@@ -473,9 +473,9 @@ namespace Burmalda.Generation
             new SegmentTemplate("выбор-полосы", 1, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
-                "m...m",
+                "m....",
                 ".....",
-                "m...m",
+                "m....",
                 ".....",
             })),
 
@@ -484,7 +484,7 @@ namespace Burmalda.Generation
             {
                 ".....",
                 "..#..",
-                ".m.m.",
+                ".m...",
                 "..#..",
                 ".....",
             })),
@@ -650,22 +650,22 @@ namespace Burmalda.Generation
             // стояли прямо под триггерами Бомбы ("триггер уничтожает
             // награду" — та же отменённая механика, что у «выкуп» выше).
             // Сдвинуты на ряд дальше (был пустым), позиции l/x не менялись.
-            new SegmentTemplate("последний-рывок", 5, SegmentRewardTag.Mana, ParseRows(new[]
+            new SegmentTemplate("последний-рывок", 5, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
                 ".l.l.",
                 "lxlxl",
                 ".....",
-                ".m.m.",
+                ".....",
             })),
 
             // Тир 5. Богатый ствол со стенами: зашёл — идёшь до конца.
-            new SegmentTemplate("шахта-жадности", 5, SegmentRewardTag.Mana, ParseRows(new[]
+            new SegmentTemplate("шахта-жадности", 5, SegmentRewardTag.Coins, ParseRows(new[]
             {
                 ".....",
-                ".#m#.",
-                ".#m#.",
-                ".#m#.",
+                ".#.#.",
+                ".#.#.",
+                ".#.#.",
                 ".....",
             })),
 
