@@ -143,5 +143,49 @@ namespace Burmalda.Altar.Tests
 
             Assert.Greater(taken, 20);
         }
+
+        // ---- Афиша (PRD v10 §13.3) ----
+
+        [Test]
+        public void Afisha_OfAltar1And2_IsGodOfSameYarus_WithThreatsOfItsLayout()
+        {
+            var (flow, _, _, ctx) = Make();
+            ctx.Spots[10] = (3, 1);
+            ctx.Threats = new[] { ThreatType.Blunt, ThreatType.Slashing };
+
+            var afisha = flow.AfishaFor(new GridCoordinate(10, 2));
+
+            Assert.AreEqual(God.Perun, afisha.Shrine.God);
+            Assert.AreEqual(GodRank.Senior, afisha.Shrine.Rank);
+            CollectionAssert.AreEquivalent(new[] { ThreatType.Blunt, ThreatType.Slashing }, afisha.Threats);
+        }
+
+        [Test]
+        public void Afisha_OfEndOfSanctuaryAltar_ShowsNextYarusGod()
+        {
+            var (flow, _, _, ctx) = Make();
+            ctx.Spots[10] = (3, 3);
+
+            Assert.AreEqual(God.Humbaba, flow.AfishaFor(new GridCoordinate(10, 2)).Shrine.God);
+        }
+
+        [Test]
+        public void Afisha_AfterYarus10_IsNull()
+        {
+            var (flow, _, _, ctx) = Make();
+            ctx.Spots[10] = (10, 3);
+
+            Assert.IsNull(flow.AfishaFor(new GridCoordinate(10, 2)));
+        }
+
+        [Test]
+        public void Afisha_IsShownEvenWhenNothingToPick()
+        {
+            var (flow, _, _, ctx) = Make(new ArtifactPool());
+            ctx.Spots[10] = (2, 1);
+
+            Assert.IsNull(flow.OnAltarReached(new GridCoordinate(10, 2)));
+            Assert.AreEqual(God.Mokosh, flow.AfishaFor(new GridCoordinate(10, 2)).Shrine.God);
+        }
     }
 }

@@ -91,6 +91,96 @@ namespace Burmalda.DebugVisuals
             return pixels;
         }
 
+        // ---- Афиша (PRD v10 §13.3): знак бога и типы угроз — символами, без текста ----
+
+        public static RelicGlyph ThreatGlyph(ThreatType threat) => threat switch
+        {
+            ThreatType.Blunt => RelicGlyph.Block,
+            ThreatType.Slashing => RelicGlyph.Blades,
+            ThreatType.Explosion => RelicGlyph.Burst,
+            ThreatType.Fire => RelicGlyph.Flame,
+            _ => RelicGlyph.Jaws,
+        };
+
+        public static Color ThreatColor(ThreatType threat) => threat switch
+        {
+            ThreatType.Blunt => new Color(0.75f, 0.62f, 0.45f),
+            ThreatType.Slashing => new Color(0.78f, 0.82f, 0.90f),
+            ThreatType.Explosion => new Color(0.98f, 0.62f, 0.25f),
+            ThreatType.Fire => new Color(1.00f, 0.42f, 0.22f),
+            _ => new Color(0.70f, 0.74f, 0.62f),
+        };
+
+        /// <summary>Значок типа угрозы: тёмная плашка с цветной рамкой и символом.</summary>
+        public static Color32[] PaintThreat(ThreatType threat, int size = 96)
+        {
+            var color = ThreatColor(threat);
+            var glyph = ThreatGlyph(threat);
+            var pixels = new Color32[size * size];
+            var aa = 2f / size;
+            for (var y = 0; y < size; y++)
+                for (var x = 0; x < size; x++)
+                {
+                    var p = new Vector2((x + 0.5f) / size * 2f - 1f, (y + 0.5f) / size * 2f - 1f);
+                    var plate = RoundedBox(p, 0.86f, 0.18f);
+                    var c = new Color(0f, 0f, 0f, 0f);
+                    c = Over(c, new Color(0.10f, 0.09f, 0.08f), Coverage(plate, aa));
+                    c = Over(c, color, Coverage(Mathf.Abs(plate + 0.04f) - 0.04f, aa));
+                    c = Over(c, Color.Lerp(color, Color.white, 0.35f), Coverage(GlyphDistance(glyph, p * 1.25f) / 1.25f, aa));
+                    pixels[y * size + x] = c;
+                }
+
+            return pixels;
+        }
+
+        /// <summary>
+        /// Знак бога (заглушка до арта): контур мира — круг (славянский), ромб (шумерский), треугольник (оджибве) — в цвете бога,
+        /// внутри точки ранга (1–3).
+        /// </summary>
+        public static Color32[] PaintGodSign(YarusGod shrine, int size = 96)
+        {
+            var color = GodColor(shrine.God);
+            var pixels = new Color32[size * size];
+            var aa = 2f / size;
+            var pips = (int)shrine.Rank + 1;
+            var triangle = new[] { new Vector2(0f, 0.86f), new Vector2(0.86f, -0.66f), new Vector2(-0.86f, -0.66f) };
+            for (var y = 0; y < size; y++)
+                for (var x = 0; x < size; x++)
+                {
+                    var p = new Vector2((x + 0.5f) / size * 2f - 1f, (y + 0.5f) / size * 2f - 1f);
+                    var shape = shrine.Mythology switch
+                    {
+                        Mythology.Slavic => Circle(p, 0.84f),
+                        Mythology.Sumerian => Box(Rotate(p, 45f), 0.62f),
+                        _ => Polygon(p, triangle),
+                    };
+                    var c = new Color(0f, 0f, 0f, 0f);
+                    c = Over(c, Color.Lerp(new Color(0.10f, 0.09f, 0.08f), color, 0.35f), Coverage(shape, aa));
+                    c = Over(c, color, Coverage(Mathf.Abs(shape + 0.05f) - 0.05f, aa));
+                    var py = shrine.Mythology == Mythology.Ojibwe ? -0.22f : -0.02f;
+                    for (var i = 0; i < pips; i++)
+                        c = Over(c, Color.Lerp(color, Color.white, 0.6f), Coverage(Circle(p - new Vector2((i - (pips - 1) / 2f) * 0.3f, py), 0.1f), aa));
+                    pixels[y * size + x] = c;
+                }
+
+            return pixels;
+        }
+
+        private static readonly Dictionary<ThreatType, Texture2D> ThreatCache = new Dictionary<ThreatType, Texture2D>();
+        private static readonly Dictionary<God, Texture2D> GodCache = new Dictionary<God, Texture2D>();
+
+        public static Texture2D ThreatTexture(ThreatType threat)
+        {
+            if (ThreatCache.TryGetValue(threat, out var t) && t != null) return t;
+            return ThreatCache[threat] = ToTexture(PaintThreat(threat), 96, 96);
+        }
+
+        public static Texture2D GodSignTexture(YarusGod shrine)
+        {
+            if (GodCache.TryGetValue(shrine.God, out var t) && t != null) return t;
+            return GodCache[shrine.God] = ToTexture(PaintGodSign(shrine), 96, 96);
+        }
+
         /// <summary>Фон карточки: тёмный вертикальный градиент с отсветом цвета редкости, внутренняя рамка и угловые метки.</summary>
         public static Color32[] PaintCardBackground(Color rarity, int width = 150, int height = 220)
         {
@@ -214,6 +304,12 @@ namespace Burmalda.DebugVisuals
         // ---- Примитивы (знаковое расстояние: < 0 внутри) ----
 
         private static float Circle(Vector2 p, float r) => p.magnitude - r;
+
+        private static float RoundedBox(Vector2 p, float half, float radius)
+        {
+            var q = new Vector2(Mathf.Abs(p.x), Mathf.Abs(p.y)) - new Vector2(half - radius, half - radius);
+            return new Vector2(Mathf.Max(q.x, 0f), Mathf.Max(q.y, 0f)).magnitude + Mathf.Min(Mathf.Max(q.x, q.y), 0f) - radius;
+        }
 
         private static float Box(Vector2 p, float half) => Mathf.Max(Mathf.Abs(p.x), Mathf.Abs(p.y)) - half;
 

@@ -47,6 +47,12 @@ namespace Burmalda.Altar
         /// <summary>Идёт выбор Реликвии на Алтаре; null, если выбора нет. Экран закрыть нельзя — только взять Реликвию.</summary>
         public AltarPickSession ActiveSession { get; private set; }
 
+        /// <summary>Афиша Алтаря, на котором стоит игрок (PRD v10 §13.3); null вне Алтаря. Сбрасывается первым же шагом прочь.</summary>
+        public AltarAfisha ActiveAfisha { get; private set; }
+
+        /// <summary>Афиша появилась или исчезла.</summary>
+        public event Action<AltarAfisha> AfishaChanged;
+
         /// <summary>Открылся выбор «1 из 2 (3)» — показать экран.</summary>
         public event Action<AltarPickSession> PickOffered;
 
@@ -97,11 +103,27 @@ namespace Burmalda.Altar
             _pickFlow = new AltarPickFlow(Pool, Build, _vaultBonus, new ContextProxy(this));
             _altarTrigger = new AltarTriggerSystem(_input.Grid, _input.Trail);
             _altarTrigger.AltarReached += OnAltarReached;
+            _afishaTrail = _input.Trail;
+            _afishaTrail.Advanced += OnTrailAdvanced;
+        }
+
+        private GridTraceTrail _afishaTrail;
+        private GridCoordinate _afishaAltar;
+
+        private void OnTrailAdvanced(GridCoordinate coordinate)
+        {
+            if (ActiveAfisha == null || coordinate.Equals(_afishaAltar)) return;
+            ActiveAfisha = null; // игрок ушёл с Алтаря
+            AfishaChanged?.Invoke(null);
         }
 
         private void OnAltarReached(GridCoordinate coordinate)
         {
             AltarReached?.Invoke(coordinate);
+
+            _afishaAltar = coordinate;
+            ActiveAfisha = _pickFlow?.AfishaFor(coordinate);
+            AfishaChanged?.Invoke(ActiveAfisha);
 
             var session = _pickFlow?.OnAltarReached(coordinate);
             if (session == null) return;
@@ -141,6 +163,9 @@ namespace Burmalda.Altar
         private void DisposeTrigger()
         {
             if (_altarTrigger == null) return;
+            if (_afishaTrail != null) _afishaTrail.Advanced -= OnTrailAdvanced;
+            _afishaTrail = null;
+            ActiveAfisha = null;
             _altarTrigger.AltarReached -= OnAltarReached;
             _altarTrigger.Dispose();
             _altarTrigger = null;

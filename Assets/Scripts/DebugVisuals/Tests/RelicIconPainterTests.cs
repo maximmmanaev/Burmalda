@@ -62,5 +62,21 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.IsTrue(rare.All(c => c.a == 255));
             CollectionAssert.AreNotEqual(rare, legendary);
         }
+
+        [Test]
+        public void ThreatIcons_AreDistinct_AndNonEmpty()
+        {
+            var threats = System.Enum.GetValues(typeof(ThreatType)).Cast<ThreatType>().ToList();
+            var sigs = threats.Select(t => RelicIconPainter.PaintThreat(t)).ToList();
+            foreach (var px in sigs) Assert.That(px.Count(c => c.a > 128) / (float)px.Length, Is.InRange(0.2f, 0.95f));
+            Assert.AreEqual(threats.Count, sigs.Select(px => string.Join(",", px.Where((_, i) => i % 5 == 0).Select(c => c.r + c.g * 3 + c.b * 7))).Distinct().Count());
+        }
+
+        [Test]
+        public void GodSigns_AreDistinct_ForAllTenGods()
+        {
+            var sigs = GodTable.All.Select(g => string.Join(",", RelicIconPainter.PaintGodSign(g).Where((_, i) => i % 5 == 0).Select(c => c.r + c.g * 3 + c.b * 7))).Distinct().Count();
+            Assert.AreEqual(10, sigs);
+        }
     }
 }

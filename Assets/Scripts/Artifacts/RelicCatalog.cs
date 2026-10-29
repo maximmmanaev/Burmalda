@@ -72,18 +72,10 @@ namespace Burmalda.Artifacts
         public static RelicDefinition Get(string id) =>
             ById.TryGetValue(id, out var relic) ? relic : throw new ArgumentException($"Нет Реликвии с id '{id}'.", nameof(id));
 
-        public static Mythology MythologyOf(God god) => god switch
-        {
-            God.Leshy or God.Mokosh or God.Perun or God.Chernobog => Mythology.Slavic,
-            God.Humbaba or God.Ereshkigal or God.Enlil => Mythology.Sumerian,
-            _ => Mythology.Ojibwe,
-        };
+        /// <summary>Мифология бога — из таблицы Ярусов (<see cref="GodTable"/>, PRD v10 §5.2).</summary>
+        public static Mythology MythologyOf(God god) => GodTable.ForGod(god).Mythology;
 
-        /// <summary>Бог Святилища Яруса (PRD v10 §5.2, Ярусы 1–10).</summary>
-        public static God GodOfYarus(int yarus)
-        {
-            if (yarus < 1 || yarus > 10) throw new ArgumentOutOfRangeException(nameof(yarus), yarus, "Ярус должен быть в 1..10.");
-            return (God)(yarus - 1);
-        }
+        /// <summary>Бог Святилища Яруса — из таблицы <see cref="GodTable"/>.</summary>
+        public static God GodOfYarus(int yarus) => GodTable.ForYarus(yarus).God;
     }
 }

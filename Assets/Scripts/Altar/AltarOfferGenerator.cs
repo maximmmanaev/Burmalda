@@ -84,7 +84,7 @@ namespace Burmalda.Altar
 
             want = Math.Min(want, MaxOptions);
 
-            var shrineMythology = RelicCatalog.MythologyOf(RelicCatalog.GodOfYarus(Math.Min(Math.Max(request.ShrineYarus, 1), 10)));
+            var shrineMythology = GodTable.ForYarus(Math.Min(Math.Max(request.ShrineYarus, 1), GodTable.YarusCount)).Mythology;
             var open = RelicCatalog.All.Where(r => request.IsOpened(r.Id) && !request.Build.Contains(r.Id)).ToList();
             var mythPool = open.Where(r => r.Mythology == shrineMythology).ToList();
             var chosen = new List<RelicDefinition>();
