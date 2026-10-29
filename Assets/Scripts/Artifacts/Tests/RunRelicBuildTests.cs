@@ -1,3 +1,4 @@
+using Burmalda.Core;
 using NUnit.Framework;
 
 namespace Burmalda.Artifacts.Tests

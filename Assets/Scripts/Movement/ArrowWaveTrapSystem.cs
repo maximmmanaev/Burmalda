@@ -157,7 +157,7 @@ namespace Burmalda.Movement
             // обязан активироваться раньше, чем новый встанет в ожидание.
             if (_pendingTriggerCoordinate.HasValue && _pendingTriggerCoordinate.Value != coordinate)
             {
-                ActivateWave(_pendingTriggerCoordinate.Value);
+                if (RunEffects.Current.StepsActivateTraps) ActivateWave(_pendingTriggerCoordinate.Value); // Морок: шаги не активируют ловушки
                 _pendingTriggerCoordinate = null;
             }
 

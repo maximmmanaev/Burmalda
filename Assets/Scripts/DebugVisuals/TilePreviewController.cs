@@ -127,7 +127,7 @@ namespace Burmalda.DebugVisuals
             if (isTrapTrigger)
             {
                 lines.Add("Триггер механизма");
-                if (TrapInsight.HasTrapTypeInsight)
+                if (TrapInsight.HasTrapTypeInsight || tile.IsTrapTypeRevealed)
                 {
                     string exactType;
                     if (tile.ArrowWaveTargetRow.HasValue) exactType = "волна стрел";
@@ -136,7 +136,7 @@ namespace Burmalda.DebugVisuals
                     else if (tile.IsFallingRockTrigger) exactType = "падающий камень";
                     else if (tile.MovingWallTargetRow.HasValue) exactType = "движущаяся стена";
                     else exactType = "волна лавы";
-                    lines.Add($"(Идол Чутья) Точный тип: {exactType}");
+                    lines.Add($"Точный тип: {exactType}");
                 }
             }
             if (tile.IsLever) lines.Add("Рычаг");

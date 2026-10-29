@@ -1,3 +1,4 @@
+using Burmalda.Core;
 namespace Burmalda.Sanctuary
 {
     /// <summary>
@@ -12,7 +13,7 @@ namespace Burmalda.Sanctuary
         public const float StartingValue = 1f;
 
         // PRD v8 §8.2: "Резонанс — +0.5 к множителю Комнаты до конца Комнаты".
-        public const float ResonanceBonus = 0.5f;
+        public const float ResonanceBonus = NeutralRunEffects.BaseResonanceBonus;
 
         // PRD v9 §8.2/8.3: "Эхо — ×2 к текущему множителю". Умножение, не
         // сложение — тот самый "второй уровень роста" (§8.3: "сложение
@@ -26,7 +27,7 @@ namespace Burmalda.Sanctuary
         public float CurrentMultiplier { get; private set; } = StartingValue;
 
         /// <summary>Плита-Резонанс собрана — мгновенный прирост (PRD v8 §8.2).</summary>
-        public void ApplyResonanceTile() => CurrentMultiplier += ResonanceBonus;
+        public void ApplyResonanceTile() => CurrentMultiplier += RunEffects.Current.ResonanceBonus; // Громовой знак: +0.8 вместо +0.5
 
         /// <summary>
         /// Плита-Эхо собрана — мгновенное умножение (PRD v9 §8.2/8.3):

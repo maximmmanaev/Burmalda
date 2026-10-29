@@ -30,23 +30,4 @@ namespace Burmalda.Artifacts
         Epic,
         Legendary,
     }
-
-    /// <summary>Тип угрозы (PRD v10 §8.4) — от чего Амулет защищает; Афиша показывает эти типы у Святилища.</summary>
-    public enum ThreatType
-    {
-        /// <summary>Тупой удар — Камень, Валун, Давилка, Стены.</summary>
-        Blunt,
-
-        /// <summary>Режущий — Стрелы, Лезвия.</summary>
-        Slashing,
-
-        /// <summary>Взрыв — Бомба.</summary>
-        Explosion,
-
-        /// <summary>Огонь — Огненная струя.</summary>
-        Fire,
-
-        /// <summary>Капкан.</summary>
-        Trap,
-    }
 }

@@ -1,3 +1,4 @@
+using Burmalda.Artifacts;
 using Burmalda.Camp;
 using Burmalda.Currencies;
 using UnityEngine;
@@ -138,7 +139,7 @@ namespace Burmalda.DebugVisuals
             rect.anchorMin = new Vector2(1f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(1f, 1f);
-            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 3f + Margin * 2f);
+            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 7f + Margin * 2f);
             rect.anchoredPosition = new Vector2(-Margin, -(TopOffset + ToggleButtonSize + Margin));
 
             BuildRow(_panelRoot.transform, 0,
@@ -155,6 +156,27 @@ namespace Burmalda.DebugVisuals
                 "Курс Мана→Монеты", 5f, 50f, EvacuationSystem.ManaToCoinsRate,
                 v => EvacuationSystem.ManaToCoinsRate = v,
                 v => v.ToString("0") + ":1");
+
+            // Черновые числа Реликвий и серии (v10-4) [CONFIG] — тот же принцип: живые рычаги плейтеста.
+            BuildRow(_panelRoot.transform, 3,
+                "Серия: порог, плит", 2f, 15f, CleanPassStreakSystem.GlowThreshold,
+                v => CleanPassStreakSystem.GlowThreshold = Mathf.RoundToInt(v),
+                v => Mathf.RoundToInt(v).ToString());
+
+            BuildRow(_panelRoot.transform, 4,
+                "Серия: бонус Маны", 1f, 30f, CleanPassStreakSystem.BaseBonusMana,
+                v => CleanPassStreakSystem.BaseBonusMana = Mathf.RoundToInt(v),
+                v => Mathf.RoundToInt(v).ToString());
+
+            BuildRow(_panelRoot.transform, 5,
+                "Веретено: бонус Маны", 5f, 200f, RelicEffectState.SpindleBonusMana,
+                v => RelicEffectState.SpindleBonusMana = Mathf.RoundToInt(v),
+                v => Mathf.RoundToInt(v).ToString());
+
+            BuildRow(_panelRoot.transform, 6,
+                "Чёрное золото: распад", 1f, 2f, RelicEffectState.DecayRateValue,
+                v => RelicEffectState.DecayRateValue = v,
+                v => "×" + v.ToString("0.00"));
         }
 
         /// <summary>Строка "подпись + слайдер + текущее значение" — та же разметка, что CameraAnchorDebugPanel.BuildRow.</summary>

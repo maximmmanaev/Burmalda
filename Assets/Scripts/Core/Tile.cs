@@ -327,6 +327,18 @@ namespace Burmalda.Core
         /// </summary>
         public bool IsBlocked { get; private set; }
 
+        /// <summary>Плита — триггер любой ловушки (Камень, Давилка/Стены, Стрелы, Лезвия, Бомба): шаг на неё обрывает серию чистого прохода (PRD v10 §12.2).</summary>
+        public bool IsTrapTrigger =>
+            ArrowWaveTargetRow.HasValue || BladeTactTargetRow.HasValue || MovingWallTargetRow.HasValue || IsBombTrigger || IsFallingRockTrigger;
+
+        /// <summary>Разбивает стену: плита становится проходимой (Руна «Удар Перуна»). False, если плита не стена.</summary>
+        public bool BreakWall()
+        {
+            if (!IsBlocked) return false;
+            IsBlocked = false;
+            return true;
+        }
+
         /// <summary>Помечает плиту как непроходимое статичное препятствие. Повторные вызовы — не-op.</summary>
         public void MarkBlocked()
         {
@@ -639,6 +651,16 @@ namespace Burmalda.Core
         /// зависимости от этого флага.
         /// </summary>
         public bool IsDangerSignatureRevealed { get; private set; }
+
+        /// <summary>Тип триггера раскрыт Руной «Распутье» (PRD v10 §20.2) — на этой плите, раз и навсегда до конца забега.</summary>
+        public bool IsTrapTypeRevealed { get; private set; }
+
+        /// <summary>Раскрывает тип триггера этой плиты (вместе с сигнатурой опасности).</summary>
+        public void RevealTrapType()
+        {
+            IsTrapTypeRevealed = true;
+            IsDangerSignatureRevealed = true;
+        }
 
         /// <summary>Раскрывает сигнатуру опасности этой плиты — см. <see cref="IsDangerSignatureRevealed"/>. Повторные вызовы — не-op.</summary>
         public void RevealDangerSignature()

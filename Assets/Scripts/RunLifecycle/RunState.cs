@@ -108,7 +108,11 @@ namespace Burmalda.RunLifecycle
         /// прямая подписка в конструкторе создала бы зависимость в обратную
         /// сторону. См. <c>Movement.TrapSystemsController.FallingRockPlayerCrushed</c>.
         /// </summary>
-        public void ReportFallingRockCrush() => ResolveHazard("Раздавлен камнем");
+        public void ReportFallingRockCrush()
+        {
+            if (TryAbsorb(ThreatType.Blunt)) return;
+            ResolveHazard("Раздавлен камнем");
+        }
 
         private void OnPositionChanged(GridCoordinate coordinate)
         {
@@ -116,8 +120,34 @@ namespace Burmalda.RunLifecycle
                 _lastAltarCoordinate = coordinate;
         }
 
-        private void OnLethalTrapTriggered(GridCoordinate coordinate, LethalTrapType trapType) =>
+        private void OnLethalTrapTriggered(GridCoordinate coordinate, LethalTrapType trapType)
+        {
+            // Лава — не ловушка: защиты нет (§32, инвариант 5). Остальное — попадание угрозы, его может поглотить Амулет.
+            if (trapType != LethalTrapType.Lava && TryAbsorb(ThreatOf(trapType))) return;
             ResolveHazard(DescribeLethalTrap(trapType));
+        }
+
+        private static ThreatType ThreatOf(LethalTrapType trapType) => trapType switch
+        {
+            LethalTrapType.BombBlast => ThreatType.Explosion,
+            LethalTrapType.ArrowWave => ThreatType.Slashing,
+            LethalTrapType.BladeTact => ThreatType.Slashing,
+            _ => ThreatType.Blunt,
+        };
+
+        // Амулеты Реликвий (Плат Мокоши, Перунов знак): раз за Ярус переживают попадание. Лаву сюда не передаём.
+        private static bool TryAbsorb(ThreatType threat) => RunEffects.Current.TryAbsorbHit(threat);
+
+        /// <summary>
+        /// Попадание угрозы типа <paramref name="threat"/> — единая точка для ловушек, которых в игре ещё нет (Огненная струя,
+        /// Капкан, Валун): Амулет может поглотить попадание раз за Ярус, иначе это обычная опасность (Бросок Судьбы). Лава сюда
+        /// не передаётся — от неё защиты нет.
+        /// </summary>
+        public void ReportThreatHit(ThreatType threat)
+        {
+            if (TryAbsorb(threat)) return;
+            ResolveHazard($"Попадание: {threat}");
+        }
 
         private static string DescribeLethalTrap(LethalTrapType trapType) => trapType switch
         {

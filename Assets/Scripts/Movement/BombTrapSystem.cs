@@ -238,7 +238,7 @@ namespace Burmalda.Movement
             // ниже — та же последовательность, что у ArrowWaveTrapSystem.
             if (_pendingTriggerCoordinate.HasValue && _pendingTriggerCoordinate.Value != coordinate)
             {
-                ActivateFuse(_pendingTriggerCoordinate.Value);
+                if (RunEffects.Current.StepsActivateTraps) ActivateFuse(_pendingTriggerCoordinate.Value);
                 _pendingTriggerCoordinate = null;
             }
 
