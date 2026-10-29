@@ -937,23 +937,66 @@ namespace Burmalda.Generation
             // ---- Партия 6 (спринт v10-2): шаблоны давления геометрией для Ярусов 1–3.
             // Авторство — геймдизайнер (владелец утвердил направление); замысел сохранён рядом с каждым.
 
-            // Замысел: проход прыгает от края к краю — маршрут втрое длиннее прямой, распад догоняет.
-            // Камень стоит там, куда ведёт «естественный» шаг из прохода.
-            new SegmentTemplate("змеиный-ход", 2, SegmentRewardTag.Mana, ParseRows(new[]
+            // Семейство mined-snake: змейка, коридоры которой засеяны скрытыми триггерами — крюк (+2) и мины сразу.
+            // Заменяет бесловушечный «змеиный-ход»: по одной геометрии безопасный путь больше не читается.
+            // Чистый путь 9 шагов, 8 триггеров.
+            new SegmentTemplate("змея-с-минами", 3, SegmentRewardTag.Mana, ParseRows(new[]
             {
                 ".....",
                 "####.",
-                ".....",
+                "r.r..",
+                ".r.r.",
                 ".####",
+                "..r.r",
+                ".r.r.",
                 "..m..",
-                "####.",
-                "....r",
+            }), family: SegmentFamily.MinedSnake),
+
+            // Семейство minefield: открытая площадка, много скрытых триггеров, безопасный путь петляет
+            // невидимо. Крюка нет (диагонали выпрямляют площадку) — сложность в неизвестности и времени:
+            // прощупывание клеток стоит распада. Триггер срабатывает при уходе с плиты, не при входе — честно.
+            // Без награды, 11 триггеров.
+            new SegmentTemplate("минное-поле", 3, SegmentRewardTag.Coins, ParseRows(new[]
+            {
                 ".....",
-            })),
+                "r.w.r",
+                ".r...",
+                "..r.r",
+                "r....",
+                ".r.w.",
+                "..r.r",
+                ".....",
+            }), family: SegmentFamily.Minefield),
+
+            // Семейство minefield, вариант с Маной. 11 триггеров.
+            new SegmentTemplate("минное-поле-2", 3, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                ".r.r.",
+                "r...r",
+                ".w.r.",
+                "r....",
+                ".r.r.",
+                "r...r",
+                "..m..",
+            }), family: SegmentFamily.Minefield),
+
+            // Семейство pillar-hall: решётка колонн, между ними Стрелы и Камни — реакция и чтение линий Стрел.
+            new SegmentTemplate("колонный-зал", 3, SegmentRewardTag.Mana, ParseRows(new[]
+            {
+                ".....",
+                "#.#.#",
+                "r.w.r",
+                "#.#.#",
+                ".r.r.",
+                "#.#.#",
+                "..m..",
+                ".....",
+            }), family: SegmentFamily.PillarHall),
 
             // «Змейка с дверью-ловушкой» (геймдизайнер, правка v10-2 после проверки 8-соседства): ряды-стены
             // с проходом у дальнего края — чистый путь змейкой; в стене дверь-ловушка, через которую можно
-            // срезать. У всех шести: крюк 4, соблазн 4.
+            // срезать. У всех шести: крюк 4, соблазн 4. Семейство snake-door.
 
             // Замысел: двери-Камни и дверь-Стрела.
             new SegmentTemplate("ступени", 2, SegmentRewardTag.Mana, ParseRows(new[]
@@ -966,7 +1009,7 @@ namespace Burmalda.Generation
                 "r###.",
                 "..m..",
                 ".....",
-            })),
+            }), family: SegmentFamily.SnakeDoor),
 
             // Замысел: одна дверь-Камень посередине змейки.
             new SegmentTemplate("змейка-с-дверью", 2, SegmentRewardTag.Mana, ParseRows(new[]
@@ -979,7 +1022,7 @@ namespace Burmalda.Generation
                 "####.",
                 "..m..",
                 ".....",
-            })),
+            }), family: SegmentFamily.SnakeDoor),
 
             // Замысел: все три двери — Стрелы.
             new SegmentTemplate("стрельбище", 2, SegmentRewardTag.Mana, ParseRows(new[]
@@ -992,7 +1035,7 @@ namespace Burmalda.Generation
                 "###w.",
                 "..m..",
                 ".....",
-            })),
+            }), family: SegmentFamily.SnakeDoor),
 
             // Замысел: дверь — Давилка: срезал — следующий ряд смыкается за тобой.
             new SegmentTemplate("давильня", 2, SegmentRewardTag.Mana, ParseRows(new[]
@@ -1005,7 +1048,7 @@ namespace Burmalda.Generation
                 "####.",
                 "...m.",
                 ".....",
-            })),
+            }), family: SegmentFamily.SnakeDoor),
 
             // Замысел: дверь — Стена справа.
             new SegmentTemplate("правый-пресс", 2, SegmentRewardTag.Mana, ParseRows(new[]
@@ -1018,7 +1061,7 @@ namespace Burmalda.Generation
                 ".####",
                 "..m..",
                 ".....",
-            })),
+            }), family: SegmentFamily.SnakeDoor),
 
             // Замысел: дверь — Стена слева: закрывает ряд в сторону чистого прохода, гонит вперёд.
             new SegmentTemplate("левый-пресс", 2, SegmentRewardTag.Keys, ParseRows(new[]
@@ -1031,7 +1074,7 @@ namespace Burmalda.Generation
                 "####.",
                 ".k...",
                 ".....",
-            })),
+            }), family: SegmentFamily.SnakeDoor),
 
             // ---- Партия 7 (спринт v10-2, ЧЕРНОВИКИ агента для проверки правил геометрии и открытия
             // ловушек по Ярусам; геймдизайнер перепишет): шаблоны с соблазном и с ловушками Ярусов 4+.
@@ -1089,11 +1132,11 @@ namespace Burmalda.Generation
             })),
         });
 
-        // Зеркальные копии «напряжения» Ярусов 1–3 (без ловушек, открытых с Яруса 4): удваивают пул без ручной работы.
+        // Зеркальные копии всех нерелиф-шаблонов Ярусов 1–3 (без ловушек, открытых с Яруса 4): удваивают пул без ручной работы.
         private static List<SegmentTemplate> WithMirrors(List<SegmentTemplate> templates)
         {
             var mirrors = templates
-                .Where(t => TemplateRouteMetrics.IsTension(t) && YarusTemplateRules.AllTrapsOpen(t, 1))
+                .Where(t => t.Family != SegmentFamily.Relief && YarusTemplateRules.AllTrapsOpen(t, 1))
                 .Select(t => t.Mirror())
                 .ToList();
             templates.AddRange(mirrors);

@@ -71,44 +71,80 @@ namespace Burmalda.Generation.Tests
             Assert.Greater(TemplateRouteMetrics.Detour(Make("snake", SnakeRows)), 0);
         }
 
-        [Test]
-        public void IsTension_NeedsDetourAtLeast3_AndTemptationAtLeast2()
+        private static readonly string[] SnakeDoorNames =
         {
-            var door = Make("door", ".....", "###w.", ".....", ".w###", ".....", "###w.", "..m..", ".....");
-            Assert.IsTrue(TemplateRouteMetrics.IsTension(door));
-            Assert.IsFalse(TemplateRouteMetrics.IsTension(Make("snake-no-door", ".....", "####.", ".....", ".####", ".....", "####.", "..m..", ".....")));
-            Assert.IsFalse(TemplateRouteMetrics.IsTension(Make("flat", ".....", "..w..", ".....", ".....", ".....")));
-        }
-
-        private static readonly string[] DesignerTension =
-        {
-            "змеиный-ход", "ступени", "змейка-с-дверью", "стрельбище", "давильня", "правый-пресс", "левый-пресс",
+            "ступени", "змейка-с-дверью", "стрельбище", "давильня", "правый-пресс", "левый-пресс",
         };
 
         private static SegmentTemplate ByName(string name) => SegmentTemplateCatalog.All.Single(t => t.Name == name);
 
+        private static int TriggerCount(SegmentTemplate t) =>
+            Enumerable.Range(0, t.RowCount).Sum(r => Enumerable.Range(0, t.Width).Count(c => TemplateRouteMetrics.IsTrap(t.TileAt(r, c))));
+
         [Test]
-        public void DesignerTemplates_AreTension_WithDetour4AndTemptation4()
+        public void SnakeDoorTemplates_HaveDetour4AndTemptation4_AndFamily()
         {
-            foreach (var name in DesignerTension.Skip(1))
+            foreach (var name in SnakeDoorNames)
             {
                 var t = ByName(name);
                 Assert.AreEqual(4, TemplateRouteMetrics.Detour(t), name);
                 Assert.AreEqual(4, TemplateRouteMetrics.Temptation(t), name);
-                Assert.IsTrue(TemplateRouteMetrics.IsTension(t), name);
+                Assert.AreEqual(SegmentFamily.SnakeDoor, t.Family, name);
             }
-
-            // «змеиный-ход» оставлен по решению геймдизайнера, но дверей-ловушек в нём нет (Камень в конце
-            // не сокращает путь): крюк 4, соблазн 0 — «передышка» с длинным маршрутом.
-            Assert.AreEqual(4, TemplateRouteMetrics.Detour(ByName("змеиный-ход")));
-            Assert.IsFalse(TemplateRouteMetrics.IsTension(ByName("змеиный-ход")));
         }
 
         [Test]
-        public void OldDesignerTemplates_AreRemoved()
+        public void TraplessSnake_IsRemoved_AndOldDesignerTemplatesStayRemoved()
         {
-            foreach (var name in new[] { "горлышко-со-стрелой", "перекрёсток-стрел", "петля-жадности" })
+            foreach (var name in new[] { "змеиный-ход", "змеиный-ход-зеркало", "горлышко-со-стрелой", "перекрёсток-стрел", "петля-жадности" })
                 Assert.IsFalse(SegmentTemplateCatalog.All.Any(t => t.Name == name), name);
+        }
+
+        [Test]
+        public void NewFamilies_MinedSnake_Minefield_PillarHall_HaveDesignedGeometry()
+        {
+            var mined = ByName("змея-с-минами");
+            Assert.AreEqual(SegmentFamily.MinedSnake, mined.Family);
+            Assert.AreEqual(9, TemplateRouteMetrics.SafePathSteps(mined));
+            Assert.AreEqual(2, TemplateRouteMetrics.Detour(mined));
+            Assert.AreEqual(8, TriggerCount(mined));
+
+            foreach (var name in new[] { "минное-поле", "минное-поле-2" })
+            {
+                var t = ByName(name);
+                Assert.AreEqual(SegmentFamily.Minefield, t.Family, name);
+                Assert.AreEqual(11, TriggerCount(t), name);
+                Assert.GreaterOrEqual(TemplateRouteMetrics.SafePathSteps(t), 0, name);
+            }
+
+            Assert.AreEqual(SegmentFamily.PillarHall, ByName("колонный-зал").Family);
+            Assert.AreEqual(SegmentRewardTag.Coins, ByName("минное-поле").RewardTag);
+        }
+
+        [Test]
+        public void MinefieldAndPillarHall_HaveTriggerDensityAtLeast25Percent_AndTriggerInEveryLaneRow()
+        {
+            var checkedCount = 0;
+            foreach (var t in SegmentTemplateCatalog.All.Where(t => t.Family == SegmentFamily.Minefield || t.Family == SegmentFamily.PillarHall))
+            {
+                Assert.GreaterOrEqual(TemplateRouteMetrics.LaneTriggerDensity(t), 0.25, t.Name);
+                Assert.IsTrue(TemplateRouteMetrics.EveryLaneRowHasTrigger(t), t.Name);
+                checkedCount++;
+            }
+
+            Assert.AreEqual(2 * 3, checkedCount, "3 шаблона и 3 зеркала");
+        }
+
+        [Test]
+        public void EveryTemplate_HasFamily_OnlyReliefOrSnakeDoorAmongOldOnes()
+        {
+            var newOnes = new HashSet<string> { "змея-с-минами", "минное-поле", "минное-поле-2", "колонный-зал" };
+            foreach (var t in SegmentTemplateCatalog.All)
+            {
+                var name = t.Name.Replace(SegmentTemplate.MirrorSuffix, "");
+                if (newOnes.Contains(name) || SnakeDoorNames.Contains(name)) continue;
+                Assert.AreEqual(SegmentFamily.Relief, t.Family, t.Name);
+            }
         }
 
         // ---- Зеркала ----
@@ -133,18 +169,38 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void Mirrors_ExistForBand1TensionTemplates_WithSameDetourAndTemptation()
+        public void Mirrors_ExistForAllNonReliefBand1Templates_WithSameFamilyDetourAndTemptation()
         {
-            foreach (var name in DesignerTension.Skip(1))
+            foreach (var source in SegmentTemplateCatalog.All.Where(t => t.Family != SegmentFamily.Relief && !t.Name.EndsWith(SegmentTemplate.MirrorSuffix)))
             {
-                var source = ByName(name);
-                var mirror = ByName(name + "-зеркало");
-                Assert.AreEqual(TemplateRouteMetrics.Detour(source), TemplateRouteMetrics.Detour(mirror), name);
-                Assert.AreEqual(TemplateRouteMetrics.Temptation(source), TemplateRouteMetrics.Temptation(mirror), name);
-                Assert.IsTrue(YarusTemplateRules.IsEligible(mirror, 1, false), name);
+                var mirror = ByName(source.Name + SegmentTemplate.MirrorSuffix);
+                Assert.AreEqual(source.Family, mirror.Family, source.Name);
+                Assert.AreEqual(TemplateRouteMetrics.Detour(source), TemplateRouteMetrics.Detour(mirror), source.Name);
+                Assert.AreEqual(TemplateRouteMetrics.Temptation(source), TemplateRouteMetrics.Temptation(mirror), source.Name);
+                Assert.IsTrue(YarusTemplateRules.IsEligible(mirror, 1, false), source.Name);
             }
 
             Assert.AreEqual(SegmentTemplateCatalog.All.Count, SegmentTemplateCatalog.All.Select(t => t.Name).Distinct().Count(), "имена уникальны");
+        }
+
+        // ---- Правило: Падающий камень не запечатывает единственный проход ----
+
+        [Test]
+        public void FallingRockSealing_DetectsRockThatClosesOnlyPassage()
+        {
+            // Камень в (1,2) бьёт по (2,2); в ряду 2 проход один — центр.
+            var sealing = Make("seal", ".....", "..r..", "##.##", ".....", ".....");
+            Assert.IsTrue(TemplateRouteMetrics.FallingRockSealsPassage(sealing));
+
+            var fine = Make("fine", ".....", "..r..", ".....", ".....", ".....");
+            Assert.IsFalse(TemplateRouteMetrics.FallingRockSealsPassage(fine));
+        }
+
+        [Test]
+        public void FallingRockSealing_NoCatalogTemplateSealsPassage()
+        {
+            foreach (var t in SegmentTemplateCatalog.All)
+                Assert.IsFalse(TemplateRouteMetrics.FallingRockSealsPassage(t), t.Name);
         }
 
         // ---- Допуск ловушек по Ярусам ----
@@ -176,13 +232,14 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void Eligible_NonTrainingTemplates_HaveSafePath_AndTensionIsNeverStraight()
+        public void Eligible_NonTrainingTemplates_HaveSafePath_AndNonReliefIsNeverStraight()
         {
             foreach (var yarus in Enumerable.Range(1, YarusProgression.MaxYarus))
                 foreach (var template in SegmentTemplateCatalog.All.Where(t => YarusTemplateRules.IsEligible(t, yarus, false)))
                 {
                     Assert.GreaterOrEqual(TemplateRouteMetrics.SafePathSteps(template), 0, template.Name);
-                    if (TemplateRouteMetrics.IsTension(template)) Assert.IsFalse(TemplateRouteMetrics.HasStraightColumn(template), template.Name);
+                    // Площадка (minefield) и зал колонн крюка не имеют по замыслу — прямое правило только для змеек.
+                    if (template.Family == SegmentFamily.SnakeDoor || template.Family == SegmentFamily.MinedSnake) Assert.IsFalse(TemplateRouteMetrics.HasStraightColumn(template), template.Name);
                 }
         }
 
@@ -197,18 +254,17 @@ namespace Burmalda.Generation.Tests
         }
 
         [Test]
-        public void EveryBand_HasEligibleTemplates_AndPrintsTable()
+        public void EveryBand_HasEligibleTemplates_AndPrintsFamilyTable()
         {
-            var table = new StringBuilder("шаблон | тир | рядов | безопасный | быстрый | крюк | соблазн | напряжение\n");
+            var table = new StringBuilder("шаблон | семейство | тир | рядов | безопасный | быстрый | крюк | соблазн | ловушек | плотность\n");
             foreach (var t in SegmentTemplateCatalog.All)
-                table.AppendLine($"{t.Name} | {t.DifficultyTier} | {t.RowCount} | {TemplateRouteMetrics.SafePathSteps(t)} | {TemplateRouteMetrics.FastPathSteps(t)} | {TemplateRouteMetrics.Detour(t)} | {TemplateRouteMetrics.Temptation(t)} | {TemplateRouteMetrics.IsTension(t)}");
-            for (var band = 1; band <= 4; band++)
+                table.AppendLine($"{t.Name} | {t.Family} | {t.DifficultyTier} | {t.RowCount} | {TemplateRouteMetrics.SafePathSteps(t)} | {TemplateRouteMetrics.FastPathSteps(t)} | {TemplateRouteMetrics.Detour(t)} | {TemplateRouteMetrics.Temptation(t)} | {TriggerCount(t)} | {TemplateRouteMetrics.LaneTriggerDensity(t):F2}");
+            foreach (var yarus in new[] { 1, 4, 7, 10 })
             {
-                var yarus = new[] { 1, 4, 7, 10 }[band - 1];
                 var pool = SegmentTemplateCatalog.All.Where(t => YarusTemplateRules.IsEligible(t, yarus, false)).ToList();
-                var tension = pool.Count(TemplateRouteMetrics.IsTension);
-                table.AppendLine($"полоса {band}: допустимых {pool.Count}, напряжения {tension}, средний крюк {pool.Average(TemplateRouteMetrics.Detour):F2}");
-                Assert.GreaterOrEqual(pool.Count, 5, $"В полосе {band} слишком мало допустимых шаблонов.");
+                var families = string.Join(", ", pool.GroupBy(t => t.Family).Select(g => $"{g.Key}={g.Count()}"));
+                table.AppendLine($"Ярус {yarus}: допустимых {pool.Count} ({families})");
+                Assert.GreaterOrEqual(pool.Select(t => t.Family).Distinct().Count(), 4, $"Ярус {yarus}: мало семейств в пуле.");
             }
 
             Debug.Log(table.ToString());
@@ -217,91 +273,89 @@ namespace Burmalda.Generation.Tests
         // ---- Селектор ----
 
         [Test]
-        public void SelectNext_Context_NeverReturnsClosedTrapOrRepeatsInARow()
+        public void SelectNext_Context_NeverReturnsClosedTrapOrRepeatsFamilyInARow()
         {
             var selector = new SegmentSelector(SegmentTemplateCatalog.All, new RunSeed(7));
             SegmentTemplate previous = null;
             for (var i = 0; i < 1500; i++)
             {
-                var yarus = 1 + i % 3;
-                var template = selector.SelectNext(new SegmentSelectionContext(yarus, i % 5 == 0, (i % 10) / 10.0, false));
+                var yarus = 1 + (i / 12) % 3;
+                var template = selector.SelectNext(new SegmentSelectionContext(yarus, i % 6 == 0, (i % 10) / 10.0, false, i % 6 >= 4));
                 Assert.IsTrue(YarusTemplateRules.IsEligible(template, yarus, false), template.Name);
-                Assert.AreNotSame(previous, template);
+                if (previous != null) Assert.AreNotEqual(previous.Family, template.Family, $"шаг {i}: семейство дважды подряд");
                 previous = template;
             }
         }
 
-        private static string BaseName(SegmentTemplate t) => t.Name.EndsWith("-зеркало") ? t.Name.Substring(0, t.Name.Length - "-зеркало".Length) : t.Name;
-
         [Test]
-        public void Rhythm_NoRepeatInclMirror_AtMostOneBreatherPerThree_TensionOnlyBeforeLandmark()
+        public void SelectNext_Easy_IsRelief_AndNoReliefBeforeLandmark_IsNotRelief()
         {
             foreach (var seed in Enumerable.Range(1, 20))
             {
                 var selector = new SegmentSelector(SegmentTemplateCatalog.All, new RunSeed(seed));
-                var history = new List<(SegmentTemplate t, bool easy, bool tensionOnly)>();
-                for (var i = 0; i < 400; i++)
+                for (var i = 0; i < 200; i++)
                 {
-                    var position = i % 4; // секция из 4 сегментов: лёгкий, свободный, свободный, напряжение
+                    var position = i % 5; // секция: лёгкий, свободные, два перед ориентиром
                     var easy = position == 0;
-                    var tensionOnly = position >= 2;
-                    var t = selector.SelectNext(new SegmentSelectionContext(1, easy, position / 4.0, false, tensionOnly));
-                    history.Add((t, easy, tensionOnly));
-                }
-
-                for (var i = 0; i < history.Count; i++)
-                {
-                    if (i > 0) Assert.AreNotEqual(BaseName(history[i - 1].t), BaseName(history[i].t), $"seed {seed}: повтор подряд");
-                    if (history[i].tensionOnly) Assert.IsTrue(TemplateRouteMetrics.IsTension(history[i].t), $"seed {seed}: не напряжение перед ориентиром");
-                    if (history[i].easy) Assert.IsFalse(TemplateRouteMetrics.IsTension(history[i].t), $"seed {seed}: после Алтаря должна быть передышка");
-                    if (i >= 2 && !history[i].easy)
-                    {
-                        var breathers = Enumerable.Range(i - 2, 3).Count(k => !TemplateRouteMetrics.IsTension(history[k].t) && !history[k].easy);
-                        Assert.LessOrEqual(breathers, 1, $"seed {seed}: больше 1 передышки на 3 сегмента (индекс {i})");
-                    }
+                    var noRelief = position >= 3;
+                    var t = selector.SelectNext(new SegmentSelectionContext(1, easy, position / 5.0, false, noRelief));
+                    if (easy) Assert.AreEqual(SegmentFamily.Relief, t.Family, $"seed {seed}");
+                    if (noRelief) Assert.AreNotEqual(SegmentFamily.Relief, t.Family, $"seed {seed}");
                 }
             }
         }
 
         [Test]
-        public void Rhythm_BandWithoutTension_FallsBackToBestDetour_WithoutThrowing()
+        public void SelectNext_PoolWithoutNonRelief_FallsBackWithoutThrowing()
         {
-            var low = Make("низкий", ".....", ".....", ".....", ".....", ".....");
-            var high = Make("высокий", ".....", "####.", ".....", ".####", ".....");
-            var selector = new SegmentSelector(new List<SegmentTemplate> { low, high, Make("средний", ".....", "###..", ".....", ".....", ".....") }, new RunSeed(1));
+            var selector = new SegmentSelector(new List<SegmentTemplate> { Make("а", SnakeRows), Make("б", ".....", ".....", ".....", ".....", ".....") }, new RunSeed(1));
             for (var i = 0; i < 30; i++)
-            {
-                var t = selector.SelectNext(new SegmentSelectionContext(1, false, 0.5, false, true));
-                Assert.AreEqual("высокий", t.Name); // напряжения нет — лучший по крюку; повтор единственного лучшего допустим
-            }
+                Assert.DoesNotThrow(() => selector.SelectNext(new SegmentSelectionContext(1, false, 0.5, false, true)));
         }
 
         [Test]
-        public void Simulation_Yaruses1To3_MeanDetourAtLeast2_5_AndTensionShareAtLeast60Percent()
+        public void Simulation_Yaruses1To3_FamiliesVaryAndTargetsMet()
         {
-            var detours = new List<int>();
-            var tension = 0;
+            var perYarus = new Dictionary<(int seed, int yarus), List<SegmentTemplate>>();
+            var all = new List<(SegmentSelectionContext ctx, SegmentTemplate t)>();
             foreach (var seed in Enumerable.Range(1, 12))
             {
                 var grid = new TunnelGrid(Width);
                 var trail = new GridTraceTrail(grid, new GridCoordinate(0, 2));
                 var selector = new SegmentSelector(SegmentTemplateCatalog.All, new RunSeed(seed));
+                SegmentTemplate previous = null;
                 selector.Selected += (context, template) =>
                 {
                     if (context.Yarus > 3) return;
-                    detours.Add(TemplateRouteMetrics.Detour(template));
-                    if (TemplateRouteMetrics.IsTension(template)) tension++;
+                    if (previous != null) Assert.AreNotEqual(previous.Family, template.Family, $"seed {seed}: семейство дважды подряд");
+                    previous = template;
+                    if (context.Easy) Assert.AreEqual(SegmentFamily.Relief, template.Family, $"seed {seed}: после Алтаря");
+                    if (context.NoRelief) Assert.AreNotEqual(SegmentFamily.Relief, template.Family, $"seed {seed}: перед ориентиром");
+                    if (!perYarus.TryGetValue((seed, context.Yarus), out var list)) perYarus[(seed, context.Yarus)] = list = new List<SegmentTemplate>();
+                    list.Add(template);
+                    all.Add((context, template));
                 };
                 using var provider = new SegmentRowProvider(grid, trail, selector, _ => 1, YarusProgression.TunnelRows(1), YarusProgression.TunnelRows);
-                // Ярусы 1–3: 3 × (90 + 2 Алтаря + Святилище) рядов.
                 provider.EnsureCoveredThrough(3 * (90 + 2 * SegmentTemplateCatalog.AltarTemplate.RowCount + SegmentTemplateCatalog.SanctuaryLeshyTemplate.RowCount));
             }
 
-            var mean = detours.Average();
-            var share = (double)tension / detours.Count;
-            Debug.Log($"симуляция Ярусов 1–3: сегментов {detours.Count}, средний крюк {mean:F2}, доля напряжения {share:P0}");
-            Assert.GreaterOrEqual(mean, 2.5);
-            Assert.GreaterOrEqual(share, 0.6);
+            foreach (var kv in perYarus.Where(kv => kv.Key.yarus <= 3))
+            {
+                var list = kv.Value;
+                var snakeShare = (double)list.Count(t => t.Family == SegmentFamily.SnakeDoor) / list.Count;
+                Assert.LessOrEqual(snakeShare, 0.35, $"seed {kv.Key.seed} Ярус {kv.Key.yarus}: snake-door {snakeShare:P0}");
+                Assert.GreaterOrEqual(list.Where(t => t.Family != SegmentFamily.Relief).Select(t => t.Family).Distinct().Count(), 3, $"seed {kv.Key.seed} Ярус {kv.Key.yarus}: мало семейств");
+            }
+
+            var snakes = all.Where(x => x.t.Family == SegmentFamily.SnakeDoor || x.t.Family == SegmentFamily.MinedSnake).Select(x => TemplateRouteMetrics.Detour(x.t)).ToList();
+            Assert.GreaterOrEqual(snakes.Average(), 2.5, "средний крюк snake-door + mined-snake");
+            foreach (var x in all.Where(x => x.t.Family == SegmentFamily.Minefield || x.t.Family == SegmentFamily.PillarHall))
+                Assert.GreaterOrEqual(TemplateRouteMetrics.LaneTriggerDensity(x.t), 0.25, x.t.Name);
+
+            var table = new StringBuilder($"симуляция Ярусов 1–3: {all.Count} сегментов, средний крюк snake-door+mined-snake {snakes.Average():F2}\n");
+            foreach (var g in all.GroupBy(x => x.t.Family).OrderByDescending(g => g.Count()))
+                table.AppendLine($"  {g.Key}: {g.Count()} ({(double)g.Count() / all.Count:P0})");
+            Debug.Log(table.ToString());
         }
 
         // ---- Провайдер: длины Ярусов, Алтари на 1/3 и 2/3, Святилище в конце ----

@@ -66,8 +66,8 @@ namespace Burmalda.Generation
         private int _segmentsInSection;
         private bool _trainingUsed;
 
-        /// <summary>За сколько рядов до Алтаря/Святилища (≈ 2 сегмента) выбираем только «напряжение» [CONFIG, черновик].</summary>
-        public const int TensionOnlyRowsBeforeLandmark = 12;
+        /// <summary>За сколько рядов до Алтаря/Святилища (≈ 2 сегмента) выбираем не передышку [CONFIG, черновик].</summary>
+        public const int NoReliefRowsBeforeLandmark = 12;
         private int _appliedThroughRow;
         // Фиксированная периодическая сетка границ Яруса — начало ТЕКУЩЕГО
         // Яруса (не "докуда реально докатилось содержимое", оно может
@@ -291,9 +291,9 @@ namespace Burmalda.Generation
             var sectionLength = Math.Max(1, _nextLandmarkRow - _sectionStartRow);
             var progress = Math.Min(1.0, Math.Max(0.0, (double)(baseRow - _sectionStartRow) / sectionLength));
             var easy = _segmentsInSection == 0;
-            var tensionOnly = _nextLandmarkRow - baseRow <= TensionOnlyRowsBeforeLandmark;
+            var noRelief = _nextLandmarkRow - baseRow <= NoReliefRowsBeforeLandmark;
             var trainingWindow = _yarus == 1 && !_trainingUsed && baseRow - _tierStartRow < _tierRows / 3;
-            return new SegmentSelectionContext(_yarus, easy && !tensionOnly, progress, trainingWindow, tensionOnly);
+            return new SegmentSelectionContext(_yarus, easy && !noRelief, progress, trainingWindow, noRelief);
         }
 
         /// <summary>Номер Яруса (с 1), в котором лежит ряд <paramref name="row"/> — явные границы, не row/N.</summary>
