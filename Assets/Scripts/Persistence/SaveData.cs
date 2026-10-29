@@ -47,5 +47,8 @@ namespace Burmalda.Persistence
         /// <summary>Активные Идол и Тотем (слоты §17; пустая строка — слот пуст).</summary>
         public string activeIdolId = "";
         public string activeTotemId = "";
+        /// <summary>Уровни Идолов/Тотемов (L1–L3, PRD v10 §22.4): id и уровень — параллельные списки.</summary>
+        public List<string> itemLevelIds = new List<string>();
+        public List<int> itemLevels = new List<int>();
     }
 }

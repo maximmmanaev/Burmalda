@@ -61,5 +61,19 @@ namespace Burmalda.DebugVisuals.Tests
             Assert.Greater(soft.length, 0.1f);
             Assert.Greater(strong.length, soft.length);
         }
+
+        [TestCase(CollectibleKind.Idol)]
+        [TestCase(CollectibleKind.Totem)]
+        public void EachUpgradeLevel_ChangesThePedestalPicture(CollectibleKind kind)
+        {
+            var color = AltarPickText.EpicColor;
+            var l1 = CampArtPainter.PaintSilhouette(kind, 5, 5, color, 0f, level: 1);
+            var l2 = CampArtPainter.PaintSilhouette(kind, 5, 5, color, 0f, level: 2);
+            var l3 = CampArtPainter.PaintSilhouette(kind, 5, 5, color, 0f, level: 3);
+
+            CollectionAssert.AreNotEqual(l1, l2);
+            CollectionAssert.AreNotEqual(l2, l3);
+            Assert.Greater(l3.Count(c => c.a > 10), l1.Count(c => c.a > 10), "ореол и лучи добавляют видимую площадь");
+        }
     }
 }
