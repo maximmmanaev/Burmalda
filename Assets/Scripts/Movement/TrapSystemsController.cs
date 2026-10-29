@@ -143,7 +143,7 @@ namespace Burmalda.Movement
                 return;
             }
 
-            var deltaSeconds = Time.deltaTime;
+            var deltaSeconds = Time.deltaTime * RunEffects.Current.ThreatTimeScale; // Идол «Время»: ловушки идут медленнее / стоят
             _arrowWave.Tick(deltaSeconds);
             _bomb.Tick(deltaSeconds);
             _bladeTact.Tick(deltaSeconds);

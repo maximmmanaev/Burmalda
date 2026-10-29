@@ -19,6 +19,60 @@ namespace Burmalda.Artifacts
 
         public IReadOnlyDictionary<string, int> Parts => _parts;
 
+        /// <summary>Активный Идол (слот 1, §17); null — «голый» старт, пока нечего поставить.</summary>
+        public string ActiveIdolId { get; private set; }
+
+        /// <summary>Активный Тотем (слот 1, §17); null — слот пуст.</summary>
+        public string ActiveTotemId { get; private set; }
+
+        /// <summary>Ставит собранный предмет в слот своего вида. False, если предмета нет или он не собран.</summary>
+        public bool TrySelect(string itemId)
+        {
+            if (!CollectibleCatalog.TryGet(itemId, out var item) || !IsAssembled(item)) return false;
+            if (item.Kind == CollectibleKind.Idol) ActiveIdolId = itemId;
+            else ActiveTotemId = itemId;
+            return true;
+        }
+
+        /// <summary>Восстановление из сохранения: активный предмет принимается, только если он собран.</summary>
+        public void RestoreActive(string idolId, string totemId)
+        {
+            if (!string.IsNullOrEmpty(idolId)) TrySelect(idolId);
+            if (!string.IsNullOrEmpty(totemId)) TrySelect(totemId);
+        }
+
+        /// <summary>Пустой слот занимает первый собранный предмет высшей редкости (без выбора игрока Идол/Тотем не стоял бы вовсе).</summary>
+        public void AutoEquipIfEmpty()
+        {
+            if (ActiveIdolId == null) Best(CollectibleKind.Idol);
+            if (ActiveTotemId == null) Best(CollectibleKind.Totem);
+        }
+
+        private void Best(CollectibleKind kind)
+        {
+            var best = CollectibleCatalog.All.Where(i => i.Kind == kind && IsAssembled(i)).OrderByDescending(i => (int)i.Rarity).FirstOrDefault();
+            if (best != null) TrySelect(best.Id);
+        }
+
+        public const int MaxLevel = 3;
+
+        private readonly Dictionary<string, int> _levels = new Dictionary<string, int>();
+
+        public IReadOnlyDictionary<string, int> Levels => _levels;
+
+        /// <summary>Уровень собранного предмета (1–3, §22.4: собранный начинает с 1); 0, если не собран.</summary>
+        public int LevelOf(string itemId)
+        {
+            if (!CollectibleCatalog.TryGet(itemId, out var item) || !IsAssembled(item)) return 0;
+            return _levels.TryGetValue(itemId, out var level) ? Math.Max(1, Math.Min(MaxLevel, level)) : 1;
+        }
+
+        /// <summary>Задаёт уровень предмета (восстановление из сохранения, тесты); неизвестные id игнорируются.</summary>
+        public void SetLevel(string itemId, int level)
+        {
+            if (CollectibleCatalog.TryGet(itemId, out _)) _levels[itemId] = Math.Max(1, Math.Min(MaxLevel, level));
+        }
+
         public int PartsOf(string itemId) => _parts.TryGetValue(itemId, out var n) ? n : 0;
 
         public bool IsAssembled(CollectibleItem item) => PartsOf(item.Id) >= item.PartsRequired;
@@ -36,6 +90,7 @@ namespace Burmalda.Artifacts
             var item = CollectibleCatalog.Get(itemId);
             if (IsAssembled(item)) return false;
             _parts[itemId] = PartsOf(itemId) + 1;
+            AutoEquipIfEmpty();
             return true;
         }
 
