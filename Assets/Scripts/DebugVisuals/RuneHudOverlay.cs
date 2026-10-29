@@ -55,6 +55,15 @@ namespace Burmalda.DebugVisuals
         {
             EnsureEventSystemExists();
             BuildCanvas();
+            // Нажатие на иконку Руны не должно двигать игрока и не считается тапом по плитам.
+            GridTraceInputController.PointerBlocker = IsOverRuneIcon;
+        }
+
+        private bool IsOverRuneIcon(Vector2 screenPosition)
+        {
+            foreach (var slot in _slots)
+                if (slot.Image != null && RectTransformUtility.RectangleContainsScreenPoint(slot.Image.rectTransform, screenPosition, null)) return true;
+            return false;
         }
 
         private void Update()
