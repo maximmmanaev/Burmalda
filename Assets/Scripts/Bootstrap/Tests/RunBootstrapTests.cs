@@ -43,6 +43,7 @@ namespace Burmalda.Bootstrap.Tests
         {
             if (_bootstrapObject != null) Object.DestroyImmediate(_bootstrapObject);
             if (_inputObject != null) Object.DestroyImmediate(_inputObject);
+            Burmalda.Core.RunEffects.Current = Burmalda.Core.RunEffects.Neutral; // Алтарь подставляет эффекты билда — не оставляем их другим тестам
         }
 
         /// <summary>Только GridTraceInputController — минимум для тестов, которым RunController/TrailDecayController не нужны.</summary>

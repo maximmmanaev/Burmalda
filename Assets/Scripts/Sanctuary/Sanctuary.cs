@@ -98,6 +98,7 @@ namespace Burmalda.Sanctuary
         public void Tick(float deltaSeconds)
         {
             if (!IsActive) return;
+            if (RunEffects.Current.CollapseHeld) return; // Ночь Чернобога: обрушение стоит
             Collapse.Tick(deltaSeconds, IsSarcophagusTaken ? SarcophagusCollapseMultiplier : 1f);
         }
 

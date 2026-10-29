@@ -115,6 +115,9 @@ namespace Burmalda.Generation
             return false;
         }
 
+        /// <summary>Достраивает тоннель до ряда <paramref name="row"/> (Руна «Распутье» заглядывает вперёд).</summary>
+        public void EnsureCoveredThrough(int row) => _provider?.EnsureCoveredThrough(row);
+
         public int CurrentYarus => _provider != null ? _provider.CurrentYarus : 1;
 
         /// <summary>Полоса сложности текущего Яруса (1..4).</summary>

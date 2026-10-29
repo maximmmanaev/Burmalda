@@ -137,7 +137,7 @@ namespace Burmalda.Decay
             {
                 var tile = _grid.GetOrCreateTile(path[i]);
                 var wasDestroyed = tile.IsDestroyed;
-                tile.AdvanceDecay(deltaSeconds * _decayAcceleration * carriedFactor);
+                tile.AdvanceDecay(deltaSeconds * _decayAcceleration * carriedFactor * RunEffects.Current.DecayRateMultiplier); // Чёрное золото: распад быстрее
                 if (!wasDestroyed && tile.IsDestroyed) TileDestroyed?.Invoke(tile.Coordinate);
             }
         }

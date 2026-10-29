@@ -66,9 +66,13 @@ namespace Burmalda.Currencies
         private TrailMultiplierSystem _multiplier;
         private TrailManaIncomeSystem _manaIncomeSystem;
         private TrailTileCurrencySystem _manaSystem;
+        private CleanPassStreakSystem _streakSystem;
 
         /// <summary>Кристаллы Маны текущего забега — рабочий доход забега (v9): обычные плиты + плиты-источники.</summary>
         public RunCurrencyAccumulator RunManaCrystals { get; private set; }
+
+        /// <summary>Серия чистого прохода текущего забега (PRD v10 §12.2); null, пока системы не собраны.</summary>
+        public CleanPassStreakSystem Streak => _streakSystem;
 
         /// <summary>Постоянный баланс Монет — переживает рестарт забега. Пополняется только конвертацией при возврате в Лагерь (v9).</summary>
         public PersistentWallet Coins { get; private set; }
@@ -112,10 +116,13 @@ namespace Burmalda.Currencies
             _multiplier = new TrailMultiplierSystem(_input.Trail);
             _manaIncomeSystem = new TrailManaIncomeSystem(_input.Trail, _multiplier, RunManaCrystals);
             _manaSystem = new TrailTileCurrencySystem(_input.Grid, _input.Trail, t => t.IsManaSource, ManaPerSource, RunManaCrystals);
+            _streakSystem = new CleanPassStreakSystem(_input.Grid, _input.Trail, RunManaCrystals);
         }
 
         private void DisposeRunSystems()
         {
+            _streakSystem?.Dispose();
+            _streakSystem = null;
             _manaSystem?.Dispose();
             _manaSystem = null;
             _manaIncomeSystem?.Dispose();

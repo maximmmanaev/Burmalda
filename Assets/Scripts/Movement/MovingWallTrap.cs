@@ -138,7 +138,7 @@ namespace Burmalda.Movement
             // ожидание (тот же приём, что у ArrowWaveTrapSystem).
             if (_pendingTriggerCoordinate.HasValue && _pendingTriggerCoordinate.Value != coordinate)
             {
-                ActivateClosure(_pendingTriggerCoordinate.Value);
+                if (RunEffects.Current.StepsActivateTraps) ActivateClosure(_pendingTriggerCoordinate.Value);
                 _pendingTriggerCoordinate = null;
             }
 
@@ -166,7 +166,7 @@ namespace Burmalda.Movement
                 Stages = BuildStages(tile.MovingWallTriggerMode.Value, _grid.Width),
                 NextStageIndex = 0
             };
-            ScheduleNextStage(closure, StepSeconds);
+            ScheduleNextStage(closure, StepSeconds * RunEffects.Current.WallCloseSlowdown); // Берестяной оберег: закрываются медленнее
         }
 
         private void OnTileDue(GridCoordinate coordinate)
@@ -202,7 +202,7 @@ namespace Burmalda.Movement
 
             closure.NextStageIndex++;
             if (closure.NextStageIndex < closure.Stages.Count)
-                ScheduleNextStage(closure, StepSeconds);
+                ScheduleNextStage(closure, StepSeconds * RunEffects.Current.WallCloseSlowdown); // Берестяной оберег: закрываются медленнее
         }
 
         private void ScheduleNextStage(ActiveClosure closure, float secondsFromNow)

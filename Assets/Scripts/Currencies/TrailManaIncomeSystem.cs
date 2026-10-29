@@ -73,7 +73,10 @@ namespace Burmalda.Currencies
 
         private void OnAdvanced(GridCoordinate coordinate)
         {
-            _runMana.Add(BaseManaPerTile * _multiplier.CurrentMultiplier);
+            var effects = RunEffects.Current;
+            var stepNumber = _trail.Path.Count - 1; // шаги от старта; Веретено — каждая 5-я плита
+            var bonus = effects.BonusManaForStep(stepNumber);
+            _runMana.Add((int)Math.Round((BaseManaPerTile * _multiplier.CurrentMultiplier + bonus) * effects.ManaMultiplier));
         }
     }
 }

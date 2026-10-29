@@ -1,3 +1,4 @@
+using Burmalda.Core;
 using System.Linq;
 using Burmalda.Artifacts;
 using NUnit.Framework;

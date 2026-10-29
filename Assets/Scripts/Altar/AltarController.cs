@@ -41,6 +41,9 @@ namespace Burmalda.Altar
         /// <summary>Билд забега из Реликвий (PRD v10 §13.4) — новый на каждый забег.</summary>
         public RunRelicBuild Build { get; private set; } = new RunRelicBuild();
 
+        /// <summary>Эффекты Реликвий билда (PRD v10 §20.2) — их читают системы игры через <see cref="RunEffects.Current"/>.</summary>
+        public RelicEffectState Effects { get; private set; }
+
         /// <summary>Что Алтарь знает о забеге (Ярус, Афиша, сид); задаёт композиционный корень. Без него — Ярус 1, без Афиши.</summary>
         public IAltarContext Context { get; set; }
 
@@ -98,6 +101,8 @@ namespace Burmalda.Altar
             if (_input == null || _input.Grid == null || _input.Trail == null) return;
 
             Build = new RunRelicBuild();
+            Effects = new RelicEffectState(() => Build, () => Time.time, () => Context != null ? Context.CurrentYarus : 1);
+            RunEffects.Current = Effects;
             ActiveSession = null;
             _vaultBonus = new VaultBonusTracker(_input.Grid, _input.Trail);
             _pickFlow = new AltarPickFlow(Pool, Build, _vaultBonus, new ContextProxy(this));
@@ -168,6 +173,7 @@ namespace Burmalda.Altar
             if (_afishaTrail != null) _afishaTrail.Advanced -= OnTrailAdvanced;
             _afishaTrail = null;
             ActiveAfisha = null;
+            if (Effects != null && ReferenceEquals(RunEffects.Current, Effects)) RunEffects.Current = RunEffects.Neutral;
             _altarTrigger.AltarReached -= OnAltarReached;
             _altarTrigger.Dispose();
             _altarTrigger = null;
