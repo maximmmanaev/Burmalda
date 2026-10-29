@@ -1,4 +1,5 @@
 using System;
+using Burmalda.Artifacts;
 
 namespace Burmalda.Camp
 {
@@ -13,6 +14,9 @@ namespace Burmalda.Camp
 
         /// <summary>Только что открыт — видно содержимое.</summary>
         Opened,
+
+        /// <summary>Выпал выбор «чья часть» (§21.4): ждём выбора игрока.</summary>
+        ChoosingPart,
 
         /// <summary>Все открыты (или открывать нечего) — осталась кнопка «Новая экспедиция».</summary>
         Finished
@@ -41,12 +45,25 @@ namespace Burmalda.Camp
 
         public void Reset() => Phase = SarcophagusOpeningPhase.Idle;
 
+        /// <summary>Выбор «чья часть»: часть уходит в выбранный предмет, открытие продолжается (фаза <see cref="SarcophagusOpeningPhase.Opened"/>).</summary>
+        public bool ChoosePart(string itemId)
+        {
+            if (Phase != SarcophagusOpeningPhase.ChoosingPart || !_camp.ChoosePart(itemId)) return false;
+            ChosenPart = CollectibleCatalog.Get(itemId);
+            Phase = SarcophagusOpeningPhase.Opened;
+            return true;
+        }
+
+        /// <summary>Предмет, выбранный игроком в последнем выборе (для показа); null, если выбора не было.</summary>
+        public CollectibleItem ChosenPart { get; private set; }
+
         /// <summary>Главная кнопка экрана: открыть / к следующему.</summary>
         public void Advance()
         {
             switch (Phase)
             {
                 case SarcophagusOpeningPhase.Closed:
+                    ChosenPart = null;
                     var opened = _camp.OpenNext();
                     if (!opened.HasValue)
                     {
@@ -55,7 +72,7 @@ namespace Burmalda.Camp
                     }
 
                     LastContents = opened.Value;
-                    Phase = SarcophagusOpeningPhase.Opened;
+                    Phase = _camp.PendingPartChoice != null ? SarcophagusOpeningPhase.ChoosingPart : SarcophagusOpeningPhase.Opened;
                     break;
 
                 case SarcophagusOpeningPhase.Opened:
