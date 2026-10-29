@@ -54,8 +54,24 @@ namespace Burmalda.Artifacts
             if (best != null) TrySelect(best.Id);
         }
 
-        /// <summary>Уровень собранного предмета (1–3); 0, если не собран. Прокачка — спринт v10-5, задача 5.</summary>
-        public int LevelOf(string itemId) => CollectibleCatalog.TryGet(itemId, out var item) && IsAssembled(item) ? 1 : 0;
+        public const int MaxLevel = 3;
+
+        private readonly Dictionary<string, int> _levels = new Dictionary<string, int>();
+
+        public IReadOnlyDictionary<string, int> Levels => _levels;
+
+        /// <summary>Уровень собранного предмета (1–3, §22.4: собранный начинает с 1); 0, если не собран.</summary>
+        public int LevelOf(string itemId)
+        {
+            if (!CollectibleCatalog.TryGet(itemId, out var item) || !IsAssembled(item)) return 0;
+            return _levels.TryGetValue(itemId, out var level) ? Math.Max(1, Math.Min(MaxLevel, level)) : 1;
+        }
+
+        /// <summary>Задаёт уровень предмета (восстановление из сохранения, тесты); неизвестные id игнорируются.</summary>
+        public void SetLevel(string itemId, int level)
+        {
+            if (CollectibleCatalog.TryGet(itemId, out _)) _levels[itemId] = Math.Max(1, Math.Min(MaxLevel, level));
+        }
 
         public int PartsOf(string itemId) => _parts.TryGetValue(itemId, out var n) ? n : 0;
 
