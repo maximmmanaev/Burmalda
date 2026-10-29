@@ -97,11 +97,24 @@ namespace Burmalda.Generation
             if (_input == null || _input.Grid == null || _input.Trail == null) return;
 
             var seed = new RunSeed(new System.Random().Next()); // явно System.Random — не UnityEngine.Random, см. doc-комментарий класса
+            RunSeedValue = seed.Value;
             var selector = new SegmentSelector(SegmentTemplateCatalog.All, seed);
             _provider = new SegmentRowProvider(_input.Grid, _input.Trail, selector, _ => 1, YarusProgression.TunnelRows(1), YarusProgression.TunnelRows);
         }
 
         /// <summary>Ярус под игроком (с 1); 1, пока провайдер не собран.</summary>
+        /// <summary>Сид текущего забега — от него детерминированно считаются предложения Алтарей (PRD v10 §13.2).</summary>
+        public int RunSeedValue { get; private set; }
+
+        /// <summary>Какой это Алтарь (Ярус, номер 1–3) — см. <see cref="SegmentRowProvider.TryGetAltarSpot"/>.</summary>
+        public bool TryGetAltarSpot(int row, out int yarus, out int ordinal)
+        {
+            if (_provider != null) return _provider.TryGetAltarSpot(row, out yarus, out ordinal);
+            yarus = 0;
+            ordinal = 0;
+            return false;
+        }
+
         public int CurrentYarus => _provider != null ? _provider.CurrentYarus : 1;
 
         /// <summary>Полоса сложности текущего Яруса (1..4).</summary>

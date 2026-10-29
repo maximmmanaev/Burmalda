@@ -1,0 +1,78 @@
+using System;
+using System.Collections.Generic;
+using Burmalda.Artifacts;
+using Burmalda.Core;
+
+namespace Burmalda.Altar
+{
+    /// <summary>Что Алтарь должен узнать о забеге, чтобы выбрать предложение (даёт композиционный корень).</summary>
+    public interface IAltarContext
+    {
+        /// <summary>Какой это Алтарь: Ярус и номер (1, 2 — перед Святилищем Яруса; 3 — в конце Святилища).</summary>
+        bool TryGetSpot(GridCoordinate coordinate, out int yarus, out int ordinal);
+
+        /// <summary>Типы угроз Святилища Яруса — то, что показывает Афиша.</summary>
+        IReadOnlyCollection<ThreatType> AfishaThreats(int shrineYarus);
+
+        /// <summary>Сид похода.</summary>
+        int RunSeed { get; }
+    }
+
+    /// <summary>
+    /// Достижение Алтаря → сессия выбора «1 из 2» (PRD v10 §13): определяет Ярус и ближайшее Святилище впереди,
+    /// собирает запрос для <see cref="AltarOfferGenerator"/>, учитывает бонус тайника и гарантию защитного Амулета.
+    /// Последний Алтарь после Яруса 10 выбора не даёт (там единственный выбор «Вернуться в Лагерь», §6.3).
+    /// </summary>
+    public sealed class AltarPickFlow
+    {
+        public const int LastYarus = 10;
+
+        private readonly ArtifactPool _pool;
+        private readonly RunRelicBuild _build;
+        private readonly VaultBonusTracker _vault;
+        private readonly IAltarContext _context;
+        private readonly HashSet<int> _yarusesWithProtectiveOffer = new HashSet<int>();
+
+        public AltarPickFlow(ArtifactPool pool, RunRelicBuild build, VaultBonusTracker vault, IAltarContext context)
+        {
+            _pool = pool ?? throw new ArgumentNullException(nameof(pool));
+            _build = build ?? throw new ArgumentNullException(nameof(build));
+            _vault = vault;
+            _context = context;
+        }
+
+        /// <summary>Сессия выбора для этого Алтаря; null, если выбирать нечего (нет открытых Реликвий / финальный Алтарь).</summary>
+        public AltarPickSession OnAltarReached(GridCoordinate coordinate)
+        {
+            var yarus = 1;
+            var ordinal = 1;
+            if (_context != null && _context.TryGetSpot(coordinate, out var y, out var o))
+            {
+                yarus = y;
+                ordinal = o;
+            }
+
+            var shrineYarus = ordinal == 3 ? yarus + 1 : yarus;
+            if (shrineYarus > LastYarus) return null;
+
+            var request = new AltarOfferRequest
+            {
+                ShrineYarus = shrineYarus,
+                IsLastAltarBeforeShrine = ordinal == 2,
+                ProtectiveAmuletAlreadyOffered = _yarusesWithProtectiveOffer.Contains(yarus),
+                AfishaThreats = _context?.AfishaThreats(shrineYarus) ?? Array.Empty<ThreatType>(),
+                VaultBonus = _vault != null && _vault.PendingExtraOptions > 0,
+                IsOpened = _pool.IsUnlocked,
+                Build = _build,
+                Seed = unchecked((_context?.RunSeed ?? 0) * 31 + yarus * 10 + ordinal),
+            };
+
+            var offer = AltarOfferGenerator.Generate(request);
+            if (offer.Options.Count == 0) return null;
+
+            _vault?.Consume();
+            if (offer.ContainsProtectiveAmulet) _yarusesWithProtectiveOffer.Add(yarus);
+            return new AltarPickSession(offer, _build, yarus);
+        }
+    }
+}

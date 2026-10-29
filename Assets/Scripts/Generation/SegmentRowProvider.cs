@@ -221,6 +221,7 @@ namespace Burmalda.Generation
                     {
                         case Landmark.AltarOne:
                             ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
+                            RegisterAltars(SegmentTemplateCatalog.AltarTemplate, baseRow, 1);
                             _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
                             _nextLandmark = Landmark.AltarTwo;
                             _sectionStartRow = _appliedThroughRow + 1;
@@ -232,6 +233,7 @@ namespace Burmalda.Generation
 
                         case Landmark.AltarTwo:
                             ApplyTemplate(SegmentTemplateCatalog.AltarTemplate, baseRow);
+                            RegisterAltars(SegmentTemplateCatalog.AltarTemplate, baseRow, 2);
                             _appliedThroughRow += SegmentTemplateCatalog.AltarTemplate.RowCount;
                             _nextLandmark = Landmark.Boss;
                             _sectionStartRow = _appliedThroughRow + 1;
@@ -244,6 +246,7 @@ namespace Burmalda.Generation
                         case Landmark.Boss:
                         default:
                             ApplyTemplate(SegmentTemplateCatalog.SanctuaryLeshyTemplate, baseRow);
+                            RegisterAltars(SegmentTemplateCatalog.SanctuaryLeshyTemplate, baseRow, 3);
                             _appliedThroughRow += SegmentTemplateCatalog.SanctuaryLeshyTemplate.RowCount;
                             // Следующий Ярус НОМИНАЛЬНО начинается на
                             // фиксированной сетке границ (_nextCapstoneRow до
@@ -294,6 +297,35 @@ namespace Burmalda.Generation
             var noRelief = _nextLandmarkRow - baseRow <= NoReliefRowsBeforeLandmark;
             var trainingWindow = _yarus == 1 && !_trainingUsed && baseRow - _tierStartRow < _tierRows / 3;
             return new SegmentSelectionContext(_yarus, easy && !noRelief, progress, trainingWindow, noRelief);
+        }
+
+        // Алтари Яруса: ряд → (Ярус, номер). 1 и 2 — перед Святилищем, 3 — в конце Святилища (перед следующим Ярусом).
+        private readonly Dictionary<int, (int yarus, int ordinal)> _altarSpots = new Dictionary<int, (int, int)>();
+
+        private void RegisterAltars(SegmentTemplate template, int baseRow, int ordinal)
+        {
+            for (var localRow = 0; localRow < template.RowCount; localRow++)
+                for (var column = 0; column < template.Width; column++)
+                    if (template.TileAt(localRow, column) == SegmentTileType.Altar)
+                        _altarSpots[baseRow + localRow] = (_yarus, ordinal);
+        }
+
+        /// <summary>
+        /// Какой это Алтарь: Ярус и номер (1, 2 — перед Святилищем Яруса; 3 — в конце Святилища). Нужен Алтарю,
+        /// чтобы определить ближайшее Святилище впереди (PRD v10 §13.2). False, если в этом ряду Алтаря нет.
+        /// </summary>
+        public bool TryGetAltarSpot(int row, out int yarus, out int ordinal)
+        {
+            if (_altarSpots.TryGetValue(row, out var spot))
+            {
+                yarus = spot.yarus;
+                ordinal = spot.ordinal;
+                return true;
+            }
+
+            yarus = 0;
+            ordinal = 0;
+            return false;
         }
 
         /// <summary>Номер Яруса (с 1), в котором лежит ряд <paramref name="row"/> — явные границы, не row/N.</summary>
