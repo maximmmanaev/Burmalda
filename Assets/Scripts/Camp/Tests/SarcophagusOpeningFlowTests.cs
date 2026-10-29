@@ -47,7 +47,7 @@ namespace Burmalda.Camp.Tests
 
             flow.Advance(); // открыть первый
             Assert.AreEqual(SarcophagusOpeningPhase.Opened, flow.Phase);
-            Assert.AreEqual(Sarcophagus.CoinsForRank(SarcophagusRank.Junior), flow.LastContents.Coins);
+            Assert.AreEqual(SarcophagusConfig.CoinsFor(RelicRarity.Rare), flow.LastContents.Coins);
             Assert.AreEqual(1, camp.UnopenedSarcophagi.Count);
 
             flow.Advance(); // к следующему
@@ -56,7 +56,7 @@ namespace Burmalda.Camp.Tests
             flow.Advance(); // открыть второй
             flow.Advance(); // больше нечего
             Assert.AreEqual(SarcophagusOpeningPhase.Finished, flow.Phase);
-            Assert.AreEqual(Sarcophagus.CoinsForRank(SarcophagusRank.Junior) * 2, wallet.Balance);
+            Assert.AreEqual(SarcophagusConfig.CoinsFor(RelicRarity.Rare) * 2, wallet.Balance);
         }
 
         [Test]

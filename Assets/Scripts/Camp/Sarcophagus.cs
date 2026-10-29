@@ -1,8 +1,8 @@
-using System;
+using Burmalda.Artifacts;
 
 namespace Burmalda.Camp
 {
-    /// <summary>Ранг бога, чьё Святилище пройдено (PRD v10 §5.2): определяет ценность Саркофага.</summary>
+    /// <summary>Ранг бога (PRD v10 §5.2): младший / средний / старший — определяет шансы редкости Саркофага (§21.1).</summary>
     public enum SarcophagusRank
     {
         Junior,
@@ -10,39 +10,36 @@ namespace Burmalda.Camp
         Senior
     }
 
-    /// <summary>Содержимое открытого Саркофага. Сейчас только Монеты (PRD v10 §21.2, п.1); часть Идола/Тотема и Реликвия добавятся сюда.</summary>
+    /// <summary>Содержимое открытого Саркофага (PRD v10 §21.2): Монеты, редкость и то, что выпало сверх Монет.</summary>
     public readonly struct SarcophagusContents
     {
-        public SarcophagusContents(int coins) => Coins = coins;
+        public SarcophagusContents(SarcophagusLoot loot) => Loot = loot;
 
-        public int Coins { get; }
+        public SarcophagusLoot Loot { get; }
+
+        public int Coins => Loot.Coins;
+
+        public RelicRarity Rarity => Loot.Rarity;
     }
 
     /// <summary>
-    /// Саркофаг (PRD v10 §15, §22.3). В забеге все Саркофаги выглядят одинаково; ценность
-    /// определяет ранг бога. Редкость, часть Идола/Тотема, Реликвия, защита от невезения —
-    /// позже: всё это решается в <see cref="Open"/>, единственном месте, где рождается содержимое.
+    /// Саркофаг, вынесенный из Святилища (PRD v10 §15.1, §21): ранг и бог Святилища, редкость выпадает при взятии
+    /// (<see cref="SarcophagusRarityRoller"/>) и скрыта до открытия в Лагере (§22.3).
     /// </summary>
     public readonly struct Sarcophagus
     {
-        /// <summary>ЧЕРНОВЫЕ значения [CONFIG]: Монеты в Саркофаге по рангу бога.</summary>
-        public static int JuniorCoins = 80;
-        public static int MiddleCoins = 140;
-        public static int SeniorCoins = 220;
-
-        public Sarcophagus(SarcophagusRank rank) => Rank = rank;
+        public Sarcophagus(SarcophagusRank rank, RelicRarity rarity = RelicRarity.Rare, God god = God.Leshy)
+        {
+            Rank = rank;
+            Rarity = rarity;
+            God = god;
+        }
 
         public SarcophagusRank Rank { get; }
 
-        public static int CoinsForRank(SarcophagusRank rank) => rank switch
-        {
-            SarcophagusRank.Junior => JuniorCoins,
-            SarcophagusRank.Middle => MiddleCoins,
-            SarcophagusRank.Senior => SeniorCoins,
-            _ => throw new ArgumentOutOfRangeException(nameof(rank), rank, null)
-        };
+        public RelicRarity Rarity { get; }
 
-        /// <summary>Открывает Саркофаг в Лагере: всегда Монеты (§21.2).</summary>
-        public SarcophagusContents Open() => new SarcophagusContents(CoinsForRank(Rank));
+        /// <summary>Бог Святилища, откуда вынесен Саркофаг (для предпочтения Реликвий его мифологии, §21.3).</summary>
+        public God God { get; }
     }
 }

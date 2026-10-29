@@ -158,6 +158,8 @@ namespace Burmalda.Altar
                 _owner.Context != null ? _owner.Context.AfishaThreats(shrineYarus) : Array.Empty<ThreatType>();
 
             public int RunSeed => _owner.Context != null ? _owner.Context.RunSeed : 0;
+
+            public int CurrentYarus => _owner.Context != null ? _owner.Context.CurrentYarus : 1;
         }
 
         private void DisposeTrigger()

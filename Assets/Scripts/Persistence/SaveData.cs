@@ -32,5 +32,17 @@ namespace Burmalda.Persistence
         public int depthRecordBestTier;
         /// <summary>Привезённые, но не открытые Саркофаги (ранги, PRD v10 §22.3): потеря прогресса — критический дефект.</summary>
         public List<int> unopenedSarcophagiRanks = new List<int>();
+        /// <summary>Редкость каждого неоткрытого Саркофага (параллельно рангам; нет в сохранениях версии &lt; 3 — тогда Редкий).</summary>
+        public List<int> unopenedSarcophagiRarities = new List<int>();
+        /// <summary>Бог каждого неоткрытого Саркофага (параллельно рангам; нет в сохранениях версии &lt; 3 — Леший).</summary>
+        public List<int> unopenedSarcophagiGods = new List<int>();
+        /// <summary>Части Идолов/Тотемов: id предмета и число частей (параллельные списки, PRD v10 §21.4, §29).</summary>
+        public List<string> partItemIds = new List<string>();
+        public List<int> partItemCounts = new List<int>();
+        /// <summary>Защита от невезения (§21.2): число «пустых» Саркофагов по редкости [Редкий, Эпический, Легендарный] — для части и для Реликвии.</summary>
+        public List<int> partMisses = new List<int>();
+        public List<int> relicMisses = new List<int>();
+        /// <summary>Первая часть уже выдана (§21.2, §29).</summary>
+        public bool firstPartGranted;
     }
 }

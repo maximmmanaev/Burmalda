@@ -16,6 +16,9 @@ namespace Burmalda.Altar
 
         /// <summary>Сид похода.</summary>
         int RunSeed { get; }
+
+        /// <summary>Ярус под игроком (Святилище, из которого берут Саркофаг, §21.1).</summary>
+        int CurrentYarus { get; }
     }
 
     /// <summary>
