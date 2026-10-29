@@ -107,10 +107,9 @@ namespace Burmalda.Bootstrap
     /// его владелец продукта вручную (.unity не трогаем), когда каталог
     /// шаблонов покроет тоннель целиком (см. docs/wiki/roadmap.md).
     ///
-    /// <b>Артефактный лоадаут забега</b> (<see cref="Loadout"/>) — по своей же
-    /// доккомментарии <see cref="RunArtifactLoadout"/>, "новый экземпляр
-    /// создаётся заново на каждый забег" — пересобирается вместе с остальными
-    /// run-системами, читая постоянную <see cref="AltarController.Collection"/>.
+    /// <b>Билд Реликвий забега</b> живёт в <see cref="AltarController.Build"/> (новый экземпляр на каждый
+    /// забег). Прежний артефактный лоадаут удалён (v10-4).
+    ///
     /// Ярус Глубины отдельного экземпляра не имеет — <see cref="DepthTier"/>
     /// просто читает <see cref="BossController.DepthTier"/> (уже публичное
     /// свойство, никакого нового API не потребовалось).
@@ -188,13 +187,6 @@ namespace Burmalda.Bootstrap
         /// от <see cref="Currency"/> и уже размещённого на сцене <c>RunLifecycle.RunController</c>.
         /// </summary>
         public SanctuaryController Sanctuary { get; private set; }
-
-        /// <summary>
-        /// Билд Амулетов/Талисманов текущего забега — новый экземпляр на
-        /// каждый забег (см. <see cref="RunArtifactLoadout"/>). Null, пока
-        /// <see cref="Altar"/> ещё не создал постоянную Коллекцию.
-        /// </summary>
-        public RunArtifactLoadout Loadout { get; private set; }
 
         /// <summary>
         /// Живой Ярус Глубины текущего забега — делегирует к
@@ -275,7 +267,6 @@ namespace Burmalda.Bootstrap
 
             EnsureControllersWired();
             EnsureRunStartedSubscription();
-            EnsureLoadoutReady(); // тот же паттерн, что у Decay/Altar/Boss: ловим самый первый RunStarted, поднятый GridTraceInputController.Awake() ДО того, как этот компонент вообще появился
         }
 
         // Явный порядок (см. doc-комментарий класса) — Decay/Run первыми
@@ -397,25 +388,12 @@ namespace Burmalda.Bootstrap
 
         private void HandleRunStarted()
         {
-            RebuildLoadout();
             // Segments уже пересобрался сам к этому моменту — его подписка
             // на RunStarted (Generation.SegmentGenerationController.OnEnable)
             // добавлена раньше этой (см. EnsureControllersWired), поэтому её
             // обработчик в списке подписчиков GridTraceInputController.RunStarted
             // вызывается первым. См. doc-комментарий SyncLegacyObstacleGenerator.
             SyncLegacyObstacleGenerator(forceRebuild: true);
-        }
-
-        private void EnsureLoadoutReady()
-        {
-            if (Loadout != null) return;
-            RebuildLoadout();
-        }
-
-        private void RebuildLoadout()
-        {
-            if (Altar == null || Altar.Collection == null) return; // Алтарь ещё не отработал свой Awake — попробуем на следующем кадре
-            Loadout = new RunArtifactLoadout(Altar.Collection);
         }
     }
 }

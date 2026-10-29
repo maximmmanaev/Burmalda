@@ -38,8 +38,10 @@ namespace Burmalda.RunModifiers
         /// </summary>
         public IReadOnlyList<OmenId> OfferOmens()
         {
-            var remaining = new List<OmenId>(_pool.UnlockedIds);
             var offered = new List<OmenId>();
+            if (!RunModifiers.OmensEnabled) return offered; // Знамения выключены флагом (PRD v10 §4)
+
+            var remaining = new List<OmenId>(_pool.UnlockedIds);
             var count = Math.Min(OfferedCount, remaining.Count);
 
             for (var i = 0; i < count; i++)
