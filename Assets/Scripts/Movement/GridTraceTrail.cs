@@ -249,6 +249,26 @@ namespace Burmalda.Movement
         /// <see cref="PositionChanged"/>, чтобы камера/прочие подписчики на
         /// текущую позицию сориентировались на новом месте.
         /// </summary>
+        /// <summary>
+        /// Прыжок/телепорт Идола (Рывок, Переход, PRD v10 §18.2): игрок оказывается на <paramref name="target"/> без прохода
+        /// по промежуточным плитам (ловушки на них не задеваются). Приземление — новая плита следа (распад, серия, события
+        /// как у обычного шага) либо уже пройденная. False, если целевая плита непроходима: стена, закрытые ворота, активная
+        /// ловушка; Лава — тоже нельзя: в неё не прыгают.
+        /// </summary>
+        public bool JumpTo(GridCoordinate target)
+        {
+            if (!_grid.Contains(target) || target == CurrentPosition) return false;
+            if (!_grid.TryGetTile(target, out var tile)) return false; // только существующая (видимая) плита
+            if (tile.IsBlocked || tile.IsDestroyed || (tile.IsGated && !tile.IsLeverGateOpen) || tile.LethalTrap.HasValue) return false;
+
+            var isNewTile = _visited.Add(target);
+            if (isNewTile) _path.Add(target);
+            _currentPosition = target;
+            if (isNewTile) Advanced?.Invoke(target);
+            PositionChanged?.Invoke(target);
+            return true;
+        }
+
         public void TeleportTo(GridCoordinate target)
         {
             if (!_grid.Contains(target))

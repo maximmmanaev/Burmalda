@@ -303,6 +303,8 @@ namespace Burmalda.Bootstrap
             if (Altar == null) Altar = GetOrAddComponent<AltarController>(host);
             if (Altar.Context == null) Altar.Context = new AltarContextAdapter(Segments);
             if (Camp == null) Camp = GetOrAddComponent<CampController>(host);
+            GetOrAddComponent<IdolController>(host);
+            GetOrAddComponent<TotemController>(host);
             if (Lever == null) Lever = GetOrAddComponent<LeverActivationController>(host);
             if (Traps == null) Traps = GetOrAddComponent<TrapSystemsController>(host);
             // Issue #260: «задержка Бомбы уменьшается с ростом Яруса» —

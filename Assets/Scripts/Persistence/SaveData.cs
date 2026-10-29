@@ -44,5 +44,8 @@ namespace Burmalda.Persistence
         public List<int> relicMisses = new List<int>();
         /// <summary>Первая часть уже выдана (§21.2, §29).</summary>
         public bool firstPartGranted;
+        /// <summary>Активные Идол и Тотем (слоты §17; пустая строка — слот пуст).</summary>
+        public string activeIdolId = "";
+        public string activeTotemId = "";
     }
 }
