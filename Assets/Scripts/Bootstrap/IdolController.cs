@@ -60,14 +60,17 @@ namespace Burmalda.Bootstrap
             _run.StateChanged += OnRunStateChanged;
             _input.DoubleTapOwnTile += OnDoubleTap;
             _input.TargetReleased += OnTargetReleased;
-            _input.Trail.Advanced += OnAdvanced;
+            _input.Trail.PositionChanged += OnPositionChanged;
         }
 
         private void OnDoubleTap() => _run?.OnDoubleTap();
 
         private void OnTargetReleased(GridCoordinate aim) => _run?.OnTargetReleased(aim);
 
-        private void OnAdvanced(GridCoordinate coordinate) => _effects?.OnStepTaken();
+        private void OnPositionChanged(GridCoordinate coordinate) => _effects?.NoteStep();
+
+        // Подавление ловушек расходуем в конце кадра: все системы ловушек уже отреагировали на то же перемещение.
+        private void LateUpdate() => _effects?.CommitStep();
 
         private void OnRunStateChanged()
         {
@@ -83,7 +86,7 @@ namespace Burmalda.Bootstrap
                 _input.TargetingMode = false;
             }
 
-            if (_builtFor != null) _builtFor.Advanced -= OnAdvanced;
+            if (_builtFor != null) _builtFor.PositionChanged -= OnPositionChanged;
             _builtFor = null;
             _charge?.Dispose();
             _charge = null;

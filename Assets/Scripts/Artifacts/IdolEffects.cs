@@ -38,10 +38,24 @@ namespace Burmalda.Artifacts
         /// <summary>Следующие <paramref name="steps"/> шагов не активируют ловушки (Переход, ур. 3).</summary>
         public void SuppressTrapsForSteps(int steps) => _suppressedSteps = Math.Max(_suppressedSteps, steps);
 
-        /// <summary>Шаг сделан — расходует подавление ловушек.</summary>
+        private bool _stepNoted;
+
+        /// <summary>Шаг сделан. Подавление ловушек расходуется в <see cref="CommitStep"/> — после того, как системы ловушек обработали это же перемещение.</summary>
+        public void NoteStep() => _stepNoted = true;
+
+        /// <summary>Расходует подавление ловушек за шаг, отмеченный <see cref="NoteStep"/> (вызывать в конце кадра).</summary>
+        public void CommitStep()
+        {
+            if (!_stepNoted) return;
+            _stepNoted = false;
+            if (_suppressedSteps > 0) _suppressedSteps--;
+        }
+
+        /// <summary>Шаг сделан и сразу учтён (для тестов).</summary>
         public void OnStepTaken()
         {
-            if (_suppressedSteps > 0) _suppressedSteps--;
+            NoteStep();
+            CommitStep();
         }
 
         public bool IsInvulnerable => _now() < _invulnerableUntil;
