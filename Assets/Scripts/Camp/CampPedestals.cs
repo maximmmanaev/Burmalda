@@ -10,8 +10,9 @@ namespace Burmalda.Camp
     /// </summary>
     public readonly struct PedestalState
     {
-        public PedestalState(CollectibleKind kind, CollectibleItem item, int lit, int total, bool assembled, float pityGlow)
+        public PedestalState(CollectibleKind kind, CollectibleItem item, int lit, int total, bool assembled, float pityGlow, int level = 0)
         {
+            Level = level;
             Kind = kind;
             Item = item;
             Lit = lit;
@@ -32,6 +33,9 @@ namespace Burmalda.Camp
         public int Total { get; }
 
         public bool Assembled { get; }
+
+        /// <summary>Уровень собранного предмета (1–3; виден на постаменте материалом и свечением); 0 — не собран.</summary>
+        public int Level { get; }
 
         /// <summary>0..1: насколько ярче тёмный силуэт из-за накопленной защиты от невезения [ГД].</summary>
         public float PityGlow { get; }
@@ -72,7 +76,7 @@ namespace Burmalda.Camp
 
             var assembled = items.Where(progress.IsAssembled).OrderByDescending(i => (int)i.Rarity).FirstOrDefault();
             if (assembled != null)
-                return new PedestalState(kind, assembled, assembled.PartsRequired, assembled.PartsRequired, true, glow);
+                return new PedestalState(kind, assembled, assembled.PartsRequired, assembled.PartsRequired, true, glow, progress.LevelOf(assembled.Id));
 
             return new PedestalState(kind, null, 0, 0, false, glow);
         }

@@ -200,7 +200,7 @@ namespace Burmalda.Persistence.Tests
             Assert.AreEqual(12, r.Data.coinsBalance);
             Assert.IsNotNull(r.Data.partItemIds);
             Assert.IsNotNull(r.Data.unopenedSarcophagiRarities);
-            Assert.AreEqual(3, SaveFormat.CurrentVersion);
+            Assert.GreaterOrEqual(SaveFormat.CurrentVersion, 3);
         }
 
         [Test]
@@ -215,6 +215,50 @@ namespace Burmalda.Persistence.Tests
 
             Assert.AreEqual(4, f.Camp.Progress.PartsOf("idol-rush"), "Редкий — максимум 4 части");
             Assert.AreEqual(0, f.Camp.Progress.PartsOf("no-such-item"));
+        }
+
+        [Test]
+        public void RoundTrip_ActiveIdolAndTotem()
+        {
+            var f = new Fixture();
+            f.Camp.Progress.SetParts("idol-time", 5);
+            f.Camp.Progress.SetParts("totem-maang", 4);
+            f.Camp.Progress.TrySelect("idol-time");
+            f.Camp.Progress.TrySelect("totem-maang");
+
+            var restored = new Fixture();
+            restored.Apply(SaveFormat.Deserialize(SaveFormat.Serialize(f.Capture(), 1)).Data);
+
+            Assert.AreEqual("idol-time", restored.Camp.Progress.ActiveIdolId);
+            Assert.AreEqual("totem-maang", restored.Camp.Progress.ActiveTotemId);
+        }
+
+        [Test]
+        public void RoundTrip_ItemLevels_AndVersion4()
+        {
+            var f = new Fixture();
+            f.Camp.Progress.SetParts("idol-rush", 4);
+            f.Camp.Progress.SetLevel("idol-rush", 3);
+
+            var restored = new Fixture();
+            restored.Apply(SaveFormat.Deserialize(SaveFormat.Serialize(f.Capture(), 1)).Data);
+
+            Assert.AreEqual(3, restored.Camp.Progress.LevelOf("idol-rush"));
+            Assert.AreEqual(4, SaveFormat.CurrentVersion);
+        }
+
+        [Test]
+        public void Version3Save_LoadsWithAssembledItemsAtLevel1_AndEmptySlotsAutoFilled()
+        {
+            var payload = "{\"coinsBalance\":9,\"partItemIds\":[\"idol-shield\"],\"partItemCounts\":[4]}";
+            var text = JsonUtility.ToJson(new SaveEnvelope { version = 3, savedAt = 1, payload = payload });
+            var f = new Fixture();
+
+            f.Apply(SaveFormat.Deserialize(text).Data);
+
+            Assert.AreEqual(1, f.Camp.Progress.LevelOf("idol-shield"));
+            f.Camp.Progress.AutoEquipIfEmpty();
+            Assert.AreEqual("idol-shield", f.Camp.Progress.ActiveIdolId);
         }
     }
 }

@@ -68,7 +68,7 @@ namespace Burmalda.Currencies
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
             if (!_isSource(tile)) return;
 
-            _accumulator.Add((int)Math.Round(_amountForTile(tile) * _rewardMultiplier * RunEffects.Current.ManaMultiplier)); // Чёрное золото ×1.5
+            _accumulator.Add((int)Math.Round(_amountForTile(tile) * _rewardMultiplier * RunEffects.Current.ManaMultiplier * RunEffects.Current.SourceManaMultiplier)); // Чёрное золото ×1.5
         }
     }
 }
