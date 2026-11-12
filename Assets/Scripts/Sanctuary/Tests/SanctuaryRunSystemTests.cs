@@ -44,6 +44,39 @@ namespace Burmalda.Sanctuary.Tests
             Assert.AreEqual(1, f.System.ActiveSanctuary.EntryRow);
         }
 
+        // Баг (найден ботом-плейтестером, v10-6): система запускала только первое Святилище забега —
+        // на Ярусах 2+ не было ни обрушения, ни Саркофага, ни продвижения Яруса.
+        [Test]
+        public void SecondSanctuaryOfTheRun_StartsAfterTheFirstIsExited()
+        {
+            var f = CreateFixture(entryRow: 1);
+            Step(f, 1, 2);
+            var first = f.System.ActiveSanctuary;
+            for (var row = 2; row <= first.ExitRow; row++) Step(f, row, 2);
+            Assert.IsTrue(first.HasExited);
+
+            var secondEntry = first.ExitRow + 3;
+            for (var c = 0; c < Width; c++) f.Grid.GetOrCreateTile(new GridCoordinate(secondEntry, c)).MarkSanctuaryEntry();
+            f.Grid.GetOrCreateTile(new GridCoordinate(secondEntry + 1, 2)).MarkSarcophagus();
+            var exits = 0;
+            var sarcophagi = 0;
+            f.System.Exited += _ => exits++;
+            f.System.SarcophagusTaken += () => sarcophagi++;
+            for (var row = first.ExitRow + 1; row <= secondEntry + 1; row++) Step(f, row, 2);
+
+            var second = f.System.ActiveSanctuary;
+            Assert.AreNotSame(first, second, "Вход во второе Святилище должен запустить новое.");
+            Assert.AreEqual(secondEntry, second.EntryRow);
+            Assert.IsTrue(second.IsActive);
+            Assert.AreEqual(1, sarcophagi, "Саркофаг второго Святилища берётся.");
+
+            f.System.Tick(1.1f / Sanctuary.DefaultCollapseRowsPerSecond);
+            Assert.AreEqual(LethalTrapType.Lava, f.Grid.GetOrCreateTile(new GridCoordinate(secondEntry + 1, 0)).LethalTrap, "Второе Святилище обрушается.");
+            f.Hazards = 0;
+            for (var row = secondEntry + 2; row <= second.ExitRow; row++) Step(f, row, 2);
+            Assert.AreEqual(1, exits, "Выход из второго Святилища поднимает Exited.");
+        }
+
         [Test]
         public void Tick_CollapsesRowsIntoLava()
         {
