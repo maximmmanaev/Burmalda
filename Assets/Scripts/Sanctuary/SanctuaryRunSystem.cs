@@ -81,13 +81,12 @@ namespace Burmalda.Sanctuary
         {
             if (!_grid.TryGetTile(coordinate, out var tile)) return;
 
-            if (ActiveSanctuary == null)
+            // Пройденное Святилище не мешает войти в следующее: у каждого Яруса своё (§6.1).
+            if (ActiveSanctuary == null || !ActiveSanctuary.IsActive)
             {
                 if (tile.IsSanctuaryEntry) Enter(coordinate.Row);
                 return;
             }
-
-            if (!ActiveSanctuary.IsActive) return;
             Collect(tile);
         }
 
