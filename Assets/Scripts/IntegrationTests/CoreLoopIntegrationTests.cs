@@ -238,14 +238,7 @@ namespace Burmalda.IntegrationTests
             Assert.AreEqual(returnResult.Value.TotalCoins, _bootstrap.Currency.Coins.Balance);
             Assert.Greater(_bootstrap.Currency.Coins.Balance, 0, "Конвертация Маны должна была дать хотя бы 1 Монету при таких запасах.");
 
-            // === Лагерь (PRD раздел 11) ===
-            var camp = _bootstrap.Camp.Camp;
-            var totem = new Totem("totem-test", "Тестовый Тотем", TotemAbilityType.Breach);
-            var coinsBeforeUpgrade = _bootstrap.Currency.Coins.Balance;
-            var upgraded = camp.TryUpgradeTotem(totem, cost: 1);
-            Assert.IsTrue(upgraded, "В Лагере должно было хватить Монет, зафиксированных при возврате, на минимальный апгрейд.");
-            Assert.AreEqual(1, totem.Level);
-            Assert.AreEqual(coinsBeforeUpgrade - 1, _bootstrap.Currency.Coins.Balance);
+            // Прокачка Идола/Тотема в Лагере — отдельные тесты (спринт v10-5).
         }
 
         [Test]
