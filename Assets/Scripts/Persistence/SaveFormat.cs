@@ -39,11 +39,12 @@ namespace Burmalda.Persistence
     public static class SaveFormat
     {
         /// <summary>
+        /// 4 — v10-5: активные Идол/Тотем и уровни предметов (L1–L3); старые сохранения читаются — собранные предметы на L1, слоты пусты (пустой слот займёт собранный предмет).
         /// 3 — v10-4: Саркофаги несут редкость и бога, добавлены части Идолов/Тотемов, счётчики защиты от невезения и флаг первой части (старые сохранения читаются: недостающее — значения по умолчанию).
         /// 2 — v10-3: Ключи удалены. Поля Ключей в сохранении не было (Ключи жили только в забеге), но Пул/Коллекция
         /// могли хранить id убранного Талисмана «Хватка Ключника» — при чтении версии &lt; 2 он выбрасывается.
         /// </summary>
-        public const int CurrentVersion = 3;
+        public const int CurrentVersion = 4;
 
         /// <summary>Id Талисмана на Ключах, удалённого в v10-3.</summary>
         public const string RemovedKeysTalismanId = "talisman-double-keys";
@@ -119,6 +120,10 @@ namespace Burmalda.Persistence
             d.partItemCounts = d.partItemCounts ?? new List<int>();
             d.partMisses = d.partMisses ?? new List<int>();
             d.relicMisses = d.relicMisses ?? new List<int>();
+            d.itemLevelIds = d.itemLevelIds ?? new List<string>();
+            d.itemLevels = d.itemLevels ?? new List<int>();
+            d.activeIdolId = d.activeIdolId ?? "";
+            d.activeTotemId = d.activeTotemId ?? "";
             return d;
         }
 

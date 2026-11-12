@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using Burmalda.Artifacts;
 using Burmalda.Camp;
@@ -116,6 +117,14 @@ namespace Burmalda.DebugVisuals
             _stage.anchoredPosition = new Vector2(0f, 150f) + (shake > 0f ? Random.insideUnitCircle * shake : Vector2.zero);
         }
 
+        private bool HasAssembled() => _campController != null && _campController.Camp != null
+            && Burmalda.Artifacts.CollectibleCatalog.All.Any(i => Progress.IsAssembled(i));
+
+        private void StartRun()
+        {
+            if (_input != null) _input.Restart();
+        }
+
         private void Refresh()
         {
             foreach (Transform child in _choices) Destroy(child.gameObject);
@@ -152,7 +161,7 @@ namespace Burmalda.DebugVisuals
                     _body.text = "";
                     _stage.gameObject.SetActive(false);
                     ShowGoal();
-                    _buttonLabel.text = "Новая экспедиция";
+                    _buttonLabel.text = HasAssembled() ? "Лагерь" : "Новая экспедиция";
                     break;
             }
 
@@ -230,7 +239,7 @@ namespace Burmalda.DebugVisuals
         private static void SetPedestal(RawImage image, Text label, PedestalState state)
         {
             var rarity = state.Item != null ? state.Item.Rarity : RelicRarity.Rare;
-            image.texture = CampArtPainter.SilhouetteTexture(state.Kind, state.Lit, state.Total, rarity, state.PityGlow);
+            image.texture = CampArtPainter.SilhouetteTexture(state.Kind, state.Lit, state.Total, rarity, state.PityGlow, state.Level > 0 ? state.Level : 1);
             label.text = state.Item != null ? $"{state.Lit}/{state.Total}" : "";
         }
 
@@ -250,7 +259,8 @@ namespace Burmalda.DebugVisuals
             {
                 _flow.Reset();
                 _panel.SetActive(false);
-                if (_input != null) _input.Restart();
+                if (HasAssembled()) CampScreen.Open(_campController, StartRun); // собранные Идол/Тотем: выбрать и прокачать
+                else StartRun();
                 return;
             }
 

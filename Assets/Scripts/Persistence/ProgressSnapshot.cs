@@ -38,6 +38,8 @@ namespace Burmalda.Persistence
                 firstPartGranted = camp.Progress.FirstPartGranted,
                 activeIdolId = camp.Progress.ActiveIdolId ?? "",
                 activeTotemId = camp.Progress.ActiveTotemId ?? "",
+                itemLevelIds = camp.Progress.Levels.Keys.ToList(),
+                itemLevels = camp.Progress.Levels.Values.ToList(),
             };
 
         // Значение перечисления из параллельного списка; нет записи или значение вне диапазона — по умолчанию.
@@ -69,6 +71,9 @@ namespace Burmalda.Persistence
             }
 
             camp.Progress.FirstPartGranted = data.firstPartGranted;
+            if (data.itemLevelIds != null && data.itemLevels != null)
+                for (var i = 0; i < data.itemLevelIds.Count && i < data.itemLevels.Count; i++)
+                    camp.Progress.SetLevel(data.itemLevelIds[i], data.itemLevels[i]);
             camp.Progress.RestoreActive(data.activeIdolId, data.activeTotemId);
         }
     }

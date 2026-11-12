@@ -43,6 +43,9 @@ namespace Burmalda.Camp
         /// <summary>Саркофаги, несомые в текущем забеге (PRD v10 §15.1) — для HUD и ускорения распада.</summary>
         public RunSarcophagi Carried => _carried;
 
+        /// <summary>Баланс постоянных Монет (для экрана Лагеря).</summary>
+        public int Coins => _currency != null && _currency.Coins != null ? _currency.Coins.Balance : 0;
+
         /// <summary>Система эвакуации текущего забега — для выбора «Вернуться в Лагерь» на Алтаре.</summary>
         public EvacuationSystem Evacuation => _evacuation;
 

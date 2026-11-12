@@ -46,7 +46,7 @@ namespace Burmalda.DebugVisuals
         /// Силуэт Идола (статуэтка) или Тотема (столб) с <paramref name="total"/> кусками по кругу; зажжено <paramref name="lit"/>
         /// (цвет редкости). Тёмная часть горит ярче при накопленной защите (<paramref name="pityGlow"/> 0..1, [ГД]).
         /// </summary>
-        public static Color32[] PaintSilhouette(CollectibleKind kind, int lit, int total, Color rarity, float pityGlow, int size = Size)
+        public static Color32[] PaintSilhouette(CollectibleKind kind, int lit, int total, Color rarity, float pityGlow, int size = Size, int level = 1)
         {
             var pixels = new Color32[size * size];
             var aa = 2f / size;
@@ -57,6 +57,20 @@ namespace Burmalda.DebugVisuals
                     var p = new Vector2((x + 0.5f) / size * 2f - 1f, (y + 0.5f) / size * 2f - 1f);
                     var d = kind == CollectibleKind.Idol ? IdolShape(p) : TotemShape(p);
                     var c = new Color(0, 0, 0, 0);
+                    // Уровень виден на постаменте: ур. 2 — ореол цвета редкости, ур. 3 — ярче ореол, лучи и светлый «металл».
+                    if (level >= 2)
+                    {
+                        var halo = Mathf.Clamp01(1f - Mathf.Max(0f, d) / (level >= 3 ? 0.42f : 0.26f));
+                        c = Over(c, new Color(rarity.r, rarity.g, rarity.b, 1f), halo * halo * (level >= 3 ? 0.75f : 0.5f));
+                    }
+
+                    if (level >= 3)
+                    {
+                        var ang = Mathf.Atan2(p.y, p.x);
+                        var ray = Mathf.Pow(Mathf.Abs(Mathf.Cos(ang * 6f)), 24f) * Mathf.Clamp01(1.15f - p.magnitude);
+                        c = Over(c, Color.Lerp(rarity, Color.white, 0.5f), ray * 0.35f * (d > 0f ? 1f : 0f)); // лучи вне фигуры
+                    }
+
                     var color = dark;
                     if (total > 0)
                     {
@@ -67,8 +81,9 @@ namespace Burmalda.DebugVisuals
                         if (edge < 0.012f && p.magnitude > 0.02f) color = Color.Lerp(color, new Color(0.04f, 0.04f, 0.05f), 0.85f); // щели между кусками
                     }
 
+                    if (level >= 3 && total > 0 && color != dark) color = Color.Lerp(color, Color.white, 0.25f + 0.2f * (p.y + 1f) / 2f); // светлый металл
                     c = Over(c, color, Cov(d, aa));
-                    c = Over(c, Color.Lerp(color, Color.white, 0.25f), Cov(Mathf.Abs(d + 0.025f) - 0.015f, aa) * 0.6f);
+                    c = Over(c, Color.Lerp(color, Color.white, 0.25f), Cov(Mathf.Abs(d + 0.025f) - 0.015f, aa) * (level >= 2 ? 0.9f : 0.6f));
                     pixels[y * size + x] = c;
                 }
 
@@ -112,8 +127,8 @@ namespace Burmalda.DebugVisuals
         public static Texture2D SarcophagusTexture(Color glow) =>
             Texture($"sarc-{glow.r:F2}-{glow.g:F2}-{glow.b:F2}-{glow.a:F2}", () => PaintSarcophagus(glow));
 
-        public static Texture2D SilhouetteTexture(CollectibleKind kind, int lit, int total, RelicRarity rarity, float pityGlow) =>
-            Texture($"sil-{kind}-{lit}-{total}-{rarity}-{Mathf.RoundToInt(pityGlow * 10)}", () => PaintSilhouette(kind, lit, total, RarityGlow(rarity), pityGlow));
+        public static Texture2D SilhouetteTexture(CollectibleKind kind, int lit, int total, RelicRarity rarity, float pityGlow, int level = 1) =>
+            Texture($"sil-{kind}-{lit}-{total}-{rarity}-{Mathf.RoundToInt(pityGlow * 10)}-L{level}", () => PaintSilhouette(kind, lit, total, RarityGlow(rarity), pityGlow, Size, level));
 
         public static Texture2D GlowTexture() => Texture("glow", () => PaintGlow(128), 128);
 

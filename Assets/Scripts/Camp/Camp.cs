@@ -47,6 +47,23 @@ namespace Burmalda.Camp
         /// <summary>Игрок выбрал, в какой предмет уходит часть.</summary>
         public event Action<CollectibleItem> PartChosen;
 
+        /// <summary>
+        /// Прокачка собранного Идола/Тотема за Монеты (PRD v10 §22.4): L1 → L2 → L3, цена по редкости (<see cref="CampUpgrades"/>).
+        /// False — предмет не собран, уже на максимуме или Монет не хватило (ничего не списывается).
+        /// </summary>
+        public bool TryUpgrade(string itemId)
+        {
+            if (!CollectibleCatalog.TryGet(itemId, out var item)) return false;
+            var level = Progress.LevelOf(itemId);
+            if (level < 1 || level >= CollectionProgress.MaxLevel) return false;
+            if (!_coins.Spend(CampUpgrades.PriceFor(item, level))) return false;
+            Progress.SetLevel(itemId, level + 1);
+            return true;
+        }
+
+        /// <summary>Ставит собранный предмет в слот Идола/Тотема (§17).</summary>
+        public bool Equip(string itemId) => Progress.TrySelect(itemId);
+
         /// <summary>Привезённые, но ещё не открытые Саркофаги — от менее ярких к более ярким (PRD v10 §22.3).</summary>
         public IReadOnlyList<Sarcophagus> UnopenedSarcophagi => _unopened;
 
