@@ -1,3 +1,4 @@
+using Burmalda.Core;
 using Burmalda.Movement;
 using UnityEngine;
 
@@ -51,7 +52,7 @@ namespace Burmalda.Decay
                 RebuildDecay();
             }
 
-            _decay.Tick(Time.deltaTime);
+            _decay.Tick(Time.deltaTime * RunEffects.Current.ThreatTimeScale); // Идол «Время»: распад медленнее / стоит
         }
 
         private void HandleRunStarted() => RebuildDecay();

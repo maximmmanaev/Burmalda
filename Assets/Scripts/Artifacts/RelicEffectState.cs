@@ -59,6 +59,14 @@ namespace Burmalda.Artifacts
 
         public float WallCloseSlowdown => Has(BereskovyAmulet) ? WallSlowdownValue : 1f;
 
+        public float ThreatTimeScale => 1f;
+
+        public float CollapseSpeedMultiplier => 1f;
+
+        public float SourceManaMultiplier => 1f;
+
+        public float VeinManaMultiplier => 1f;
+
         public float ManaMultiplier => Has(BlackGoldTalisman) ? ManaMultiplierValue : 1f;
 
         public float StreakBonusMultiplier => Has(LeshyTalisman) ? StreakBonusMultiplierValue : 1f;

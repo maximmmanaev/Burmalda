@@ -99,7 +99,7 @@ namespace Burmalda.Sanctuary
         {
             if (!IsActive) return;
             if (RunEffects.Current.CollapseHeld) return; // Ночь Чернобога: обрушение стоит
-            Collapse.Tick(deltaSeconds, IsSarcophagusTaken ? SarcophagusCollapseMultiplier : 1f);
+            Collapse.Tick(deltaSeconds, (IsSarcophagusTaken ? SarcophagusCollapseMultiplier : 1f) * RunEffects.Current.CollapseSpeedMultiplier); // Тотем «Амик» ур. 3
         }
 
         /// <summary>Последний ряд, который уже обрушен (не дальше <c>ExitRow-1</c>).</summary>

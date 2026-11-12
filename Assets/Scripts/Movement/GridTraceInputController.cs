@@ -190,6 +190,30 @@ namespace Burmalda.Movement
         /// </summary>
         public event Action RunConfirmed;
 
+        /// <summary>Двойной тап по плите игрока (PRD v10 §7.2 п.5) — активация Идола.</summary>
+        public event Action DoubleTapOwnTile;
+
+        /// <summary>
+        /// Режим выбора цели Идола (Рывок, Пробой, Переход): следующее обычное прицеливание и отпускание не делает шаг, а
+        /// выбирает цель — любую плиту, не только соседнюю. Выставляет игровая логика.
+        /// </summary>
+        public bool TargetingMode { get; set; }
+
+        /// <summary>Плита, на которую сейчас целится игрок в режиме выбора цели.</summary>
+        public GridCoordinate? TargetAim { get; private set; }
+
+        /// <summary>Игрок отпустил палец на плите в режиме выбора цели.</summary>
+        public event Action<GridCoordinate> TargetReleased;
+
+        /// <summary>
+        /// Нажатие в этой точке экрана принадлежит UI (иконки Рун и т.п.) — тайловый ввод его игнорирует. Выставляет
+        /// слой интерфейса; по умолчанию null (UI не блокирует).
+        /// </summary>
+        public static Func<Vector2, bool> PointerBlocker;
+
+        private readonly DoubleTapDetector _doubleTap = new DoubleTapDetector();
+        private bool _pressBlocked;
+
         private void Awake()
         {
             if (_camera == null) _camera = Camera.main;
@@ -305,21 +329,46 @@ namespace Burmalda.Movement
             // что) — актуально и для растянутого на много кадров жеста, и
             // для тапа, целиком уместившегося в один кадр (pressStartedThisFrame
             // и releasedThisFrame оба true одновременно).
+            if (pressStartedThisFrame) _pressBlocked = PointerBlocker != null && PointerBlocker(screenPosition);
+            if (_pressBlocked)
+            {
+                if (releasedThisFrame) _pressBlocked = false;
+                return; // нажатие на UI (иконка Руны) — не двигаем и не прицеливаемся
+            }
+
             if (pressStartedThisFrame || pressedNow)
+            {
+                _pressStartedThisFrame = pressStartedThisFrame;
                 HandlePointerPressed(screenPosition);
+            }
 
             if (releasedThisFrame)
                 HandlePointerReleased();
         }
 
+        private bool _pressStartedThisFrame;
+
         private void HandlePointerPressed(Vector2 screenPosition)
         {
+            var pressStarted = _pressStartedThisFrame;
             if (_camera == null) return;
 
             var target = ResolveTappedTile(_camera, screenPosition);
 
+            if (TargetingMode)
+            {
+                // Выбор цели Идола: любая видимая плита; двойной тап по своей плите отменяет режим (обрабатывает логика Идола).
+                TargetAim = target;
+                PreviewTarget = null;
+                ExamineTarget = null;
+                if (target.HasValue && target.Value == _trail.CurrentPosition && pressStarted && _doubleTap.Register(Time.unscaledTime))
+                    DoubleTapOwnTile?.Invoke();
+                return;
+            }
+
             if (target.HasValue && target.Value == _trail.CurrentPosition)
             {
+                if (pressStarted && _doubleTap.Register(Time.unscaledTime)) DoubleTapOwnTile?.Invoke();
                 RunConfirmed?.Invoke();
                 PreviewTarget = null;
                 ExamineTarget = null;
@@ -333,6 +382,16 @@ namespace Burmalda.Movement
 
         private void HandlePointerReleased()
         {
+            if (TargetingMode)
+            {
+                var aim = TargetAim;
+                TargetAim = null;
+                PreviewTarget = null;
+                ExamineTarget = null;
+                if (aim.HasValue && aim.Value != _trail.CurrentPosition) TargetReleased?.Invoke(aim.Value); // вместо шага
+                return;
+            }
+
             if (PreviewTarget.HasValue)
             {
                 var committed = _trail.TryAdvanceTo(PreviewTarget.Value);

@@ -116,7 +116,7 @@ namespace Burmalda.Sanctuary
             switch (tile.SanctuaryTile)
             {
                 case SanctuaryTileKind.Vein:
-                    ActiveSanctuary.CollectVein(VeinBaseAmount);
+                    ActiveSanctuary.CollectVein((int)System.Math.Round(VeinBaseAmount * RunEffects.Current.VeinManaMultiplier)); // Тотем «Ваагош» ур. 2
                     break;
                 case SanctuaryTileKind.Resonance:
                     ActiveSanctuary.CollectResonance();

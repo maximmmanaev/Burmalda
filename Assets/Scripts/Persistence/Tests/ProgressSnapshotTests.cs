@@ -216,5 +216,21 @@ namespace Burmalda.Persistence.Tests
             Assert.AreEqual(4, f.Camp.Progress.PartsOf("idol-rush"), "Редкий — максимум 4 части");
             Assert.AreEqual(0, f.Camp.Progress.PartsOf("no-such-item"));
         }
+
+        [Test]
+        public void RoundTrip_ActiveIdolAndTotem()
+        {
+            var f = new Fixture();
+            f.Camp.Progress.SetParts("idol-time", 5);
+            f.Camp.Progress.SetParts("totem-maang", 4);
+            f.Camp.Progress.TrySelect("idol-time");
+            f.Camp.Progress.TrySelect("totem-maang");
+
+            var restored = new Fixture();
+            restored.Apply(SaveFormat.Deserialize(SaveFormat.Serialize(f.Capture(), 1)).Data);
+
+            Assert.AreEqual("idol-time", restored.Camp.Progress.ActiveIdolId);
+            Assert.AreEqual("totem-maang", restored.Camp.Progress.ActiveTotemId);
+        }
     }
 }

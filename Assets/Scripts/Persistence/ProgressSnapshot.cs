@@ -36,6 +36,8 @@ namespace Burmalda.Persistence
                 partMisses = Enumerable.Range(0, 3).Select(i => camp.Progress.PartMisses((RelicRarity)i)).ToList(),
                 relicMisses = Enumerable.Range(0, 3).Select(i => camp.Progress.RelicMisses((RelicRarity)i)).ToList(),
                 firstPartGranted = camp.Progress.FirstPartGranted,
+                activeIdolId = camp.Progress.ActiveIdolId ?? "",
+                activeTotemId = camp.Progress.ActiveTotemId ?? "",
             };
 
         // Значение перечисления из параллельного списка; нет записи или значение вне диапазона — по умолчанию.
@@ -67,6 +69,7 @@ namespace Burmalda.Persistence
             }
 
             camp.Progress.FirstPartGranted = data.firstPartGranted;
+            camp.Progress.RestoreActive(data.activeIdolId, data.activeTotemId);
         }
     }
 }

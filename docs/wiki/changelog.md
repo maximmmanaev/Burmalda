@@ -1848,3 +1848,11 @@ workflow не менялись, код игры не менялся.
 ## 2026-10-29 — Спринт v10-5, задача 1: удаление прежней модели Идол/Тотем
 
 - Удалены `Idol` (пассив, 2 слота), `Totem` + `TotemAbilityType` (Dash/Breach/Invulnerability/SecondWind), `TotemCatalog`, `TotemChargeSystem`, `TotemAbilityActivationSystem`, `IdolLoadout`, `SecondWindCharge` (Second Wind обходил бы платный Бросок Судьбы), базовый `Artifact`, прежние `Relic`/`Rune`, `Camp.TryUpgradeIdolPassiveA/B`/`TryUpgradeTotem`/`OpenRelic` и их тесты (`CampTests`, `SecondWindChargeTests`, …). `ArtifactCategory` — только Амулет/Талисман/Руна. Каталог Идолов/Тотемов — `CollectibleCatalog` (спринт v10-4).
+
+## 2026-10-29 — Спринт v10-5, задача 2: слот Идола, заряд и активация
+
+- Слоты 1 Идол + 1 Тотем (`CollectionProgress.ActiveIdolId/ActiveTotemId`, `TrySelect` — только собранные; пустой слот сам занимает собранный предмет высшей редкости; «голый» старт, пока нечего ставить). Сохраняются.
+- Заряд (`Currencies.IdolChargeSystem`): каждая плита серии заполняет шкалу (12 плит, [CONFIG, черновик]), полная — одно применение, обрыв серии заряд не сбрасывает, без Идола не копится.
+- Активация (`Artifacts.IdolRunSystem`, `Bootstrap.IdolController`): двойной тап по своей плите (`GridTraceInputController.DoubleTapOwnTile`, окно 0.35 с). Не заряжен — ничего. Рывок/Пробой/Переход входят в режим выбора цели (`TargetingMode`: следующее прицеливание и отпускание выбирают цель вместо шага, цель — любая плита), Щит/Время срабатывают сразу; двойной тап в режиме цели отменяет его. Нажатие на иконку Руны игнорируется тайловым вводом (`PointerBlocker`).
+- Слои эффектов (`Core.RunEffects.SetLayer`, `CompositeRunEffects`): Реликвии, Идол (`IdolEffects`: щит, неуязвимость, замедление/остановка времени, подавление ловушек), позже Тотем. Новые параметры: `ThreatTimeScale` (ловушки и распад), `CollapseSpeedMultiplier`, `SourceManaMultiplier`, `VeinManaMultiplier`.
+- HUD (`IdolHudOverlay`): силуэт Идола и шкала заряда у левого края, подсказка «Выбери цель». Способности Идолов — задача 3 (пока пустой реестр).

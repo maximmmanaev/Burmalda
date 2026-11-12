@@ -25,6 +25,18 @@ namespace Burmalda.Core
         /// <summary>Во сколько раз больше времени уйти с Медвежьего капкана (Тень Чернобога ×2). Капкана в игре пока нет — крючок.</summary>
         float BearTrapEscapeMultiplier { get; }
 
+        /// <summary>Скорость времени ловушек и распада: 1 — обычная, 0.5 — Идол «Время», 0 — полная остановка (игрок ходит).</summary>
+        float ThreatTimeScale { get; }
+
+        /// <summary>Скорость обрушения рядов Святилища (Тотем «Амик», ур. 3: меньше 1 — медленнее).</summary>
+        float CollapseSpeedMultiplier { get; }
+
+        /// <summary>Множитель Маны плит-источников (Тотем «Ваагош», ур. 1).</summary>
+        float SourceManaMultiplier { get; }
+
+        /// <summary>Множитель Маны Жил Святилища (Тотем «Ваагош», ур. 2).</summary>
+        float VeinManaMultiplier { get; }
+
         /// <summary>Шаги активируют ловушки; false, пока действует Морок.</summary>
         bool StepsActivateTraps { get; }
 
@@ -41,12 +53,20 @@ namespace Burmalda.Core
         bool TryAbsorbHit(ThreatType threat);
     }
 
-    /// <summary>Нейтральные эффекты — нет ни одной Реликвии.</summary>
+    /// <summary>Нейтральные эффекты — нет ни одной Реликвии, Идола и Тотема.</summary>
     public sealed class NeutralRunEffects : IRunEffects
     {
         public const float BaseResonanceBonus = 0.5f;
 
         public float WallCloseSlowdown => 1f;
+
+        public float ThreatTimeScale => 1f;
+
+        public float CollapseSpeedMultiplier => 1f;
+
+        public float SourceManaMultiplier => 1f;
+
+        public float VeinManaMultiplier => 1f;
 
         public float ManaMultiplier => 1f;
 
@@ -71,6 +91,10 @@ namespace Burmalda.Core
     public sealed class ConfigurableRunEffects : IRunEffects
     {
         public float WallCloseSlowdown { get; set; } = 1f;
+        public float ThreatTimeScale { get; set; } = 1f;
+        public float CollapseSpeedMultiplier { get; set; } = 1f;
+        public float SourceManaMultiplier { get; set; } = 1f;
+        public float VeinManaMultiplier { get; set; } = 1f;
         public float ManaMultiplier { get; set; } = 1f;
         public float StreakBonusMultiplier { get; set; } = 1f;
         public float DecayRateMultiplier { get; set; } = 1f;
@@ -87,12 +111,108 @@ namespace Burmalda.Core
         public bool TryAbsorbHit(ThreatType threat) => Absorb(threat);
     }
 
-    /// <summary>Текущие эффекты Реликвий забега: подставляет <c>AltarController</c>, по умолчанию — нейтральные.</summary>
+    /// <summary>
+    /// Слои эффектов (Реликвии, Идол, Тотем): множители перемножаются, «шаги активируют ловушки» — все слои разрешают,
+    /// остановка обрушения — любой слой, бонус Маны складывается, поглощение попадания — первый слой, который поглотил.
+    /// </summary>
+    public sealed class CompositeRunEffects : IRunEffects
+    {
+        private readonly System.Collections.Generic.IReadOnlyList<IRunEffects> _layers;
+
+        public CompositeRunEffects(System.Collections.Generic.IReadOnlyList<IRunEffects> layers) => _layers = layers;
+
+        private float Product(System.Func<IRunEffects, float> f)
+        {
+            var v = 1f;
+            foreach (var l in _layers) v *= f(l);
+            return v;
+        }
+
+        public float WallCloseSlowdown => Product(l => l.WallCloseSlowdown);
+        public float ThreatTimeScale => Product(l => l.ThreatTimeScale);
+        public float CollapseSpeedMultiplier => Product(l => l.CollapseSpeedMultiplier);
+        public float SourceManaMultiplier => Product(l => l.SourceManaMultiplier);
+        public float VeinManaMultiplier => Product(l => l.VeinManaMultiplier);
+        public float ManaMultiplier => Product(l => l.ManaMultiplier);
+        public float StreakBonusMultiplier => Product(l => l.StreakBonusMultiplier);
+        public float DecayRateMultiplier => Product(l => l.DecayRateMultiplier);
+        public float BearTrapEscapeMultiplier => Product(l => l.BearTrapEscapeMultiplier);
+
+        public float ResonanceBonus
+        {
+            get
+            {
+                var best = NeutralRunEffects.BaseResonanceBonus;
+                foreach (var l in _layers) best = System.Math.Max(best, l.ResonanceBonus);
+                return best;
+            }
+        }
+
+        public bool StepsActivateTraps
+        {
+            get
+            {
+                foreach (var l in _layers) if (!l.StepsActivateTraps) return false;
+                return true;
+            }
+        }
+
+        public bool CollapseHeld
+        {
+            get
+            {
+                foreach (var l in _layers) if (l.CollapseHeld) return true;
+                return false;
+            }
+        }
+
+        public int BonusManaForStep(int stepNumber)
+        {
+            var sum = 0;
+            foreach (var l in _layers) sum += l.BonusManaForStep(stepNumber);
+            return sum;
+        }
+
+        public bool TryAbsorbHit(ThreatType threat)
+        {
+            foreach (var l in _layers) if (l.TryAbsorbHit(threat)) return true;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Текущие эффекты забега. Слои задают Алтарь (Реликвии), Идол и Тотем через <see cref="SetLayer"/>; по умолчанию —
+    /// нейтральные. Присвоение <see cref="Current"/> заменяет все слои одним (удобно тестам).
+    /// </summary>
     public static class RunEffects
     {
         public static readonly IRunEffects Neutral = new NeutralRunEffects();
 
-        public static IRunEffects Current { get; set; } = Neutral;
+        private static readonly System.Collections.Generic.Dictionary<string, IRunEffects> Layers = new System.Collections.Generic.Dictionary<string, IRunEffects>();
+        private static IRunEffects _current = Neutral;
+
+        public static IRunEffects Current
+        {
+            get => _current;
+            set
+            {
+                Layers.Clear();
+                _current = value ?? Neutral;
+            }
+        }
+
+        /// <summary>Подставляет слой эффектов (null — убирает). Порядок слоёв — порядок первой установки.</summary>
+        public static void SetLayer(string key, IRunEffects layer)
+        {
+            if (layer == null) Layers.Remove(key);
+            else Layers[key] = layer;
+            Rebuild();
+        }
+
+        public static bool HasLayer(string key, IRunEffects layer) => Layers.TryGetValue(key, out var l) && ReferenceEquals(l, layer);
+
+        private static void Rebuild() =>
+            _current = Layers.Count == 0 ? Neutral : new CompositeRunEffects(new System.Collections.Generic.List<IRunEffects>(Layers.Values));
 
         /// <summary>Базовое время ухода с Медвежьего капкана, с [CONFIG: PRD §8.2 № 9 — 1.5 с].</summary>
         public const float BearTrapBaseEscapeSeconds = 1.5f;

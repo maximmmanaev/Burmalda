@@ -102,7 +102,7 @@ namespace Burmalda.Altar
 
             Build = new RunRelicBuild();
             Effects = new RelicEffectState(() => Build, () => Time.time, () => Context != null ? Context.CurrentYarus : 1);
-            RunEffects.Current = Effects;
+            RunEffects.SetLayer("relics", Effects);
             ActiveSession = null;
             _vaultBonus = new VaultBonusTracker(_input.Grid, _input.Trail);
             _pickFlow = new AltarPickFlow(Pool, Build, _vaultBonus, new ContextProxy(this));
@@ -173,7 +173,7 @@ namespace Burmalda.Altar
             if (_afishaTrail != null) _afishaTrail.Advanced -= OnTrailAdvanced;
             _afishaTrail = null;
             ActiveAfisha = null;
-            if (Effects != null && ReferenceEquals(RunEffects.Current, Effects)) RunEffects.Current = RunEffects.Neutral;
+            if (Effects != null && RunEffects.HasLayer("relics", Effects)) RunEffects.SetLayer("relics", null);
             _altarTrigger.AltarReached -= OnAltarReached;
             _altarTrigger.Dispose();
             _altarTrigger = null;
