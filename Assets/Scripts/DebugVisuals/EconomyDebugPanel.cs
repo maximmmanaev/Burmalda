@@ -139,7 +139,7 @@ namespace Burmalda.DebugVisuals
             rect.anchorMin = new Vector2(1f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(1f, 1f);
-            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 7f + Margin * 2f);
+            rect.sizeDelta = new Vector2(PanelWidth, RowHeight * 9f + Margin * 2f);
             rect.anchoredPosition = new Vector2(-Margin, -(TopOffset + ToggleButtonSize + Margin));
 
             BuildRow(_panelRoot.transform, 0,
@@ -177,6 +177,17 @@ namespace Burmalda.DebugVisuals
                 "Чёрное золото: распад", 1f, 2f, RelicEffectState.DecayRateValue,
                 v => RelicEffectState.DecayRateValue = v,
                 v => "×" + v.ToString("0.00"));
+
+            // Диапазоны нелинейной конвертации Маны в Монеты (§26.1) [CONFIG]: размер первого и доля второго.
+            BuildRow(_panelRoot.transform, 7,
+                "Диапазон 1, Мана", 200f, 3000f, ManaConversion.BracketLimits[0],
+                v => ManaConversion.BracketLimits[0] = Mathf.RoundToInt(v),
+                v => Mathf.RoundToInt(v).ToString());
+
+            BuildRow(_panelRoot.transform, 8,
+                "Диапазон 2, доля", 0.2f, 1f, ManaConversion.Efficiency[1],
+                v => ManaConversion.Efficiency[1] = v,
+                v => Mathf.RoundToInt(v * 100f) + "%");
         }
 
         /// <summary>Строка "подпись + слайдер + текущее значение" — та же разметка, что CameraAnchorDebugPanel.BuildRow.</summary>

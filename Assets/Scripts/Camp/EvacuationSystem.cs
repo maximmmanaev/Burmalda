@@ -9,10 +9,14 @@ namespace Burmalda.Camp
     /// <summary>Результат конвертации добычи в Монеты при эвакуации.</summary>
     public readonly struct ReturnConversionResult
     {
-        public ReturnConversionResult(int manaCoins)
+        public ReturnConversionResult(int manaCoins, int mana = 0)
         {
             ManaCoins = manaCoins;
+            Mana = mana;
         }
+
+        /// <summary>Сколько Маны было конвертировано (для строки «Мана → Монеты» на экране возврата).</summary>
+        public int Mana { get; }
 
         public int ManaCoins { get; }
 
@@ -32,7 +36,7 @@ namespace Burmalda.Camp
     /// </summary>
     public sealed class EvacuationSystem
     {
-        /// <summary>Курс Мана→Монеты. ЧЕРНОВОЕ значение [CONFIG], дебаг-панель экономики.</summary>
+        /// <summary>Базовый курс Мана→Монеты (первый диапазон; дальше доля падает — <see cref="ManaConversion"/>). ЧЕРНОВОЕ значение [CONFIG], дебаг-панель экономики.</summary>
         public static float ManaToCoinsRate = 20f;
 
         private readonly TunnelGrid _grid;
@@ -75,8 +79,9 @@ namespace Burmalda.Camp
             if (!CanEvacuate) return false;
             HasEvacuated = true;
 
-            var manaCoins = (int)Math.Round(_runMana.Total / ManaToCoinsRate * _coinsOnReturnMultiplier);
-            var result = new ReturnConversionResult(manaCoins);
+            var mana = _runMana.Total;
+            var manaCoins = ManaConversion.CoinsFor(mana, ManaToCoinsRate, _coinsOnReturnMultiplier); // убывающие диапазоны (§26.1)
+            var result = new ReturnConversionResult(manaCoins, mana);
 
             _runMana.Clear();
             _coinWallet.Deposit(result.TotalCoins);
