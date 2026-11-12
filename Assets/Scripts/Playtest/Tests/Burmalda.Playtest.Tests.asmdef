@@ -1,0 +1,35 @@
+{
+    "name": "Burmalda.Playtest.Tests",
+    "rootNamespace": "Burmalda.Playtest.Tests",
+    "references": [
+        "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Generation",
+        "Burmalda.Camp",
+        "Burmalda.Altar",
+        "Burmalda.Decay",
+        "Burmalda.Currencies",
+        "Burmalda.Sanctuary",
+        "Burmalda.FateRoll",
+        "Burmalda.Artifacts",
+        "Burmalda.RunLifecycle",
+        "Burmalda.Playtest",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

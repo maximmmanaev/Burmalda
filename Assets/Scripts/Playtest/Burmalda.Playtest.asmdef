@@ -1,0 +1,29 @@
+{
+    "name": "Burmalda.Playtest",
+    "rootNamespace": "Burmalda.Playtest",
+    "references": [
+        "Burmalda.Core",
+        "Burmalda.Movement",
+        "Burmalda.Decay",
+        "Burmalda.Generation",
+        "Burmalda.Currencies",
+        "Burmalda.Artifacts",
+        "Burmalda.Altar",
+        "Burmalda.Camp",
+        "Burmalda.RunLifecycle",
+        "Burmalda.FateRoll",
+        "Burmalda.Sanctuary",
+        "Burmalda.Bootstrap"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
