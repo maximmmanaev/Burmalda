@@ -6,6 +6,7 @@
         "Burmalda.Movement",
         "Burmalda.Decay",
         "Burmalda.Artifacts",
+        "Burmalda.FateRoll",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

@@ -211,6 +211,14 @@ namespace Burmalda.Movement
         /// </summary>
         public static Func<Vector2, bool> PointerBlocker;
 
+        /// <summary>
+        /// Необычный ход на неприцеливаемую (несоседнюю) плиту вне режима цели — ход конём Тотема «Ваабижеши». Возвращает true,
+        /// если ход выполнен. По умолчанию null.
+        /// </summary>
+        public Func<GridCoordinate, bool> AlternativeMove { get; set; }
+
+        private GridCoordinate? _farAim;
+
         private readonly DoubleTapDetector _doubleTap = new DoubleTapDetector();
         private bool _pressBlocked;
 
@@ -375,6 +383,7 @@ namespace Burmalda.Movement
                 return;
             }
 
+            _farAim = target.HasValue && !_trail.CurrentPosition.IsAdjacentTo(target.Value) ? target : (GridCoordinate?)null;
             PreviewTarget = target.HasValue && _trail.CanAdvanceTo(target.Value) ? target : (GridCoordinate?)null;
             // ExamineTarget — только соседство, без CanAdvanceTo (см. её doc-комментарий).
             ExamineTarget = target.HasValue && _trail.CurrentPosition.IsAdjacentTo(target.Value) ? target : (GridCoordinate?)null;
@@ -391,6 +400,10 @@ namespace Burmalda.Movement
                 if (aim.HasValue && aim.Value != _trail.CurrentPosition) TargetReleased?.Invoke(aim.Value); // вместо шага
                 return;
             }
+
+            if (!PreviewTarget.HasValue && _farAim.HasValue && AlternativeMove != null && AlternativeMove(_farAim.Value))
+                _lockedUntilTime = Time.time + _stepDurationSeconds;
+            _farAim = null;
 
             if (PreviewTarget.HasValue)
             {
