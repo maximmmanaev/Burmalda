@@ -331,6 +331,21 @@ namespace Burmalda.Core
         public bool IsTrapTrigger =>
             ArrowWaveTargetRow.HasValue || BladeTactTargetRow.HasValue || MovingWallTargetRow.HasValue || IsBombTrigger || IsFallingRockTrigger;
 
+        /// <summary>Обезвреживает триггер ловушки на плите (Идол «Пробой», ур. 2). False, если триггера не было.</summary>
+        public bool DefuseTrapTrigger()
+        {
+            if (!IsTrapTrigger) return false;
+            ArrowWaveTargetRow = null;
+            ArrowWaveDirection = null;
+            IsBombTrigger = false;
+            BladeTactTargetRow = null;
+            IsFallingRockTrigger = false;
+            FallingRockTargetCoordinate = null;
+            MovingWallTargetRow = null;
+            MovingWallTriggerMode = null;
+            return true;
+        }
+
         /// <summary>Разбивает стену: плита становится проходимой (Руна «Удар Перуна»). False, если плита не стена.</summary>
         public bool BreakWall()
         {
